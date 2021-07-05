@@ -6,6 +6,7 @@ build:
 .PHONY: build-trace
 build-trace:
 	python setup.py build_ext --force --inplace --define CYTHON_TRACE
+	rm -f psygnal/*.c
 
 .PHONY: check
 check:

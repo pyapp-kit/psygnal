@@ -5,7 +5,7 @@ except ImportError:
     __version__ = "unknown"
 __author__ = "Talley Lambert"
 __email__ = "talley.lambert@gmail.com"
-__all__ = ["Signal", "SignalInstance", "_compiled"]
+__all__ = ["Signal", "SignalInstance", "_compiled", "__version__"]
 
 try:
     import cython
