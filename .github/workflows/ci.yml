@@ -28,17 +28,17 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[testing]
+
       - name: compile
         run: |
           make build-trace
           python -c "import sys, psygnal; print('compiled:', psygnal._compiled); sys.exit(0 if psygnal._compiled else 1)"
           ls -alh
           ls -alh psygnal/
-
-      - name: install
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[testing]
 
       - name: test
         run: pytest --cov=psygnal
