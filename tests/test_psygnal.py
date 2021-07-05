@@ -1,4 +1,5 @@
 import gc
+import time
 import weakref
 from types import FunctionType
 from typing import Optional
@@ -392,3 +393,26 @@ def test_unique_connections():
 
     e.one_int.connect(f_no_arg)
     assert len(e.one_int._slots) == 2
+
+
+def test_threaded():
+    e = Emitter()
+
+    a = []
+
+    def slow_append():
+        time.sleep(1)
+        a.append(0)
+
+    mock = MagicMock(side_effect=slow_append)
+
+    e.no_arg.connect(mock, unique=False)
+    thread = e.no_arg.emit(asynchronous=True)
+    mock.assert_called_once()
+
+    # dude, you have to wait.
+    with pytest.raises(IndexError):
+        assert a[0] == 0
+
+    thread.join()  # wait for slow thread
+    assert a[0] == 0

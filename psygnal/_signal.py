@@ -1,10 +1,10 @@
 __all__ = ["Signal", "SignalInstance"]
 
+import threading
 import warnings
 import weakref
 from contextlib import contextmanager
 from inspect import Parameter, Signature, ismethod, signature
-from threading import RLock
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -19,6 +19,8 @@ from typing import (
     cast,
     overload,
 )
+
+from typing_extensions import Literal
 
 CallbackType = Callable[..., None]
 MethodRef = Tuple["weakref.ReferenceType[object]", str]
@@ -223,7 +225,7 @@ class SignalInstance:
         self._name = name
         self._slots: List[StoredSlot] = []
         self._is_blocked: bool = False
-        self._lock = RLock()
+        self._lock = threading.RLock()
 
     @property
     def signature(self) -> Signature:
@@ -333,11 +335,13 @@ class SignalInstance:
         return slot
 
     def _slot_index(self, slot: NormedCallback) -> int:
-        normed = self._normalize_slot(slot)
-        for i, (s, m) in enumerate(self._slots):
-            if s == normed:
-                return i
-        return -1
+        """Get index of `slot` in `self._slots`.  Return -1 if not connected."""
+        with self._lock:
+            normed = self._normalize_slot(slot)
+            for i, (s, m) in enumerate(self._slots):
+                if s == normed:
+                    return i
+            return -1
 
     def disconnect(
         self, slot: Optional[NormedCallback] = None, missing_ok: bool = True
@@ -378,9 +382,34 @@ class SignalInstance:
         """Return number of connected slots."""
         return len(self._slots)
 
+    @overload
     def emit(
-        self, *args: Any, check_nargs: bool = False, check_types: bool = False
+        self,
+        *args: Any,
+        check_nargs: bool,
+        check_types: bool,
+        asynchronous: Literal[True],
+    ) -> Optional["EmitThread"]:
+        # will return `None` if emitter is blocked
+        ...
+
+    @overload
+    def emit(
+        self,
+        *args: Any,
+        check_nargs: bool,
+        check_types: bool,
+        asynchronous: Literal[False],
     ) -> None:
+        ...
+
+    def emit(
+        self,
+        *args: Any,
+        check_nargs: bool = False,
+        check_types: bool = False,
+        asynchronous: bool = False,
+    ) -> Optional["EmitThread"]:
         """Emit this signal with arguments `args`.
 
         NOTE:
@@ -399,6 +428,8 @@ class SignalInstance:
             If `False` and the provided arguments do not match the types declared by
             the signature of this Signal, raise `TypeError`.  Incurs some overhead.
             by default False.
+        asynchronous : bool, optional
+            If `True`, run signal emission in another thread. by default `False`.
 
         Raises
         ------
@@ -407,7 +438,7 @@ class SignalInstance:
             checks fail.
         """
         if self._is_blocked:
-            return
+            return None
 
         if check_nargs:
             try:
@@ -426,6 +457,16 @@ class SignalInstance:
                 f"{tuple(type(a).__name__ for a in args)} do not match signal "
                 f"signature: {self.signature}"
             )
+
+        if asynchronous:
+            sd = EmitThread(self, args)
+            sd.start()
+            return sd
+
+        self._run_emit_loop(args)
+        return None
+
+    def _run_emit_loop(self, args: Tuple[Any, ...]) -> None:
 
         rem: List[NormedCallback] = []
         # allow receiver to query sender with Signal.current_emitter()
@@ -451,6 +492,8 @@ class SignalInstance:
             for slot in rem:
                 self.disconnect(slot)
 
+        return None
+
     def block(self) -> None:
         """Block this signal from emitting."""
         self._is_blocked = True
@@ -467,6 +510,21 @@ class SignalInstance:
             yield
         finally:
             self.unblock()
+
+
+class EmitThread(threading.Thread):
+    """A thread to emit a signal asynchronously."""
+
+    def __init__(self, signal_instance: SignalInstance, args: Tuple[Any, ...]) -> None:
+        super().__init__(name=signal_instance.name)
+        self._signal_instance = signal_instance
+        self.args = args
+        # current = threading.currentThread()
+        # self.parent = (current.getName(), current.ident)
+
+    def run(self) -> None:
+        """Run thread."""
+        self._signal_instance._run_emit_loop(self.args)
 
 
 # ################################################################
