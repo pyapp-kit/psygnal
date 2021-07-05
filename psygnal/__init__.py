@@ -5,6 +5,16 @@ except ImportError:
     __version__ = "unknown"
 __author__ = "Talley Lambert"
 __email__ = "talley.lambert@gmail.com"
-__all__ = ["Signal", "SignalInstance"]
+__all__ = ["Signal", "SignalInstance", "_compiled"]
+
+try:
+    import cython
+except ImportError:
+    _compiled: bool = False
+else:  # pragma: no cover
+    try:
+        _compiled = cython.compiled
+    except AttributeError:
+        _compiled = False
 
 from ._signal import Signal, SignalInstance

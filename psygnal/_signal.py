@@ -9,6 +9,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Dict,
     Iterator,
     List,
     NoReturn,
@@ -65,7 +66,7 @@ class Signal:
     if TYPE_CHECKING:
         # callback signature for this signal
         _signature: Signature
-        _signal_instances: dict[
+        _signal_instances: Dict[
             "Signal", weakref.WeakKeyDictionary[Any, "SignalInstance"]
         ]
 
