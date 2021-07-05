@@ -80,6 +80,17 @@ def test_basic_signal():
     mock.assert_called_once_with(1)
 
 
+def test_decorator():
+    emitter = Emitter()
+
+    @emitter.one_int.connect
+    def boom(v: int):
+        raise ValueError
+
+    with pytest.raises(ValueError):
+        emitter.one_int.emit(1)
+
+
 def test_misc():
     emitter = Emitter()
     assert isinstance(Emitter.one_int, Signal)
