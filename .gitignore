@@ -5,6 +5,7 @@ __pycache__/
 
 # C extensions
 *.so
+*.c
 
 # Distribution / packaging
 .Python
@@ -104,4 +105,5 @@ ENV/
 # IDE settings
 .vscode/
 _version.py
+
 psygnal/_version.py
