@@ -18,6 +18,16 @@ pip install psygnal
 
 ### basic usage
 
+If you are familiar with the Qt Signals & Slots API as implemented in PySide and
+PyQt5, then you should be good to go!  `psygnal` aims to be a superset of those
+APIs  (some functions do accept additional arguments, like
+[`check_nargs`](#connection-safety-number-of-arguments) and
+[`check_types`](#connection-safety-types)).
+
+<small><em>
+Note, the name `Signal` is used here instead of `pyqtSignal`, following the
+`qtpy` and `PySide` convention.
+</em></small>
 ```py
 from psygnal import Signal
 
