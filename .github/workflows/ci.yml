@@ -31,7 +31,7 @@ jobs:
       - name: install
         run: |
           python -m pip install -U wheel pip
-          SKIP_CYTHON=1 pip install -e .[testing]
+          SKIP_CYTHON=1 pip install -e .[testing, build]
 
       - name: compile
         run: |
@@ -46,7 +46,7 @@ jobs:
       - name: remove compiled binaries
         run: |
           pip uninstall -y cython
-          rm -r psygnal/*.so psygnal/*.c psygnal/__pycache__
+          rm -rf psygnal/*.so psygnal/*.c psygnal/__pycache__
           ls -alh
           ls -alh psygnal/
 
