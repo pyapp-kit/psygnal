@@ -103,3 +103,5 @@ ENV/
 
 # IDE settings
 .vscode/
+_version.py
+psygnal/_version.py
