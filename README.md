@@ -43,8 +43,8 @@ class MyObj:
     def set_value(self, value):
         if value != self._value:
             self._value = str(value)
-        # emit the signal
-        self.value_changed.emit(self._value)
+            # emit the signal
+            self.value_changed.emit(self._value)
 
 def on_value_changed(new_value):
     print(f"The new value is {new_value!r}")
