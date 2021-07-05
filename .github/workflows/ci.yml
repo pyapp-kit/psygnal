@@ -87,8 +87,8 @@ jobs:
 
   build:
     name: build py3.${{ matrix.python-version }} on ${{ matrix.platform || matrix.os }}
-    # needs: [test-linux, test-windows-mac]
-    # if: "success() && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/master')"
+    needs: [test-linux, test-windows-mac]
+    if: "success() && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/master')"
     strategy:
       fail-fast: false
       matrix:
@@ -145,7 +145,7 @@ jobs:
   deploy:
     name: Deploy
     needs: build
-    # if: "success() && startsWith(github.ref, 'refs/tags/')"
+    if: "success() && startsWith(github.ref, 'refs/tags/')"
     runs-on: ubuntu-latest
 
     steps:
@@ -169,8 +169,9 @@ jobs:
         run: |
           twine check dist/*
           ls -lh dist
-      # - name: upload to pypi
-      #   run: twine upload dist/*
-      #   env:
-      #     TWINE_USERNAME: __token__
-      #     TWINE_PASSWORD: ${{ secrets.pypi_token }}
+
+      - name: upload to pypi
+        run: twine upload dist/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.pypi_token }}
