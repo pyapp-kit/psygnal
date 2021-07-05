@@ -395,24 +395,27 @@ def test_unique_connections():
     assert len(e.one_int._slots) == 2
 
 
-def test_threaded():
+def test_asynchronous_emit():
     e = Emitter()
-
     a = []
 
-    def slow_append():
-        time.sleep(1)
-        a.append(0)
+    def slow_append(arg: int):
+        time.sleep(0.1)
+        a.append(arg)
 
-    mock = MagicMock(side_effect=slow_append)
-
+    mock = MagicMock(wraps=slow_append)
     e.no_arg.connect(mock, unique=False)
-    thread = e.no_arg.emit(asynchronous=True)
+
+    assert not Signal.current_emitter()
+    value = 42
+    thread = e.no_arg.emit(value, asynchronous=True)
     mock.assert_called_once()
+    assert Signal.current_emitter() is e.no_arg
 
     # dude, you have to wait.
-    with pytest.raises(IndexError):
-        assert a[0] == 0
+    assert not a
 
-    thread.join()  # wait for slow thread
-    assert a[0] == 0
+    if thread:
+        thread.join()
+    assert a == [value]
+    assert not Signal.current_emitter()
