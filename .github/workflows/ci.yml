@@ -31,7 +31,9 @@ jobs:
       - name: install
         run: |
           python -m pip install -U wheel pip
-          SKIP_CYTHON=1 pip install -e .[testing, build]
+          pip install -e .[testing, build]
+        env:
+          SKIP_CYTHON: 1
 
       - name: compile
         run: |
