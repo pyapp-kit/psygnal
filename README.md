@@ -10,17 +10,20 @@ Pure python implementation of Qt-style Signals, with (optional) signature and ty
 
 ## Usage
 
-### install
+### Install
 
 ```sh
 pip install psygnal
 ```
 
-### basic usage
+### Basic usage
 
-If you are familiar with the Qt Signals & Slots API as implemented in PySide and
-PyQt5, then you should be good to go!  `psygnal` aims to be a superset of those
-APIs  (some functions do accept additional arguments, like
+If you are familiar with the Qt [Signals &
+Slots](https://doc.qt.io/qt-5/signalsandslots.html) API as implemented in
+[PySide](https://wiki.qt.io/Qt_for_Python_Signals_and_Slots) and
+[PyQt5](https://www.riverbankcomputing.com/static/Docs/PyQt5/signals_slots.html),
+then you should be good to go!  `psygnal` aims to be a superset of those APIs
+(some functions do accept additional arguments, like
 [`check_nargs`](#connection-safety-number-of-arguments) and
 [`check_types`](#connection-safety-types)).
 
@@ -28,6 +31,7 @@ APIs  (some functions do accept additional arguments, like
 Note, the name `Signal` is used here instead of `pyqtSignal`, following the
 `qtpy` and `PySide` convention.
 </em></small>
+
 ```py
 from psygnal import Signal
 
@@ -62,7 +66,7 @@ obj.set_value('hello!')  # prints: 'The new value is 'hello!'
 obj.value_changed.disconnect(on_value_changed)
 ```
 
-### as a decorator
+### `connect` as a decorator
 
 `.connect()` returns the object that it is passed, and so
 can be used as a decorator.
@@ -77,11 +81,12 @@ obj.set_value('world!')
 # I also received: 'world!'
 ```
 
-### connection safety (number of arguments)
+### Connection safety (number of arguments)
 
 `psygnal` prevents you from connecting a callback function that is ***guaranteed
 to fail*** due to an incompatible number of positional arguments.  For example,
-the following callback has too many arguments for our Signal (which we declared above as emitting a single argument: `Signal(str)`)
+the following callback has too many arguments for our Signal (which we declared
+above as emitting a single argument: `Signal(str)`)
 
 ```py
 def i_require_two_arguments(first, second):
@@ -100,11 +105,11 @@ Accepted signature: (p0: str, /)
 ```
 
 <small><em>
-Note: Positional argument checking can be disabled with <code>connect(...,
-check_nargs=False)</code>
+Note: Positional argument checking can be disabled with `connect(...,
+check_nargs=False)`
 </em></small>
 
-#### extra positional arguments ignored
+#### Extra positional arguments ignored
 
 While a callback may not require *more* positional arguments than the signature
 of the `Signal` to which it is connecting, it *may* accept less.  Extra
@@ -114,9 +119,10 @@ isn't necessary to create a `lambda` to swallow unnecessary arguments):
 ```py
 obj = MyObj()
 
-@obj.value_changed.connect
 def no_args_please():
     print(locals())
+
+obj.value_changed.connect(no_args_please)
 
 # otherwise one might need
 # obj.value_changed.connect(lambda a: no_args_please())
@@ -124,10 +130,12 @@ def no_args_please():
 obj.value_changed.emit('hi')  # prints: "{}"
 ```
 
+### Connection safety (types)
 
-### connection safety (types)
-
-For type safety when connecting slots, use `check_types=True` when connecting a callback.  Recall that our signal was declared as accepting a string `Signal(str)`.  The following function has an incompatible type annotation: `x: int`.
+For type safety when connecting slots, use `check_types=True` when connecting a
+callback.  Recall that our signal was declared as accepting a string
+`Signal(str)`.  The following function has an incompatible type annotation: `x:
+int`.
 
 ```py
 # this would fail because you cannot concatenate a string and int
@@ -152,9 +160,12 @@ Note: unlike Qt, `psygnal` does <strong>not</strong> perform any type coercion
 when emitting a value.
 </em></small>
 
-### query the sender
+### Query the sender
 
-Similar to Qt's [`QObject.sender()`](https://doc.qt.io/qt-5/qobject.html#sender) method, a callback can query the sender using the `Signal.sender()` class method.  (The implementation is of course different than Qt, since the receiver is not a `QObject`.)
+Similar to Qt's [`QObject.sender()`](https://doc.qt.io/qt-5/qobject.html#sender)
+method, a callback can query the sender using the `Signal.sender()` class
+method.  (The implementation is of course different than Qt, since the receiver
+is not a `QObject`.)
 
 ```py
 obj = MyObj()
@@ -171,11 +182,14 @@ obj.value_changed.emit(10)
 ```
 
 <small><em>
-If you want the actual signal instance that is emitting the signal (`obj.value_changed` in the above example), use `Signal.current_emitter()`.</em></small>
+If you want the actual signal instance that is emitting the signal
+(`obj.value_changed` in the above example), use `Signal.current_emitter()`.
+</em></small>
 
-### emitting signals asynchronously (threading)
+### Emitting signals asynchronously (threading)
 
-There is experimental support for calling all connected slots in another thread, using `emit(..., asynchronous=True)`
+There is experimental support for calling all connected slots in another thread,
+using `emit(..., asynchronous=True)`
 
 ```py
 obj = MyObj()
@@ -188,7 +202,7 @@ def slow_callback(arg):
 obj.value_changed.connect(slow_callback)
 ```
 
-This one is called synchronously
+This one is called synchronously (note the order of print statements):
 
 ```py
 obj.value_changed.emit('friend')
@@ -199,7 +213,8 @@ print("Hi, from main thread.")
 # Hi, from main thread.
 ```
 
-This one is called asynchronously
+This one is called asynchronously, and immediately returns to the caller.
+A `threading.Thread` object is returned.
 
 ```py
 thread = obj.value_changed.emit('friend', asynchronous=True)
@@ -212,17 +227,25 @@ print("Hi, from main thread.")
 # Hi 'friend', from another thread
 ```
 
-**Note:** The user is responsible for `joining` and managing the `threading.Thread` instance returned when calling `.emit(..., asynchronous=True)`.
+**Note:** The user is responsible for `joining` and managing the
+`threading.Thread` instance returned when calling `.emit(...,
+asynchronous=True)`.
 
-**Experimental:**  While thread-safety is the goal, (`RLocks` are used during important state mutations) it is not guaranteed.  Please use at your own risk.  Issues/PRs welcome.
+**Experimental!**  While thread-safety is the goal, ([`RLocks`](https://docs.python.org/3/library/threading.html#rlock-objects) are used during
+important state mutations) it is not guaranteed.  Please use at your own risk.
+Issues/PRs welcome.
 
 ## Other similar libraries
 
-There are other libraries that implement similar event-based signals, they may server your purposes better depending on what you are doing.
+There are other libraries that implement similar event-based signals, they may
+server your purposes better depending on what you are doing.
 
 ### [PySignal](https://github.com/dgovil/PySignal) (deprecated)
 
-This package borrows inspiration from – and is most similar to – the now deprecated [PySignal](https://github.com/dgovil/PySignal) project, with a few notable new features in `psygnal` regarding signature and type checking, sender querying, and threading.
+This package borrows inspiration from – and is most similar to – the now
+deprecated [PySignal](https://github.com/dgovil/PySignal) project, with a few
+notable new features in `psygnal` regarding signature and type checking, sender
+querying, and threading.
 
 #### similarities with `PySignal`
 
@@ -231,7 +254,9 @@ This package borrows inspiration from – and is most similar to – the now dep
 
 #### differences with `PySignal`
 
-- the class attribute `pysignal.ClassSignal` is called simply `Signal` in `psygnal` (to more closely match the PyQt/Pyside syntax).  Correspondingly `pysignal.Signal` is similar to `psygnal.SignalInstance`.
+- the class attribute `pysignal.ClassSignal` is called simply `Signal` in
+  `psygnal` (to more closely match the PyQt/Pyside syntax).  Correspondingly
+  `pysignal.Signal` is similar to `psygnal.SignalInstance`.
 - Whereas `PySignal` refrained from doing any signature and/or type checking
   either at slot-connection time, or at signal emission time, `psygnal` offers
   signature declaration similar to Qt with , for example, `Signal(int, int)`.
@@ -239,15 +264,23 @@ This package borrows inspiration from – and is most similar to – the now dep
   checking (with `check_types=True`). `.connect(..., check_nargs=True)` in
   particular ensures that any slot to connected to a signal will at least be
   compatible with the emitted arguments.
-- You *can* query the sender in `psygnal` by using the `Signal.sender()` or `Signal.current_emitter()` class methods. (The former returns the *instance* emitting the signal, similar to Qt's [`QObject.sender()`](https://doc.qt.io/qt-5/qobject.html#sender) method, whereas the latter returns the currently emitting `SignalInstance`.)
-- There is basic threading support (calling all slots in another thread), using `emit(..., asynchronous=True)`.  This is experimental, and while thread-safety is the goal, it is not guaranteed.
+- You *can* query the sender in `psygnal` by using the `Signal.sender()` or
+  `Signal.current_emitter()` class methods. (The former returns the *instance*
+  emitting the signal, similar to Qt's
+  [`QObject.sender()`](https://doc.qt.io/qt-5/qobject.html#sender) method,
+  whereas the latter returns the currently emitting `SignalInstance`.)
+- There is basic threading support (calling all slots in another thread), using
+  `emit(..., asynchronous=True)`.  This is experimental, and while thread-safety
+  is the goal, it is not guaranteed.
 - There are no `SignalFactory` classes here.
 
-<em>The following two libraries implement django-inspired signals, they do not attempt to mimic the Qt API, but they have their own advantages.</em>
+*The following two libraries implement django-inspired signals, they do not
+attempt to mimic the Qt API.*
 
 ### [Blinker](https://github.com/jek/blinker)
 
-Blinker provides a fast dispatching system that allows any number of interested parties to subscribe to events, or "signals".
+Blinker provides a fast dispatching system that allows any number of interested
+parties to subscribe to events, or "signals".
 
 ### [SmokeSignal](https://github.com/shaunduncan/smokesignal/)
 
