@@ -63,7 +63,7 @@ class Signal:
 
     __slots__ = ("_signal_instances", "_name", "_signature")
 
-    if TYPE_CHECKING:
+    if TYPE_CHECKING:  # pragma: no cover
         # callback signature for this signal
         _signature: Signature
         _signal_instances: Dict[
@@ -114,13 +114,13 @@ class Signal:
     def __get__(
         self, instance: None, owner: Optional[AnyType] = None
     ) -> "Signal":  # noqa
-        ...
+        ...  # pragma: no cover
 
     @overload
     def __get__(
         self, instance: Any, owner: Optional[AnyType] = None
     ) -> "SignalInstance":  # noqa
-        ...
+        ...  # pragma: no cover
 
     def __get__(
         self, instance: Any, owner: AnyType = None
@@ -215,7 +215,7 @@ class SignalInstance:
     ) -> None:
         if isinstance(signature, (list, tuple)):
             signature = _build_signature(*signature)
-        elif not isinstance(signature, Signature):
+        elif not isinstance(signature, Signature):  # pragma: no cover
             raise TypeError(
                 "`signature` must be either a sequence of types, or an "
                 "instance of `inspect.Signature`"
@@ -324,7 +324,7 @@ class SignalInstance:
                     self._raise_connection_error(slot, extra)
 
             if check_types:
-                if slot_sig is None:
+                if slot_sig is None:  # pragma: no cover
                     slot_sig = signature(slot)
                 if not _parameter_types_match(slot, spec, slot_sig):
                     extra = f"- Slot types {slot_sig} do not match types in signal."
@@ -405,7 +405,7 @@ class SignalInstance:
         asynchronous: Literal[True],
     ) -> Optional["EmitThread"]:
         # will return `None` if emitter is blocked
-        ...
+        ...  # pragma: no cover
 
     @overload
     def emit(
@@ -415,7 +415,7 @@ class SignalInstance:
         check_types: bool,
         asynchronous: Literal[False],
     ) -> None:
-        ...
+        ...  # pragma: no cover
 
     def emit(
         self,

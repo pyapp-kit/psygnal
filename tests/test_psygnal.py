@@ -1,6 +1,7 @@
 import gc
 import time
 import weakref
+from inspect import Signature
 from types import FunctionType
 from typing import Optional
 from unittest.mock import MagicMock
@@ -101,6 +102,20 @@ def test_misc():
 
     with pytest.raises(AttributeError):
         emitter.one_int.asdf
+
+
+def test_getattr():
+    s = Signal()
+    with pytest.raises(AttributeError):
+        s.not_a_thing
+
+
+def test_signature_provided():
+    s = Signal(Signature())
+    assert s.signature == Signature()
+
+    with pytest.warns(UserWarning):
+        s = Signal(Signature(), 1)
 
 
 def test_emit_checks():
