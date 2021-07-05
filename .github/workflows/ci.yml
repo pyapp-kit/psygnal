@@ -171,7 +171,7 @@ jobs:
           ls -lh dist
 
       - name: check tag
-        run: ./tests/check_tag.py
+        run: python tests/check_tag.py
 
       # - name: upload to pypi
       #   run: twine upload dist/*
