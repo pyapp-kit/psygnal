@@ -1,7 +1,7 @@
 """psygnal is a pure-python implementation of Qt-style signals & slots."""
 try:
     from ._version import version as __version__
-except ImportError:
+except ImportError:  # pragma: no cover
     __version__ = "unknown"
 __author__ = "Talley Lambert"
 __email__ = "talley.lambert@gmail.com"
