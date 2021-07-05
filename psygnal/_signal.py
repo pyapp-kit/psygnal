@@ -55,7 +55,9 @@ class Signal:
     ----------
     *types : sequence of Type
         A sequence of individual types
-    name : Optional[str], optional
+    description : str, optional
+        Optional descriptive text for the signal.  (not used internally).
+    name : str, optional
         Optional name of the signal. If it is not specified then the name of the
         class attribute that is bound to the signal will be used. default None
 
@@ -64,8 +66,7 @@ class Signal:
     __slots__ = ("_signal_instances", "_name", "_signature")
 
     if TYPE_CHECKING:  # pragma: no cover
-        # callback signature for this signal
-        _signature: Signature
+        _signature: Signature  # callback signature for this signal
         _signal_instances: Dict[
             "Signal", weakref.WeakKeyDictionary[Any, "SignalInstance"]
         ]
@@ -73,11 +74,15 @@ class Signal:
     _current_emitter: Optional["SignalInstance"] = None
 
     def __init__(
-        self, *types: Union[AnyType, Signature], name: Optional[str] = None
+        self,
+        *types: Union[AnyType, Signature],
+        description: str = "",
+        name: Optional[str] = None,
     ) -> None:
 
         self._signal_instances = {}
         self._name = name
+        self.description = description
 
         if types and isinstance(types[0], Signature):
             self._signature = types[0]
