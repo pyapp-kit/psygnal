@@ -1,3 +1,4 @@
+"""psygnal is a pure-python implementation of Qt-style signals & slots."""
 try:
     from ._version import version as __version__
 except ImportError:

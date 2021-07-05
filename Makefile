@@ -1,6 +1,15 @@
 .PHONY: build
 build:
 	python setup.py build_ext --inplace
+	rm -f psygnal/*.c
+
+.PHONY: build-trace
+build-trace:
+	python setup.py build_ext --force --inplace --define CYTHON_TRACE
+
+.PHONY: check
+check:
+	pre-commit run --all-files
 
 .PHONY: clean
 clean:

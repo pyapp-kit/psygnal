@@ -88,13 +88,16 @@ class Signal:
 
     @property
     def signature(self) -> Signature:
+        """Signature supported by this Signal."""
         return self._signature
 
     def __set_name__(self, owner: AnyType, name: str) -> None:
+        """Set name of signal when declared as a class attribute on `owner`."""
         if self._name is None:
             self._name = name
 
     def __getattr__(self, name: str) -> Any:
+        """Get attribute. Provide useful error if trying to get `connect`."""
         if name == "connect":
             name = self.__class__.__name__
             raise AttributeError(
@@ -105,20 +108,39 @@ class Signal:
         return self.__getattribute__(name)
 
     @overload
-    def __get__(self, instance: None, owner: Optional[AnyType] = None) -> "Signal":
+    def __get__(
+        self, instance: None, owner: Optional[AnyType] = None
+    ) -> "Signal":  # noqa
         ...
 
     @overload
     def __get__(
         self, instance: Any, owner: Optional[AnyType] = None
-    ) -> "SignalInstance":
+    ) -> "SignalInstance":  # noqa
         ...
 
     def __get__(
         self, instance: Any, owner: AnyType = None
     ) -> Union["Signal", "SignalInstance"]:
-        # if instance is not None, we're being accessed on an instance of `owner`
-        # otherwise we're being accessed on the `owner` itself
+        """Get signal instance.
+
+        This is called when accessing a Signal instance.  If accessed as an
+        attribute on the class `owner`, instance, will be `None`.  Otherwise,
+        if `instance` is not None, we're being accessed on an instance of `owner`.
+
+            class Emitter:
+                signal = Signal()
+
+            e = Emitter()
+
+            E.signal  # instance will be None, owner will be Emitter
+            e.signal  # instance will be e, owner will be Emitter
+
+        Returns
+        -------
+        Signal or SignalInstance
+            Depending on how this attribute is accessed.
+        """
         if instance is None:
             return self
         d = self._signal_instances.setdefault(self, weakref.WeakKeyDictionary())
@@ -138,14 +160,48 @@ class Signal:
 
     @classmethod
     def current_emitter(cls) -> Optional["SignalInstance"]:
+        """Return currently emitting SignalInstance, if any."""
         return cls._current_emitter
 
     @classmethod
     def sender(cls) -> Any:
+        """Return currently emitting object, if any."""
         return getattr(cls._current_emitter, "instance", None)
 
 
 class SignalInstance:
+    """A signal instance (optionally) bound to an object.
+
+    Normally this object will be instantiated by the `Signal.__get__` method when a
+    `Signal` instance is accessed from an *instance* of a class with Signal attribute.
+
+        class Emitter:
+            signal = Signal()
+
+        e = Emitter()
+
+        # this next line returns: `SignalInstance(Signature(), e, 'signal')`
+        e.signal
+
+    Parameters
+    ----------
+    signature : inspect.Signature, optional
+        The signature that this signal accepts and will emit, by default `Signature()`.
+    instance : Any, optional
+        An object to which this signal is bound. Normally this will be provied by the
+        `Signal.__get__` method (see above).  However, an unbound `SignalInstance`
+        may also be created directly. by default `None`.
+    name : str, optional
+        An optional name for this signal.  Normally this will be provided by the
+        `Signal.__get__` method. by default `None`
+
+    Raises
+    ------
+    TypeError
+        If `signature` is neither an instance of `inspect.Signature`, or a `tuple`
+        of `type`s.
+    """
+
     __slots__ = ("_signature", "_instance", "_name", "_slots", "_is_blocked", "_lock")
 
     def __init__(
@@ -171,17 +227,21 @@ class SignalInstance:
 
     @property
     def signature(self) -> Signature:
+        """Signature supported by this `SignalInstance`."""
         return self._signature
 
     @property
     def instance(self) -> Any:
+        """Object that emits this `SignalInstance`."""
         return self._instance
 
     @property
     def name(self) -> str:
+        """Name of this `SignalInstance`."""
         return self._name or ""
 
     def __repr__(self) -> str:
+        """Return repr."""
         name = f"{self.name!r} " if self.name else ""
         return f"<{type(self).__name__} {name}on {self.instance!r}>"
 
@@ -195,14 +255,16 @@ class SignalInstance:
         """Connect a callback ("slot") to this signal.
 
         `slot` is compatible if:
-            - it has equal or less required positional arguments
+            - it has equal or less required positional arguments.
             - it has no required keyword arguments
             - if `check_types` is True, all provided types must match
 
         Parameters
         ----------
         slot : Callable
-            A callable to connect to this signal.
+            A callable to connect to this signal.  If the callable accepts less
+            arguments than the signature of this slot, then they will be discarded when
+            calling the slot.
         check_types : bool, optional
             If `True`, An additional check will be performed to make sure that types
             declared in the slot signature are compatible with the signature
@@ -280,6 +342,22 @@ class SignalInstance:
     def disconnect(
         self, slot: Optional[NormedCallback] = None, missing_ok: bool = True
     ) -> None:
+        """Disconnect slot from signal.
+
+        Parameters
+        ----------
+        slot : callable, optional
+            The specific slot to disconnect.  If `None`, all slots will be disconnected,
+            by default `None`
+        missing_ok : bool, optional
+            If `False` and the provided `slot` is not connected, raises `ValueError.
+            by default `True`
+
+        Raises
+        ------
+        ValueError
+            If `slot` is not connected and `missing_ok` is False.
+        """
         with self._lock:
             if slot is None:
                 # NOTE: clearing an empty list is actually a RuntimeError in Qt
@@ -293,15 +371,41 @@ class SignalInstance:
                 raise ValueError(f"slot is not connected: {slot}")
 
     def __contains__(self, slot: NormedCallback) -> bool:
+        """Return `True` if slot is connected."""
         return self._slot_index(slot) >= 0
 
     def __len__(self) -> int:
+        """Return number of connected slots."""
         return len(self._slots)
 
     def emit(
         self, *args: Any, check_nargs: bool = False, check_types: bool = False
     ) -> None:
-        """Emit this signal with arguments `args`."""
+        """Emit this signal with arguments `args`.
+
+        NOTE:
+        `check_args` and `check_types` both add overhead when calling emit.
+
+        Parameters
+        ----------
+        *args : Any
+            These arguments will be passed when calling each slot (unless the slot
+            accepts fewer arguments, in which case extra args will be discarded.)
+        check_nargs : bool, optional
+            If `False` and the provided arguments cannot be successfuly bound to the
+            signature of this Signal, raise `TypeError`.  Incurs some overhead.
+            by default False.
+        check_types : bool, optional
+            If `False` and the provided arguments do not match the types declared by
+            the signature of this Signal, raise `TypeError`.  Incurs some overhead.
+            by default False.
+
+        Raises
+        ------
+        TypeError
+            If `check_nargs` and/or `check_types` are `True`, and the corresponding
+            checks fail.
+        """
         if self._is_blocked:
             return
 
@@ -347,17 +451,22 @@ class SignalInstance:
             for slot in rem:
                 self.disconnect(slot)
 
-    def block(self, should_block: bool = True) -> None:
-        """Sets blocking of the signal"""
-        self._is_blocked = bool(should_block)
+    def block(self) -> None:
+        """Block this signal from emitting."""
+        self._is_blocked = True
+
+    def unblock(self) -> None:
+        """Unblock this signal, allowing it to emit."""
+        self._is_blocked = False
 
     @contextmanager
     def blocked(self) -> Iterator[None]:
-        self.block(True)
+        """Context manager to temporarly block this signal."""
+        self.block()
         try:
             yield
         finally:
-            self.block(False)
+            self.unblock()
 
 
 # ################################################################
@@ -385,14 +494,14 @@ def _build_signature(*types: AnyType) -> Signature:
 def _acceptable_posarg_range(
     sig: Signature, forbid_required_kwarg: bool = True
 ) -> Tuple[int, int]:
-    """Returns tuple of (min, max) accepted positional arguments.
+    """Return tuple of (min, max) accepted positional arguments.
 
     Parameters
     ----------
     sig : Signature
         Signature object to evaluate
-    no_required_kwarg : bool, optional
-        Whether to allow required KEYWORD_ONLY parameters.
+    forbid_required_kwarg : bool, optional
+        Whether to allow required KEYWORD_ONLY parameters. by default True.
 
     Returns
     -------
@@ -402,8 +511,8 @@ def _acceptable_posarg_range(
     Raises
     ------
     ValueError
-        If the signature has a required keyword_only parameter and `no_required_kwarg`
-        is `True`.
+        If the signature has a required keyword_only parameter and
+        `forbid_required_kwarg` is `True`.
     """
     required = 0
     optional = 0
@@ -427,7 +536,23 @@ def _acceptable_posarg_range(
 def _parameter_types_match(
     function: CallbackType, spec: Signature, func_sig: Optional[Signature] = None
 ) -> bool:
-    """Return True if types in `function` signature match `spec`."""
+    """Return True if types in `function` signature match those in `spec`.
+
+    Parameters
+    ----------
+    function : CallbackType
+        A function to validate
+    spec : Signature
+        The Signature against which the `function` should be validated.
+    func_sig : Signature, optional
+        Signature for `function`, if `None`, signature will be inspected.
+        by default None
+
+    Returns
+    -------
+    bool
+        True if the parameter types match.
+    """
     fsig = func_sig or signature(function)
 
     func_hints = None
