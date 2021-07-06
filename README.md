@@ -27,8 +27,8 @@ then you should be good to go!  `psygnal` aims to be a superset of those APIs
 [`check_nargs`](#connection-safety-number-of-arguments) and
 [`check_types`](#connection-safety-types)).
 
-<sub><sup> *Note: the name "`Signal`" is used here instead of `pyqtSignal`,
-following the `qtpy` and `PySide` convention.* </sup></sub>
+*Note: the name "`Signal`" is used here instead of `pyqtSignal`, following the
+`qtpy` and `PySide` convention.*
 
 ```py
 from psygnal import Signal
@@ -102,8 +102,8 @@ ValueError: Cannot connect slot 'i_require_two_arguments' with signature: (first
 Accepted signature: (p0: str, /)
 ```
 
-<sub><sup> *Note: Positional argument checking can be disabled with
-`connect(..., check_nargs=False)`* </sup></sub>
+*Note: Positional argument checking can be disabled with `connect(...,
+check_nargs=False)`*
 
 #### Extra positional arguments ignored
 
@@ -151,8 +151,8 @@ ValueError: Cannot connect slot 'i_expect_an_integer' with signature: (x: int):
 Accepted signature: (p0: str, /)
 ```
 
-<sub><sup>*Note: unlike Qt, `psygnal` does <strong>not</strong> perform any type
-coercion when emitting a value.*</sup></sub>
+*Note: unlike Qt, `psygnal` does **not** perform any type coercion when emitting
+a value.*
 
 ### Query the sender
 
@@ -175,9 +175,8 @@ obj.value_changed.emit(10)
 # Sent by <__main__.MyObj object at 0x1046a30d0>
 ```
 
-<sub><sup>*If you want the actual signal instance that is emitting the signal
-(`obj.value_changed` in the above example), use
-`Signal.current_emitter()`.*</sup></sub>
+*If you want the actual signal instance that is emitting the signal
+(`obj.value_changed` in the above example), use `Signal.current_emitter()`.*
 
 ### Emitting signals asynchronously (threading)
 
@@ -224,9 +223,10 @@ print("Hi, from main thread.")
 `threading.Thread` instance returned when calling `.emit(...,
 asynchronous=True)`.
 
-**Experimental!**  While thread-safety is the goal, ([`RLocks`](https://docs.python.org/3/library/threading.html#rlock-objects) are used during
-important state mutations) it is not guaranteed.  Please use at your own risk.
-Issues/PRs welcome.
+**Experimental!**  While thread-safety is the goal,
+([`RLocks`](https://docs.python.org/3/library/threading.html#rlock-objects) are
+used during important state mutations) it is not guaranteed.  Please use at your
+own risk. Issues/PRs welcome.
 
 ## Other similar libraries
 
