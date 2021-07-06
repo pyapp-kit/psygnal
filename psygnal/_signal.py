@@ -63,7 +63,7 @@ class Signal:
 
     """
 
-    __slots__ = ("_signal_instances", "_name", "_signature")
+    __slots__ = ("_signal_instances", "_name", "_signature", "description")
 
     if TYPE_CHECKING:  # pragma: no cover
         _signature: Signature  # callback signature for this signal
