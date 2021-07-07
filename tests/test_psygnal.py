@@ -445,3 +445,8 @@ def test_asynchronous_emit():
         thread.join()
     assert a == [value]
     assert not Signal.current_emitter()
+
+
+def test_sig_unavailable():
+    e = Emitter()
+    e.one_int.connect(print)
