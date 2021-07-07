@@ -17,6 +17,7 @@ class Emitter:
     one_int = Signal(int)
     two_int = Signal(int, int)
     str_int = Signal(str, int)
+    no_check = Signal(str, check_nargs_on_connect=False, check_types_on_connect=False)
 
 
 class MyObj:
@@ -407,6 +408,15 @@ def test_forward_refs_type_checking():
         e.signal.connect(r.methodA, check_types=True)
     with pytest.raises(ValueError):
         e.signal.connect(r.methodA_ref, check_types=True)
+
+
+def test_checking_off():
+    e = Emitter()
+
+    # the no_check signal was instantiated with check_[nargs/types] = False
+    @e.no_check.connect
+    def bad_in_many_ways(x: int, y, z):
+        ...
 
 
 def test_keyword_only_not_allowed():
