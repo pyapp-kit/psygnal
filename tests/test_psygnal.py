@@ -53,7 +53,6 @@ def f_vararg(*a): ...
 def f_vararg_varkwarg(*a, **b): ...
 def f_vararg_kwarg(*a, b=None): ...
 
-
 class MyReceiver:
     expect_signal = None
     expect_sender = None
@@ -87,6 +86,10 @@ def test_decorator():
     @emitter.one_int.connect
     def boom(v: int):
         raise ValueError
+
+    @emitter.one_int.connect(check_nargs=False)
+    def bad_cb(a, b, c):
+        ...
 
     with pytest.raises(ValueError):
         emitter.one_int.emit(1)

@@ -253,21 +253,47 @@ class SignalInstance:
         name = f"{self.name!r} " if self.name else ""
         return f"<{type(self).__name__} {name}on {self.instance!r}>"
 
-    # TODO: allow connect as decorator with arguments
+    @overload
+    def connect(
+        self,
+        *,
+        check_nargs: bool,
+        check_types: bool,
+        unique: Union[bool, str],
+    ) -> Callable[[CallbackType], CallbackType]:
+        ...
+
+    @overload
     def connect(
         self,
         slot: CallbackType,
         *,
+        check_nargs: bool,
+        check_types: bool,
+        unique: Union[bool, str],
+    ) -> CallbackType:
+        ...
+
+    # TODO: allow connect as decorator with arguments
+    def connect(
+        self,
+        slot: Optional[CallbackType] = None,
+        *,
         check_nargs: bool = True,
         check_types: bool = False,
         unique: Union[bool, str] = False,
-    ) -> CallbackType:
+    ) -> Union[Callable[[CallbackType], CallbackType], CallbackType]:
         """Connect a callback ("slot") to this signal.
 
         `slot` is compatible if:
             - it has equal or less required positional arguments.
             - it has no required keyword arguments
             - if `check_types` is True, all provided types must match
+
+        This method may be used as a decorator.
+
+            @signal.connect
+            def my_function(): ...
 
         Parameters
         ----------
@@ -298,46 +324,51 @@ class SignalInstance:
         ValueError
             If `unique` is `True` and `slot` has already been connected.
         """
-        if not callable(slot):
-            raise TypeError(f"Cannot connect to non-callable object: {slot}")
 
-        with self._lock:
-            if unique and slot in self:
-                if unique == "raise":
-                    raise ValueError(
-                        "Slot already connect. Use `connect(..., unique=False)` "
-                        "to allow duplicate connections"
-                    )
-                return slot
+        def _wrapper(slot: CallbackType) -> CallbackType:
+            if not callable(slot):
+                raise TypeError(f"Cannot connect to non-callable object: {slot}")
 
-            slot_sig = None
-            spec = self.signature
+            with self._lock:
+                if unique and slot in self:
+                    if unique == "raise":
+                        raise ValueError(
+                            "Slot already connect. Use `connect(..., unique=False)` "
+                            "to allow duplicate connections"
+                        )
+                    return slot
 
-            if check_nargs:
-                # make sure we have a compatible signature
-                # get the maximum number of arguments that we can pass to the slot
-                slot_sig = signature(slot)
-                minargs, maxargs = _acceptable_posarg_range(slot_sig)
-                n_spec_params = len(spec.parameters)
+                slot_sig = None
+                spec = self.signature
 
-                # if `slot` requires more arguments than we will provide, raise.
-                if minargs > n_spec_params:
-                    extra = (
-                        f"- Slot requires at least {minargs} positional arguments, "
-                        f"but spec only provides {n_spec_params}"
-                    )
-                    self._raise_connection_error(slot, extra)
-
-            if check_types:
-                if slot_sig is None:  # pragma: no cover
+                maxargs = 99999999
+                if check_nargs:
+                    # make sure we have a compatible signature
+                    # get the maximum number of arguments that we can pass to the slot
                     slot_sig = signature(slot)
-                if not _parameter_types_match(slot, spec, slot_sig):
-                    extra = f"- Slot types {slot_sig} do not match types in signal."
-                    self._raise_connection_error(slot, extra)
+                    minargs, maxargs = _acceptable_posarg_range(slot_sig)
+                    n_spec_params = len(spec.parameters)
 
-            self._slots.append((self._normalize_slot(slot), maxargs))
+                    # if `slot` requires more arguments than we will provide, raise.
+                    if minargs > n_spec_params:
+                        extra = (
+                            f"- Slot requires at least {minargs} positional arguments, "
+                            f"but spec only provides {n_spec_params}"
+                        )
+                        self._raise_connection_error(slot, extra)
 
-        return slot
+                if check_types:
+                    if slot_sig is None:  # pragma: no cover
+                        slot_sig = signature(slot)
+                    if not _parameter_types_match(slot, spec, slot_sig):
+                        extra = f"- Slot types {slot_sig} do not match types in signal."
+                        self._raise_connection_error(slot, extra)
+
+                self._slots.append((self._normalize_slot(slot), maxargs))
+
+            return slot
+
+        return _wrapper(slot) if slot else _wrapper
 
     def _raise_connection_error(self, slot: CallbackType, extra: str = "") -> NoReturn:
         name = getattr(slot, "__name__", str(slot))
