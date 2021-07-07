@@ -1,10 +1,12 @@
 __all__ = ["Signal", "SignalInstance"]
 
+import inspect
 import threading
 import warnings
 import weakref
 from contextlib import contextmanager
-from inspect import Parameter, Signature, ismethod, signature
+from functools import lru_cache
+from inspect import Parameter, Signature, ismethod
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -27,9 +29,38 @@ CallbackType = Callable[..., None]
 MethodRef = Tuple["weakref.ReferenceType[object]", str]
 NormedCallback = Union[MethodRef, CallbackType]
 StoredSlot = Tuple[NormedCallback, Optional[int]]
-
-
 AnyType = Type[Any]
+
+
+_SIG_CACHE: Dict[int, Signature] = {}
+
+
+def signature(obj: Any) -> inspect.Signature:
+    try:
+        return inspect.signature(obj)
+    except ValueError as e:
+        try:
+            if not inspect.ismethod(obj):  # avoid caching strong refs
+                return _stub_sig(obj)
+        except Exception:
+            pass
+        raise e
+
+
+@lru_cache()
+def _stub_sig(obj: Any) -> Signature:
+    import builtins
+
+    if obj is builtins.print:
+        params = [
+            Parameter(name="value", kind=Parameter.VAR_POSITIONAL),
+            Parameter(name="sep", kind=Parameter.KEYWORD_ONLY, default=" "),
+            Parameter(name="end", kind=Parameter.KEYWORD_ONLY, default="\n"),
+            Parameter(name="file", kind=Parameter.KEYWORD_ONLY, default=None),
+            Parameter(name="flush", kind=Parameter.KEYWORD_ONLY, default=False),
+        ]
+        return Signature(params)
+    raise ValueError("unknown object")
 
 
 class Signal:
@@ -153,7 +184,7 @@ class Signal:
             return self
         d = self._signal_instances.setdefault(self, weakref.WeakKeyDictionary())
         return d.setdefault(
-            instance, SignalInstance(self.signature, instance, name=self._name)
+            instance, SignalInstance(self.signature, instance=instance, name=self._name)
         )
 
     @classmethod
@@ -202,6 +233,14 @@ class SignalInstance:
     name : str, optional
         An optional name for this signal.  Normally this will be provided by the
         `Signal.__get__` method. by default `None`
+    check_nargs_on_connect : str, optional
+        Whether to check the number of positional args against `signature` when
+        connecting a new callback. This can also be provided at connection time using
+        `.connect(..., check_nargs=True)`. By default, True.
+    check_types_on_connect : str, optional
+        Whether to check the callback parameter types against `signature` when
+        connecting a new callback. This can also be provided at connection time using
+        `.connect(..., check_types=True)`. By default, False.
 
     Raises
     ------
@@ -210,13 +249,25 @@ class SignalInstance:
         of `type`s.
     """
 
-    __slots__ = ("_signature", "_instance", "_name", "_slots", "_is_blocked", "_lock")
+    __slots__ = (
+        "_signature",
+        "_instance",
+        "_name",
+        "_slots",
+        "_is_blocked",
+        "_lock",
+        "_check_nargs_on_connect",
+        "_check_types_on_connect",
+    )
 
     def __init__(
         self,
         signature: Signature = Signature(),
+        *,
         instance: Any = None,
         name: Optional[str] = None,
+        check_nargs_on_connect: bool = True,
+        check_types_on_connect: bool = False,
     ) -> None:
         if isinstance(signature, (list, tuple)):
             signature = _build_signature(*signature)
@@ -228,6 +279,8 @@ class SignalInstance:
 
         self._signature = signature
         self._instance: Any = instance
+        self._check_nargs_on_connect = check_nargs_on_connect
+        self._check_types_on_connect = check_types_on_connect
         self._name = name
         self._slots: List[StoredSlot] = []
         self._is_blocked: bool = False
@@ -244,21 +297,22 @@ class SignalInstance:
         return self._instance
 
     @property
-    def name(self) -> str:
+    def name(self) -> Optional[str]:
         """Name of this `SignalInstance`."""
         return self._name or ""
 
     def __repr__(self) -> str:
         """Return repr."""
-        name = f"{self.name!r} " if self.name else ""
-        return f"<{type(self).__name__} {name}on {self.instance!r}>"
+        name = f" {self.name!r}" if self.name else ""
+        instance = f" on {self.instance!r}" if self.instance else ""
+        return f"<{type(self).__name__}{name}{instance}>"
 
     @overload
     def connect(
         self,
         *,
-        check_nargs: bool,
-        check_types: bool,
+        check_nargs: Optional[bool],
+        check_types: Optional[bool],
         unique: Union[bool, str],
     ) -> Callable[[CallbackType], CallbackType]:
         ...  # pragma: no cover
@@ -268,8 +322,8 @@ class SignalInstance:
         self,
         slot: CallbackType,
         *,
-        check_nargs: bool,
-        check_types: bool,
+        check_nargs: Optional[bool],
+        check_types: Optional[bool],
         unique: Union[bool, str],
     ) -> CallbackType:
         ...  # pragma: no cover
@@ -279,8 +333,8 @@ class SignalInstance:
         self,
         slot: Optional[CallbackType] = None,
         *,
-        check_nargs: bool = True,
-        check_types: bool = False,
+        check_nargs: Optional[bool] = None,
+        check_types: Optional[bool] = None,
         unique: Union[bool, str] = False,
     ) -> Union[Callable[[CallbackType], CallbackType], CallbackType]:
         """Connect a callback ("slot") to this signal.
@@ -324,6 +378,10 @@ class SignalInstance:
         ValueError
             If `unique` is `True` and `slot` has already been connected.
         """
+        if check_nargs is None:
+            check_nargs = self._check_nargs_on_connect
+        if check_types is None:
+            check_types = self._check_types_on_connect
 
         def _wrapper(slot: CallbackType) -> CallbackType:
             if not callable(slot):
