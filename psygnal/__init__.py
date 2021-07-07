@@ -9,7 +9,7 @@ __all__ = ["Signal", "SignalInstance", "_compiled", "__version__"]
 
 try:
     import cython
-except ImportError:
+except ImportError:  # pragma: no cover
     _compiled: bool = False
 else:  # pragma: no cover
     try:

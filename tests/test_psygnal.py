@@ -264,13 +264,27 @@ def test_weakrefs():
     emitter = Emitter()
     obj = MyObj()
 
-    assert len(emitter.one_int._slots) == 0
+    assert len(emitter.one_int) == 0
     emitter.one_int.connect(obj.f_no_arg)
-    assert len(emitter.one_int._slots) == 1
+    assert len(emitter.one_int) == 1
     del obj
     gc.collect()
     emitter.one_int.emit(1)  # this should trigger deletion
-    assert len(emitter.one_int._slots) == 0
+    assert len(emitter.one_int) == 0
+
+
+def test_norm_slot():
+    e = Emitter()
+    r = MyObj()
+
+    normed1 = e.one_int._normalize_slot(r.f_any)
+    normed2 = e.one_int._normalize_slot(normed1)
+    normed3 = e.one_int._normalize_slot((r, "f_any"))
+    normed3 = e.one_int._normalize_slot((weakref.ref(r), "f_any"))
+    assert normed1 == (weakref.ref(r), "f_any")
+    assert normed1 == normed2 == normed3
+
+    assert e.one_int._normalize_slot(f_any) == f_any
 
 
 ALL = {n for n, f in locals().items() if callable(f) and n.startswith("f_")}

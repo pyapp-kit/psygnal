@@ -261,7 +261,7 @@ class SignalInstance:
         check_types: bool,
         unique: Union[bool, str],
     ) -> Callable[[CallbackType], CallbackType]:
-        ...
+        ...  # pragma: no cover
 
     @overload
     def connect(
@@ -272,7 +272,7 @@ class SignalInstance:
         check_types: bool,
         unique: Union[bool, str],
     ) -> CallbackType:
-        ...
+        ...  # pragma: no cover
 
     # TODO: allow connect as decorator with arguments
     def connect(
