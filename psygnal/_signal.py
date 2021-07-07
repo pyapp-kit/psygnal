@@ -91,10 +91,24 @@ class Signal:
     name : str, optional
         Optional name of the signal. If it is not specified then the name of the
         class attribute that is bound to the signal will be used. default None
-
+    check_nargs_on_connect : str, optional
+        Whether to check the number of positional args against `signature` when
+        connecting a new callback. This can also be provided at connection time using
+        `.connect(..., check_nargs=True)`. By default, True.
+    check_types_on_connect : str, optional
+        Whether to check the callback parameter types against `signature` when
+        connecting a new callback. This can also be provided at connection time using
+        `.connect(..., check_types=True)`. By default, False.
     """
 
-    __slots__ = ("_signal_instances", "_name", "_signature", "description")
+    __slots__ = (
+        "_signal_instances",
+        "_name",
+        "_signature",
+        "description",
+        "_check_nargs_on_connect",
+        "_check_types_on_connect",
+    )
 
     if TYPE_CHECKING:  # pragma: no cover
         _signature: Signature  # callback signature for this signal
@@ -109,11 +123,15 @@ class Signal:
         *types: Union[AnyType, Signature],
         description: str = "",
         name: Optional[str] = None,
+        check_nargs_on_connect: bool = True,
+        check_types_on_connect: bool = False,
     ) -> None:
 
         self._signal_instances = {}
         self._name = name
         self.description = description
+        self._check_nargs_on_connect = check_nargs_on_connect
+        self._check_types_on_connect = check_types_on_connect
 
         if types and isinstance(types[0], Signature):
             self._signature = types[0]
@@ -184,7 +202,14 @@ class Signal:
             return self
         d = self._signal_instances.setdefault(self, weakref.WeakKeyDictionary())
         return d.setdefault(
-            instance, SignalInstance(self.signature, instance=instance, name=self._name)
+            instance,
+            SignalInstance(
+                self.signature,
+                instance=instance,
+                name=self._name,
+                check_nargs_on_connect=self._check_nargs_on_connect,
+                check_types_on_connect=self._check_types_on_connect,
+            ),
         )
 
     @classmethod
