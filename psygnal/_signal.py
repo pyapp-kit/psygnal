@@ -26,7 +26,7 @@ from typing_extensions import Literal
 CallbackType = Callable[..., None]
 MethodRef = Tuple["weakref.ReferenceType[object]", str]
 NormedCallback = Union[MethodRef, CallbackType]
-StoredSlot = Tuple[NormedCallback, int]
+StoredSlot = Tuple[NormedCallback, Optional[int]]
 
 
 AnyType = Type[Any]
@@ -341,21 +341,27 @@ class SignalInstance:
                 slot_sig = None
                 spec = self.signature
 
-                maxargs = 99999999
+                maxargs = None
                 if check_nargs:
                     # make sure we have a compatible signature
                     # get the maximum number of arguments that we can pass to the slot
-                    slot_sig = signature(slot)
-                    minargs, maxargs = _acceptable_posarg_range(slot_sig)
-                    n_spec_params = len(spec.parameters)
-
-                    # if `slot` requires more arguments than we will provide, raise.
-                    if minargs > n_spec_params:
-                        extra = (
-                            f"- Slot requires at least {minargs} positional arguments, "
-                            f"but spec only provides {n_spec_params}"
+                    try:
+                        slot_sig = signature(slot)
+                    except ValueError as e:
+                        warnings.warn(
+                            f"{e}. To silence this warning, connect with "
+                            "`check_nargs=False`"
                         )
-                        self._raise_connection_error(slot, extra)
+                    else:
+                        minargs, maxargs = _acceptable_posarg_range(slot_sig)
+                        n_spec_params = len(spec.parameters)
+                        # if `slot` requires more arguments than we will provide, raise.
+                        if minargs > n_spec_params:
+                            extra = (
+                                f"- Slot requires at least {minargs} positional "
+                                f"arguments, but spec only provides {n_spec_params}"
+                            )
+                            self._raise_connection_error(slot, extra)
 
                 if check_types:
                     if slot_sig is None:  # pragma: no cover
@@ -601,7 +607,7 @@ def _build_signature(*types: AnyType) -> Signature:
 
 def _acceptable_posarg_range(
     sig: Signature, forbid_required_kwarg: bool = True
-) -> Tuple[int, int]:
+) -> Tuple[int, Optional[int]]:
     """Return tuple of (min, max) accepted positional arguments.
 
     Parameters
@@ -624,6 +630,7 @@ def _acceptable_posarg_range(
     """
     required = 0
     optional = 0
+    is_unbound = False
     for param in sig.parameters.values():
         if param.kind in {Parameter.POSITIONAL_ONLY, Parameter.POSITIONAL_OR_KEYWORD}:
             if param.default is Parameter.empty:
@@ -631,14 +638,14 @@ def _acceptable_posarg_range(
             else:
                 optional += 1
         elif param.kind is Parameter.VAR_POSITIONAL:
-            optional += 10 ** 10  # could use math.inf, but need an int for indexing.
+            is_unbound = True
         elif (
             param.kind is Parameter.KEYWORD_ONLY
             and param.default is Parameter.empty
             and forbid_required_kwarg
         ):
             raise ValueError("Required KEYWORD_ONLY parameters not allowed")
-    return (required, required + optional)
+    return (required, None if is_unbound else required + optional)
 
 
 def _parameter_types_match(

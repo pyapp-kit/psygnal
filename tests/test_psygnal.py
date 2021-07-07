@@ -462,3 +462,14 @@ def test_asynchronous_emit():
         thread.join()
     assert a == [value]
     assert not Signal.current_emitter()
+
+
+def test_sig_unavailable():
+    """In some cases, signature.inspect() fails on a callable, such as print.
+
+    We should still connect, but with a warning.
+    """
+    e = Emitter()
+    e.one_int.connect(print, check_nargs=False)  # no warning
+    with pytest.warns(UserWarning):
+        e.one_int.connect(print)
