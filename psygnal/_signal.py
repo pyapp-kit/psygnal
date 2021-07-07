@@ -525,21 +525,21 @@ class SignalInstance:
     def emit(
         self,
         *args: Any,
-        check_nargs: bool,
-        check_types: bool,
-        asynchronous: Literal[True],
-    ) -> Optional["EmitThread"]:
-        # will return `None` if emitter is blocked
+        check_nargs: bool = False,
+        check_types: bool = False,
+        asynchronous: Literal[False] = False,
+    ) -> None:
         ...  # pragma: no cover
 
     @overload
     def emit(
         self,
         *args: Any,
-        check_nargs: bool,
-        check_types: bool,
-        asynchronous: Literal[False],
-    ) -> None:
+        check_nargs: bool = False,
+        check_types: bool = False,
+        asynchronous: Literal[True],
+    ) -> Optional["EmitThread"]:
+        # will return `None` if emitter is blocked
         ...  # pragma: no cover
 
     def emit(
