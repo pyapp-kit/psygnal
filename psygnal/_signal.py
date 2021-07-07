@@ -349,8 +349,8 @@ class SignalInstance:
                         slot_sig = signature(slot)
                     except ValueError as e:
                         warnings.warn(
-                            str(e)
-                            + "To silence this warning, connect with check_nargs=False"
+                            f"{e}. To silence this warning, connect with "
+                            "`check_nargs=False`"
                         )
                     else:
                         minargs, maxargs = _acceptable_posarg_range(slot_sig)

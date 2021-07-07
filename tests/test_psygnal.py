@@ -465,5 +465,11 @@ def test_asynchronous_emit():
 
 
 def test_sig_unavailable():
+    """In some cases, signature.inspect() fails on a callable, such as print.
+
+    We should still connect, but with a warning.
+    """
     e = Emitter()
-    e.one_int.connect(print)
+    e.one_int.connect(print, check_nargs=False)  # no warning
+    with pytest.warns(UserWarning):
+        e.one_int.connect(print)
