@@ -345,17 +345,24 @@ class SignalInstance:
                 if check_nargs:
                     # make sure we have a compatible signature
                     # get the maximum number of arguments that we can pass to the slot
-                    slot_sig = signature(slot)
-                    minargs, maxargs = _acceptable_posarg_range(slot_sig)
-                    n_spec_params = len(spec.parameters)
-
-                    # if `slot` requires more arguments than we will provide, raise.
-                    if minargs > n_spec_params:
-                        extra = (
-                            f"- Slot requires at least {minargs} positional arguments, "
-                            f"but spec only provides {n_spec_params}"
+                    try:
+                        slot_sig = signature(slot)
+                    except ValueError as e:
+                        warnings.warn(
+                            str(e)
+                            + "To silence this warning, connect with check_nargs=False"
                         )
-                        self._raise_connection_error(slot, extra)
+                    else:
+                        minargs, maxargs = _acceptable_posarg_range(slot_sig)
+                        n_spec_params = len(spec.parameters)
+
+                        # if `slot` requires more arguments than we will provide, raise.
+                        if minargs > n_spec_params:
+                            extra = (
+                                f"- Slot requires at least {minargs} positional "
+                                f"arguments, but spec only provides {n_spec_params}"
+                            )
+                            self._raise_connection_error(slot, extra)
 
                 if check_types:
                     if slot_sig is None:  # pragma: no cover
