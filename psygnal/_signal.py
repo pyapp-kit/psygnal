@@ -25,9 +25,8 @@ from typing import (
 
 from typing_extensions import Literal
 
-CallbackType = Callable[..., None]
 MethodRef = Tuple["weakref.ReferenceType[object]", str]
-NormedCallback = Union[MethodRef, CallbackType]
+NormedCallback = Union[MethodRef, Callable]
 StoredSlot = Tuple[NormedCallback, Optional[int]]
 AnyType = Type[Any]
 
@@ -336,32 +335,32 @@ class SignalInstance:
     def connect(
         self,
         *,
-        check_nargs: Optional[bool],
-        check_types: Optional[bool],
-        unique: Union[bool, str],
-    ) -> Callable[[CallbackType], CallbackType]:
+        check_nargs: Optional[bool] = ...,
+        check_types: Optional[bool] = ...,
+        unique: Union[bool, str] = ...,
+    ) -> Callable[[Callable], Callable]:
         ...  # pragma: no cover
 
     @overload
     def connect(
         self,
-        slot: CallbackType,
+        slot: Callable,
         *,
-        check_nargs: Optional[bool],
-        check_types: Optional[bool],
-        unique: Union[bool, str],
-    ) -> CallbackType:
+        check_nargs: Optional[bool] = ...,
+        check_types: Optional[bool] = ...,
+        unique: Union[bool, str] = ...,
+    ) -> Callable:
         ...  # pragma: no cover
 
     # TODO: allow connect as decorator with arguments
     def connect(
         self,
-        slot: Optional[CallbackType] = None,
+        slot: Optional[Callable] = None,
         *,
         check_nargs: Optional[bool] = None,
         check_types: Optional[bool] = None,
         unique: Union[bool, str] = False,
-    ) -> Union[Callable[[CallbackType], CallbackType], CallbackType]:
+    ) -> Union[Callable[[Callable], Callable], Callable]:
         """Connect a callback ("slot") to this signal.
 
         `slot` is compatible if:
@@ -408,7 +407,7 @@ class SignalInstance:
         if check_types is None:
             check_types = self._check_types_on_connect
 
-        def _wrapper(slot: CallbackType) -> CallbackType:
+        def _wrapper(slot: Callable) -> Callable:
             if not callable(slot):
                 raise TypeError(f"Cannot connect to non-callable object: {slot}")
 
@@ -459,7 +458,7 @@ class SignalInstance:
 
         return _wrapper(slot) if slot else _wrapper
 
-    def _raise_connection_error(self, slot: CallbackType, extra: str = "") -> NoReturn:
+    def _raise_connection_error(self, slot: Callable, extra: str = "") -> NoReturn:
         name = getattr(slot, "__name__", str(slot))
         msg = f"Cannot connect slot {name!r} with signature: {signature(slot)}:\n"
         msg += extra
@@ -732,13 +731,13 @@ def _acceptable_posarg_range(
 
 
 def _parameter_types_match(
-    function: CallbackType, spec: Signature, func_sig: Optional[Signature] = None
+    function: Callable, spec: Signature, func_sig: Optional[Signature] = None
 ) -> bool:
     """Return True if types in `function` signature match those in `spec`.
 
     Parameters
     ----------
-    function : CallbackType
+    function : Callable
         A function to validate
     spec : Signature
         The Signature against which the `function` should be validated.
