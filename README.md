@@ -228,6 +228,21 @@ asynchronous=True)`.
 used during important state mutations) it is not guaranteed.  Please use at your
 own risk. Issues/PRs welcome.
 
+### Blocking a signal
+
+To temporarily block a signal, use the `signal.blocked()` context context manager:
+
+```py
+obj = MyObj()
+
+with obj.value_changed.blocked():
+    # do stuff without obj.value_changed getting emitted
+    ...
+```
+
+To block/unblock permanently (outside of a context manager), use `signal.block()`
+and `signal.unblock()`.
+
 ## Other similar libraries
 
 There are other libraries that implement similar event-based signals, they may
