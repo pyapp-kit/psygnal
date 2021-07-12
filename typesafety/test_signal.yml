@@ -1,0 +1,51 @@
+- case: signal_object_types
+  main: |
+    from psygnal import Signal
+
+    class T:
+        s = Signal()
+
+    t = T()
+    reveal_type(T.s)  # N: Revealed type is "psygnal._signal.Signal"
+    reveal_type(t.s)  # N: Revealed type is "psygnal._signal.SignalInstance"
+
+- case: signal_params
+  main: |
+    from psygnal import Signal
+    from inspect import Signature
+    s = Signal()
+    s = Signal(int, str)
+    s = Signal(object)
+    s = Signal(Signature())
+    s = Signal(1) # E: Argument 1 to "Signal" has incompatible type "int"; expected "Union[Type[Any], Signature]"  [arg-type]
+
+- case: signal_emit
+  main: |
+    from psygnal import SignalInstance
+    s = SignalInstance()
+    x = s.emit(1)
+    reveal_type(x)  # N: Revealed type is "None"
+    y = s.emit(1, asynchronous=True)
+    reveal_type(y)  # N: Revealed type is "Union[psygnal._signal.EmitThread, None]"
+
+- case: signal_connection
+  main: |
+    from psygnal import SignalInstance
+    s = SignalInstance()
+
+    deco = s.connect(check_nargs=False)
+    reveal_type(deco)  # N: Revealed type is "def (def (*Any, **Any) -> Any) -> def (*Any, **Any) -> Any"
+
+    def a() -> None: ...
+    x = s.connect(a)
+    reveal_type(x)  # N: Revealed type is "def (*Any, **Any) -> Any"
+
+    @s.connect
+    def b() -> None: ...
+
+    def c() -> None: ...
+    y = s.connect(c, check_nargs=False)
+    reveal_type(y)  # N: Revealed type is "def (*Any, **Any) -> Any"
+
+    @s.connect(check_nargs=False)
+    def d() -> None: ...
