@@ -604,6 +604,42 @@ class SignalInstance:
         self._run_emit_loop(args)
         return None
 
+    @overload
+    def __call__(
+        self,
+        *args: Any,
+        check_nargs: bool = False,
+        check_types: bool = False,
+        asynchronous: Literal[False] = False,
+    ) -> None:
+        ...  # pragma: no cover
+
+    @overload
+    def __call__(
+        self,
+        *args: Any,
+        check_nargs: bool = False,
+        check_types: bool = False,
+        asynchronous: Literal[True],
+    ) -> Optional["EmitThread"]:
+        # will return `None` if emitter is blocked
+        ...  # pragma: no cover
+
+    def __call__(
+        self,
+        *args: Any,
+        check_nargs: bool = False,
+        check_types: bool = False,
+        asynchronous: bool = False,
+    ) -> Optional["EmitThread"]:
+        """Alias for `emit()`."""
+        return self.emit(  # type: ignore
+            *args,
+            check_nargs=check_nargs,
+            check_types=check_types,
+            asynchronous=asynchronous,
+        )
+
     def _run_emit_loop(self, args: Tuple[Any, ...]) -> None:
 
         rem: List[NormedCallback] = []
