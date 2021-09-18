@@ -633,7 +633,12 @@ class SignalInstance:
         asynchronous: bool = False,
     ) -> Optional["EmitThread"]:
         """Alias for `emit()`."""
-        return self.emit(*args, check_nargs, check_types, asynchronous)
+        return self.emit(  # type: ignore
+            *args,
+            check_nargs=check_nargs,
+            check_types=check_types,
+            asynchronous=asynchronous,
+        )
 
     def _run_emit_loop(self, args: Tuple[Any, ...]) -> None:
 
