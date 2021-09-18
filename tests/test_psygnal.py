@@ -79,7 +79,7 @@ def test_basic_signal():
     emitter.one_int.connect(mock)
     emitter.one_int.emit(1)
     mock.assert_called_once_with(1)
-    mock.reset_mock
+    mock.reset_mock()
 
     # calling directly also works
     emitter.one_int(1)
