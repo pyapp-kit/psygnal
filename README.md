@@ -245,15 +245,13 @@ and `signal.unblock()`.
 
 ### Pausing a signal
 
-To temporarily block a signal, use the `signal.paused()` context context manager.
-
-To pause/resume permanently (outside of a context manager), use `signal.pause()`
-and `signal.resume()`.
+Sometimes it is useful to temporarily collect/buffer emission events, and then emit
+them together as a single event.  This can be accomplished using the
+`signal.pause()`/`signal.resume()` methods, or the `signal.paused()` context manager.
 
 If a function is passed to `signal.paused(func)` (or `signal.resume(func)`) it will
 be passed to `functools.reduce` to combine all of the emitted values collected during
 the paused period, and a single combined value will be emitted.
-
 
 ```py
 obj = MyObj()
