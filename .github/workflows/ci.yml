@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - master
     tags:
       - "v*"
   pull_request: {}
@@ -17,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.7, 3.8, 3.9]
+        python-version: ['3.7', '3.8', '3.9', '3.10']
 
     steps:
       - uses: actions/checkout@v2
@@ -31,6 +30,7 @@ jobs:
         run: |
           python -m pip install -U wheel pip
           pip install -e .[testing,build]
+          pip install -U git+https://github.com/typeddjango/pytest-mypy-plugins.git
         env:
           SKIP_CYTHON: 1
 
@@ -55,7 +55,7 @@ jobs:
         run: pytest --color=yes --cov=psygnal
 
       - name: Coverage
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v2
 
   test-windows-mac:
     name: test py${{ matrix.python-version }} on ${{ matrix.platform }}
@@ -63,7 +63,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.7, 3.8, 3.9]
+        python-version: ['3.7', '3.8', '3.9', '3.10']
         platform: [macos-latest, windows-latest]
 
     steps:
@@ -78,100 +78,58 @@ jobs:
         run: |
           python -m pip install -U wheel pip
           pip install -e .[testing,build]
+          pip install -U git+https://github.com/typeddjango/pytest-mypy-plugins.git
 
       - name: test
         run: pytest --color=yes --cov=psygnal
 
       - name: Coverage
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v2
 
   build:
-    name: build py3.${{ matrix.python-version }} on ${{ matrix.platform || matrix.os }}
-    needs: [test-linux, test-windows-mac]
-    if: "success() && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/master')"
+    name: Build wheels on ${{ matrix.os }}
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu, macos, windows]
-        python-version: ["7", "8", "9"]
-        include:
-          - os: ubuntu
-            platform: linux
-          - os: windows
-            ls: dir
+        os: [ubuntu-20.04, windows-2019, macos-10.15]
 
-    runs-on: ${{ format('{0}-latest', matrix.os) }}
     steps:
       - uses: actions/checkout@v2
 
-      - name: set up python
-        uses: actions/setup-python@v2
+      - uses: actions/setup-python@v2
+        name: Install Python
         with:
-          python-version: "3.8"
+          python-version: '3.9'
 
-      - name: install
-        run: pip install -U twine setuptools wheel cibuildwheel
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v2.2.0a1
 
-      - name: build sdist
-        if: matrix.os == 'ubuntu' && matrix.python-version == '9'
-        run: python setup.py sdist bdist_wheel
-        env:
-          SKIP_CYTHON: 1
-
-      - name: build ${{ matrix.platform || matrix.os }} binaries
-        run: cibuildwheel --output-dir dist
-        env:
-          PIP: "pip"
-          CIBW_BUILD: "cp3${{ matrix.python-version }}-*"
-          CIBW_SKIP: "*-win32"
-          CIBW_PLATFORM: "${{ matrix.platform || matrix.os }}"
-          CIBW_BEFORE_BUILD: "pip install -U cython"
-          CIBW_TEST_REQUIRES: "pytest pytest-mypy-plugins"
-          CIBW_TEST_COMMAND: "pytest {project}/tests"
-          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux2014"
-          CIBW_MANYLINUX_I686_IMAGE: "manylinux2014"
-
-      - name: list dist files
-        run: |
-          ${{ matrix.ls || 'ls -lh' }} dist/
-          twine check dist/*
-
-      - name: Store dist artifacts
-        uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v2
         with:
-          name: pypi_files
-          path: dist
+          path: ./wheelhouse/*.whl
 
-  deploy:
-    name: Deploy
-    needs: build
-    if: "success() && startsWith(github.ref, 'refs/tags/')"
+      - name: Build sdist
+        if: matrix.os == 'ubuntu-20.04'
+        run: python setup.py sdist
+
+      - uses: actions/upload-artifact@v2
+        if: matrix.os == 'ubuntu-20.04'
+        with:
+          path: dist/*.tar.gz
+
+  upload_pypi:
+    needs: [build]
     runs-on: ubuntu-latest
-
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     steps:
-      - uses: actions/checkout@v2
-
-      - name: set up python
-        uses: actions/setup-python@v2
+      - uses: actions/download-artifact@v2
         with:
-          python-version: "3.8"
-
-      - name: get dist artifacts
-        uses: actions/download-artifact@v2
-        with:
-          name: pypi_files
+          name: artifact
           path: dist
 
-      - name: install
-        run: pip install -U twine
-
-      - name: twine check
-        run: |
-          twine check dist/*
-          ls -lh dist
-
-      - name: upload to pypi
-        run: twine upload dist/*
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.pypi_token }}
+      - uses: pypa/gh-action-pypi-publish@v1.4.2
+        with:
+          user: __token__
+          password: ${{ secrets.pypi_token }}

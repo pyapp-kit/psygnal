@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools", "wheel", "cython", "setuptools_scm"]
+build-backend = "setuptools.build_meta"
+
+[tool.cibuildwheel]
+# Skip 32-bit builds & PyPy wheels on all platforms
+skip = ["*-win32", "pp*"]
+test-extras = ["testing"]
+test-command = "pytest {project}/tests -v"
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "arm64"]
