@@ -356,7 +356,6 @@ class SignalInstance:
     ) -> Callable:
         ...  # pragma: no cover
 
-    # TODO: allow connect as decorator with arguments
     def connect(
         self,
         slot: Optional[Callable] = None,
@@ -793,6 +792,83 @@ class EmitThread(threading.Thread):
     def run(self) -> None:
         """Run thread."""
         self._signal_instance._run_emit_loop(self.args)
+
+
+class SignalGroupMeta(type):
+    def __new__(
+        mcls: type, name: str, bases: tuple, namespace: dict
+    ) -> "SignalGroupMeta":
+        namespace["_signals"] = {
+            k: v for k, v in namespace.items() if isinstance(v, Signal)
+        }
+        return type.__new__(mcls, name, bases, namespace)
+
+
+# class SignalGroup(metaclass=SignalGroupMeta):
+#     ...
+
+
+class SignalGroup(SignalInstance):
+    def __init__(
+        self,
+        *,
+        instance: Any = None,
+        name: Optional[str] = None,
+    ) -> None:
+        super().__init__(
+            instance=instance,
+            name=name,
+            check_nargs_on_connect=True,
+            check_types_on_connect=False,
+        )
+        self._emitters: Dict[str, SignalInstance] = {
+            k: getattr(self, k)
+            for k, v in type(self).__dict__.items()
+            if isinstance(v, Signal)
+        }
+
+    @property
+    def emitters(self) -> Dict[str, SignalInstance]:
+        return self._emitters
+
+    def connect(
+        self,
+        slot: Optional[Callable] = None,
+        *,
+        check_nargs: Optional[bool] = None,
+        check_types: Optional[bool] = None,
+        unique: Union[bool, str] = False,
+        with_name: bool = False,
+    ) -> Union[Callable[[Callable], Callable], Callable]:
+        def _inner(slot: Callable) -> Callable:
+
+            for name, sig in self.emitters.items():
+
+                if with_name:
+
+                    def _slot(
+                        *args: Any, slot: Callable = slot, name: str = name
+                    ) -> Any:
+                        info = {"name": name, "args": args}
+                        return slot(info)
+
+                else:
+                    _slot = slot
+                sig.connect(
+                    _slot,
+                    check_nargs=check_nargs,
+                    check_types=check_types,
+                    unique=unique,
+                )
+            return slot
+
+        return _inner if slot is None else _inner(slot)
+
+
+class T(SignalGroup):
+    a = Signal(int)
+    b = Signal()
+    c = Signal(str)
 
 
 # ################################################################
