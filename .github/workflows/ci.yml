@@ -10,14 +10,13 @@ on:
 
 jobs:
   test-linux:
-    name: test py${{ matrix.python-version }} on linux
-    runs-on: ubuntu-latest
-
+    name: ${{ matrix.platform }} py${{ matrix.python-version }}
+    runs-on: ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
         python-version: ['3.7', '3.8', '3.9', '3.10']
-        platform: [macos-latest, windows-latest]
+        platform: [macos-latest, windows-latest, ubuntu-latest]
 
     steps:
       - uses: actions/checkout@v2
@@ -37,7 +36,7 @@ jobs:
 
       - name: compile
         run: |
-          make build-trace
+          python setup.py build_ext --force --inplace --define CYTHON_TRACE
           python -c "import sys, psygnal; print('compiled:', psygnal._compiled); sys.exit(0 if psygnal._compiled else 1)"
           ls -alh
           ls -alh psygnal/
