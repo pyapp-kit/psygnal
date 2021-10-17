@@ -511,7 +511,7 @@ def test_pause():
     emitter.one_int.emit(2)
     emitter.one_int.emit(3)
     mock.assert_not_called()
-    emitter.one_int.unpause()
+    emitter.one_int.resume()
     mock.assert_has_calls([call(1), call(2), call(3)])
 
     _x = set()
