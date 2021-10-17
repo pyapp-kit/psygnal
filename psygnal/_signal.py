@@ -29,7 +29,7 @@ MethodRef = Tuple["weakref.ReferenceType[object]", str]
 NormedCallback = Union[MethodRef, Callable]
 StoredSlot = Tuple[NormedCallback, Optional[int]]
 AnyType = Type[Any]
-ReducerFunc = Callable[[Any, Any], Any]
+ReducerFunc = Callable[[tuple, tuple], tuple]
 _NULL = object()
 _SIG_CACHE: Dict[int, Signature] = {}
 
@@ -715,7 +715,7 @@ class SignalInstance:
             passed to `reducer` will always be tuples. `reducer` must handle that and
             return an args tuple.
             For example, three `emit(1)` events would be reduced and re-emitted as
-            follows: `self.emit(*functools.reduce(reducer, [(1,), (1,), [1,]]))`
+            follows: `self.emit(*functools.reduce(reducer, [(1,), (1,), (1,)]))`
 
         initial: any, optional
             intial value to pass to `functools.reduce`
@@ -761,7 +761,7 @@ class SignalInstance:
             passed to `reducer` will always be tuples. `reducer` must handle that and
             return an args tuple.
             For example, three `emit(1)` events would be reduced and re-emitted as
-            follows: `self.emit(*functools.reduce(reducer, [(1,), (1,), [1,]]))`
+            follows: `self.emit(*functools.reduce(reducer, [(1,), (1,), (1,)]))`
         initial: any, optional
             intial value to pass to `functools.reduce`
 
