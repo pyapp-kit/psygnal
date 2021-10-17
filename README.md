@@ -243,6 +243,29 @@ with obj.value_changed.blocked():
 To block/unblock permanently (outside of a context manager), use `signal.block()`
 and `signal.unblock()`.
 
+### Pausing a signal
+
+To temporarily block a signal, use the `signal.paused()` context context manager.
+
+To pause/resume permanently (outside of a context manager), use `signal.pause()`
+and `signal.resume()`.
+
+If a function is passed to `signal.paused()` (or `signal.resume()`) it will passed
+to `functools.reduce` to combine all of the emitted values collected during the
+paused period, and a single combined value will be emitted.
+
+```py
+obj = MyObj()
+obj.value_changed.connect(print)
+
+# note that signal.paused() and signal.resume() accept a reducer function
+with obj.value_changed.paused(lambda *v: '_'.join(v), ''):
+    obj.value_changed('a')
+    obj.value_changed('b')
+    obj.value_changed('c')
+# prints '_a_b_c'
+```
+
 ## Other similar libraries
 
 There are other libraries that implement similar event-based signals, they may

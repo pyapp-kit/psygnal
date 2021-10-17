@@ -29,8 +29,8 @@ MethodRef = Tuple["weakref.ReferenceType[object]", str]
 NormedCallback = Union[MethodRef, Callable]
 StoredSlot = Tuple[NormedCallback, Optional[int]]
 AnyType = Type[Any]
-ReducerFunc = Callable[[Tuple[Any, ...], Tuple[Any, ...]], Any]
-
+ReducerFunc = Callable[[Any, Any], Any]
+_NULL = object()
 _SIG_CACHE: Dict[int, Signature] = {}
 
 
@@ -601,7 +601,7 @@ class SignalInstance:
             )
 
         if self._is_paused:
-            self._args_queue.append(args)
+            self._args_queue.append(args[0] if len(args) == 1 else args)
             return None
 
         if asynchronous:
@@ -701,19 +701,25 @@ class SignalInstance:
         """
         self._is_paused = True
 
-    def resume(self, reducer: Optional[ReducerFunc] = None) -> None:
+    def resume(
+        self, reducer: Optional[ReducerFunc] = None, initial: Optional[Any] = _NULL
+    ) -> None:
         """Resume (unpause) this signal, emitting everything in the queue.
 
         Parameters
         ----------
         reducer : Callable[[tuple, tuple], Any], optional
             If provided, all gathered args will be reduced into a single argument by
-            passing `reducer` to `functools.reduce`. Note, args passed to `emit` are
-            collected as tuples, so the two arguments passed to `reducer` will always be
-            tuples (and `reducer` must handle that).  For example, three `emit(1)`
+            passing `reducer` to `functools.reduce`. Note, single arguments passed to
+            `emit` are collected in a flat list.  For example, three `emit(1)`
             events would be reduced and re-emitted as follows:
 
-            `self.emit(functools.reduce(reducer, [(1,), (1,), [1,]]))`
+            `self.emit(functools.reduce(reducer, [1, 1, 1]))`
+
+            However, `emit(1, 2, 3)` would be collected in the queue as `[(1, 2, 3)]`,
+            so the reducer must be aware of the emission signature.
+        initial: any, optional
+            intial value to pass to functools.reduce()
 
         Examples
         --------
@@ -736,7 +742,10 @@ class SignalInstance:
         if not self._args_queue:
             return
         if reducer is not None:
-            arg = reduce(reducer, self._args_queue)
+            if initial is _NULL:
+                arg = reduce(reducer, self._args_queue)
+            else:
+                arg = reduce(reducer, self._args_queue, initial)
             self._run_emit_loop((arg,))
         else:
             for args in self._args_queue:
@@ -744,7 +753,9 @@ class SignalInstance:
         self._args_queue = []
 
     @contextmanager
-    def paused(self, reducer: Optional[ReducerFunc] = None) -> Iterator[None]:
+    def paused(
+        self, reducer: Optional[ReducerFunc] = None, initial: Optional[Any] = _NULL
+    ) -> Iterator[None]:
         """Context manager to temporarly pause this signal.
 
         Parameters
@@ -757,6 +768,8 @@ class SignalInstance:
             events would be reduced and re-emitted as follows:
 
             `self.emit(functools.reduce(reducer, [(1,), (1,), [1,]]))`
+        initial: any, optional
+            intial value to pass to functools.reduce()
 
         Examples
         --------
@@ -770,12 +783,13 @@ class SignalInstance:
         ...     t.sig.emit(2)
         ...     t.sig.emit(3)
         >>> # results in obj.signal.emit({1, 2, 3})
+
         """
         self.pause()
         try:
             yield
         finally:
-            self.resume(reducer)
+            self.resume(reducer, initial)
 
 
 class EmitThread(threading.Thread):
