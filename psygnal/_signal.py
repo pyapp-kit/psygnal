@@ -5,7 +5,7 @@ import threading
 import warnings
 import weakref
 from contextlib import contextmanager
-from functools import lru_cache
+from functools import lru_cache, reduce
 from inspect import Parameter, Signature, ismethod
 from typing import (
     TYPE_CHECKING,
@@ -29,8 +29,8 @@ MethodRef = Tuple["weakref.ReferenceType[object]", str]
 NormedCallback = Union[MethodRef, Callable]
 StoredSlot = Tuple[NormedCallback, Optional[int]]
 AnyType = Type[Any]
-
-
+ReducerFunc = Callable[[tuple, tuple], tuple]
+_NULL = object()
 _SIG_CACHE: Dict[int, Signature] = {}
 
 
@@ -279,6 +279,8 @@ class SignalInstance:
         "_name",
         "_slots",
         "_is_blocked",
+        "_is_paused",
+        "_args_queue",
         "_lock",
         "_check_nargs_on_connect",
         "_check_types_on_connect",
@@ -308,6 +310,8 @@ class SignalInstance:
         self._name = name
         self._slots: List[StoredSlot] = []
         self._is_blocked: bool = False
+        self._is_paused: bool = False
+        self._args_queue: List[Any] = []  # filled when paused
         self._lock = threading.RLock()
 
     @property
@@ -596,6 +600,10 @@ class SignalInstance:
                 f"signature: {self.signature}"
             )
 
+        if self._is_paused:
+            self._args_queue.append(args)
+            return None
+
         if asynchronous:
             sd = EmitThread(self, args)
             sd.start()
@@ -684,6 +692,92 @@ class SignalInstance:
             yield
         finally:
             self.unblock()
+
+    def pause(self) -> None:
+        """Pause all emission and collect *args tuples from emit().
+
+        args passed to `emit` will be collected and re-emitted when `resume()` is
+        called. For a context manager version, see `paused()`.
+        """
+        self._is_paused = True
+
+    def resume(
+        self, reducer: Optional[ReducerFunc] = None, initial: Any = _NULL
+    ) -> None:
+        """Resume (unpause) this signal, emitting everything in the queue.
+
+        Parameters
+        ----------
+        reducer : Callable[[tuple, tuple], Any], optional
+            If provided, all gathered args will be reduced into a single argument by
+            passing `reducer` to `functools.reduce`.
+            NOTE: args passed to `emit` are collected as tuples, so the two arguments
+            passed to `reducer` will always be tuples. `reducer` must handle that and
+            return an args tuple.
+            For example, three `emit(1)` events would be reduced and re-emitted as
+            follows: `self.emit(*functools.reduce(reducer, [(1,), (1,), (1,)]))`
+
+        initial: any, optional
+            intial value to pass to `functools.reduce`
+
+        Examples
+        --------
+        >>> class T:
+        ...     sig = Signal(int)
+        >>> t = T()
+        >>> t.sig.pause()
+        >>> t.sig.emit(1)
+        >>> t.sig.emit(2)
+        >>> t.sig.emit(3)
+        >>> t.sig.resume(lambda a, b: (a[0].union(set(b)),), (set(),))
+        >>> # results in t.sig.emit({1, 2, 3})
+        """
+        self._is_paused = False
+        if not self._args_queue:
+            return
+        if reducer is not None:
+            if initial is _NULL:
+                args = reduce(reducer, self._args_queue)
+            else:
+                args = reduce(reducer, self._args_queue, initial)
+            self._run_emit_loop(args)
+        else:
+            for args in self._args_queue:
+                self._run_emit_loop(args)
+        self._args_queue = []
+
+    @contextmanager
+    def paused(
+        self, reducer: Optional[ReducerFunc] = None, initial: Any = _NULL
+    ) -> Iterator[None]:
+        """Context manager to temporarly pause this signal.
+
+        Parameters
+        ----------
+        reducer : Callable[[tuple, tuple], Any], optional
+            If provided, all gathered args will be reduced into a single argument by
+            passing `reducer` to `functools.reduce`.
+            NOTE: args passed to `emit` are collected as tuples, so the two arguments
+            passed to `reducer` will always be tuples. `reducer` must handle that and
+            return an args tuple.
+            For example, three `emit(1)` events would be reduced and re-emitted as
+            follows: `self.emit(*functools.reduce(reducer, [(1,), (1,), (1,)]))`
+        initial: any, optional
+            intial value to pass to `functools.reduce`
+
+        Examples
+        --------
+        >>> with obj.signal.paused(lambda a, b: (a[0].union(set(b)),), (set(),)):
+        ...     t.sig.emit(1)
+        ...     t.sig.emit(2)
+        ...     t.sig.emit(3)
+        >>> # results in obj.signal.emit({1, 2, 3})
+        """
+        self.pause()
+        try:
+            yield
+        finally:
+            self.resume(reducer, initial)
 
 
 class EmitThread(threading.Thread):

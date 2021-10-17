@@ -4,7 +4,7 @@ import weakref
 from inspect import Signature
 from types import FunctionType
 from typing import Optional
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call
 
 import pytest
 
@@ -494,3 +494,53 @@ def test_sig_unavailable():
     # we've special cased print... due to frequency of use.
     with pytest.warns(None):
         e.one_int.connect(print)  # no warning
+
+
+def test_pause():
+    """Test that we can pause, and resume emission of (possibly reduced) args."""
+    emitter = Emitter()
+    mock = MagicMock()
+
+    emitter.one_int.connect(mock)
+    emitter.one_int.emit(1)
+    mock.assert_called_once_with(1)
+
+    mock.reset_mock()
+    emitter.one_int.pause()
+    emitter.one_int.emit(1)
+    emitter.one_int.emit(2)
+    emitter.one_int.emit(3)
+    mock.assert_not_called()
+    emitter.one_int.resume()
+    mock.assert_has_calls([call(1), call(2), call(3)])
+
+    mock.reset_mock()
+    with emitter.one_int.paused(lambda a, b: (a[0].union(set(b)),), (set(),)):
+        emitter.one_int.emit(1)
+        emitter.one_int.emit(2)
+        emitter.one_int.emit(3)
+    mock.assert_called_once_with({1, 2, 3})
+
+    mock.reset_mock()
+    emitter.one_int.pause()
+    emitter.one_int.resume()
+    mock.assert_not_called()
+
+
+def test_resume_with_initial():
+    emitter = Emitter()
+    mock = MagicMock()
+    emitter.one_int.connect(mock)
+
+    with emitter.one_int.paused(lambda a, b: (a[0] + b[0],)):
+        emitter.one_int.emit(1)
+        emitter.one_int.emit(2)
+        emitter.one_int.emit(3)
+    mock.assert_called_once_with(6)
+
+    mock.reset_mock()
+    with emitter.one_int.paused(lambda a, b: (a[0] + b[0],), (20,)):
+        emitter.one_int.emit(1)
+        emitter.one_int.emit(2)
+        emitter.one_int.emit(3)
+    mock.assert_called_once_with(26)
