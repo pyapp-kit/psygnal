@@ -521,12 +521,24 @@ def test_pause():
         emitter.one_int.emit(3)
     mock.assert_called_once_with({1, 2, 3})
 
+    mock.reset_mock()
+    emitter.one_int.pause()
+    emitter.one_int.resume()
+    mock.assert_not_called()
+
 
 def test_resume_with_initial():
     emitter = Emitter()
     mock = MagicMock()
     emitter.one_int.connect(mock)
 
+    with emitter.one_int.paused(lambda a, b: (a[0] + b[0],)):
+        emitter.one_int.emit(1)
+        emitter.one_int.emit(2)
+        emitter.one_int.emit(3)
+    mock.assert_called_once_with(6)
+
+    mock.reset_mock()
     with emitter.one_int.paused(lambda a, b: (a[0] + b[0],), (20,)):
         emitter.one_int.emit(1)
         emitter.one_int.emit(2)
