@@ -842,7 +842,7 @@ def _acceptable_posarg_range(
     """
     required = 0
     optional = 0
-    is_unbound = False
+    posargs_unlimited = False
     for param in sig.parameters.values():
         if param.kind in {Parameter.POSITIONAL_ONLY, Parameter.POSITIONAL_OR_KEYWORD}:
             if param.default is Parameter.empty:
@@ -850,14 +850,14 @@ def _acceptable_posarg_range(
             else:
                 optional += 1
         elif param.kind is Parameter.VAR_POSITIONAL:
-            is_unbound = True
+            posargs_unlimited = True
         elif (
             param.kind is Parameter.KEYWORD_ONLY
             and param.default is Parameter.empty
             and forbid_required_kwarg
         ):
             raise ValueError("Required KEYWORD_ONLY parameters not allowed")
-    return (required, None if is_unbound else required + optional)
+    return (required, None if posargs_unlimited else required + optional)
 
 
 def _parameter_types_match(
