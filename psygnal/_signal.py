@@ -472,7 +472,7 @@ class SignalInstance:
     def _normalize_slot(self, slot: NormedCallback) -> NormedCallback:
         if ismethod(slot):
             return _get_proper_name(slot)  # type: ignore
-        if isinstance(slot, partial):
+        if isinstance(slot, partial) and ismethod(slot.func):
             return partial_weakref(slot)
         if isinstance(slot, tuple) and not isinstance(slot[0], weakref.ref):
             return (weakref.ref(slot[0]), slot[1])
