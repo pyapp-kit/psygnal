@@ -5,7 +5,7 @@ import threading
 import warnings
 import weakref
 from contextlib import contextmanager
-from functools import lru_cache, reduce, wraps, partial
+from functools import lru_cache, partial, reduce
 from inspect import Parameter, Signature, ismethod
 from typing import (
     TYPE_CHECKING,
@@ -667,7 +667,9 @@ class SignalInstance:
                         if cb is None:  # pragma: no cover
                             rem.append(slot)  # object has changed?
                             continue
-                    elif hasattr(slot, "__ref__") and slot.__ref__() is None:
+                    elif (
+                        hasattr(slot, "__ref__") and slot.__ref__() is None  # type: ignore  # noqa: E501
+                    ):
                         rem.append(slot)  # add dead weakref
                         continue
                     else:
@@ -919,31 +921,29 @@ def _is_subclass(left: AnyType, right: type) -> bool:
     return issubclass(left, right)
 
 
-def partial_weakref(partial_fun):
+def partial_weakref(partial_fun: partial) -> Callable:
     obj, name = _get_proper_name(partial_fun.func)
     args_ = partial_fun.args
     kwargs_ = partial_fun.keywords
-    def wrap(*args, **kwargs):
+
+    def wrap(*args, **kwargs):  # type: ignore
         ob = obj()
         if ob is None:
             return
         getattr(ob, name)(*args_, *args, **kwargs_, **kwargs)
 
-    wrap.__ref__ = obj
-    # wrap.__name__ = partial_fun.__name__
-    # wrap.__annotations__ = partial_fun.__annotations__
-    # wrap.__doc__ = partial_fun.__doc__
+    wrap.__ref__ = obj  # type: ignore
 
     del partial_fun
     return wrap
 
 
-def _get_proper_name(callback):
+def _get_proper_name(callback: Callable) -> Tuple[weakref.ref, str]:
     assert inspect.ismethod(callback)
-    obj = callback.__self__
+    obj = callback.__self__  # type: ignore
     if (
-            not hasattr(obj, callback.__name__)
-            or getattr(obj, callback.__name__) != callback
+        not hasattr(obj, callback.__name__)
+        or getattr(obj, callback.__name__) != callback
     ):
         # some decorators will alter method.__name__, so that obj.method
         # will not be equal to getattr(obj, obj.method.__name__). We check

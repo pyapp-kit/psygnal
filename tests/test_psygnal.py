@@ -21,7 +21,6 @@ def stupid_decorator(fun):
     return _fun
 
 
-
 # fmt: off
 class Emitter:
     no_arg = Signal()
@@ -48,7 +47,7 @@ class MyObj:
     def f_vararg_varkwarg(self, *a, **b): ...
     def f_vararg_kwarg(self, *a, b=None): ...
     @stupid_decorator
-    def f_int_decorated(self, a:int): ...
+    def f_int_decorated(self, a: int): ...
 
 
 def f_no_arg(): ...
@@ -297,7 +296,6 @@ def test_weakrefs():
     emitter.one_int.emit(1)
     emitter.one_int.connect(partial(obj.f_int_int, 1))
     assert len(emitter.one_int) == 2
-    ref = weakref.ref(obj)
     del obj
     gc.collect()
     emitter.one_int.emit(1)  # this should trigger deletion
