@@ -11,6 +11,16 @@ import pytest
 from psygnal import Signal, SignalInstance
 
 
+def stupid_decorator(fun):
+    def _fun(*args, **kwargs):
+        fun(*args, **kwargs)
+
+    _fun.__annotations__ = fun.__annotations__
+    _fun.__name__ = "f_no_arg"
+    return _fun
+
+
+
 # fmt: off
 class Emitter:
     no_arg = Signal()
@@ -36,6 +46,8 @@ class MyObj:
     def f_vararg(self, *a): ...
     def f_vararg_varkwarg(self, *a, **b): ...
     def f_vararg_kwarg(self, *a, b=None): ...
+    @stupid_decorator
+    def f_int_decorated(self, a:int): ...
 
 
 def f_no_arg(): ...
@@ -277,6 +289,11 @@ def test_weakrefs():
     gc.collect()
     emitter.one_int.emit(1)  # this should trigger deletion
     assert len(emitter.one_int) == 0
+
+    obj = MyObj()
+    emitter.one_int.connect(obj.f_int_decorated)
+    assert len(emitter.one_int) == 1
+    emitter.one_int.emit(1)
 
 
 def test_norm_slot():

@@ -469,9 +469,30 @@ class SignalInstance:
         msg += f"\n\nAccepted signature: {self.signature}"
         raise ValueError(msg)
 
+    @staticmethod
+    def _get_proper_name(callback):
+        assert inspect.ismethod(callback)
+        obj = callback.__self__
+        if (
+            not hasattr(obj, callback.__name__)
+            or getattr(obj, callback.__name__) != callback
+        ):
+            # some decorators will alter method.__name__, so that obj.method
+            # will not be equal to getattr(obj, obj.method.__name__). We check
+            # for that case here and traverse to find the right method here.
+            for name in dir(obj):
+                meth = getattr(obj, name)
+                if inspect.ismethod(meth) and meth == callback:
+                    return obj, name
+            raise RuntimeError(
+                f"During bind method {callback} of object {obj} an error happen"
+            )
+        return obj, callback.__name__
+
     def _normalize_slot(self, slot: NormedCallback) -> NormedCallback:
         if ismethod(slot):
-            return (weakref.ref(slot.__self__), slot.__name__)  # type: ignore
+            obj, name = self._get_proper_name(slot)  # type: ignore
+            return (weakref.ref(obj), name)
         if isinstance(slot, tuple) and not isinstance(slot[0], weakref.ref):
             return (weakref.ref(slot[0]), slot[1])
         return slot
