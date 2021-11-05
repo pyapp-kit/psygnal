@@ -941,13 +941,13 @@ def partial_weakref(partial_fun: Partial) -> Callable:
     args_ = partial_fun.args
     kwargs_ = partial_fun.keywords
 
-    def wrap(*args, **kwargs):  # type: ignore
+    def wrap(*args: Any, **kwargs: Any) -> Any:
         ob = obj()
         if ob is None:
             return
         getattr(ob, name)(*args_, *args, **kwargs_, **kwargs)
 
-    wrap.__ref__ = obj  # type: ignore
+    setattr(wrap, '__ref__', obj)
 
     del partial_fun
     return wrap
