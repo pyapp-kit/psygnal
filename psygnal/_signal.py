@@ -35,12 +35,12 @@ _NULL = object()
 _SIG_CACHE: Dict[int, Signature] = {}
 
 
-class PartialMeta(type):
+class PartialBoundMethodMeta(type):
     def __instancecheck__(cls, inst: object) -> bool:
         return isinstance(inst, partial) and isinstance(inst.func, MethodType)
 
 
-class Partial(metaclass=PartialMeta):
+class PartialBoundMethod(metaclass=PartialBoundMethodMeta):
     func: MethodType
     args: List[Any]
     keywords: Dict
@@ -487,7 +487,7 @@ class SignalInstance:
     def _normalize_slot(self, slot: NormedCallback) -> NormedCallback:
         if isinstance(slot, MethodType):
             return _get_proper_name(slot)
-        if isinstance(slot, Partial):
+        if isinstance(slot, PartialBoundMethod):
             return partial_weakref(slot)
         if isinstance(slot, tuple) and not isinstance(slot[0], weakref.ref):
             return (weakref.ref(slot[0]), slot[1])
@@ -936,7 +936,7 @@ def _is_subclass(left: AnyType, right: type) -> bool:
     return issubclass(left, right)
 
 
-def partial_weakref(partial_fun: Partial) -> Callable:
+def partial_weakref(partial_fun: PartialBoundMethod) -> Callable:
     obj, name = _get_proper_name(partial_fun.func)
     args_ = partial_fun.args
     kwargs_ = partial_fun.keywords
