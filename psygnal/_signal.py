@@ -947,7 +947,7 @@ def partial_weakref(partial_fun: Partial) -> Callable:
             return
         getattr(ob, name)(*args_, *args, **kwargs_, **kwargs)
 
-    setattr(wrap, '__ref__', obj)
+    setattr(wrap, "__ref__", obj)
 
     del partial_fun
     return wrap
