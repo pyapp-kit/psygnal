@@ -6,7 +6,8 @@ import warnings
 import weakref
 from contextlib import contextmanager
 from functools import lru_cache, partial, reduce
-from inspect import Parameter, Signature, ismethod
+from inspect import Parameter, Signature
+from types import MethodType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -21,9 +22,7 @@ from typing import (
     Union,
     cast,
     overload,
-    Protocol,
 )
-from types import MethodType
 
 from typing_extensions import Literal
 
@@ -40,15 +39,14 @@ class PartialMeta(type):
     def __instancecheck__(cls, inst: object) -> bool:
         return isinstance(inst, partial) and isinstance(inst.func, MethodType)
 
+
 class Partial(metaclass=PartialMeta):
     func: MethodType
     args: List[Any]
     keywords: Dict
 
-    def __call__(self, *args: List[Any], **kwargs:Dict[str, Any]) -> Any:
+    def __call__(self, *args: List[Any], **kwargs: Dict[str, Any]) -> Any:
         raise NotImplementedError
-
-
 
 
 def signature(obj: Any) -> inspect.Signature:
