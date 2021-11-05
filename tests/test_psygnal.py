@@ -1,6 +1,7 @@
 import gc
 import time
 import weakref
+from functools import partial
 from inspect import Signature
 from types import FunctionType
 from typing import Optional
@@ -294,6 +295,13 @@ def test_weakrefs():
     emitter.one_int.connect(obj.f_int_decorated)
     assert len(emitter.one_int) == 1
     emitter.one_int.emit(1)
+    emitter.one_int.connect(partial(obj.f_int_int, 1))
+    assert len(emitter.one_int) == 2
+    ref = weakref.ref(obj)
+    del obj
+    gc.collect()
+    emitter.one_int.emit(1)  # this should trigger deletion
+    assert len(emitter.one_int) == 0
 
 
 def test_norm_slot():
