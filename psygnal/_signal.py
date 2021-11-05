@@ -21,7 +21,9 @@ from typing import (
     Union,
     cast,
     overload,
+    Protocol,
 )
+from types import MethodType
 
 from typing_extensions import Literal
 
@@ -32,6 +34,21 @@ AnyType = Type[Any]
 ReducerFunc = Callable[[tuple, tuple], tuple]
 _NULL = object()
 _SIG_CACHE: Dict[int, Signature] = {}
+
+
+class PartialMeta(type):
+    def __instancecheck__(cls, inst: object) -> bool:
+        return isinstance(inst, partial) and isinstance(inst.func, MethodType)
+
+class Partial(metaclass=PartialMeta):
+    func: MethodType
+    args: List[Any]
+    keywords: Dict
+
+    def __call__(self, *args: List[Any], **kwargs:Dict[str, Any]) -> Any:
+        raise NotImplementedError
+
+
 
 
 def signature(obj: Any) -> inspect.Signature:
@@ -470,9 +487,9 @@ class SignalInstance:
         raise ValueError(msg)
 
     def _normalize_slot(self, slot: NormedCallback) -> NormedCallback:
-        if ismethod(slot):
-            return _get_proper_name(slot)  # type: ignore
-        if isinstance(slot, partial) and ismethod(slot.func):
+        if isinstance(slot, MethodType):
+            return _get_proper_name(slot)
+        if isinstance(slot, Partial):
             return partial_weakref(slot)
         if isinstance(slot, tuple) and not isinstance(slot[0], weakref.ref):
             return (weakref.ref(slot[0]), slot[1])
@@ -921,7 +938,7 @@ def _is_subclass(left: AnyType, right: type) -> bool:
     return issubclass(left, right)
 
 
-def partial_weakref(partial_fun: partial) -> Callable:
+def partial_weakref(partial_fun: Partial) -> Callable:
     obj, name = _get_proper_name(partial_fun.func)
     args_ = partial_fun.args
     kwargs_ = partial_fun.keywords
@@ -938,9 +955,9 @@ def partial_weakref(partial_fun: partial) -> Callable:
     return wrap
 
 
-def _get_proper_name(callback: Callable) -> Tuple[weakref.ref, str]:
+def _get_proper_name(callback: MethodType) -> Tuple[weakref.ref, str]:
     assert inspect.ismethod(callback)
-    obj = callback.__self__  # type: ignore
+    obj = callback.__self__
     if (
         not hasattr(obj, callback.__name__)
         or getattr(obj, callback.__name__) != callback
