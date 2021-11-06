@@ -330,3 +330,7 @@ parties to subscribe to events, or "signals".
 ### [SmokeSignal](https://github.com/shaunduncan/smokesignal/)
 
 (This appears to be unmaintained)
+
+## Benchmark history
+
+https://www.talleylambert.com/psygnal/
