@@ -11,7 +11,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Iterator,
     List,
     NoReturn,
@@ -31,7 +30,6 @@ StoredSlot = Tuple[NormedCallback, Optional[int]]
 AnyType = Type[Any]
 ReducerFunc = Callable[[tuple, tuple], tuple]
 _NULL = object()
-_SIG_CACHE: Dict[int, Signature] = {}
 
 
 def signature(obj: Any) -> inspect.Signature:
