@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "project": "psygnal",
+  "project_url": "https://github.com/tlambert03/psygnal",
+  "repo": ".",
+  "branches": ["main"],
+  "dvcs": "git",
+  "environment_type": "conda",
+  "install_timeout": 600,
+  "show_commit_url": "https://github.com/tlambert03/psygnal/commit/",
+  "pythons": ["3.9"],
+  "matrix": {
+    "cython": ["", null]
+  },
+  "env_dir": "/tmp/.asv/env",
+  "results_dir": ".asv/results",
+  "html_dir": ".asv/html"
+}

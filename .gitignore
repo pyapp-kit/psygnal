@@ -108,3 +108,4 @@ ENV/
 _version.py
 
 psygnal/_version.py
+.asv/
