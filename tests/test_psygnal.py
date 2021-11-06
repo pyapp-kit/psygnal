@@ -553,3 +553,21 @@ def test_signals_on_unhashables():
     e = Emitter()
     e.signal.connect(lambda x: print(x))
     e.signal.emit(1)
+
+
+def test_debug_import(monkeypatch):
+    """Test that PSYGNAL_UNCOMPILED always imports the pure python file."""
+    import sys
+
+    import psygnal._signal
+
+    if not psygnal._signal.__file__.endswith(".py"):
+        assert psygnal._compiled
+
+    monkeypatch.delitem(sys.modules, "psygnal")
+    monkeypatch.delitem(sys.modules, "psygnal._signal")
+    monkeypatch.setenv("PSYGNAL_UNCOMPILED", "1")
+
+    import psygnal
+
+    assert not psygnal._compiled
