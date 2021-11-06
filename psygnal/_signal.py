@@ -954,21 +954,17 @@ def partial_weakref(partial_fun: PartialBoundMethod) -> Callable:
     return wrap
 
 
-def _get_proper_name(callback: MethodType) -> Tuple[weakref.ref, str]:
-    assert inspect.ismethod(callback)
-    obj = callback.__self__
-    if (
-        not hasattr(obj, callback.__name__)
-        or getattr(obj, callback.__name__) != callback
-    ):
-        # some decorators will alter method.__name__, so that obj.method
-        # will not be equal to getattr(obj, obj.method.__name__). We check
-        # for that case here and traverse to find the right method here.
-        for name in dir(obj):
-            meth = getattr(obj, name)
-            if inspect.ismethod(meth) and meth == callback:
-                return weakref.ref(obj), name
+def _get_proper_name(slot: MethodType) -> tuple[weakref.ref, str]:
+    obj = slot.__self__
+    # some decorators will alter method.__name__, so that obj.method
+    # will not be equal to getattr(obj, obj.method.__name__). 
+    # We check for that case here and find the proper name in the function's closures
+    if getattr(obj, slot.__name__, None) != slot:
+        for c in slot.__closure__ or ():
+            cname = getattr(c.cell_contents, "__name__", None)
+            if cname and getattr(obj, cname, None) == slot:
+                return weakref.ref(obj), cname
         raise RuntimeError(
-            f"During bind method {callback} of object {obj} an error happen"
+            f"Could not find method on {obj} corresponding to decorated function {slot}"
         )
-    return weakref.ref(obj), callback.__name__
+    return weakref.ref(obj), slot.__name__
