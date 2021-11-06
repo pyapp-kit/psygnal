@@ -1,14 +1,15 @@
 name: Benchmark cron
 
 on:
-  schedule:
-    - cron: "0 3 * * *" # Everyday at 3 am UTC
+  pull_request:
   push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
   benchmarks:
-    name: ${{ matrix.name }}
+    name: Benchmarks
     runs-on: ubuntu-20.04
     defaults:
       run:
@@ -19,6 +20,8 @@ jobs:
           fetch-depth: 2
 
       - uses: conda-incubator/setup-miniconda@v2
+        with:
+          installer-url: https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-Linux-x86_64.sh
 
       - name: install
         run: pip install asv
@@ -26,11 +29,18 @@ jobs:
       - name: Run benchmarks
         run: |
           set -x
+          export CONDA_EXE=$(which mamba)
+
           asv machine --machine "GitHubRunner" --yes
+
+          echo "Baseline:  ${{ github.event.pull_request.base.sha }} (${{ github.event.pull_request.base.label }})"
+          echo "Contender: ${GITHUB_SHA} (${{ github.event.pull_request.head.label }})"
+
           # Run benchmarks for last commit against previous one
-          asv continuous --machine "GitHubRunner" --interleave-processes -a processes=2 --split --show-stderr 'HEAD^' 'HEAD'
+          asv continuous --machine "GitHubRunner" --interleave-processes -a processes=2 --split --show-stderr ${{ github.event.pull_request.base.sha }} ${GITHUB_SHA}
 
       - uses: actions/upload-artifact@v2
+        if: always()
         with:
           name: asv-benchmark-results
           path: .asv/results
@@ -38,7 +48,7 @@ jobs:
       - uses: stefanzweifel/git-auto-commit-action@v4
         with:
           commit_message: Benchmark Results
-          branch: bench
+          branch: main
           file_pattern: .asv/results
 
       - name: Publish results
