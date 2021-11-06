@@ -63,7 +63,9 @@ jobs:
         with:
           installer-url: https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-Linux-x86_64.sh
       - name: install
-        run: pip install asv
+        run: |
+          pip install asv
+          git checkout main && git checkout -
       - name: Restore previous results
         uses: actions/cache@v2
         with:
