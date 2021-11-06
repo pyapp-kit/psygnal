@@ -2,6 +2,7 @@ name: Benchmark cron
 
 on:
   pull_request:
+    types: [labeled]
   push:
     branches:
       - main
@@ -9,6 +10,7 @@ on:
 
 jobs:
   benchmarks:
+    if: ${{ github.event.label.name == 'run-benchmark' && github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' }}
     name: Benchmarks
     runs-on: ubuntu-20.04
     defaults:
@@ -17,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - uses: conda-incubator/setup-miniconda@v2
         with:
@@ -46,12 +48,14 @@ jobs:
           path: .asv/results
 
       - uses: stefanzweifel/git-auto-commit-action@v4
+        if: github.ref == 'refs/heads/main'
         with:
           commit_message: Benchmark Results
           branch: main
           file_pattern: .asv/results
 
       - name: Publish results
+        if: github.ref == 'refs/heads/main'
         run: |
           asv publish
           asv gh-pages
