@@ -1,4 +1,4 @@
-name: Benchmark cron
+name: Benchmark
 
 on:
   pull_request:
@@ -7,12 +7,14 @@ on:
     branches:
       - main
   workflow_dispatch:
+  schedule:
+    - cron: "36 1 * * SUN" # M H d m w (Sundays at 01:36)
 
 jobs:
-  benchmarks:
-    if: ${{ github.event.label.name == 'run-benchmark' && github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' }}
-    name: Benchmarks
-    runs-on: ubuntu-20.04
+  asvfull:
+    if: github.event_name != 'pull_request'
+    name: Benchmark (Full)
+    runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash -l {0}
@@ -20,42 +22,24 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
-
       - uses: conda-incubator/setup-miniconda@v2
         with:
           installer-url: https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-Linux-x86_64.sh
-
       - name: install
         run: pip install asv
-
-      - name: Run benchmarks
+      - name: Restore previous results
+        uses: actions/cache@v2
+        with:
+          path: .asv
+          key: asv-${{ runner.os }}
+          restore-keys: |
+            asv-
+      - name: Benchmark
         run: |
-          set -x
           export CONDA_EXE=$(which mamba)
-
-          asv machine --machine "GitHubRunner" --yes
-
-          echo "Baseline:  ${{ github.event.pull_request.base.sha }} (${{ github.event.pull_request.base.label }})"
-          echo "Contender: ${GITHUB_SHA} (${{ github.event.pull_request.head.label }})"
-
-          # Run benchmarks for last commit against previous one
-          asv continuous --machine "GitHubRunner" --interleave-processes -a processes=2 --split --show-stderr ${{ github.event.pull_request.base.sha }} ${GITHUB_SHA}
-
-      - uses: actions/upload-artifact@v2
-        if: always()
-        with:
-          name: asv-benchmark-results
-          path: .asv/results
-
-      - uses: stefanzweifel/git-auto-commit-action@v4
-        if: github.ref == 'refs/heads/main'
-        with:
-          commit_message: Benchmark Results
-          branch: main
-          file_pattern: .asv/results
-
+          asv machine --machine github-actions --yes
+          asv run -j 8 --show-stderr --interleave-processes --skip-existing v0.1.0..HEAD
       - name: Build pages
-        if: github.ref == 'refs/heads/main'
         run: |
           git config --global user.email "$GIT_AUTHOR_EMAIL"
           git config --global user.name "$GIT_AUTHOR_NAME"
@@ -64,3 +48,31 @@ jobs:
         env:
           GIT_AUTHOR_NAME: ${{ github.actor }}
           GIT_AUTHOR_EMAIL: ${{ github.actor }}@users.noreply.github.com
+  testasv:
+    if: github.event.label.name == 'run-benchmark' && github.event_name == 'pull_request'
+    name: Benchmark (Branch)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: conda-incubator/setup-miniconda@v2
+        with:
+          installer-url: https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-Linux-x86_64.sh
+      - name: install
+        run: pip install asv
+      - name: Restore previous results
+        uses: actions/cache@v2
+        with:
+          path: .asv
+          key: asv-${{ runner.os }}
+          restore-keys: |
+            asv-
+      - name: Benchmark
+        run: |
+          export CONDA_EXE=$(which mamba)
+          asv machine --machine github-actions --yes
+          asv continuous --interleave-processes --show-stderr --only-changed --split --factor 1.15 main HEAD
