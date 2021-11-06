@@ -1,0 +1,43 @@
+name: Benchmark cron
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # Everyday at 3 am UTC
+  push:
+  workflow_dispatch:
+
+jobs:
+  benchmarks:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: conda-incubator/setup-miniconda@v2
+
+      - name: install
+        shell: bash -l {0}
+        run: pip install asv
+
+      - name: Run benchmarks
+        shell: bash -l {0}
+        run: |
+          set -x
+          asv machine --machine "GitHubRunner" --yes
+          # Run benchmarks for last commit against previous one
+          asv continuous --machine "GitHubRunner" --interleave-processes -a processes=2 --split --show-stderr 'HEAD^' 'HEAD'
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: asv-benchmark-results
+          path: .asv/results
+
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: Benchmark Results
+          branch: bench
+          file_pattern: .asv/results
+
+      - name: Publish results
+        run: |
+          asv publish
+          asv gh-pages
