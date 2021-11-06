@@ -544,3 +544,12 @@ def test_resume_with_initial():
         emitter.one_int.emit(2)
         emitter.one_int.emit(3)
     mock.assert_called_once_with(26)
+
+
+def test_signals_on_unhashables():
+    class Emitter(dict):
+        signal = Signal(int)
+
+    e = Emitter()
+    e.signal.connect(lambda x: print(x))
+    e.signal.emit(1)
