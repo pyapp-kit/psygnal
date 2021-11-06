@@ -10,16 +10,20 @@ jobs:
   benchmarks:
     name: ${{ matrix.name }}
     runs-on: ubuntu-20.04
+    defaults:
+      run:
+        shell: bash -l {0}
     steps:
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 2
+
       - uses: conda-incubator/setup-miniconda@v2
 
       - name: install
-        shell: bash -l {0}
         run: pip install asv
 
       - name: Run benchmarks
-        shell: bash -l {0}
         run: |
           set -x
           asv machine --machine "GitHubRunner" --yes
