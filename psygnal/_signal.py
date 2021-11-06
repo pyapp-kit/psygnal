@@ -1,4 +1,4 @@
-__all__ = ["Signal", "SignalInstance"]
+__all__ = ["Signal", "SignalInstance", "_compiled"]
 
 import inspect
 import threading
@@ -11,7 +11,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Iterator,
     List,
     NoReturn,
@@ -31,7 +30,6 @@ StoredSlot = Tuple[NormedCallback, Optional[int]]
 AnyType = Type[Any]
 ReducerFunc = Callable[[tuple, tuple], tuple]
 _NULL = object()
-_SIG_CACHE: Dict[int, Signature] = {}
 
 
 def signature(obj: Any) -> inspect.Signature:
@@ -913,3 +911,14 @@ def _is_subclass(left: AnyType, right: type) -> bool:
         if origin is Union:
             return any(issubclass(i, right) for i in get_args(left))
     return issubclass(left, right)
+
+
+try:
+    import cython
+except ImportError:  # pragma: no cover
+    _compiled: bool = False
+else:  # pragma: no cover
+    try:
+        _compiled = cython.compiled
+    except AttributeError:
+        _compiled = False

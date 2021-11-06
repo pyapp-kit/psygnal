@@ -334,3 +334,13 @@ parties to subscribe to events, or "signals".
 ## Benchmark history
 
 https://www.talleylambert.com/psygnal/
+
+## Developers
+
+### Debugging
+
+While `psygnal` is a pure python module, it is compiled with Cython to increase
+performance.  To import `psygnal` in uncompiled mode, without deleting the
+shared library files from the psyngal module, set the environment variable
+`PSYGNAL_UNCOMPILED` before importing psygnal.  The `psygnal._compiled` variable
+will tell you if you're running the compiled library or not.
