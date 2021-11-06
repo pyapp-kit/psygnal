@@ -206,8 +206,9 @@ class Signal:
         # to instance.name ... this essentially breaks the descriptor,
         # (i.e. __get__ will never again be called for this instance, and we have no
         # idea how many instances are out there),
-        # but it allows us to prevent creating a key for this instance,
-        # which may not be hashable or weak-referenceable.
+        # but it allows us to prevent creating a key for this instance (which may
+        # not be hashable or weak-referenceable), and also provides a significant
+        # speedup on attribute access (affecting everything).
         setattr(instance, name, signal_instance)
         return signal_instance
 
