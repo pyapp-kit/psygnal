@@ -36,11 +36,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           export CONDA_EXE=$(which mamba)
-          asv continuous --interleave-processes --show-stderr --split --factor 1.15 main HEAD
-          asv compare -f 1.15 main HEAD
-          CHANGES="$(asv compare --only-changed -f 1.15 main HEAD)"
-          echo "$CHANGES"
-          [ -z "$CHANGES" ] || exit 1
+          asv continuous main HEAD --interleave-processes --show-stderr --split --factor 1.1
 
       # IF not PR =======================
 
@@ -57,7 +53,7 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           export CONDA_EXE=$(which mamba)
-          asv run -j 8 --show-stderr --interleave-processes --skip-existing v0.1.0..HEAD
+          asv run -j 4 --show-stderr --interleave-processes --skip-existing v0.1.0..HEAD
 
       - name: Build pages
         if: github.event_name != 'pull_request'

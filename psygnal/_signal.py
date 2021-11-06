@@ -116,7 +116,6 @@ class Signal:
     """
 
     __slots__ = (
-        "_signal_instances",
         "_name",
         "_signature",
         "description",
@@ -126,9 +125,6 @@ class Signal:
 
     if TYPE_CHECKING:  # pragma: no cover
         _signature: Signature  # callback signature for this signal
-        _signal_instances: Dict[
-            "Signal", weakref.WeakKeyDictionary[Any, "SignalInstance"]
-        ]
 
     _current_emitter: Optional["SignalInstance"] = None
 
@@ -141,7 +137,6 @@ class Signal:
         check_types_on_connect: bool = False,
     ) -> None:
 
-        self._signal_instances = {}
         self._name = name
         self.description = description
         self._check_nargs_on_connect = check_nargs_on_connect
@@ -214,17 +209,23 @@ class Signal:
         """
         if instance is None:
             return self
-        d = self._signal_instances.setdefault(self, weakref.WeakKeyDictionary())
-        return d.setdefault(
-            instance,
-            SignalInstance(
-                self.signature,
-                instance=instance,
-                name=self._name,
-                check_nargs_on_connect=self._check_nargs_on_connect,
-                check_types_on_connect=self._check_types_on_connect,
-            ),
+        name = cast(str, self._name)
+        signal_instance = SignalInstance(
+            self.signature,
+            instance=instance,
+            name=name,
+            check_nargs_on_connect=self._check_nargs_on_connect,
+            check_types_on_connect=self._check_types_on_connect,
         )
+        # instead of caching this signal instance on self, we just assign it
+        # to instance.name ... this essentially breaks the descriptor,
+        # (i.e. __get__ will never again be called for this instance, and we have no
+        # idea how many instances are out there),
+        # but it allows us to prevent creating a key for this instance (which may
+        # not be hashable or weak-referenceable), and also provides a significant
+        # speedup on attribute access (affecting everything).
+        setattr(instance, name, signal_instance)
+        return signal_instance
 
     @classmethod
     @contextmanager
