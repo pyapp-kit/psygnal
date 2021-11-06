@@ -1,4 +1,4 @@
-__all__ = ["Signal", "SignalInstance"]
+__all__ = ["Signal", "SignalInstance", "_compiled"]
 
 import inspect
 import threading
@@ -913,3 +913,14 @@ def _is_subclass(left: AnyType, right: type) -> bool:
         if origin is Union:
             return any(issubclass(i, right) for i in get_args(left))
     return issubclass(left, right)
+
+
+try:
+    import cython
+except ImportError:  # pragma: no cover
+    _compiled: bool = False
+else:  # pragma: no cover
+    try:
+        _compiled = cython.compiled
+    except AttributeError:
+        _compiled = False
