@@ -35,4 +35,4 @@ benchmark-all:
 
 # compare HEAD against main
 benchmark-compare:
-	asv compare --split --factor 1.1 --only-changed main HEAD
+	asv compare --split --factor 1.1 main HEAD
