@@ -54,8 +54,13 @@ jobs:
           branch: main
           file_pattern: .asv/results
 
-      - name: Publish results
+      - name: Build pages
         if: github.ref == 'refs/heads/main'
         run: |
-          asv publish
-          asv gh-pages
+          git config --global user.email "$GIT_AUTHOR_EMAIL"
+          git config --global user.name "$GIT_AUTHOR_NAME"
+          asv gh-pages --no-push
+          git push -f origin gh-pages:gh-pages
+        env:
+          GIT_AUTHOR_NAME: ${{ github.actor }}
+          GIT_AUTHOR_EMAIL: ${{ github.actor }}@users.noreply.github.com
