@@ -29,23 +29,36 @@ jobs:
           pip install -U asv
           git checkout main && git checkout -
           asv machine --machine github-actions --yes
+
+      # IF PR ===========================
+
+      - name: Benchmark (PR)
+        if: github.event_name == 'pull_request'
+        run: |
+          export CONDA_EXE=$(which mamba)
+          asv continuous --interleave-processes --show-stderr --split --factor 1.15 main HEAD
+          asv compare -f 1.15 main HEAD
+          CHANGES="$(asv compare --only-changed -f 1.15 main HEAD)"
+          echo "$CHANGES"
+          [ -z "$CHANGES" ] || exit 1
+
+      # IF not PR =======================
+
       - name: Restore previous results
+        if: github.event_name != 'pull_request'
         uses: actions/cache@v2
         with:
           path: .asv
           key: asv-${{ runner.os }}
           restore-keys: |
             asv-
-      - name: Benchmark (PR)
-        run: |
-          export CONDA_EXE=$(which mamba)
-          asv continuous --interleave-processes --show-stderr --only-changed --split --factor 1.15 main HEAD
-          asv compare --only-changed -f 1.15 main HEAD
+
       - name: Benchmark (Full)
         if: github.event_name != 'pull_request'
         run: |
           export CONDA_EXE=$(which mamba)
           asv run -j 8 --show-stderr --interleave-processes --skip-existing v0.1.0..HEAD
+
       - name: Build pages
         if: github.event_name != 'pull_request'
         run: |
