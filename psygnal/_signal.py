@@ -26,7 +26,7 @@ from typing import (
 
 from typing_extensions import Literal, get_args, get_origin, get_type_hints
 
-MethodRef = Tuple["weakref.ReferenceType[object]", Union[Callable, str]]
+MethodRef = Tuple["weakref.ReferenceType[object]", str, Optional[Callable]]
 NormedCallback = Union[MethodRef, Callable]
 StoredSlot = Tuple[NormedCallback, Optional[int]]
 AnyType = Type[Any]
@@ -411,12 +411,16 @@ class SignalInstance:
         return _wrapper(slot) if slot else _wrapper
 
     def connect_setattr(
-        self, obj: Union[weakref.ref, object], attr: str
-    ) -> Tuple[weakref.ReferenceType, Callable[[Any], None]]:
+        self,
+        obj: Union[weakref.ref, object],
+        attr: str,
+        maxargs: Optional[int] = None,
+    ) -> MethodRef:
         """Bind the an object attribute to emitted value of this signal.
 
         Equivalent to calling self.connect(partial(setattr, obj, attr)), with
-        weakref safety.
+        weakref safety.  The return object can be used to disconnect, (or can use
+        disconnect_setattr).
 
         Parameters
         ----------
@@ -425,11 +429,14 @@ class SignalInstance:
         attr : str
             The name of an attribute on `obj` that should be set to the value of this
             signal when emitted.
+        maxargs : int, optional
+            max number of positional args to accept
 
         Returns
         -------
         Tuple
-            (weakref.ref, callable), where the callable is the setattr closure.
+            (weakref.ref, name, callable).  Reference to the object, name of the
+            attribute, and setattr closure.  Can be used to disconnect the slot.
 
         Raises
         ------
@@ -438,24 +445,52 @@ class SignalInstance:
         AttributeError
             If `obj` has no attribute `attr`.
         """
-        n_params = len(self.signature.parameters)
-        if n_params != 1:
-            raise ValueError(
-                "Can't use `connect_setattr` with a signal that emits {n_params} values"
-            )
-        if isinstance(obj, weakref.ref):
-            ref = obj
-        else:
-            ref = weakref.ref(obj)
+        ref = obj if isinstance(obj, weakref.ref) else weakref.ref(obj)
         if not hasattr(ref(), attr):
             raise AttributeError(f"Object {ref()} has no attribute {attr!r}")
 
-        def _slot(value: Any) -> None:
-            setattr(ref(), attr, value)
+        with self._lock:
 
-        normed_callback = (ref, _slot)
-        self._slots.append((normed_callback, None))
+            def _slot(*args: Any) -> None:
+                setattr(ref(), attr, args[0] if len(args) == 1 else args)
+
+            normed_callback = (ref, attr, _slot)
+            self._slots.append((normed_callback, maxargs))
         return normed_callback
+
+    def disconnect_setattr(
+        self, obj: object, attr: str, missing_ok: bool = True
+    ) -> None:
+        """Disconnect a previously connected attribute setter.
+
+        Parameters
+        ----------
+        obj : object
+            An object.
+        attr : str
+            The name of an attribute on `obj` that was previously used for
+            `connect_setattr`.
+        missing_ok : bool, optional
+            If `False` and the provided `slot` is not connected, raises `ValueError.
+            by default `True`
+
+        Raises
+        ------
+        ValueError
+            If `missing_ok` is True and no attribute setter is connected.
+        """
+        with self._lock:
+            idx = None
+            for i, (slot, _) in enumerate(self._slots):
+                if isinstance(slot, tuple):
+                    ref, name, _ = slot
+                    if ref() is obj and attr == name:
+                        idx = i
+                        break
+            if idx is not None:
+                self._slots.pop(idx)
+            elif not missing_ok:
+                raise ValueError(f"No attribute setter connected for {obj}.{attr}")
 
     def _check_nargs(
         self, slot: Callable, spec: Signature
@@ -492,11 +527,11 @@ class SignalInstance:
 
     def _normalize_slot(self, slot: NormedCallback) -> NormedCallback:
         if isinstance(slot, MethodType):
-            return _get_proper_name(slot)
+            return _get_proper_name(slot) + (None,)
         if isinstance(slot, PartialMethod):
             return _partial_weakref(slot)
         if isinstance(slot, tuple) and not isinstance(slot[0], weakref.ref):
-            return (weakref.ref(slot[0]), slot[1])
+            return (weakref.ref(slot[0]), slot[1], slot[2])
         return slot
 
     def _slot_index(self, slot: NormedCallback) -> int:
@@ -678,15 +713,15 @@ class SignalInstance:
             with Signal._emitting(self):
                 for (slot, max_args) in self._slots:
                     if isinstance(slot, tuple):
-                        _ref, method = slot
+                        _ref, name, method = slot
                         obj = _ref()
                         if obj is None:
                             rem.append(slot)  # add dead weakref
                             continue
-                        if callable(method):
+                        if method is not None:
                             cb = method
                         else:
-                            cb = getattr(obj, method, None)
+                            cb = getattr(obj, name, None)
                             if cb is None:  # pragma: no cover
                                 rem.append(slot)  # object has changed?
                                 continue
@@ -974,7 +1009,7 @@ def _is_subclass(left: AnyType, right: type) -> bool:
     return issubclass(left, right)
 
 
-def _partial_weakref(slot_partial: PartialMethod) -> Tuple[weakref.ref, Callable]:
+def _partial_weakref(slot_partial: PartialMethod) -> Tuple[weakref.ref, str, Callable]:
     """For partial methods, make the weakref point to the wrapped object."""
     ref, name = _get_proper_name(slot_partial.func)
     args_ = slot_partial.args
@@ -983,7 +1018,7 @@ def _partial_weakref(slot_partial: PartialMethod) -> Tuple[weakref.ref, Callable
     def wrap(*args: Any, **kwargs: Any) -> Any:
         getattr(ref(), name)(*args_, *args, **kwargs_, **kwargs)
 
-    return (ref, wrap)
+    return (ref, name, wrap)
 
 
 def _get_proper_name(slot: MethodType) -> Tuple[weakref.ref, str]:

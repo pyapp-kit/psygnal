@@ -323,10 +323,10 @@ def test_norm_slot():
 
     normed1 = e.one_int._normalize_slot(r.f_any)
     normed2 = e.one_int._normalize_slot(normed1)
-    normed3 = e.one_int._normalize_slot((r, "f_any"))
-    normed3 = e.one_int._normalize_slot((weakref.ref(r), "f_any"))
-    assert normed1 == (weakref.ref(r), "f_any")
-    assert normed1 == normed2 == normed3
+    normed3 = e.one_int._normalize_slot((r, "f_any", None))
+    normed4 = e.one_int._normalize_slot((weakref.ref(r), "f_any", None))
+    assert normed1 == (weakref.ref(r), "f_any", None)
+    assert normed1 == normed2 == normed3 == normed4
 
     assert e.one_int._normalize_slot(f_any) == f_any
 
@@ -616,3 +616,36 @@ def test_get_proper_name():
     assert _get_proper_name(obj.f_int_decorated_stupid)[1] == "f_int_decorated_stupid"
     assert _get_proper_name(obj.f_int_decorated_good)[1] == "f_int_decorated_good"
     assert _get_proper_name(obj.f_any_assigned)[1] == "f_any_assigned"
+
+
+def test_property_connect():
+    class A:
+        def __init__(self):
+            self.li = []
+
+        @property
+        def x(self):
+            return self.li
+
+        @x.setter
+        def x(self, value):
+            self.li.append(value)
+
+    a = A()
+    emitter = Emitter()
+    emitter.one_int.connect_setattr(a, "x")
+    assert len(emitter.one_int) == 1
+    slot2 = emitter.two_int.connect_setattr(a, "x")
+    assert len(emitter.two_int) == 1
+    emitter.one_int.emit(1)
+    assert a.li == [1]
+    emitter.two_int.emit(1, 1)
+    assert a.li == [1, (1, 1)]
+    emitter.two_int.disconnect(slot2)
+    assert len(emitter.two_int) == 0
+    with pytest.raises(ValueError):
+        emitter.two_int.disconnect_setattr(a, "x", missing_ok=False)
+    emitter.two_int.disconnect_setattr(a, "x")
+    emitter.two_int.connect_setattr(a, "x", maxargs=1)
+    emitter.two_int.emit(2, 3)
+    assert a.li == [1, (1, 1), 2]
