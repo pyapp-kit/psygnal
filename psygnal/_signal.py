@@ -26,7 +26,7 @@ from typing import (
 
 from typing_extensions import Literal
 
-MethodRef = Tuple["weakref.ReferenceType[object]", str]
+MethodRef = Tuple["weakref.ReferenceType[object]", Union[Callable, str]]
 NormedCallback = Union[MethodRef, Callable]
 StoredSlot = Tuple[NormedCallback, Optional[int]]
 AnyType = Type[Any]
@@ -666,27 +666,24 @@ class SignalInstance:
         )
 
     def _run_emit_loop(self, args: Tuple[Any, ...]) -> None:
-
         rem: List[NormedCallback] = []
         # allow receiver to query sender with Signal.current_emitter()
         with self._lock:
             with Signal._emitting(self):
                 for (slot, max_args) in self._slots:
                     if isinstance(slot, tuple):
-                        _ref, method_name = slot
+                        _ref, method = slot
                         obj = _ref()
                         if obj is None:
                             rem.append(slot)  # add dead weakref
                             continue
-                        cb = getattr(obj, method_name, None)
-                        if cb is None:  # pragma: no cover
-                            rem.append(slot)  # object has changed?
-                            continue
-                    elif (
-                        hasattr(slot, "__ref__") and slot.__ref__() is None  # type: ignore  # noqa: E501
-                    ):
-                        rem.append(slot)  # add dead weakref
-                        continue
+                        if callable(method):
+                            cb = method
+                        else:
+                            cb = getattr(obj, method, None)
+                            if cb is None:  # pragma: no cover
+                                rem.append(slot)  # object has changed?
+                                continue
                     else:
                         cb = slot
 
@@ -936,24 +933,18 @@ def _is_subclass(left: AnyType, right: type) -> bool:
     return issubclass(left, right)
 
 
-def partial_weakref(partial_fun: PartialBoundMethod) -> Callable:
-    obj, name = _get_proper_name(partial_fun.func)
-    args_ = partial_fun.args
-    kwargs_ = partial_fun.keywords
+def partial_weakref(slot_partial: PartialBoundMethod) -> Tuple[weakref.ref, Callable]:
+    ref, name = _get_proper_name(slot_partial.func)
+    args_ = slot_partial.args
+    kwargs_ = slot_partial.keywords
 
     def wrap(*args: Any, **kwargs: Any) -> Any:
-        ob = obj()
-        if ob is None:
-            return
-        getattr(ob, name)(*args_, *args, **kwargs_, **kwargs)
+        getattr(ref(), name)(*args_, *args, **kwargs_, **kwargs)
 
-    setattr(wrap, "__ref__", obj)
-
-    del partial_fun
-    return wrap
+    return (ref, wrap)
 
 
-def _get_proper_name(slot: MethodType) -> tuple[weakref.ref, str]:
+def _get_proper_name(slot: MethodType) -> Tuple[weakref.ref, str]:
     obj = slot.__self__
     # some decorators will alter method.__name__, so that obj.method
     # will not be equal to getattr(obj, obj.method.__name__).
