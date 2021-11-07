@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, call
 import pytest
 
 from psygnal import Signal, SignalInstance
-from psygnal._signal import _get_proper_name
+from psygnal._signal import _get_method_name
 
 
 def stupid_decorator(fun):
@@ -611,11 +611,11 @@ def test_debug_import(monkeypatch):
     assert not psygnal._compiled
 
 
-def test_get_proper_name():
+def test_get_method_name():
     obj = MyObj()
-    assert _get_proper_name(obj.f_int_decorated_stupid)[1] == "f_int_decorated_stupid"
-    assert _get_proper_name(obj.f_int_decorated_good)[1] == "f_int_decorated_good"
-    assert _get_proper_name(obj.f_any_assigned)[1] == "f_any_assigned"
+    assert _get_method_name(obj.f_int_decorated_stupid)[1] == "f_int_decorated_stupid"
+    assert _get_method_name(obj.f_int_decorated_good)[1] == "f_int_decorated_good"
+    assert _get_method_name(obj.f_any_assigned)[1] == "f_any_assigned"
 
 
 def test_property_connect():

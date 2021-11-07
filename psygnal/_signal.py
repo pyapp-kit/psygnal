@@ -527,7 +527,7 @@ class SignalInstance:
 
     def _normalize_slot(self, slot: NormedCallback) -> NormedCallback:
         if isinstance(slot, MethodType):
-            return _get_proper_name(slot) + (None,)
+            return _get_method_name(slot) + (None,)
         if isinstance(slot, PartialMethod):
             return _partial_weakref(slot)
         if isinstance(slot, tuple) and not isinstance(slot[0], weakref.ref):
@@ -1011,7 +1011,7 @@ def _is_subclass(left: AnyType, right: type) -> bool:
 
 def _partial_weakref(slot_partial: PartialMethod) -> Tuple[weakref.ref, str, Callable]:
     """For partial methods, make the weakref point to the wrapped object."""
-    ref, name = _get_proper_name(slot_partial.func)
+    ref, name = _get_method_name(slot_partial.func)
     args_ = slot_partial.args
     kwargs_ = slot_partial.keywords
 
@@ -1021,7 +1021,7 @@ def _partial_weakref(slot_partial: PartialMethod) -> Tuple[weakref.ref, str, Cal
     return (ref, name, wrap)
 
 
-def _get_proper_name(slot: MethodType) -> Tuple[weakref.ref, str]:
+def _get_method_name(slot: MethodType) -> Tuple[weakref.ref, str]:
     obj = slot.__self__
     # some decorators will alter method.__name__, so that obj.method
     # will not be equal to getattr(obj, obj.method.__name__).
