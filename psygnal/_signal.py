@@ -1,4 +1,4 @@
-__all__ = ["Signal", "SignalInstance"]
+__all__ = ["Signal", "SignalInstance", "_compiled"]
 
 import inspect
 import threading
@@ -32,7 +32,6 @@ StoredSlot = Tuple[NormedCallback, Optional[int]]
 AnyType = Type[Any]
 ReducerFunc = Callable[[tuple, tuple], tuple]
 _NULL = object()
-_SIG_CACHE: Dict[int, Signature] = {}
 
 
 class PartialBoundMethodMeta(type):
@@ -968,3 +967,14 @@ def _get_proper_name(slot: MethodType) -> tuple[weakref.ref, str]:
             f"Could not find method on {obj} corresponding to decorated function {slot}"
         )
     return weakref.ref(obj), slot.__name__
+
+
+try:
+    import cython
+except ImportError:  # pragma: no cover
+    _compiled: bool = False
+else:  # pragma: no cover
+    try:
+        _compiled = cython.compiled
+    except AttributeError:
+        _compiled = False
