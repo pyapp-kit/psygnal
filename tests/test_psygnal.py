@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, call
 import pytest
 
 from psygnal import Signal, SignalInstance
+from psygnal._signal import _get_proper_name
 
 
 def stupid_decorator(fun):
@@ -58,6 +59,7 @@ class MyObj:
     def f_int_decorated_stupid(self, a: int): ...
     @good_decorator
     def f_int_decorated_good(self, a: int): ...
+    f_any_assigned = lambda self, a: None  # noqa
 
 
 def f_no_arg(): ...
@@ -288,7 +290,14 @@ def test_signal_instance_error():
 
 
 @pytest.mark.parametrize(
-    "slot", ["f_no_arg", "f_int_decorated_stupid", "f_int_decorated_good", "partial"]
+    "slot",
+    [
+        "f_no_arg",
+        "f_int_decorated_stupid",
+        "f_int_decorated_good",
+        "f_any_assigned",
+        "partial",
+    ],
 )
 def test_weakref(slot):
     """Test that a connected method doesn't hold strong ref."""
@@ -600,3 +609,10 @@ def test_debug_import(monkeypatch):
     import psygnal
 
     assert not psygnal._compiled
+
+
+def test_get_proper_name():
+    obj = MyObj()
+    assert _get_proper_name(obj.f_int_decorated_stupid)[1] == "f_int_decorated_stupid"
+    assert _get_proper_name(obj.f_int_decorated_good)[1] == "f_int_decorated_good"
+    assert _get_proper_name(obj.f_any_assigned)[1] == "f_any_assigned"

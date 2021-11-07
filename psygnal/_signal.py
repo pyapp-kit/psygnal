@@ -954,6 +954,12 @@ def _get_proper_name(slot: MethodType) -> Tuple[weakref.ref, str]:
             cname = getattr(c.cell_contents, "__name__", None)
             if cname and getattr(obj, cname, None) == slot:
                 return weakref.ref(obj), cname
+        # slower, but catches cases like assigned functions
+        # that won't have function in closure
+        for name in reversed(dir(obj)):  # most dunder methods come first
+            if getattr(obj, name) == slot:
+                return weakref.ref(obj), name
+        # we don't know what to do here.
         raise RuntimeError(
             f"Could not find method on {obj} corresponding to decorated function {slot}"
         )
