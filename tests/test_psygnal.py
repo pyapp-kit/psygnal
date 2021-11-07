@@ -1,6 +1,7 @@
 import gc
 import time
 import weakref
+from functools import partial, wraps
 from inspect import Signature
 from types import FunctionType
 from typing import Optional
@@ -9,6 +10,24 @@ from unittest.mock import MagicMock, call
 import pytest
 
 from psygnal import Signal, SignalInstance
+from psygnal._signal import _get_proper_name
+
+
+def stupid_decorator(fun):
+    def _fun(*args):
+        fun(*args)
+
+    _fun.__annotations__ = fun.__annotations__
+    _fun.__name__ = "f_no_arg"
+    return _fun
+
+
+def good_decorator(fun):
+    @wraps(fun)
+    def _fun(*args):
+        fun(*args)
+
+    return _fun
 
 
 # fmt: off
@@ -36,6 +55,11 @@ class MyObj:
     def f_vararg(self, *a): ...
     def f_vararg_varkwarg(self, *a, **b): ...
     def f_vararg_kwarg(self, *a, b=None): ...
+    @stupid_decorator
+    def f_int_decorated_stupid(self, a: int): ...
+    @good_decorator
+    def f_int_decorated_good(self, a: int): ...
+    f_any_assigned = lambda self, a: None  # noqa
 
 
 def f_no_arg(): ...
@@ -265,13 +289,27 @@ def test_signal_instance_error():
     assert "Signal() class attribute" in str(e)
 
 
-def test_weakrefs():
-    """Test that connect an instance method doesn't hold strong ref."""
+@pytest.mark.parametrize(
+    "slot",
+    [
+        "f_no_arg",
+        "f_int_decorated_stupid",
+        "f_int_decorated_good",
+        "f_any_assigned",
+        "partial",
+    ],
+)
+def test_weakref(slot):
+    """Test that a connected method doesn't hold strong ref."""
     emitter = Emitter()
     obj = MyObj()
 
     assert len(emitter.one_int) == 0
-    emitter.one_int.connect(obj.f_no_arg)
+    emitter.one_int.connect(
+        partial(obj.f_int_int, 1) if slot == "partial" else getattr(obj, slot)
+    )
+    assert len(emitter.one_int) == 1
+    emitter.one_int.emit(1)
     assert len(emitter.one_int) == 1
     del obj
     gc.collect()
@@ -571,3 +609,10 @@ def test_debug_import(monkeypatch):
     import psygnal
 
     assert not psygnal._compiled
+
+
+def test_get_proper_name():
+    obj = MyObj()
+    assert _get_proper_name(obj.f_int_decorated_stupid)[1] == "f_int_decorated_stupid"
+    assert _get_proper_name(obj.f_int_decorated_good)[1] == "f_int_decorated_good"
+    assert _get_proper_name(obj.f_any_assigned)[1] == "f_any_assigned"

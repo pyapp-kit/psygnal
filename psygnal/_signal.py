@@ -5,12 +5,14 @@ import threading
 import warnings
 import weakref
 from contextlib import contextmanager
-from functools import lru_cache, reduce
-from inspect import Parameter, Signature, ismethod
+from functools import lru_cache, partial, reduce
+from inspect import Parameter, Signature
+from types import MethodType
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    Dict,
     Iterator,
     List,
     NoReturn,
@@ -24,12 +26,26 @@ from typing import (
 
 from typing_extensions import Literal
 
-MethodRef = Tuple["weakref.ReferenceType[object]", str]
+MethodRef = Tuple["weakref.ReferenceType[object]", Union[Callable, str]]
 NormedCallback = Union[MethodRef, Callable]
 StoredSlot = Tuple[NormedCallback, Optional[int]]
 AnyType = Type[Any]
 ReducerFunc = Callable[[tuple, tuple], tuple]
 _NULL = object()
+
+
+class PartialBoundMethodMeta(type):
+    def __instancecheck__(cls, inst: object) -> bool:
+        return isinstance(inst, partial) and isinstance(inst.func, MethodType)
+
+
+class PartialBoundMethod(metaclass=PartialBoundMethodMeta):
+    func: MethodType
+    args: List[Any]
+    keywords: Dict
+
+    def __call__(self, *args: List[Any], **kwargs: Dict[str, Any]) -> Any:
+        raise NotImplementedError  # pragma: no cover
 
 
 def signature(obj: Any) -> inspect.Signature:
@@ -469,8 +485,10 @@ class SignalInstance:
         raise ValueError(msg)
 
     def _normalize_slot(self, slot: NormedCallback) -> NormedCallback:
-        if ismethod(slot):
-            return (weakref.ref(slot.__self__), slot.__name__)  # type: ignore
+        if isinstance(slot, MethodType):
+            return _get_proper_name(slot)
+        if isinstance(slot, PartialBoundMethod):
+            return partial_weakref(slot)
         if isinstance(slot, tuple) and not isinstance(slot[0], weakref.ref):
             return (weakref.ref(slot[0]), slot[1])
         return slot
@@ -648,22 +666,24 @@ class SignalInstance:
         )
 
     def _run_emit_loop(self, args: Tuple[Any, ...]) -> None:
-
         rem: List[NormedCallback] = []
         # allow receiver to query sender with Signal.current_emitter()
         with self._lock:
             with Signal._emitting(self):
                 for (slot, max_args) in self._slots:
                     if isinstance(slot, tuple):
-                        _ref, method_name = slot
+                        _ref, method = slot
                         obj = _ref()
                         if obj is None:
                             rem.append(slot)  # add dead weakref
                             continue
-                        cb = getattr(obj, method_name, None)
-                        if cb is None:  # pragma: no cover
-                            rem.append(slot)  # object has changed?
-                            continue
+                        if callable(method):
+                            cb = method
+                        else:
+                            cb = getattr(obj, method, None)
+                            if cb is None:  # pragma: no cover
+                                rem.append(slot)  # object has changed?
+                                continue
                     else:
                         cb = slot
 
@@ -911,6 +931,39 @@ def _is_subclass(left: AnyType, right: type) -> bool:
         if origin is Union:
             return any(issubclass(i, right) for i in get_args(left))
     return issubclass(left, right)
+
+
+def partial_weakref(slot_partial: PartialBoundMethod) -> Tuple[weakref.ref, Callable]:
+    ref, name = _get_proper_name(slot_partial.func)
+    args_ = slot_partial.args
+    kwargs_ = slot_partial.keywords
+
+    def wrap(*args: Any, **kwargs: Any) -> Any:
+        getattr(ref(), name)(*args_, *args, **kwargs_, **kwargs)
+
+    return (ref, wrap)
+
+
+def _get_proper_name(slot: MethodType) -> Tuple[weakref.ref, str]:
+    obj = slot.__self__
+    # some decorators will alter method.__name__, so that obj.method
+    # will not be equal to getattr(obj, obj.method.__name__).
+    # We check for that case here and find the proper name in the function's closures
+    if getattr(obj, slot.__name__, None) != slot:
+        for c in slot.__closure__ or ():  # type: ignore
+            cname = getattr(c.cell_contents, "__name__", None)
+            if cname and getattr(obj, cname, None) == slot:
+                return weakref.ref(obj), cname
+        # slower, but catches cases like assigned functions
+        # that won't have function in closure
+        for name in reversed(dir(obj)):  # most dunder methods come first
+            if getattr(obj, name) == slot:
+                return weakref.ref(obj), name
+        # we don't know what to do here.
+        raise RuntimeError(  # pragma: no cover
+            f"Could not find method on {obj} corresponding to decorated function {slot}"
+        )
+    return weakref.ref(obj), slot.__name__
 
 
 try:
