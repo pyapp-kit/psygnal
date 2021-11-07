@@ -635,17 +635,21 @@ def test_property_connect():
     emitter = Emitter()
     emitter.one_int.connect_setattr(a, "x")
     assert len(emitter.one_int) == 1
-    slot2 = emitter.two_int.connect_setattr(a, "x")
+    emitter.two_int.connect_setattr(a, "x")
     assert len(emitter.two_int) == 1
     emitter.one_int.emit(1)
     assert a.li == [1]
     emitter.two_int.emit(1, 1)
     assert a.li == [1, (1, 1)]
-    emitter.two_int.disconnect(slot2)
+    emitter.two_int.disconnect_setattr(a, "x")
     assert len(emitter.two_int) == 0
     with pytest.raises(ValueError):
         emitter.two_int.disconnect_setattr(a, "x", missing_ok=False)
     emitter.two_int.disconnect_setattr(a, "x")
-    emitter.two_int.connect_setattr(a, "x", maxargs=1)
+    s = emitter.two_int.connect_setattr(a, "x", maxargs=1)
     emitter.two_int.emit(2, 3)
     assert a.li == [1, (1, 1), 2]
+    emitter.two_int.disconnect(s, missing_ok=False)
+
+    with pytest.raises(AttributeError):
+        emitter.one_int.connect_setattr(a, "y")
