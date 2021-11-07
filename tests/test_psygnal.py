@@ -1,7 +1,7 @@
 import gc
 import time
 import weakref
-from functools import partial
+from functools import partial, wraps
 from inspect import Signature
 from types import FunctionType
 from typing import Optional
@@ -13,11 +13,19 @@ from psygnal import Signal, SignalInstance
 
 
 def stupid_decorator(fun):
-    def _fun(*args, **kwargs):
-        fun(*args, **kwargs)
+    def _fun(*args):
+        fun(*args)
 
     _fun.__annotations__ = fun.__annotations__
     _fun.__name__ = "f_no_arg"
+    return _fun
+
+
+def good_decorator(fun):
+    @wraps(fun)
+    def _fun(*args):
+        fun(*args)
+
     return _fun
 
 
@@ -47,7 +55,9 @@ class MyObj:
     def f_vararg_varkwarg(self, *a, **b): ...
     def f_vararg_kwarg(self, *a, b=None): ...
     @stupid_decorator
-    def f_int_decorated(self, a: int): ...
+    def f_int_decorated_stupid(self, a: int): ...
+    @good_decorator
+    def f_int_decorated_good(self, a: int): ...
 
 
 def f_no_arg(): ...
@@ -277,25 +287,21 @@ def test_signal_instance_error():
     assert "Signal() class attribute" in str(e)
 
 
-def test_weakrefs():
-    """Test that connect an instance method doesn't hold strong ref."""
+@pytest.mark.parametrize(
+    "slot", ["f_no_arg", "f_int_decorated_stupid", "f_int_decorated_good", "partial"]
+)
+def test_weakref(slot):
+    """Test that a connected method doesn't hold strong ref."""
     emitter = Emitter()
     obj = MyObj()
 
     assert len(emitter.one_int) == 0
-    emitter.one_int.connect(obj.f_no_arg)
-    assert len(emitter.one_int) == 1
-    del obj
-    gc.collect()
-    emitter.one_int.emit(1)  # this should trigger deletion
-    assert len(emitter.one_int) == 0
-
-    obj = MyObj()
-    emitter.one_int.connect(obj.f_int_decorated)
+    emitter.one_int.connect(
+        partial(obj.f_int_int, 1) if slot == "partial" else getattr(obj, slot)
+    )
     assert len(emitter.one_int) == 1
     emitter.one_int.emit(1)
-    emitter.one_int.connect(partial(obj.f_int_int, 1))
-    assert len(emitter.one_int) == 2
+    assert len(emitter.one_int) == 1
     del obj
     gc.collect()
     emitter.one_int.emit(1)  # this should trigger deletion
