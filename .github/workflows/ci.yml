@@ -58,7 +58,6 @@ jobs:
         uses: codecov/codecov-action@v2
         with:
           fail_ci_if_error: true
-          verbose: true
 
   test-windows-mac:
     name: test py${{ matrix.python-version }} on ${{ matrix.platform }}
@@ -90,7 +89,6 @@ jobs:
         uses: codecov/codecov-action@v2
         with:
           fail_ci_if_error: true
-          verbose: true
 
   build:
     name: Build wheels on ${{ matrix.os }}
