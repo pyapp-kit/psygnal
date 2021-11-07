@@ -2,7 +2,8 @@ include LICENSE
 include README.md
 include psygnal/py.typed
 
-recursive-include tests *
+recursive-exclude * tests
+recursive-exclude * benchmarks
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
 

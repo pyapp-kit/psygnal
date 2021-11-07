@@ -24,7 +24,7 @@ if os.getenv("PSYGNAL_UNCOMPILED"):
 
         MODULE_PATH = os.path.join(os.path.dirname(__file__), "_signal.py")
         spec = importlib.util.spec_from_file_location("_signal", MODULE_PATH)
-        if spec is None or spec.loader is None:
+        if spec is None or spec.loader is None:  # pragma: no cover
             raise ImportError(f"Could not find pure python module: {MODULE_PATH}")
         module = importlib.util.module_from_spec(spec)
         sys.modules[spec.name] = module
