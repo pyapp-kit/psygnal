@@ -957,10 +957,10 @@ def partial_weakref(partial_fun: PartialBoundMethod) -> Callable:
 def _get_proper_name(slot: MethodType) -> tuple[weakref.ref, str]:
     obj = slot.__self__
     # some decorators will alter method.__name__, so that obj.method
-    # will not be equal to getattr(obj, obj.method.__name__). 
+    # will not be equal to getattr(obj, obj.method.__name__).
     # We check for that case here and find the proper name in the function's closures
     if getattr(obj, slot.__name__, None) != slot:
-        for c in slot.__closure__ or ():
+        for c in slot.__closure__ or ():  # type: ignore
             cname = getattr(c.cell_contents, "__name__", None)
             if cname and getattr(obj, cname, None) == slot:
                 return weakref.ref(obj), cname
