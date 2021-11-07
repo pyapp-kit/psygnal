@@ -42,7 +42,7 @@ jobs:
           ls -alh psygnal/
 
       - name: test
-        run: pytest --color=yes --cov=psygnal
+        run: pytest --color=yes --cov=psygnal --cov-report=xml
 
       - name: remove compiled binaries
         run: |
@@ -52,10 +52,12 @@ jobs:
           ls -alh psygnal/
 
       - name: test uncompiled without deps
-        run: pytest --color=yes --cov=psygnal
+        run: pytest --color=yes --cov=psygnal --cov-report=xml
 
       - name: Coverage
         uses: codecov/codecov-action@v2
+        with:
+          fail_ci_if_error: true
 
   test-windows-mac:
     name: test py${{ matrix.python-version }} on ${{ matrix.platform }}
@@ -81,10 +83,12 @@ jobs:
           pip install -U git+https://github.com/typeddjango/pytest-mypy-plugins.git
 
       - name: test
-        run: pytest --color=yes --cov=psygnal
+        run: pytest --color=yes --cov=psygnal --cov-report=xml
 
       - name: Coverage
         uses: codecov/codecov-action@v2
+        with:
+          fail_ci_if_error: true
 
   build:
     name: Build wheels on ${{ matrix.os }}

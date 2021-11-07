@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.1.4](https://github.com/tlambert03/psygnal/tree/v0.1.4) (2021-10-17)
+
+[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.1.3...v0.1.4)
+
+**Implemented enhancements:**
+
+- support python 3.10 [\#24](https://github.com/tlambert03/psygnal/pull/24) ([tlambert03](https://github.com/tlambert03))
+- Add ability to pause & resume/reduce signals [\#23](https://github.com/tlambert03/psygnal/pull/23) ([tlambert03](https://github.com/tlambert03))
+
 ## [v0.1.3](https://github.com/tlambert03/psygnal/tree/v0.1.3) (2021-10-01)
 
 [Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.1.2...v0.1.3)

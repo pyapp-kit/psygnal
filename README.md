@@ -2,6 +2,7 @@
 
 [![License](https://img.shields.io/pypi/l/psygnal.svg?color=green)](https://github.com/tlambert03/psygnal/raw/master/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/psygnal.svg?color=green)](https://pypi.org/project/psygnal)
+![Conda](https://img.shields.io/conda/v/conda-forge/psygnal)
 [![Python Version](https://img.shields.io/pypi/pyversions/psygnal.svg?color=green)](https://python.org)
 [![CI](https://github.com/tlambert03/psygnal/actions/workflows/ci.yml/badge.svg)](https://github.com/tlambert03/psygnal/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/tlambert03/psygnal/branch/main/graph/badge.svg?token=qGnz9GXpEb)](https://codecov.io/gh/tlambert03/psygnal)
@@ -245,15 +246,13 @@ and `signal.unblock()`.
 
 ### Pausing a signal
 
-To temporarily block a signal, use the `signal.paused()` context context manager.
-
-To pause/resume permanently (outside of a context manager), use `signal.pause()`
-and `signal.resume()`.
+Sometimes it is useful to temporarily collect/buffer emission events, and then emit
+them together as a single event.  This can be accomplished using the
+`signal.pause()`/`signal.resume()` methods, or the `signal.paused()` context manager.
 
 If a function is passed to `signal.paused(func)` (or `signal.resume(func)`) it will
 be passed to `functools.reduce` to combine all of the emitted values collected during
 the paused period, and a single combined value will be emitted.
-
 
 ```py
 obj = MyObj()
@@ -332,3 +331,17 @@ parties to subscribe to events, or "signals".
 ### [SmokeSignal](https://github.com/shaunduncan/smokesignal/)
 
 (This appears to be unmaintained)
+
+## Benchmark history
+
+https://www.talleylambert.com/psygnal/
+
+## Developers
+
+### Debugging
+
+While `psygnal` is a pure python module, it is compiled with Cython to increase
+performance.  To import `psygnal` in uncompiled mode, without deleting the
+shared library files from the psyngal module, set the environment variable
+`PSYGNAL_UNCOMPILED` before importing psygnal.  The `psygnal._compiled` variable
+will tell you if you're running the compiled library or not.
