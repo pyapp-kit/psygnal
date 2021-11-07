@@ -81,7 +81,7 @@ class EmitSuite:
         self.emitter1.changed.emit(1)
 
     def time_emit_to_method(self, n):
-        self.emitter1.changed.emit(1)
+        self.emitter2.changed.emit(1)
 
     def time_emit_to_both(self, n):
-        self.emitter1.changed.emit(1)
+        self.emitter3.changed.emit(1)
