@@ -4,6 +4,7 @@ import inspect
 import threading
 import warnings
 import weakref
+from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from functools import lru_cache, partial, reduce
 from inspect import Parameter, Signature, isclass
@@ -17,27 +18,27 @@ from typing import (
     List,
     NoReturn,
     Optional,
-    Protocol,
     Tuple,
     Type,
     Union,
     cast,
     overload,
-    runtime_checkable,
 )
 
 from typing_extensions import Literal, get_args, get_origin, get_type_hints
 
 
-@runtime_checkable
-class CallbackBase(Protocol):
+class CallbackBase(ABC):
+    @abstractmethod
     def alive(self) -> bool:
         ...
 
+    @abstractmethod
     def __eq__(self, other: Any) -> bool:
         ...
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    @abstractmethod
+    def __call__(self, *args: Any) -> Any:
         ...
 
 
@@ -442,11 +443,7 @@ class SignalInstance:
             numer of arguments to be added
         """
         with self._lock:
-            self._slots.append(
-                (PropertyWeakrefCallback(obj, name), maxargs)  # type: ignore
-            )
-            # mypy does not see that PropertyWeakrefCallback
-            # implements CallbackBase protocol
+            self._slots.append((PropertyWeakrefCallback(obj, name), maxargs))
 
     def _check_nargs(
         self, slot: Callable, spec: Signature
@@ -1001,29 +998,29 @@ def _partial_weakref(slot_partial: PartialMethod) -> Tuple[weakref.ref, Callable
     return (ref, wrap)
 
 
-class FunctionCallback:
+class FunctionCallback(CallbackBase):
     def __init__(self, func: Callable):
         self.func = func
 
     def alive(self) -> bool:
         return True
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        self.func(*args, **kwargs)
+    def __call__(self, *args: Any) -> Any:
+        self.func(*args)
 
     def __eq__(self, other: Any) -> bool:
         return isinstance(other, FunctionCallback) and self.func == other.func
 
 
-class MethodWeakrefCallback:
+class MethodWeakrefCallback(CallbackBase):
     def __init__(self, slot: MethodType):
         self.obj, self.name = _get_proper_name(slot)
 
     def alive(self) -> bool:
         return self.obj() is not None
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        return getattr(self.obj(), self.name)(*args, **kwargs)
+    def __call__(self, *args: Any) -> Any:
+        return getattr(self.obj(), self.name)(*args)
 
     def __eq__(self, other: Any) -> bool:
         return (
@@ -1033,7 +1030,7 @@ class MethodWeakrefCallback:
         )
 
 
-class PartialWeakrefCallback:
+class PartialWeakrefCallback(CallbackBase):
     def __init__(self, slot_partial: PartialMethod):
         self.obj, self.name = _get_proper_name(slot_partial.func)
         self.args = slot_partial.args
@@ -1042,10 +1039,8 @@ class PartialWeakrefCallback:
     def alive(self) -> bool:
         return self.obj() is not None
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        return getattr(self.obj(), self.name)(
-            *self.args, *args, **self.kwargs, **kwargs
-        )
+    def __call__(self, *args: Any) -> Any:
+        return getattr(self.obj(), self.name)(*self.args, *args, **self.kwargs)
 
     def __eq__(self, other: Any) -> bool:
         try:
@@ -1060,7 +1055,7 @@ class PartialWeakrefCallback:
             return False
 
 
-class PropertyWeakrefCallback:
+class PropertyWeakrefCallback(CallbackBase):
     def __init__(self, obj: Union[weakref.ref, object], name: str):
         if not isinstance(obj, weakref.ref):
             obj = weakref.ref(obj)
