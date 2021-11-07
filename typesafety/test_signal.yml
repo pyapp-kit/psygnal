@@ -17,7 +17,7 @@
     s = Signal(int, str)
     s = Signal(object)
     s = Signal(Signature())
-    s = Signal(1) # E: Argument 1 to "Signal" has incompatible type "int"; expected "Union[Type[Any], Signature]"  [arg-type]
+    s = Signal(1) # E: Argument 1 to "Signal" has incompatible type "int"; expected "Union[Type[Any], Signature]"
 
 - case: signal_emit
   main: |
