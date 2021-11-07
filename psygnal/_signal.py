@@ -45,7 +45,7 @@ class PartialBoundMethod(metaclass=PartialBoundMethodMeta):
     keywords: Dict
 
     def __call__(self, *args: List[Any], **kwargs: Dict[str, Any]) -> Any:
-        raise NotImplementedError
+        raise NotImplementedError  # pragma: no cover
 
 
 def signature(obj: Any) -> inspect.Signature:
@@ -960,7 +960,7 @@ def _get_proper_name(slot: MethodType) -> Tuple[weakref.ref, str]:
             if getattr(obj, name) == slot:
                 return weakref.ref(obj), name
         # we don't know what to do here.
-        raise RuntimeError(
+        raise RuntimeError(  # pragma: no cover
             f"Could not find method on {obj} corresponding to decorated function {slot}"
         )
     return weakref.ref(obj), slot.__name__
