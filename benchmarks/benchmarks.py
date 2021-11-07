@@ -23,6 +23,14 @@ class R:
     def method2(self, x: int, y: int):
         ...
 
+    @property
+    def attr(self):
+        return
+
+    @attr.setter
+    def attr(self, value):
+        return
+
 
 def callback(x: int):
     pass
@@ -74,8 +82,13 @@ class EmitSuite:
 
         self.emitter3 = E()
         for _ in range(n):
-            self.emitter3.changed.connect(callback, unique=False)
-            self.emitter3.changed.connect(self.receiver.method, unique=False)
+            self.emitter3.changed.connect_setattr(self.receiver, "attr")
+
+        self.emitter4 = E()
+        for _ in range(n):
+            self.emitter4.changed.connect(callback, unique=False)
+            self.emitter4.changed.connect(self.receiver.method, unique=False)
+            self.emitter4.changed.connect_setattr(self.receiver, "attr")
 
     def time_emit_to_function(self, n):
         self.emitter1.changed.emit(1)
@@ -83,5 +96,8 @@ class EmitSuite:
     def time_emit_to_method(self, n):
         self.emitter2.changed.emit(1)
 
-    def time_emit_to_both(self, n):
+    def time_emit_to_attr(self, n):
         self.emitter3.changed.emit(1)
+
+    def time_emit_to_all(self, n):
+        self.emitter4.changed.emit(1)
