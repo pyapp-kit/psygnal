@@ -426,6 +426,28 @@ class SignalInstance:
 
         return _wrapper(slot) if slot else _wrapper
 
+    def connect_property(
+        self, obj: Any, name: str, maxargs: Optional[int] = None
+    ) -> None:
+        """
+        Connect property by name.
+
+        Parameters
+        ----------
+        obj : Any
+            object which property should be set
+        name: str
+            name of property
+        maxargs: int, optional
+            numer of arguments to be added
+        """
+        with self._lock:
+            self._slots.append(
+                (PropertyWeakrefCallback(obj, name), maxargs)  # type: ignore
+            )
+            # mypy does not see that PropertyWeakrefCallback
+            # implements CallbackBase protocol
+
     def _check_nargs(
         self, slot: Callable, spec: Signature
     ) -> Tuple[Optional[Signature], Optional[int]]:
@@ -511,6 +533,33 @@ class SignalInstance:
                 # NOTE: clearing an empty list is actually a RuntimeError in Qt
                 self._slots.clear()
                 return
+
+            idx = self._slot_index(slot)
+            if idx != -1:
+                self._slots.pop(idx)
+            elif not missing_ok:
+                raise ValueError(f"slot is not connected: {slot}")
+
+    def disconnect_property(self, obj: Any, name: str, missing_ok: bool = True) -> None:
+        """Disconnect slot from signal.
+
+        Parameters
+        ----------
+        obj : Any
+            object which property should be set
+        name: str
+            name of property
+        missing_ok : bool, optional
+            If `False` and the provided `slot` is not connected, raises `ValueError.
+            by default `True`
+
+        Raises
+        ------
+        ValueError
+            If `slot` is not connected and `missing_ok` is False.
+        """
+        with self._lock:
+            slot = PropertyWeakrefCallback(obj, name)
 
             idx = self._slot_index(slot)
             if idx != -1:

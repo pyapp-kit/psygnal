@@ -315,6 +315,36 @@ def test_weakref(slot):
     assert len(emitter.one_int) == 0
 
 
+def test_property_connect():
+    class A:
+        def __init__(self):
+            self.li = []
+
+        @property
+        def x(self):
+            return self.li
+
+        @x.setter
+        def x(self, value):
+            self.li.append(value)
+
+    a = A()
+    emitter = Emitter()
+    emitter.one_int.connect_property(a, "x")
+    assert len(emitter.one_int) == 1
+    emitter.two_int.connect_property(a, "x")
+    assert len(emitter.two_int) == 1
+    emitter.one_int.emit(1)
+    assert a.li == [1]
+    emitter.two_int.emit(1, 1)
+    assert a.li == [1, (1, 1)]
+    emitter.two_int.disconnect_property(a, "x")
+    assert len(emitter.two_int) == 0
+    emitter.two_int.connect_property(a, "x", maxargs=1)
+    emitter.two_int.emit(2, 3)
+    assert a.li == [1, (1, 1), 2]
+
+
 def test_norm_slot():
     e = Emitter()
     r = MyObj()
