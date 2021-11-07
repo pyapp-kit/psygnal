@@ -62,9 +62,26 @@ class EmitSuite:
     params = [1, 10, 100]
 
     def setup(self, n):
-        self.emitter = E()
-        for _ in range(n):
-            self.emitter.changed.connect(callback, unique=False)
+        self.receiver = R()
 
-    def time_emit(self, n):
-        self.emitter.changed.emit(1)
+        self.emitter1 = E()
+        for _ in range(n):
+            self.emitter1.changed.connect(callback, unique=False)
+
+        self.emitter2 = E()
+        for _ in range(n):
+            self.emitter2.changed.connect(self.receiver.method, unique=False)
+
+        self.emitter3 = E()
+        for _ in range(n):
+            self.emitter3.changed.connect(callback, unique=False)
+            self.emitter3.changed.connect(self.receiver.method, unique=False)
+
+    def time_emit_to_function(self, n):
+        self.emitter1.changed.emit(1)
+
+    def time_emit_to_method(self, n):
+        self.emitter2.changed.emit(1)
+
+    def time_emit_to_both(self, n):
+        self.emitter3.changed.emit(1)
