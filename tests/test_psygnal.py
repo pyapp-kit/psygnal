@@ -3,14 +3,13 @@ import time
 import weakref
 from functools import partial, wraps
 from inspect import Signature
-from types import FunctionType
 from typing import Optional
 from unittest.mock import MagicMock, call
 
 import pytest
 
 from psygnal import Signal, SignalInstance
-from psygnal._signal import _get_proper_name
+from psygnal._signal import FunctionCallback, MethodWeakrefCallback, _get_proper_name
 
 
 def stupid_decorator(fun):
@@ -216,14 +215,13 @@ def test_slot_types():
     # connecting same function twice is (currently) OK
     emitter.one_int.connect(f_int)
     assert len(emitter.one_int._slots) == 3
-    assert isinstance(emitter.one_int._slots[-1][0], FunctionType)
+    assert isinstance(emitter.one_int._slots[-1][0], FunctionCallback)
 
     # bound methods
     obj = MyObj()
     emitter.one_int.connect(obj.f_int)
     assert len(emitter.one_int._slots) == 4
-    assert isinstance(emitter.one_int._slots[-1][0], tuple)
-    assert isinstance(emitter.one_int._slots[-1][0][0], weakref.ref)
+    assert isinstance(emitter.one_int._slots[-1][0], MethodWeakrefCallback)
 
     with pytest.raises(TypeError):
         emitter.one_int.connect("not a callable")  # type: ignore
@@ -325,10 +323,11 @@ def test_norm_slot():
     normed2 = e.one_int._normalize_slot(normed1)
     normed3 = e.one_int._normalize_slot((r, "f_any"))
     normed3 = e.one_int._normalize_slot((weakref.ref(r), "f_any"))
-    assert normed1 == (weakref.ref(r), "f_any")
+    assert isinstance(normed1, MethodWeakrefCallback)
+    assert (normed1.obj, normed1.name) == (weakref.ref(r), "f_any")
     assert normed1 == normed2 == normed3
 
-    assert e.one_int._normalize_slot(f_any) == f_any
+    assert e.one_int._normalize_slot(f_any) == FunctionCallback(f_any)
 
 
 ALL = {n for n, f in locals().items() if callable(f) and n.startswith("f_")}
@@ -550,7 +549,19 @@ def test_pause():
     emitter.one_int.emit(3)
     mock.assert_not_called()
     emitter.one_int.resume()
-    mock.assert_has_calls([call(1), call(2), call(3)])
+    mock.assert_has_calls(
+        [
+            call.alive(),
+            call.alive().__bool__(),
+            call(1),
+            call.alive(),
+            call.alive().__bool__(),
+            call(2),
+            call.alive(),
+            call.alive().__bool__(),
+            call(3),
+        ]
+    )
 
     mock.reset_mock()
     with emitter.one_int.paused(lambda a, b: (a[0].union(set(b)),), (set(),)):

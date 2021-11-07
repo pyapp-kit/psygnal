@@ -17,18 +17,33 @@ from typing import (
     List,
     NoReturn,
     Optional,
+    Protocol,
     Tuple,
     Type,
     Union,
     cast,
     overload,
+    runtime_checkable,
 )
 
 from typing_extensions import Literal, get_args, get_origin, get_type_hints
 
+
+@runtime_checkable
+class CallbackBase(Protocol):
+    def alive(self) -> bool:
+        ...
+
+    def __eq__(self, other: Any) -> bool:
+        ...
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        ...
+
+
 MethodRef = Tuple["weakref.ReferenceType[object]", Union[Callable, str]]
-NormedCallback = Union[MethodRef, Callable]
-StoredSlot = Tuple[NormedCallback, Optional[int]]
+NormedCallback = Union[MethodRef, Callable, CallbackBase]
+StoredSlot = Tuple[CallbackBase, Optional[int]]
 AnyType = Type[Any]
 ReducerFunc = Callable[[tuple, tuple], tuple]
 _NULL = object()
@@ -444,14 +459,24 @@ class SignalInstance:
         msg += f"\n\nAccepted signature: {self.signature}"
         raise ValueError(msg)
 
-    def _normalize_slot(self, slot: NormedCallback) -> NormedCallback:
+    def _normalize_slot(self, slot: NormedCallback) -> CallbackBase:
+        if isinstance(slot, CallbackBase):
+            return slot
         if isinstance(slot, MethodType):
-            return _get_proper_name(slot)
+            return MethodWeakrefCallback(slot)
         if isinstance(slot, PartialMethod):
-            return _partial_weakref(slot)
-        if isinstance(slot, tuple) and not isinstance(slot[0], weakref.ref):
-            return (weakref.ref(slot[0]), slot[1])
-        return slot
+            return PartialWeakrefCallback(slot)
+        if isinstance(slot, tuple):
+            if isinstance(slot[1], str):
+                target = (
+                    getattr(slot[0](), slot[1])
+                    if isinstance(slot[0], weakref.ref)
+                    else getattr(slot[0], slot[1])
+                )
+            else:
+                target = slot[1]
+            return MethodWeakrefCallback(target)
+        return FunctionCallback(slot)
 
     def _slot_index(self, slot: NormedCallback) -> int:
         """Get index of `slot` in `self._slots`.  Return -1 if not connected."""
@@ -626,29 +651,16 @@ class SignalInstance:
         )
 
     def _run_emit_loop(self, args: Tuple[Any, ...]) -> None:
-        rem: List[NormedCallback] = []
+        rem: List[CallbackBase] = []
         # allow receiver to query sender with Signal.current_emitter()
         with self._lock:
             with Signal._emitting(self):
                 for (slot, max_args) in self._slots:
-                    if isinstance(slot, tuple):
-                        _ref, method = slot
-                        obj = _ref()
-                        if obj is None:
-                            rem.append(slot)  # add dead weakref
-                            continue
-                        if callable(method):
-                            cb = method
-                        else:
-                            cb = getattr(obj, method, None)
-                            if cb is None:  # pragma: no cover
-                                rem.append(slot)  # object has changed?
-                                continue
-                    else:
-                        cb = slot
-
+                    if not slot.alive():
+                        rem.append(slot)
+                        continue
                     # TODO: add better exception handling
-                    cb(*args[:max_args])
+                    slot(*args[:max_args])
 
             for slot in rem:
                 self.disconnect(slot)
@@ -938,6 +950,89 @@ def _partial_weakref(slot_partial: PartialMethod) -> Tuple[weakref.ref, Callable
         getattr(ref(), name)(*args_, *args, **kwargs_, **kwargs)
 
     return (ref, wrap)
+
+
+class FunctionCallback:
+    def __init__(self, func: Callable):
+        self.func = func
+
+    def alive(self) -> bool:
+        return True
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        self.func(*args, **kwargs)
+
+    def __eq__(self, other: Any) -> bool:
+        return isinstance(other, FunctionCallback) and self.func == other.func
+
+
+class MethodWeakrefCallback:
+    def __init__(self, slot: MethodType):
+        self.obj, self.name = _get_proper_name(slot)
+
+    def alive(self) -> bool:
+        return self.obj() is not None
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return getattr(self.obj(), self.name)(*args, **kwargs)
+
+    def __eq__(self, other: Any) -> bool:
+        return (
+            isinstance(other, MethodWeakrefCallback)
+            and self.name == other.name
+            and self.obj() == other.obj()
+        )
+
+
+class PartialWeakrefCallback:
+    def __init__(self, slot_partial: PartialMethod):
+        self.obj, self.name = _get_proper_name(slot_partial.func)
+        self.args = slot_partial.args
+        self.kwargs = slot_partial.keywords
+
+    def alive(self) -> bool:
+        return self.obj() is not None
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return getattr(self.obj(), self.name)(
+            *self.args, *args, **self.kwargs, **kwargs
+        )
+
+    def __eq__(self, other: Any) -> bool:
+        try:
+            return (
+                isinstance(other, PartialWeakrefCallback)
+                and self.name == other.name
+                and self.obj() == other.obj()
+                and self.args == other.args
+                and self.kwargs == other.kwargs
+            )
+        except:  # noqa: E722
+            return False
+
+
+class PropertyWeakrefCallback:
+    def __init__(self, obj: Union[weakref.ref, object], name: str):
+        if not isinstance(obj, weakref.ref):
+            obj = weakref.ref(obj)
+        self.obj = obj
+        self.name = name
+
+    def alive(self) -> bool:
+        return self.obj() is not None
+
+    def __call__(self, *args: Any) -> None:
+        if len(args) == 1:
+            setattr(self.obj(), self.name, args[0])
+        else:
+            setattr(self.obj(), self.name, args)
+
+    def __eq__(self, other: Any) -> bool:
+        return (
+            isinstance(other, PropertyWeakrefCallback)
+            and self.name == other.name
+            and self.obj() == other.obj()
+        )
 
 
 def _get_proper_name(slot: MethodType) -> Tuple[weakref.ref, str]:
