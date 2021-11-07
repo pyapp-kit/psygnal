@@ -6,7 +6,7 @@ import warnings
 import weakref
 from contextlib import contextmanager
 from functools import lru_cache, partial, reduce
-from inspect import Parameter, Signature
+from inspect import Parameter, Signature, isclass
 from types import MethodType
 from typing import (
     TYPE_CHECKING,
@@ -24,7 +24,7 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Literal
+from typing_extensions import Literal, get_args, get_origin, get_type_hints
 
 MethodRef = Tuple["weakref.ReferenceType[object]", Union[Callable, str]]
 NormedCallback = Union[MethodRef, Callable]
@@ -32,48 +32,6 @@ StoredSlot = Tuple[NormedCallback, Optional[int]]
 AnyType = Type[Any]
 ReducerFunc = Callable[[tuple, tuple], tuple]
 _NULL = object()
-
-
-class PartialBoundMethodMeta(type):
-    def __instancecheck__(cls, inst: object) -> bool:
-        return isinstance(inst, partial) and isinstance(inst.func, MethodType)
-
-
-class PartialBoundMethod(metaclass=PartialBoundMethodMeta):
-    func: MethodType
-    args: List[Any]
-    keywords: Dict
-
-    def __call__(self, *args: List[Any], **kwargs: Dict[str, Any]) -> Any:
-        raise NotImplementedError  # pragma: no cover
-
-
-def signature(obj: Any) -> inspect.Signature:
-    try:
-        return inspect.signature(obj)
-    except ValueError as e:
-        try:
-            if not inspect.ismethod(obj):  # avoid caching strong refs
-                return _stub_sig(obj)
-        except Exception:
-            pass
-        raise e
-
-
-@lru_cache()
-def _stub_sig(obj: Any) -> Signature:
-    import builtins
-
-    if obj is builtins.print:
-        params = [
-            Parameter(name="value", kind=Parameter.VAR_POSITIONAL),
-            Parameter(name="sep", kind=Parameter.KEYWORD_ONLY, default=" "),
-            Parameter(name="end", kind=Parameter.KEYWORD_ONLY, default="\n"),
-            Parameter(name="file", kind=Parameter.KEYWORD_ONLY, default=None),
-            Parameter(name="flush", kind=Parameter.KEYWORD_ONLY, default=False),
-        ]
-        return Signature(params)
-    raise ValueError("unknown object")
 
 
 class Signal:
@@ -173,19 +131,19 @@ class Signal:
         return self.__getattribute__(name)
 
     @overload
-    def __get__(
+    def __get__(  # noqa
         self, instance: None, owner: Optional[AnyType] = None
-    ) -> "Signal":  # noqa
+    ) -> "Signal":
         ...  # pragma: no cover
 
     @overload
-    def __get__(
+    def __get__(  # noqa
         self, instance: Any, owner: Optional[AnyType] = None
-    ) -> "SignalInstance":  # noqa
+    ) -> "SignalInstance":
         ...  # pragma: no cover
 
     def __get__(
-        self, instance: Any, owner: AnyType = None
+        self, instance: Any, owner: Optional[AnyType] = None
     ) -> Union["Signal", "SignalInstance"]:
         """Get signal instance.
 
@@ -439,43 +397,45 @@ class SignalInstance:
                         )
                     return slot
 
-                slot_sig = None
-                spec = self.signature
-
-                maxargs = None
+                slot_sig = maxargs = None
                 if check_nargs:
-                    # make sure we have a compatible signature
-                    # get the maximum number of arguments that we can pass to the slot
-                    try:
-                        slot_sig = signature(slot)
-                    except ValueError as e:
-                        warnings.warn(
-                            f"{e}. To silence this warning, connect with "
-                            "`check_nargs=False`"
-                        )
-                    else:
-                        minargs, maxargs = _acceptable_posarg_range(slot_sig)
-                        n_spec_params = len(spec.parameters)
-                        # if `slot` requires more arguments than we will provide, raise.
-                        if minargs > n_spec_params:
-                            extra = (
-                                f"- Slot requires at least {minargs} positional "
-                                f"arguments, but spec only provides {n_spec_params}"
-                            )
-                            self._raise_connection_error(slot, extra)
-
+                    slot_sig, maxargs = self._check_nargs(slot, self.signature)
                 if check_types:
-                    if slot_sig is None:  # pragma: no cover
-                        slot_sig = signature(slot)
-                    if not _parameter_types_match(slot, spec, slot_sig):
+                    slot_sig = slot_sig or signature(slot)
+                    if not _parameter_types_match(slot, self.signature, slot_sig):
                         extra = f"- Slot types {slot_sig} do not match types in signal."
                         self._raise_connection_error(slot, extra)
 
                 self._slots.append((self._normalize_slot(slot), maxargs))
-
             return slot
 
         return _wrapper(slot) if slot else _wrapper
+
+    def _check_nargs(
+        self, slot: Callable, spec: Signature
+    ) -> Tuple[Optional[Signature], Optional[int]]:
+        """Make sure slot is compatible with signature.
+
+        Also returns the maximum number of arguments that we can pass to the slot
+        """
+        try:
+            slot_sig = signature(slot)
+        except ValueError as e:
+            warnings.warn(
+                f"{e}. To silence this warning, connect with " "`check_nargs=False`"
+            )
+            return None, None
+
+        minargs, maxargs = _acceptable_posarg_range(slot_sig)
+        n_spec_params = len(spec.parameters)
+        # if `slot` requires more arguments than we will provide, raise.
+        if minargs > n_spec_params:
+            extra = (
+                f"- Slot requires at least {minargs} positional "
+                f"arguments, but spec only provides {n_spec_params}"
+            )
+            self._raise_connection_error(slot, extra)
+        return slot_sig, maxargs
 
     def _raise_connection_error(self, slot: Callable, extra: str = "") -> NoReturn:
         name = getattr(slot, "__name__", str(slot))
@@ -487,8 +447,8 @@ class SignalInstance:
     def _normalize_slot(self, slot: NormedCallback) -> NormedCallback:
         if isinstance(slot, MethodType):
             return _get_proper_name(slot)
-        if isinstance(slot, PartialBoundMethod):
-            return partial_weakref(slot)
+        if isinstance(slot, PartialMethod):
+            return _partial_weakref(slot)
         if isinstance(slot, tuple) and not isinstance(slot[0], weakref.ref):
             return (weakref.ref(slot[0]), slot[1])
         return slot
@@ -814,7 +774,49 @@ class EmitThread(threading.Thread):
         self._signal_instance._run_emit_loop(self.args)
 
 
-# ################################################################
+# #############################################################################
+# #############################################################################
+
+
+class PartialMethodMeta(type):
+    def __instancecheck__(cls, inst: object) -> bool:
+        return isinstance(inst, partial) and isinstance(inst.func, MethodType)
+
+
+class PartialMethod(metaclass=PartialMethodMeta):
+    """Bound method wrapped in partial: `partial(MyClass().some_method, y=1)`."""
+
+    func: MethodType
+    args: tuple
+    keywords: Dict[str, Any]
+
+
+def signature(obj: Any) -> inspect.Signature:
+    try:
+        return inspect.signature(obj)
+    except ValueError as e:
+        try:
+            if not inspect.ismethod(obj):  # avoid caching strong refs
+                return _stub_sig(obj)
+        except Exception:
+            pass
+        raise e
+
+
+@lru_cache()
+def _stub_sig(obj: Any) -> Signature:
+    import builtins
+
+    if obj is builtins.print:
+        params = [
+            Parameter(name="value", kind=Parameter.VAR_POSITIONAL),
+            Parameter(name="sep", kind=Parameter.KEYWORD_ONLY, default=" "),
+            Parameter(name="end", kind=Parameter.KEYWORD_ONLY, default="\n"),
+            Parameter(name="file", kind=Parameter.KEYWORD_ONLY, default=None),
+            Parameter(name="flush", kind=Parameter.KEYWORD_ONLY, default=False),
+        ]
+        return Signature(params)
+    raise ValueError("unknown object")
 
 
 def _build_signature(*types: AnyType) -> Signature:
@@ -862,8 +864,9 @@ def _acceptable_posarg_range(
     required = 0
     optional = 0
     posargs_unlimited = False
+    _pos_required = {Parameter.POSITIONAL_ONLY, Parameter.POSITIONAL_OR_KEYWORD}
     for param in sig.parameters.values():
-        if param.kind in {Parameter.POSITIONAL_ONLY, Parameter.POSITIONAL_OR_KEYWORD}:
+        if param.kind in _pos_required:
             if param.default is Parameter.empty:
                 required += 1
             else:
@@ -910,8 +913,6 @@ def _parameter_types_match(
 
         if isinstance(f_anno, str):
             if func_hints is None:
-                from typing_extensions import get_type_hints
-
                 func_hints = get_type_hints(function)
             f_anno = func_hints.get(f_param.name)
 
@@ -921,19 +922,14 @@ def _parameter_types_match(
 
 
 def _is_subclass(left: AnyType, right: type) -> bool:
-    from inspect import isclass
-
-    from typing_extensions import get_args, get_origin
-
-    if not isclass(left):
-        # look for Union
-        origin = get_origin(left)
-        if origin is Union:
-            return any(issubclass(i, right) for i in get_args(left))
+    """Variant of issubclass with support for unions."""
+    if not isclass(left) and get_origin(left) is Union:
+        return any(issubclass(i, right) for i in get_args(left))
     return issubclass(left, right)
 
 
-def partial_weakref(slot_partial: PartialBoundMethod) -> Tuple[weakref.ref, Callable]:
+def _partial_weakref(slot_partial: PartialMethod) -> Tuple[weakref.ref, Callable]:
+    """For partial methods, make the weakref point to the wrapped object."""
     ref, name = _get_proper_name(slot_partial.func)
     args_ = slot_partial.args
     kwargs_ = slot_partial.keywords
