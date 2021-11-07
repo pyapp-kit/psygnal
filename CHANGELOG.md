@@ -1,5 +1,32 @@
 # Changelog
 
+## [v0.2.0](https://github.com/tlambert03/psygnal/tree/v0.2.0) (2021-11-07)
+
+[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.1.4...v0.2.0)
+
+**Implemented enhancements:**
+
+- Add `connect/disconnect_settattr` [\#39](https://github.com/tlambert03/psygnal/pull/39) ([tlambert03](https://github.com/tlambert03))
+- Enable uncompiled import with PSYGNAL\_UNCOMPILED env var  [\#33](https://github.com/tlambert03/psygnal/pull/33) ([tlambert03](https://github.com/tlambert03))
+- Add asv benchmark to CI [\#31](https://github.com/tlambert03/psygnal/pull/31) ([tlambert03](https://github.com/tlambert03))
+- Avoid holding strong reference to decorated and partial methods [\#29](https://github.com/tlambert03/psygnal/pull/29) ([Czaki](https://github.com/Czaki))
+- Change confusing variable name in \_acceptable\_posarg\_range [\#25](https://github.com/tlambert03/psygnal/pull/25) ([tlambert03](https://github.com/tlambert03))
+
+**Fixed bugs:**
+
+- Set SignalInstances directly as attributes on objects \(fix bug with hashable signal holders\) [\#28](https://github.com/tlambert03/psygnal/pull/28) ([tlambert03](https://github.com/tlambert03))
+
+**Tests & CI:**
+
+- Add benchmarks for connect\_setattr [\#41](https://github.com/tlambert03/psygnal/pull/41) ([Czaki](https://github.com/Czaki))
+- Extend emit benchmarks to include methods [\#40](https://github.com/tlambert03/psygnal/pull/40) ([tlambert03](https://github.com/tlambert03))
+- Fix codecov CI and bring coverage back to 100 [\#34](https://github.com/tlambert03/psygnal/pull/34) ([tlambert03](https://github.com/tlambert03))
+- Change benchmark publication approach [\#32](https://github.com/tlambert03/psygnal/pull/32) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- Misc-typing and minor reorg [\#35](https://github.com/tlambert03/psygnal/pull/35) ([tlambert03](https://github.com/tlambert03))
+
 ## [v0.1.4](https://github.com/tlambert03/psygnal/tree/v0.1.4) (2021-10-17)
 
 [Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.1.3...v0.1.4)
