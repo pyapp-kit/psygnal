@@ -329,7 +329,6 @@ class SignalInstance:
     ) -> Callable:
         ...  # pragma: no cover
 
-    # TODO: allow connect as decorator with arguments
     def connect(
         self,
         slot: Optional[Callable] = None,
@@ -410,6 +409,53 @@ class SignalInstance:
             return slot
 
         return _wrapper(slot) if slot else _wrapper
+
+    def connect_setattr(
+        self, obj: Union[weakref.ref, object], attr: str
+    ) -> Tuple[weakref.ReferenceType, Callable[[Any], None]]:
+        """Bind the an object attribute to emitted value of this signal.
+
+        Equivalent to calling self.connect(partial(setattr, obj, attr)), with
+        weakref safety.
+
+        Parameters
+        ----------
+        obj : Union[weakref.ref, object]
+            An object or weak reference to an object.
+        attr : str
+            The name of an attribute on `obj` that should be set to the value of this
+            signal when emitted.
+
+        Returns
+        -------
+        Tuple
+            (weakref.ref, callable), where the callable is the setattr closure.
+
+        Raises
+        ------
+        ValueError
+            If this is not a single-value signal
+        AttributeError
+            If `obj` has no attribute `attr`.
+        """
+        n_params = len(self.signature.parameters)
+        if n_params != 1:
+            raise ValueError(
+                "Can't use `connect_setattr` with a signal that emits {n_params} values"
+            )
+        if isinstance(obj, weakref.ref):
+            ref = obj
+        else:
+            ref = weakref.ref(obj)
+        if not hasattr(ref(), attr):
+            raise AttributeError(f"Object {ref()} has no attribute {attr!r}")
+
+        def _slot(value: Any) -> None:
+            setattr(ref(), attr, value)
+
+        normed_callback = (ref, _slot)
+        self._slots.append((normed_callback, None))
+        return normed_callback
 
     def _check_nargs(
         self, slot: Callable, spec: Signature
