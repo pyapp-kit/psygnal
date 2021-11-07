@@ -7,7 +7,7 @@ __author__ = "Talley Lambert"
 __email__ = "talley.lambert@gmail.com"
 __all__ = ["Signal", "SignalInstance", "_compiled", "__version__"]
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Type
 
 if TYPE_CHECKING:
     from ._signal import Signal, SignalInstance, _compiled
@@ -16,7 +16,7 @@ import os
 
 if os.getenv("PSYGNAL_UNCOMPILED"):
 
-    def _import_purepy_mod() -> tuple:
+    def _import_purepy_mod() -> tuple[Type[Signal], Type[SignalInstance], bool]:
         """Import stuff from the uncompiled python module, for debugging."""
         import importlib.util
         import os
