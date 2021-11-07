@@ -56,6 +56,9 @@ jobs:
 
       - name: Coverage
         uses: codecov/codecov-action@v2
+        with:
+          fail_ci_if_error: true
+          verbose: true
 
   test-windows-mac:
     name: test py${{ matrix.python-version }} on ${{ matrix.platform }}
