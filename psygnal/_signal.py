@@ -397,43 +397,45 @@ class SignalInstance:
                         )
                     return slot
 
-                slot_sig = None
-                spec = self.signature
-
-                maxargs = None
+                slot_sig = maxargs = None
                 if check_nargs:
-                    # make sure we have a compatible signature
-                    # get the maximum number of arguments that we can pass to the slot
-                    try:
-                        slot_sig = signature(slot)
-                    except ValueError as e:
-                        warnings.warn(
-                            f"{e}. To silence this warning, connect with "
-                            "`check_nargs=False`"
-                        )
-                    else:
-                        minargs, maxargs = _acceptable_posarg_range(slot_sig)
-                        n_spec_params = len(spec.parameters)
-                        # if `slot` requires more arguments than we will provide, raise.
-                        if minargs > n_spec_params:
-                            extra = (
-                                f"- Slot requires at least {minargs} positional "
-                                f"arguments, but spec only provides {n_spec_params}"
-                            )
-                            self._raise_connection_error(slot, extra)
-
+                    slot_sig, maxargs = self._check_nargs(slot, self.signature)
                 if check_types:
-                    if slot_sig is None:  # pragma: no cover
-                        slot_sig = signature(slot)
-                    if not _parameter_types_match(slot, spec, slot_sig):
+                    slot_sig = slot_sig or signature(slot)
+                    if not _parameter_types_match(slot, self.signature, slot_sig):
                         extra = f"- Slot types {slot_sig} do not match types in signal."
                         self._raise_connection_error(slot, extra)
 
                 self._slots.append((self._normalize_slot(slot), maxargs))
-
             return slot
 
         return _wrapper(slot) if slot else _wrapper
+
+    def _check_nargs(
+        self, slot: Callable, spec: Signature
+    ) -> Tuple[Optional[Signature], Optional[int]]:
+        """Make sure slot is compatible with signature.
+
+        Also returns the maximum number of arguments that we can pass to the slot
+        """
+        try:
+            slot_sig = signature(slot)
+        except ValueError as e:
+            warnings.warn(
+                f"{e}. To silence this warning, connect with " "`check_nargs=False`"
+            )
+            return None, None
+
+        minargs, maxargs = _acceptable_posarg_range(slot_sig)
+        n_spec_params = len(spec.parameters)
+        # if `slot` requires more arguments than we will provide, raise.
+        if minargs > n_spec_params:
+            extra = (
+                f"- Slot requires at least {minargs} positional "
+                f"arguments, but spec only provides {n_spec_params}"
+            )
+            self._raise_connection_error(slot, extra)
+        return slot_sig, maxargs
 
     def _raise_connection_error(self, slot: Callable, extra: str = "") -> NoReturn:
         name = getattr(slot, "__name__", str(slot))

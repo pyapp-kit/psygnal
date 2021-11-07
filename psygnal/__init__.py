@@ -16,7 +16,7 @@ import os
 
 if os.getenv("PSYGNAL_UNCOMPILED"):
 
-    def _import_purepy_mod() -> tuple[Type[Signal], Type[SignalInstance], bool]:
+    def _import_purepy_mod() -> tuple[Type["Signal"], Type["SignalInstance"], bool]:
         """Import stuff from the uncompiled python module, for debugging."""
         import importlib.util
         import os
