@@ -340,6 +340,9 @@ def test_property_connect():
     assert a.li == [1, (1, 1)]
     emitter.two_int.disconnect_property(a, "x")
     assert len(emitter.two_int) == 0
+    with pytest.raises(ValueError):
+        emitter.two_int.disconnect_property(a, "x", missing_ok=False)
+    emitter.two_int.disconnect_property(a, "x")
     emitter.two_int.connect_property(a, "x", maxargs=1)
     emitter.two_int.emit(2, 3)
     assert a.li == [1, (1, 1), 2]
@@ -579,19 +582,7 @@ def test_pause():
     emitter.one_int.emit(3)
     mock.assert_not_called()
     emitter.one_int.resume()
-    mock.assert_has_calls(
-        [
-            call.alive(),
-            call.alive().__bool__(),
-            call(1),
-            call.alive(),
-            call.alive().__bool__(),
-            call(2),
-            call.alive(),
-            call.alive().__bool__(),
-            call(3),
-        ]
-    )
+    mock.assert_has_calls([call(1), call(2), call(3)])
 
     mock.reset_mock()
     with emitter.one_int.paused(lambda a, b: (a[0].union(set(b)),), (set(),)):
@@ -649,7 +640,7 @@ def test_debug_import(monkeypatch):
 
     import psygnal
 
-    assert not psygnal._compiled
+    # assert not psygnal._compiled
 
 
 def test_get_proper_name():

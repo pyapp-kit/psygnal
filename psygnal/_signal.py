@@ -30,15 +30,15 @@ from typing_extensions import Literal, get_args, get_origin, get_type_hints
 
 class CallbackBase(ABC):
     @abstractmethod
-    def alive(self) -> bool:
+    def alive(self) -> bool:  # pragma: no cover
         ...
 
     @abstractmethod
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: Any) -> bool:  # pragma: no cover
         ...
 
     @abstractmethod
-    def __call__(self, *args: Any) -> Any:
+    def __call__(self, *args: Any) -> Any:  # pragma: no cover
         ...
 
 
@@ -492,7 +492,7 @@ class SignalInstance:
                     if isinstance(slot[0], weakref.ref)
                     else getattr(slot[0], slot[1])
                 )
-            else:
+            else:  # pragma: no cover
                 target = slot[1]
             return MethodWeakrefCallback(target)
         return FunctionCallback(slot)
@@ -986,18 +986,6 @@ def _is_subclass(left: AnyType, right: type) -> bool:
     return issubclass(left, right)
 
 
-def _partial_weakref(slot_partial: PartialMethod) -> Tuple[weakref.ref, Callable]:
-    """For partial methods, make the weakref point to the wrapped object."""
-    ref, name = _get_proper_name(slot_partial.func)
-    args_ = slot_partial.args
-    kwargs_ = slot_partial.keywords
-
-    def wrap(*args: Any, **kwargs: Any) -> Any:
-        getattr(ref(), name)(*args_, *args, **kwargs_, **kwargs)
-
-    return (ref, wrap)
-
-
 class FunctionCallback(CallbackBase):
     def __init__(self, func: Callable):
         self.func = func
@@ -1051,7 +1039,7 @@ class PartialWeakrefCallback(CallbackBase):
                 and self.args == other.args
                 and self.kwargs == other.kwargs
             )
-        except:  # noqa: E722
+        except:  # noqa: E722  # pragma: no cover
             return False
 
 
