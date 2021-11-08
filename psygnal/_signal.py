@@ -36,24 +36,28 @@ _NULL = object()
 
 try:
     import cython
-
+    _cython = True
 except ImportError:  # pragma: no cover
     _compiled: bool = False
+    _cython = False
 
     class _EmptyDecoratorAndManager:
-        def __call__(self, x):
+        def __call__(self, x: Callable) -> Any:
             return x
 
-        def __enter__(self):
+        def __enter__(self) -> None:
             pass
 
-        def __exit__(self, exc_type, exc_value, traceback):
+        def __exit__(self, *_: Any) -> None:
             pass
 
     class cython:  # type: ignore
         ccall = cclass = cfunc = _EmptyDecoratorAndManager()
         bint = bool
-        declare = lambda *a, **k: ...
+
+        @staticmethod
+        def declare(*a: Any, **k: Any) -> None:
+            ...
 
 
 else:  # pragma: no cover
@@ -105,18 +109,30 @@ class SignalInstance:
         of `type`s.
     """
 
-    cython.declare(
-        _instance=object,
-        _is_blocked=cython.bint,
-        _is_paused=cython.bint,
-        _check_nargs_on_connect=cython.bint,
-        _check_types_on_connect=cython.bint,
-    )
-    _slots = cython.declare(list, visibility="public")
-    _name = cython.declare(str, visibility="public")
+    _instance: Optional[object]
+    _slots: List[StoredSlot] = cython.declare(list, visibility="public")
+    _name: Optional[str] = cython.declare(str, visibility="public")
     _args_queue = cython.declare(list, visibility="public")
     _signature: Signature
     _lock: threading.RLock
+    _is_blocked: bool
+    _is_paused: bool
+    _check_nargs_on_connect: bool
+    _check_types_on_connect: bool
+
+    # if not _cython:
+    #     __slots__ = (
+    #         "_signature",
+    #         "_instance",
+    #         "_name",
+    #         "_slots",
+    #         "_is_blocked",
+    #         "_is_paused",
+    #         "_args_queue",
+    #         "_lock",
+    #         "_check_nargs_on_connect",
+    #         "_check_types_on_connect",
+    #     )
 
     def __init__(
         self,
