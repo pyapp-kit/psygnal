@@ -40,11 +40,18 @@ try:
 except ImportError:  # pragma: no cover
     _compiled: bool = False
 
-    def noop(f: Callable) -> Callable:
-        return f
+    class _EmptyDecoratorAndManager:
+        def __call__(self, x):
+            return x
+
+        def __enter__(self):
+            pass
+
+        def __exit__(self, exc_type, exc_value, traceback):
+            pass
 
     class cython:  # type: ignore
-        ccall = cclass = cfunc = noop
+        ccall = cclass = cfunc = _EmptyDecoratorAndManager()
 
 
 else:  # pragma: no cover
@@ -96,24 +103,24 @@ class SignalInstance:
         of `type`s.
     """
 
-    __slots__ = (
-        "_signature",
-        "_instance",
-        "_name",
-        "_slots",
-        "_is_blocked",
-        "_is_paused",
-        "_args_queue",
-        "_lock",
-        "_check_nargs_on_connect",
-        "_check_types_on_connect",
+    cython.declare(
+        _instance=object,
+        _is_blocked=cython.bint,
+        _is_paused=cython.bint,
+        _check_nargs_on_connect=cython.bint,
+        _check_types_on_connect=cython.bint,
     )
+    _slots = cython.declare(list, visibility="public")
+    _name = cython.declare(str, visibility="public")
+    _args_queue = cython.declare(list, visibility="public")
+    _signature: Signature
+    _lock: threading.RLock
 
     def __init__(
         self,
         signature: Signature = Signature(),
         *,
-        instance: Any = None,
+        instance: Optional[object] = None,
         name: Optional[str] = None,
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
@@ -127,14 +134,14 @@ class SignalInstance:
             )
 
         self._signature = signature
-        self._instance: Any = instance
+        self._instance = instance
         self._check_nargs_on_connect = check_nargs_on_connect
         self._check_types_on_connect = check_types_on_connect
         self._name = name
-        self._slots: List[StoredSlot] = []
-        self._is_blocked: bool = False
-        self._is_paused: bool = False
-        self._args_queue: List[Any] = []  # filled when paused
+        self._slots = []
+        self._is_blocked = False
+        self._is_paused = False
+        self._args_queue = []  # filled when paused
         self._lock = threading.RLock()
 
     @property
