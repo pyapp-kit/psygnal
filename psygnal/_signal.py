@@ -36,8 +36,11 @@ _NULL = object()
 
 try:
     import cython
+
+    _with_cython = True
 except ImportError:  # pragma: no cover
     _compiled: bool = False
+    _with_cython = False
 
     class _EmptyDecoratorAndManager:
         def __call__(self, x: Callable) -> Any:
@@ -52,7 +55,6 @@ except ImportError:  # pragma: no cover
     class cython:  # type: ignore
         ccall = cclass = cfunc = _EmptyDecoratorAndManager()
         bint = bool
-        __file__ = __file__
 
         @staticmethod
         def declare(*a: Any, **k: Any) -> None:
@@ -117,7 +119,7 @@ class SignalInstance:
     _check_nargs_on_connect: bool
     _check_types_on_connect: bool
 
-    if cython.__file__ != __file__:
+    if _with_cython:
         _slots: List[StoredSlot] = cython.declare(list, visibility="public")
         _name: Optional[str] = cython.declare(str, visibility="public")
     else:
