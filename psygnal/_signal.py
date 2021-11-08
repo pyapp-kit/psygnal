@@ -40,10 +40,11 @@ try:
 except ImportError:  # pragma: no cover
     _compiled: bool = False
 
+    def noop(f: Callable) -> Callable:
+        return f
+
     class cython:  # type: ignore
-        @staticmethod
-        def ccall(f: Callable) -> Callable:
-            return f
+        ccall = cclass = cfunc = noop
 
 
 else:  # pragma: no cover
@@ -53,6 +54,7 @@ else:  # pragma: no cover
         _compiled = False
 
 
+@cython.cclass
 class SignalInstance:
     """A signal instance (optionally) bound to an object.
 
