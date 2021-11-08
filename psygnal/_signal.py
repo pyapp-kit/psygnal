@@ -581,6 +581,7 @@ class SignalInstance:
             asynchronous=asynchronous,
         )
 
+    @cython.ccall  # type: ignore
     def _run_emit_loop(self, args: Tuple[Any, ...]) -> None:
         rem: List[NormedCallback] = []
         # allow receiver to query sender with Signal.current_emitter()
@@ -588,7 +589,9 @@ class SignalInstance:
             with Signal._emitting(self):
                 for (slot, max_args) in self._slots:
                     if isinstance(slot, tuple):
-                        _ref, name, method = slot
+                        _ref = slot[0]
+                        name = slot[1]
+                        method = slot[2]
                         obj = _ref()
                         if obj is None:
                             rem.append(slot)  # add dead weakref
