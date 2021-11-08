@@ -42,7 +42,7 @@ except ImportError:  # pragma: no cover
 
     class cython:  # type: ignore
         @staticmethod
-        def cfunc(f: Callable) -> Callable:
+        def ccall(f: Callable) -> Callable:
             return f
 
 
@@ -583,7 +583,7 @@ class SignalInstance:
 
         return None
 
-    @cython.cfunc  # type: ignore
+    @cython.ccall  # type: ignore
     def _invoke_callback(self, cb: Callable, args: Sequence[Any]) -> None:
         # TODO: add better exception handling
         cb(*args)
