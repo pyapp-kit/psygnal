@@ -36,11 +36,8 @@ _NULL = object()
 
 try:
     import cython
-
-    _cython = True
 except ImportError:  # pragma: no cover
     _compiled: bool = False
-    _cython = False
 
     class _EmptyDecoratorAndManager:
         def __call__(self, x: Callable) -> Any:
@@ -55,6 +52,7 @@ except ImportError:  # pragma: no cover
     class cython:  # type: ignore
         ccall = cclass = cfunc = _EmptyDecoratorAndManager()
         bint = bool
+        __file__ = __file__
 
         @staticmethod
         def declare(*a: Any, **k: Any) -> None:
@@ -111,29 +109,32 @@ class SignalInstance:
     """
 
     _instance: Optional[object]
-    _slots: List[StoredSlot] = cython.declare(list, visibility="public")
-    _name: Optional[str] = cython.declare(str, visibility="public")
-    _args_queue = cython.declare(list, visibility="public")
+    _args_queue: List[Any]
     _signature: Signature
     _lock: threading.RLock
     _is_blocked: bool
     _is_paused: bool
     _check_nargs_on_connect: bool
     _check_types_on_connect: bool
+    _slots: List[StoredSlot]
+    _name: Optional[str]
 
-    # if not _cython:
-    #     __slots__ = (
-    #         "_signature",
-    #         "_instance",
-    #         "_name",
-    #         "_slots",
-    #         "_is_blocked",
-    #         "_is_paused",
-    #         "_args_queue",
-    #         "_lock",
-    #         "_check_nargs_on_connect",
-    #         "_check_types_on_connect",
-    #     )
+    if cython.__file__ == __file__:
+        __slots__ = (
+            "_signature",
+            "_instance",
+            "_name",
+            "_slots",
+            "_is_blocked",
+            "_is_paused",
+            "_args_queue",
+            "_lock",
+            "_check_nargs_on_connect",
+            "_check_types_on_connect",
+        )
+    else:
+        _slots = cython.declare(list, visibility="public")
+        _name = cython.declare(str, visibility="public")
 
     def __init__(
         self,
@@ -582,17 +583,14 @@ class SignalInstance:
             asynchronous=asynchronous,
         )
 
-    @cython.ccall  # type: ignore
-    def _run_emit_loop(self, args: Tuple[Any, ...]):  # type: ignore
+    def _run_emit_loop(self, args: Tuple[Any, ...]) -> None:
         rem: List[NormedCallback] = []
         # allow receiver to query sender with Signal.current_emitter()
         with self._lock:
             with Signal._emitting(self):
                 for (slot, max_args) in self._slots:
                     if isinstance(slot, tuple):
-                        _ref = slot[0]
-                        name = slot[1]
-                        method = slot[2]
+                        _ref, name, method = slot
                         obj = _ref()
                         if obj is None:
                             rem.append(slot)  # add dead weakref
