@@ -55,6 +55,7 @@ except ImportError:  # pragma: no cover
         bint = bool
         declare = lambda *a, **k: ...
 
+
 else:  # pragma: no cover
     try:
         _compiled = cython.compiled
@@ -564,8 +565,7 @@ class SignalInstance:
             asynchronous=asynchronous,
         )
 
-    @cython.ccall  # type: ignore
-    def _run_emit_loop(self, args: Tuple[Any, ...]):
+    def _run_emit_loop(self, args: Tuple[Any, ...]) -> None:
         rem: List[NormedCallback] = []
         # allow receiver to query sender with Signal.current_emitter()
         with self._lock:
