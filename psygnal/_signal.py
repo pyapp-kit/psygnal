@@ -564,7 +564,8 @@ class SignalInstance:
             asynchronous=asynchronous,
         )
 
-    def _run_emit_loop(self, args: Tuple[Any, ...]) -> None:
+    @cython.ccall  # type: ignore
+    def _run_emit_loop(self, args: Tuple[Any, ...]):
         rem: List[NormedCallback] = []
         # allow receiver to query sender with Signal.current_emitter()
         with self._lock:
