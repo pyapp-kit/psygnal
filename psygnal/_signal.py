@@ -721,10 +721,6 @@ class SignalInstance:
             self.resume(reducer, initial)
 
 
-CURRENT_EMITTER: Optional[SignalInstance] = None
-
-
-@cython.cclass
 class Signal:
     """Signal descriptor, for declaring a signal on a class.
 
@@ -763,22 +759,19 @@ class Signal:
         `.connect(..., check_types=True)`. By default, False.
     """
 
-    _signature: Signature  # callback signature for this signal
-    description: str
-    _check_nargs_on_connect: bool
-    _check_types_on_connect: bool
-    _signal_instance_class_ = SignalInstance
+    __slots__ = (
+        "_name",
+        "_signature",
+        "description",
+        "_check_nargs_on_connect",
+        "_check_types_on_connect",
+    )
 
-    if _with_cython:
-        _name: Optional[str] = cython.declare(str, visibility="public")
-    else:
-        __slots__ = (
-            "_name",
-            "_signature",
-            "description",
-            "_check_nargs_on_connect",
-            "_check_types_on_connect",
-        )
+    if TYPE_CHECKING:  # pragma: no cover
+        _signature: Signature  # callback signature for this signal
+
+    _current_emitter: Optional["SignalInstance"] = None
+    _signal_instance_class_ = SignalInstance
 
     def __init__(
         self,
@@ -823,21 +816,23 @@ class Signal:
                 "signal on the *instance* of a class with a Signal() class attribute. "
                 "Or create a signal instance directly with SignalInstance."
             )
-        return object.__getattribute__(self, name)
+        return self.__getattribute__(name)
 
     @overload
-    def __get__(self, instance: None, owner: Optional[AnyType]) -> "Signal":  # noqa
+    def __get__(  # noqa
+        self, instance: None, owner: Optional[AnyType] = None
+    ) -> "Signal":
         ...  # pragma: no cover
 
     @overload
     def __get__(  # noqa
-        self, instance: Any, owner: Optional[AnyType]
-    ) -> SignalInstance:
+        self, instance: Any, owner: Optional[AnyType] = None
+    ) -> "SignalInstance":
         ...  # pragma: no cover
 
     def __get__(
-        self, instance: Any, owner: Optional[AnyType]
-    ) -> Union["Signal", SignalInstance]:
+        self, instance: Any, owner: Optional[AnyType] = None
+    ) -> Union["Signal", "SignalInstance"]:
         """Get signal instance.
 
         This is called when accessing a Signal instance.  If accessed as an
@@ -879,24 +874,23 @@ class Signal:
 
     @classmethod
     @contextmanager
-    def _emitting(cls, emitter: SignalInstance) -> Iterator[None]:
+    def _emitting(cls, emitter: "SignalInstance") -> Iterator[None]:
         """Context that sets the sender on a receiver object while emitting a signal."""
-        global CURRENT_EMITTER
-        previous, CURRENT_EMITTER = CURRENT_EMITTER, emitter
+        previous, cls._current_emitter = cls._current_emitter, emitter
         try:
             yield
         finally:
-            CURRENT_EMITTER = previous
+            cls._current_emitter = previous
 
     @classmethod
-    def current_emitter(cls) -> Optional[SignalInstance]:
+    def current_emitter(cls) -> Optional["SignalInstance"]:
         """Return currently emitting SignalInstance, if any."""
-        return CURRENT_EMITTER
+        return cls._current_emitter
 
     @classmethod
     def sender(cls) -> Any:
         """Return currently emitting object, if any."""
-        return getattr(CURRENT_EMITTER, "instance", None)
+        return getattr(cls._current_emitter, "instance", None)
 
 
 class EmitThread(threading.Thread):
