@@ -117,9 +117,10 @@ class SignalInstance:
     _check_nargs_on_connect: bool
     _check_types_on_connect: bool
 
-    if cython.__file__ == __file__:
-        _slots: List[StoredSlot]
-        _name: Optional[str]
+    if cython.__file__ != __file__:
+        _slots: List[StoredSlot] = cython.declare(list, visibility="public")
+        _name: Optional[str] = cython.declare(str, visibility="public")
+    else:
         __slots__ = (
             "_signature",
             "_instance",
@@ -132,9 +133,6 @@ class SignalInstance:
             "_check_nargs_on_connect",
             "_check_types_on_connect",
         )
-    else:
-        _slots = cython.declare(list, visibility="public")
-        _name = cython.declare(str, visibility="public")
 
     def __init__(
         self,
