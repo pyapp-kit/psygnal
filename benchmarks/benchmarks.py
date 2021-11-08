@@ -80,15 +80,16 @@ class EmitSuite:
         for _ in range(n):
             self.emitter2.changed.connect(self.receiver.method, unique=False)
 
+        # not sure the best way to mark APIs that won't work with older commits
         self.emitter3 = E()
-        for _ in range(n):
-            self.emitter3.changed.connect_setattr(self.receiver, "attr")
+        if hasattr(self.emitter3.changed, "connect_setattr"):
+            for _ in range(n):
+                self.emitter3.changed.connect_setattr(self.receiver, "attr")
 
         self.emitter4 = E()
         for _ in range(n):
             self.emitter4.changed.connect(callback, unique=False)
             self.emitter4.changed.connect(self.receiver.method, unique=False)
-            self.emitter4.changed.connect_setattr(self.receiver, "attr")
 
     def time_emit_to_function(self, n):
         self.emitter1.changed.emit(1)
