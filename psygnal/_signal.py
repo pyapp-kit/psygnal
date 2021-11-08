@@ -34,6 +34,23 @@ AnyType = Type[Any]
 ReducerFunc = Callable[[tuple, tuple], tuple]
 _NULL = object()
 
+try:
+    import cython
+
+    cfunc = cython.cfunc
+except ImportError:  # pragma: no cover
+    _compiled: bool = False
+
+    def cfunc(f: Callable) -> Callable:
+        return f
+
+
+else:  # pragma: no cover
+    try:
+        _compiled = cython.compiled
+    except AttributeError:
+        _compiled = False
+
 
 class SignalInstance:
     """A signal instance (optionally) bound to an object.
@@ -565,6 +582,7 @@ class SignalInstance:
 
         return None
 
+    @cfunc  # type: ignore
     def _invoke_callback(self, cb: Callable, args: Sequence[Any]) -> None:
         # TODO: add better exception handling
         cb(*args)
@@ -1046,14 +1064,3 @@ def _get_method_name(slot: MethodType) -> Tuple[weakref.ref, str]:
             f"Could not find method on {obj} corresponding to decorated function {slot}"
         )
     return weakref.ref(obj), slot.__name__
-
-
-try:
-    import cython
-except ImportError:  # pragma: no cover
-    _compiled: bool = False
-else:  # pragma: no cover
-    try:
-        _compiled = cython.compiled
-    except AttributeError:
-        _compiled = False

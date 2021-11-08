@@ -35,5 +35,6 @@ benchmark-all:
 
 # compare HEAD against main
 benchmark-compare:
-	asv run -j 4 --interleave-processes --skip-existing main..HEAD --steps 2
-	asv compare --split --factor 1.1 main HEAD
+	asv run -j 4 --interleave-processes --skip-existing main^!
+	asv run -j 4 --interleave-processes HEAD^!
+	asv compare --split --factor 1.2 main HEAD
