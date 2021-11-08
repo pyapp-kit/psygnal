@@ -36,6 +36,7 @@ _NULL = object()
 
 try:
     import cython
+
     _cython = True
 except ImportError:  # pragma: no cover
     _compiled: bool = False
@@ -582,7 +583,7 @@ class SignalInstance:
         )
 
     @cython.ccall  # type: ignore
-    def _run_emit_loop(self, args: Tuple[Any, ...]) -> None:
+    def _run_emit_loop(self, args: Tuple[Any, ...]):  # type: ignore
         rem: List[NormedCallback] = []
         # allow receiver to query sender with Signal.current_emitter()
         with self._lock:
