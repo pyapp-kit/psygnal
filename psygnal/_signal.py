@@ -116,10 +116,10 @@ class SignalInstance:
     _is_paused: bool
     _check_nargs_on_connect: bool
     _check_types_on_connect: bool
-    _slots: List[StoredSlot]
-    _name: Optional[str]
 
     if cython.__file__ == __file__:
+        _slots: List[StoredSlot]
+        _name: Optional[str]
         __slots__ = (
             "_signature",
             "_instance",
