@@ -52,7 +52,8 @@ except ImportError:  # pragma: no cover
 
     class cython:  # type: ignore
         ccall = cclass = cfunc = _EmptyDecoratorAndManager()
-
+        bint = bool
+        declare = lambda *a, **k: ...
 
 else:  # pragma: no cover
     try:
