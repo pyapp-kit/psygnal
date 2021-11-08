@@ -37,12 +37,13 @@ _NULL = object()
 try:
     import cython
 
-    cfunc = cython.cfunc
 except ImportError:  # pragma: no cover
     _compiled: bool = False
 
-    def cfunc(f: Callable) -> Callable:
-        return f
+    class cython:  # type: ignore
+        @staticmethod
+        def cfunc(f: Callable) -> Callable:
+            return f
 
 
 else:  # pragma: no cover
@@ -582,7 +583,7 @@ class SignalInstance:
 
         return None
 
-    @cfunc  # type: ignore
+    @cython.cfunc  # type: ignore
     def _invoke_callback(self, cb: Callable, args: Sequence[Any]) -> None:
         # TODO: add better exception handling
         cb(*args)
