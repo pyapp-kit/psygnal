@@ -17,6 +17,7 @@ from typing import (
     List,
     NoReturn,
     Optional,
+    Sequence,
     Tuple,
     Type,
     Union,
@@ -32,177 +33,6 @@ StoredSlot = Tuple[NormedCallback, Optional[int]]
 AnyType = Type[Any]
 ReducerFunc = Callable[[tuple, tuple], tuple]
 _NULL = object()
-
-
-class Signal:
-    """Signal descriptor, for declaring a signal on a class.
-
-    This is designed to be used as a class attribute, with the supported signature(s)
-    provided in the contructor:
-
-        class MyEmitter:
-            changed = Signal(int)  # changed will emit an int
-
-        def receiver(arg: int):
-            print("new value:", arg)
-
-        emitter = MyEmitter()
-        emitter.changed.connect(receiver)
-        emitter.emit(1)
-
-    Note: in the example above, `MyEmitter.changed` is an instance of `Signal`,
-    and `emitter.changed` is an instance of `SignalInstance`.
-
-    Parameters
-    ----------
-    *types : sequence of Type
-        A sequence of individual types
-    description : str, optional
-        Optional descriptive text for the signal.  (not used internally).
-    name : str, optional
-        Optional name of the signal. If it is not specified then the name of the
-        class attribute that is bound to the signal will be used. default None
-    check_nargs_on_connect : str, optional
-        Whether to check the number of positional args against `signature` when
-        connecting a new callback. This can also be provided at connection time using
-        `.connect(..., check_nargs=True)`. By default, True.
-    check_types_on_connect : str, optional
-        Whether to check the callback parameter types against `signature` when
-        connecting a new callback. This can also be provided at connection time using
-        `.connect(..., check_types=True)`. By default, False.
-    """
-
-    __slots__ = (
-        "_name",
-        "_signature",
-        "description",
-        "_check_nargs_on_connect",
-        "_check_types_on_connect",
-    )
-
-    if TYPE_CHECKING:  # pragma: no cover
-        _signature: Signature  # callback signature for this signal
-
-    _current_emitter: Optional["SignalInstance"] = None
-
-    def __init__(
-        self,
-        *types: Union[AnyType, Signature],
-        description: str = "",
-        name: Optional[str] = None,
-        check_nargs_on_connect: bool = True,
-        check_types_on_connect: bool = False,
-    ) -> None:
-
-        self._name = name
-        self.description = description
-        self._check_nargs_on_connect = check_nargs_on_connect
-        self._check_types_on_connect = check_types_on_connect
-
-        if types and isinstance(types[0], Signature):
-            self._signature = types[0]
-            if len(types) > 1:
-                warnings.warn(
-                    "Only a single argument is accepted when directly providing a"
-                    f" `Signature`.  These args were ignored: {types[1:]}"
-                )
-        else:
-            self._signature = _build_signature(*cast(Tuple[AnyType, ...], types))
-
-    @property
-    def signature(self) -> Signature:
-        """Signature supported by this Signal."""
-        return self._signature
-
-    def __set_name__(self, owner: AnyType, name: str) -> None:
-        """Set name of signal when declared as a class attribute on `owner`."""
-        if self._name is None:
-            self._name = name
-
-    def __getattr__(self, name: str) -> Any:
-        """Get attribute. Provide useful error if trying to get `connect`."""
-        if name == "connect":
-            name = self.__class__.__name__
-            raise AttributeError(
-                f"{name!r} object has no attribute 'connect'. You can connect to the "
-                "signal on the *instance* of a class with a Signal() class attribute. "
-                "Or create a signal instance directly with SignalInstance."
-            )
-        return self.__getattribute__(name)
-
-    @overload
-    def __get__(  # noqa
-        self, instance: None, owner: Optional[AnyType] = None
-    ) -> "Signal":
-        ...  # pragma: no cover
-
-    @overload
-    def __get__(  # noqa
-        self, instance: Any, owner: Optional[AnyType] = None
-    ) -> "SignalInstance":
-        ...  # pragma: no cover
-
-    def __get__(
-        self, instance: Any, owner: Optional[AnyType] = None
-    ) -> Union["Signal", "SignalInstance"]:
-        """Get signal instance.
-
-        This is called when accessing a Signal instance.  If accessed as an
-        attribute on the class `owner`, instance, will be `None`.  Otherwise,
-        if `instance` is not None, we're being accessed on an instance of `owner`.
-
-            class Emitter:
-                signal = Signal()
-
-            e = Emitter()
-
-            E.signal  # instance will be None, owner will be Emitter
-            e.signal  # instance will be e, owner will be Emitter
-
-        Returns
-        -------
-        Signal or SignalInstance
-            Depending on how this attribute is accessed.
-        """
-        if instance is None:
-            return self
-        name = cast(str, self._name)
-        signal_instance = SignalInstance(
-            self.signature,
-            instance=instance,
-            name=name,
-            check_nargs_on_connect=self._check_nargs_on_connect,
-            check_types_on_connect=self._check_types_on_connect,
-        )
-        # instead of caching this signal instance on self, we just assign it
-        # to instance.name ... this essentially breaks the descriptor,
-        # (i.e. __get__ will never again be called for this instance, and we have no
-        # idea how many instances are out there),
-        # but it allows us to prevent creating a key for this instance (which may
-        # not be hashable or weak-referenceable), and also provides a significant
-        # speedup on attribute access (affecting everything).
-        setattr(instance, name, signal_instance)
-        return signal_instance
-
-    @classmethod
-    @contextmanager
-    def _emitting(cls, emitter: "SignalInstance") -> Iterator[None]:
-        """Context that sets the sender on a receiver object while emitting a signal."""
-        previous, cls._current_emitter = cls._current_emitter, emitter
-        try:
-            yield
-        finally:
-            cls._current_emitter = previous
-
-    @classmethod
-    def current_emitter(cls) -> Optional["SignalInstance"]:
-        """Return currently emitting SignalInstance, if any."""
-        return cls._current_emitter
-
-    @classmethod
-    def sender(cls) -> Any:
-        """Return currently emitting object, if any."""
-        return getattr(cls._current_emitter, "instance", None)
 
 
 class SignalInstance:
@@ -728,13 +558,16 @@ class SignalInstance:
                     else:
                         cb = slot
 
-                    # TODO: add better exception handling
-                    cb(*args[:max_args])
+                    self._invoke_callback(cb, args[:max_args])
 
             for slot in rem:
                 self.disconnect(slot)
 
         return None
+
+    def _invoke_callback(self, cb: Callable, args: Sequence[Any]) -> None:
+        # TODO: add better exception handling
+        cb(*args)
 
     def block(self) -> None:
         """Block this signal from emitting."""
@@ -838,6 +671,178 @@ class SignalInstance:
             yield
         finally:
             self.resume(reducer, initial)
+
+
+class Signal:
+    """Signal descriptor, for declaring a signal on a class.
+
+    This is designed to be used as a class attribute, with the supported signature(s)
+    provided in the contructor:
+
+        class MyEmitter:
+            changed = Signal(int)  # changed will emit an int
+
+        def receiver(arg: int):
+            print("new value:", arg)
+
+        emitter = MyEmitter()
+        emitter.changed.connect(receiver)
+        emitter.emit(1)
+
+    Note: in the example above, `MyEmitter.changed` is an instance of `Signal`,
+    and `emitter.changed` is an instance of `SignalInstance`.
+
+    Parameters
+    ----------
+    *types : sequence of Type
+        A sequence of individual types
+    description : str, optional
+        Optional descriptive text for the signal.  (not used internally).
+    name : str, optional
+        Optional name of the signal. If it is not specified then the name of the
+        class attribute that is bound to the signal will be used. default None
+    check_nargs_on_connect : str, optional
+        Whether to check the number of positional args against `signature` when
+        connecting a new callback. This can also be provided at connection time using
+        `.connect(..., check_nargs=True)`. By default, True.
+    check_types_on_connect : str, optional
+        Whether to check the callback parameter types against `signature` when
+        connecting a new callback. This can also be provided at connection time using
+        `.connect(..., check_types=True)`. By default, False.
+    """
+
+    __slots__ = (
+        "_name",
+        "_signature",
+        "description",
+        "_check_nargs_on_connect",
+        "_check_types_on_connect",
+    )
+
+    if TYPE_CHECKING:  # pragma: no cover
+        _signature: Signature  # callback signature for this signal
+
+    _current_emitter: Optional["SignalInstance"] = None
+    _signal_instance_class_ = SignalInstance
+
+    def __init__(
+        self,
+        *types: Union[AnyType, Signature],
+        description: str = "",
+        name: Optional[str] = None,
+        check_nargs_on_connect: bool = True,
+        check_types_on_connect: bool = False,
+    ) -> None:
+
+        self._name = name
+        self.description = description
+        self._check_nargs_on_connect = check_nargs_on_connect
+        self._check_types_on_connect = check_types_on_connect
+
+        if types and isinstance(types[0], Signature):
+            self._signature = types[0]
+            if len(types) > 1:
+                warnings.warn(
+                    "Only a single argument is accepted when directly providing a"
+                    f" `Signature`.  These args were ignored: {types[1:]}"
+                )
+        else:
+            self._signature = _build_signature(*cast(Tuple[AnyType, ...], types))
+
+    @property
+    def signature(self) -> Signature:
+        """Signature supported by this Signal."""
+        return self._signature
+
+    def __set_name__(self, owner: AnyType, name: str) -> None:
+        """Set name of signal when declared as a class attribute on `owner`."""
+        if self._name is None:
+            self._name = name
+
+    def __getattr__(self, name: str) -> Any:
+        """Get attribute. Provide useful error if trying to get `connect`."""
+        if name == "connect":
+            name = self.__class__.__name__
+            raise AttributeError(
+                f"{name!r} object has no attribute 'connect'. You can connect to the "
+                "signal on the *instance* of a class with a Signal() class attribute. "
+                "Or create a signal instance directly with SignalInstance."
+            )
+        return self.__getattribute__(name)
+
+    @overload
+    def __get__(  # noqa
+        self, instance: None, owner: Optional[AnyType] = None
+    ) -> "Signal":
+        ...  # pragma: no cover
+
+    @overload
+    def __get__(  # noqa
+        self, instance: Any, owner: Optional[AnyType] = None
+    ) -> "SignalInstance":
+        ...  # pragma: no cover
+
+    def __get__(
+        self, instance: Any, owner: Optional[AnyType] = None
+    ) -> Union["Signal", "SignalInstance"]:
+        """Get signal instance.
+
+        This is called when accessing a Signal instance.  If accessed as an
+        attribute on the class `owner`, instance, will be `None`.  Otherwise,
+        if `instance` is not None, we're being accessed on an instance of `owner`.
+
+            class Emitter:
+                signal = Signal()
+
+            e = Emitter()
+
+            E.signal  # instance will be None, owner will be Emitter
+            e.signal  # instance will be e, owner will be Emitter
+
+        Returns
+        -------
+        Signal or SignalInstance
+            Depending on how this attribute is accessed.
+        """
+        if instance is None:
+            return self
+        name = cast(str, self._name)
+        signal_instance = self._signal_instance_class_(
+            self.signature,
+            instance=instance,
+            name=name,
+            check_nargs_on_connect=self._check_nargs_on_connect,
+            check_types_on_connect=self._check_types_on_connect,
+        )
+        # instead of caching this signal instance on self, we just assign it
+        # to instance.name ... this essentially breaks the descriptor,
+        # (i.e. __get__ will never again be called for this instance, and we have no
+        # idea how many instances are out there),
+        # but it allows us to prevent creating a key for this instance (which may
+        # not be hashable or weak-referenceable), and also provides a significant
+        # speedup on attribute access (affecting everything).
+        setattr(instance, name, signal_instance)
+        return signal_instance
+
+    @classmethod
+    @contextmanager
+    def _emitting(cls, emitter: "SignalInstance") -> Iterator[None]:
+        """Context that sets the sender on a receiver object while emitting a signal."""
+        previous, cls._current_emitter = cls._current_emitter, emitter
+        try:
+            yield
+        finally:
+            cls._current_emitter = previous
+
+    @classmethod
+    def current_emitter(cls) -> Optional["SignalInstance"]:
+        """Return currently emitting SignalInstance, if any."""
+        return cls._current_emitter
+
+    @classmethod
+    def sender(cls) -> Any:
+        """Return currently emitting object, if any."""
+        return getattr(cls._current_emitter, "instance", None)
 
 
 class EmitThread(threading.Thread):
