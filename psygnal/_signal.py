@@ -586,7 +586,7 @@ class SignalInstance:
         return None
 
     @cython.ccall  # type: ignore
-    def _invoke_callback(self, cb: Callable, args: Sequence[Any]) -> None:
+    def _invoke_callback(self, cb: Callable, args: Sequence[Any]):  # type: ignore
         # TODO: add better exception handling
         cb(*args)
 
