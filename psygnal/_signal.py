@@ -55,6 +55,7 @@ except ImportError:  # pragma: no cover
     class cython:  # type: ignore
         ccall = cclass = cfunc = _EmptyDecoratorAndManager()
         bint = bool
+        NULL = None
 
         @staticmethod
         def declare(*a: Any, **k: Any) -> None:
@@ -612,8 +613,7 @@ class SignalInstance:
 
         return None
 
-    @cython.ccall  # type: ignore
-    def _invoke_callback(self, cb: Callable, args: Sequence[Any]):  # type: ignore
+    def _invoke_callback(self, cb: Callable, args: Sequence[Any]) -> None:
         # TODO: add better exception handling
         cb(*args)
 
