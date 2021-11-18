@@ -1085,7 +1085,7 @@ def _ridiculously_call_emit(emitter: Any) -> Optional[str]:
     except TypeError as e:
         if "only accepts" in str(e):
             return str(e).split("only accepts")[0].strip()
-    return None
+    return None  # pragma: no cover
 
 
 try:
