@@ -62,12 +62,12 @@ jobs:
       - name: switch backend
         run: |
             pip uninstall PyQt5 PyQt5-qt5 PyQt5-sip -y
-            pip install pyqt5
+            pip install PyQt5
 
       - name: test uncompiled
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: pytest -v --color=yes --cov=psygnal --cov-report=xml --cov-append tests/test_qtbot.py
+          run: pytest -v --color=yes --cov=psygnal --cov-report=xml --cov-append tests/test_qt_compat.py
 
       - name: Coverage
         uses: codecov/codecov-action@v2
