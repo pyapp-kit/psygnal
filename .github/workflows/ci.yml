@@ -20,6 +20,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - uses: tlambert03/setup-qt-libs@v1
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
@@ -30,7 +31,7 @@ jobs:
         run: |
           python -m pip install -U wheel pip
           pip install -e .[testing,build]
-          pip install -U git+https://github.com/typeddjango/pytest-mypy-plugins.git
+          # pip install -U git+https://github.com/typeddjango/pytest-mypy-plugins.git
         env:
           SKIP_CYTHON: 1
 
@@ -42,7 +43,9 @@ jobs:
           ls -alh psygnal/
 
       - name: test
-        run: pytest -v --color=yes --cov=psygnal --cov-report=xml
+        uses: GabrielBB/xvfb-action@v1
+        with:
+          run: pytest -v --color=yes --cov=psygnal --cov-report=xml
 
       - name: remove compiled binaries
         run: |
@@ -52,12 +55,14 @@ jobs:
           ls -alh psygnal/
 
       - name: test uncompiled
-        run: |
-          pytest -v --color=yes --cov=psygnal --cov-report=xml
-          # switch backend for qt test
-          pip uninstall PyQt5 PyQt5-qt5 PyQt5-sip -y
-          pip install pyqt5
-          pytest -v --color=yes --cov=psygnal --cov-report=xml --cov-append tests/test_qtbot.py
+        uses: GabrielBB/xvfb-action@v1
+        with:
+          run: |
+            pytest -v --color=yes --cov=psygnal --cov-report=xml
+            # switch backend for qt test
+            pip uninstall PyQt5 PyQt5-qt5 PyQt5-sip -y
+            pip install pyqt5
+            pytest -v --color=yes --cov=psygnal --cov-report=xml --cov-append tests/test_qtbot.py
 
       - name: Coverage
         uses: codecov/codecov-action@v2
