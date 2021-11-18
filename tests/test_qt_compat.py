@@ -4,7 +4,6 @@
 from psygnal import Signal
 
 
-
 def is_(*val):
     def _inner(*other):
         return other == val
