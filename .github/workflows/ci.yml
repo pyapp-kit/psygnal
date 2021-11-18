@@ -45,7 +45,7 @@ jobs:
       - name: test
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: pytest -v --color=yes --cov=psygnal --cov-report=xml
+          run: pytest -v --color=yes --cov=psygnal --cov-report=xml:cov1.xml
 
       - name: remove compiled binaries
         run: |
@@ -57,22 +57,23 @@ jobs:
       - name: test uncompiled
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: pytest -v --color=yes --cov=psygnal --cov-report=xml
+          run: pytest -v --color=yes --cov=psygnal --cov-report=xml:cov2.xml
 
-      - name: switch backend
+      - name: switch qt backend
         run: |
-            pip uninstall PyQt5 PyQt5-qt5 PyQt5-sip -y
-            pip install PyQt5
+          pip uninstall PyQt5 PyQt5-qt5 PyQt5-sip -y
+          pip install PyQt5
 
       - name: test uncompiled
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: pytest -v --color=yes --cov=psygnal --cov-report=xml --cov-append tests/test_qt_compat.py
+          run: pytest -v --color=yes --cov=psygnal --cov-report=xml:cov3.xml tests/test_qt_compat.py
 
       - name: Coverage
         uses: codecov/codecov-action@v2
         with:
           fail_ci_if_error: true
+          files: ./cov1.xml,./cov2.xml,./cov3.xml
 
   test-windows-mac:
     name: test py${{ matrix.python-version }} on ${{ matrix.platform }}
