@@ -54,14 +54,14 @@ def test_connect_qt_signal_instance(qtbot):
     q_obj = QtObject()
     e = Emitter()
 
-    # the hard case: signal.emit takes less args than we emit
-    def test_receives_1(value: int) -> bool:
-        # making sure that qsig2.emit only receives and emits 1 value
-        return value == 1
+    # # the hard case: signal.emit takes less args than we emit
+    # def test_receives_1(value: int) -> bool:
+    #     # making sure that qsig2.emit only receives and emits 1 value
+    #     return value == 1
 
-    e.sig3.connect(q_obj.qsig2.emit)
-    with qtbot.waitSignal(q_obj.qsig2, check_params_cb=test_receives_1):
-        e.sig3.emit(1, 2)  # too many
+    # e.sig3.connect(q_obj.qsig2.emit)
+    # with qtbot.waitSignal(q_obj.qsig2, check_params_cb=test_receives_1):
+    #     e.sig3.emit(1, 2)  # too many
 
     # # the "standard" cases, where params match
     # e.sig1.connect(q_obj.qsig1.emit)
