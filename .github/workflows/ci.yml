@@ -44,9 +44,9 @@ jobs:
       - name: test
         run: |
           pytest --color=yes --cov=psygnal --cov-report=xml
-          pip uninstall -y shiboken2 pyside2
+          pip uninstall PyQt5 PyQt5-qt5 PyQt5-sip -y
           pip install pyqt5
-          pytest --color=yes --cov=psygnal --cov-report=xml --cov-append
+          pytest --color=yes --cov=psygnal --cov-report=xml --cov-append tests/test_qtbot.py
 
       - name: remove compiled binaries
         run: |
