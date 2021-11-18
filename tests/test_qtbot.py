@@ -1,27 +1,23 @@
 """qtbot should work for testing!"""
-import operator
-
 import pytest
-from qtpy import QtCore
 
 from psygnal import Signal
 from psygnal._signal import _guess_qtsignal_signature
 
 
-class Emitter:
-    sig1 = Signal()
-    sig2 = Signal(int)
-    sig3 = Signal(int, int)
-
-
 def is_(*val):
     def _inner(*other):
-        return operator.eq(other, val)
+        return other == val
 
     return _inner
 
 
 def test_wait_signals(qtbot):
+    class Emitter:
+        sig1 = Signal()
+        sig2 = Signal(int)
+        sig3 = Signal(int, int)
+
     e = Emitter()
     signals = [e.sig1, e.sig2, e.sig3, e.sig1]
     checks = [is_(), is_(1), is_(2, 3), is_()]
@@ -33,6 +29,8 @@ def test_wait_signals(qtbot):
 
 
 def test_guess_signal_sig(qtbot):
+    from qtpy import QtCore
+
     class QtObject(QtCore.QObject):
         qsig1 = QtCore.Signal()
         qsig2 = QtCore.Signal(int)
@@ -48,6 +46,13 @@ def test_guess_signal_sig(qtbot):
 
 
 def test_connect_qt_signal_instance(qtbot):
+    from qtpy import QtCore
+
+    class Emitter:
+        sig1 = Signal()
+        sig2 = Signal(int)
+        sig3 = Signal(int, int)
+
     class QtObject(QtCore.QObject):
         qsig1 = QtCore.Signal()
         qsig2 = QtCore.Signal(int)
