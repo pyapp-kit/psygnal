@@ -57,12 +57,17 @@ jobs:
       - name: test uncompiled
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: |
-            pytest -v --color=yes --cov=psygnal --cov-report=xml
-            # switch backend for qt test
+          run: pytest -v --color=yes --cov=psygnal --cov-report=xml
+
+      - name: switch backend
+        run: |
             pip uninstall PyQt5 PyQt5-qt5 PyQt5-sip -y
             pip install pyqt5
-            pytest -v --color=yes --cov=psygnal --cov-report=xml --cov-append tests/test_qtbot.py
+
+      - name: test uncompiled
+        uses: GabrielBB/xvfb-action@v1
+        with:
+          run: pytest -v --color=yes --cov=psygnal --cov-report=xml --cov-append tests/test_qtbot.py
 
       - name: Coverage
         uses: codecov/codecov-action@v2
