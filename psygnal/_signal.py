@@ -1078,10 +1078,13 @@ def _guess_qtsignal_signature(obj: Any) -> Optional[str]:
     return None
 
 
+_CRAZY_ARGS = (1,) * 255
+
+
 def _ridiculously_call_emit(emitter: Any) -> Optional[str]:
     """Call SignalInstance emit() to get the signature from err message."""
     try:
-        emitter(*(1,) * 255)
+        emitter(*_CRAZY_ARGS)
     except TypeError as e:
         if "only accepts" in str(e):
             return str(e).split("only accepts")[0].strip()
