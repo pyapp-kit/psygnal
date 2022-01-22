@@ -28,9 +28,9 @@ if os.getenv("PSYGNAL_UNCOMPILED"):
             raise ImportError(f"Could not find pure python module: {MODULE_PATH}")
         module = importlib.util.module_from_spec(spec)
         sys.modules[spec.name] = module
-        spec.loader.exec_module(module)  # type: ignore
+        spec.loader.exec_module(module)
 
-        return module.Signal, module.SignalInstance, module._compiled  # type: ignore
+        return module.Signal, module.SignalInstance, module._compiled
 
     Signal, SignalInstance, _compiled = _import_purepy_mod()  # type: ignore # noqa
     del _import_purepy_mod

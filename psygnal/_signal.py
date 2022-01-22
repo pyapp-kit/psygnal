@@ -733,10 +733,11 @@ class SignalInstance:
                         if method is not None:
                             cb = method
                         else:
-                            cb = getattr(obj, name, None)
-                            if cb is None:  # pragma: no cover
+                            _cb = getattr(obj, name, None)
+                            if _cb is None:  # pragma: no cover
                                 rem.append(slot)  # object has changed?
                                 continue
+                            cb = _cb
                     else:
                         cb = slot
 
@@ -1039,7 +1040,7 @@ def _get_method_name(slot: MethodType) -> Tuple[weakref.ref, str]:
     # will not be equal to getattr(obj, obj.method.__name__).
     # We check for that case here and find the proper name in the function's closures
     if getattr(obj, slot.__name__, None) != slot:
-        for c in slot.__closure__ or ():  # type: ignore
+        for c in slot.__closure__ or ():
             cname = getattr(c.cell_contents, "__name__", None)
             if cname and getattr(obj, cname, None) == slot:
                 return weakref.ref(obj), cname
