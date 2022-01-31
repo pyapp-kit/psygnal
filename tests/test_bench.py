@@ -40,7 +40,7 @@ def test_connect_superqt_bench_typed(benchmark):
 
 
 @pytest.mark.benchmark(group="emit")
-@pytest.mark.parametrize("connections", range(0, 2 ** 4, 2))
+@pytest.mark.parametrize("connections", range(0, 2**4, 2))
 def test_emit_superqt_bench(benchmark, connections):
     obj = make_superqt_class()
     for _ in range(connections):
