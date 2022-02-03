@@ -658,8 +658,9 @@ def test_property_connect():
 def test_throttle():
     class A:
         s = Signal()
-    
+
     t = None
+
     def stopwatch():
         nonlocal t
         if t is None:
