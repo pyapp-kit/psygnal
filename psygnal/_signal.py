@@ -337,6 +337,7 @@ class SignalInstance:
         check_types: Optional[bool] = None,
         unique: Union[bool, str] = False,
         max_args: Optional[int] = None,
+        throttle: Optional[int] = None,
     ) -> Union[Callable[[Callable], Callable], Callable]:
         """Connect a callback ("slot") to this signal.
 
@@ -372,6 +373,11 @@ class SignalInstance:
             If provided, `slot` will be called with no more more than `max_args` when
             this SignalInstance is emitted.  (regardless of how many arguments are
             emitted).
+        throttle : int, optional
+            If provided, `slot` will be called no more than once every `throttle`
+            milliseconds when this SignalInstance is emitted. `slot` is guaranteed to be
+            called one final time if this `SignalInstance` was emitted again within
+            `throttle` milliseconds since the last call.
 
         Raises
         ------
@@ -410,7 +416,7 @@ class SignalInstance:
                         extra = f"- Slot types {slot_sig} do not match types in signal."
                         self._raise_connection_error(slot, extra)
 
-                self._slots.append((self._normalize_slot(slot), max_args))
+                self._slots.append((self._normalize_slot(slot), max_args, throttle))
             return slot
 
         return _wrapper(slot) if slot else _wrapper
@@ -486,7 +492,7 @@ class SignalInstance:
         """
         with self._lock:
             idx = None
-            for i, (slot, _) in enumerate(self._slots):
+            for i, (slot, _, _) in enumerate(self._slots):
                 if isinstance(slot, tuple):
                     ref, name, _ = slot
                     if ref() is obj and attr == name:
@@ -550,7 +556,7 @@ class SignalInstance:
         """Get index of `slot` in `self._slots`.  Return -1 if not connected."""
         with self._lock:
             normed = self._normalize_slot(slot)
-            for i, (s, m) in enumerate(self._slots):
+            for i, (s, _, _) in enumerate(self._slots):
                 if s == normed:
                     return i
             return -1
@@ -723,7 +729,7 @@ class SignalInstance:
         # allow receiver to query sender with Signal.current_emitter()
         with self._lock:
             with Signal._emitting(self):
-                for (slot, max_args) in self._slots:
+                for (slot, max_args, throttle) in self._slots:
                     if isinstance(slot, tuple):
                         _ref, name, method = slot
                         obj = _ref()

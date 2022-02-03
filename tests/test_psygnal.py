@@ -653,3 +653,30 @@ def test_property_connect():
 
     with pytest.raises(AttributeError):
         emitter.one_int.connect_setattr(a, "y")
+
+
+def test_throttle():
+    class A:
+        s = Signal()
+    
+    t = None
+    def stopwatch():
+        nonlocal t
+        if t is None:
+            t = time.time()
+        else:
+            t = t - time.time()
+
+    a = A()
+
+    a.s.connect(stopwatch)
+    a.s.emit()
+    a.s.emit()
+    assert t <= 0.5
+    a.s.disconnect(stopwatch)
+
+    a.s.connect(stopwatch, throttle=500)
+    a.s.emit()
+    a.s.emit()
+    time.sleep(1)
+    assert t >= 1
