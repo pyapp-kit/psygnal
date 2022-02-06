@@ -92,7 +92,6 @@ class EventedList(MutableSequence[_T]):
     events: ListEvents
 
     def __init__(self, data: Iterable[_T] = (), *, hashable: bool = True):
-        super().__init__()
         self.events = ListEvents()
         self._list: List[_T] = []
         self._hashable = hashable
