@@ -34,13 +34,14 @@ from typing import (
     overload,
 )
 
+from .._group import SignalGroup
 from .._signal import Signal
 
 _T = TypeVar("_T")
 Index = Union[int, slice]
 
 
-class ListEvents:
+class ListEvents(SignalGroup):
     """Events available on EventedList.
 
     Attributes
