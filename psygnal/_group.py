@@ -9,7 +9,7 @@ the args that were emitted.
 """
 from typing import Any, Callable, Dict, NamedTuple, Optional, Tuple, Union
 
-from psygnal._signal import Signal, SignalInstance
+from psygnal._signal import Signal, SignalInstance, _acceptable_posarg_range, signature
 
 __all__ = ["EmissionInfo", "SignalGroup"]
 
@@ -121,15 +121,21 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
         """
 
         def _inner(slot: InfoSlot) -> InfoSlot:
-            for sig in self.signals.values():
 
-                def _slotwrapper(
-                    *args: Any, _slot: InfoSlot = slot, _sig: SignalInstance = sig
-                ) -> Any:
-                    info = EmissionInfo(_sig, args, extra_info)
-                    return _slot(info)
+            _, max_args = _acceptable_posarg_range(signature(slot))
+            if max_args == 0:
+                for sig in self.signals.values():
+                    sig.connect(slot, check_nargs=False, check_types=False, max_args=0)
+            else:
+                for sig in self.signals.values():
 
-                sig.connect(_slotwrapper, check_nargs=False, check_types=False)
+                    def _slotwrapper(
+                        *args: Any, _slot: InfoSlot = slot, _sig: SignalInstance = sig
+                    ) -> Any:
+                        info = EmissionInfo(_sig, args, extra_info)
+                        return _slot(info)
+
+                    sig.connect(_slotwrapper, check_nargs=False, check_types=False)
             return slot
 
         return _inner if slot is None else _inner(slot)
