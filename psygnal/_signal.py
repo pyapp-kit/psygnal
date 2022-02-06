@@ -315,6 +315,7 @@ class SignalInstance:
         check_nargs: Optional[bool] = ...,
         check_types: Optional[bool] = ...,
         unique: Union[bool, str] = ...,
+        max_args: Optional[int] = None,
     ) -> Callable[[Callable], Callable]:
         ...  # pragma: no cover
 
@@ -326,6 +327,7 @@ class SignalInstance:
         check_nargs: Optional[bool] = ...,
         check_types: Optional[bool] = ...,
         unique: Union[bool, str] = ...,
+        max_args: Optional[int] = None,
     ) -> Callable:
         ...  # pragma: no cover
 
@@ -866,73 +868,6 @@ class EmitThread(threading.Thread):
     def run(self) -> None:
         """Run thread."""
         self._signal_instance._run_emit_loop(self.args)
-
-
-class SignalGroupMeta(type):
-    _signals_: Dict[str, Signal]
-
-    def __new__(
-        mcls: type, name: str, bases: tuple, namespace: dict, **kwargs: Any
-    ) -> "SignalGroupMeta":
-        cls: SignalGroupMeta = type.__new__(mcls, name, bases, namespace)
-        cls._signals_ = {k: v for k, v in namespace.items() if isinstance(v, Signal)}
-        if kwargs.get("strict"):
-            sigs = {
-                tuple(p.annotation for p in s.signature.parameters.values())
-                for s in cls._signals_.values()
-            }
-            if len(sigs) > 1:
-                raise TypeError("Strict SignalGroup with more than 1 Signal signature.")
-        return cls
-
-
-class SignalGroup(SignalInstance, metaclass=SignalGroupMeta):
-    @property
-    def signals(self) -> Dict[str, SignalInstance]:
-        return {n: getattr(self, n) for n in type(self)._signals_}
-
-    def connect_with_info(
-        self,
-        slot: Optional[Callable] = None,
-        *,
-        extra_info: Optional[dict] = None,
-    ) -> Union[Callable[[Callable], Callable], Callable]:
-        def _inner(slot: Callable) -> Callable:
-            for name, sig in self.signals.items():
-
-                def _slot(*args: Any, slot: Callable = slot, name: str = name) -> Any:
-                    info = {
-                        "name": name,
-                        "signal": sig,
-                        "args": args,
-                        **(extra_info or {}),
-                    }
-                    return slot(info)
-
-                sig.connect(_slot, check_nargs=False, check_types=False)
-            return slot
-
-        return _inner if slot is None else _inner(slot)
-
-    def connect(
-        self,
-        slot: Optional[Callable] = None,
-        *,
-        check_nargs: Optional[bool] = None,
-        check_types: Optional[bool] = None,
-        unique: Union[bool, str] = False,
-    ) -> Union[Callable[[Callable], Callable], Callable]:
-        def _inner(slot: Callable) -> Callable:
-            for sig in self.signals.values():
-                sig.connect(
-                    slot,
-                    check_nargs=check_nargs,
-                    check_types=check_types,
-                    unique=unique,
-                )
-            return slot
-
-        return _inner if slot is None else _inner(slot)
 
 
 # #############################################################################
