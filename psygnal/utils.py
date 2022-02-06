@@ -5,6 +5,8 @@ from typing import Any, Callable, Iterator, Tuple
 
 from ._signal import SignalInstance
 
+__all__ = ["debug_events"]
+
 
 def _default_event_logger(event_name: str, args: Tuple[Any, ...]) -> None:
     print(f"{event_name}.emit{args!r}")
