@@ -226,10 +226,10 @@ class EventedList(MutableSequence[_T]):
         """Return self==value."""
         return bool(self._list == other)
 
-    # def __hash__(self) -> int:
-    #     # it's important to add this to allow this object to be hashable
-    #     # given that we've also reimplemented __eq__
-    #     return id(self)
+    def __hash__(self) -> int:
+        # it's important to add this to allow this object to be hashable
+        # given that we've also reimplemented __eq__
+        return id(self)
 
     def reverse(self, *, emit_individual_events: bool = False) -> None:
         """Reverse list *IN PLACE*."""
