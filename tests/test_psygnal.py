@@ -523,15 +523,13 @@ def test_sig_unavailable():
     We should still connect, but with a warning.
     """
     e = Emitter()
-    with pytest.warns(None):
-        e.one_int.connect(vars, check_nargs=False)  # no warning
+    e.one_int.connect(vars, check_nargs=False)  # no warning
 
     with pytest.warns(UserWarning):
         e.one_int.connect(vars)
 
     # we've special cased print... due to frequency of use.
-    with pytest.warns(None):
-        e.one_int.connect(print)  # no warning
+    e.one_int.connect(print)  # no warning
 
 
 def test_pause():
