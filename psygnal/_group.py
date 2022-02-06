@@ -92,7 +92,6 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
         return {n: getattr(self, n) for n in type(self)._signals_}
 
     @classmethod
-    @property
     def is_uniform(cls) -> bool:
         """Return true if SignalGroup is uniform (all signals have same signature)."""
         return cls._uniform

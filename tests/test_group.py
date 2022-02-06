@@ -10,9 +10,9 @@ def test_signal_group():
         sig1 = Signal(int)
         sig2 = Signal(str)
 
-    assert not MyGroup.is_uniform
+    assert not MyGroup.is_uniform()
     group = MyGroup()
-    assert not group.is_uniform
+    assert not group.is_uniform()
     assert isinstance(group.signals, dict)
     assert group.signals == {"sig1": group.sig1, "sig2": group.sig2}
 
@@ -24,9 +24,9 @@ def test_uniform_group():
         sig1 = Signal(int)
         sig2 = Signal(int)
 
-    assert MyGroup.is_uniform
+    assert MyGroup.is_uniform()
     group = MyGroup()
-    assert group.is_uniform
+    assert group.is_uniform()
     assert isinstance(group.signals, dict)
     assert set(group.signals) == {"sig1", "sig2"}
 
