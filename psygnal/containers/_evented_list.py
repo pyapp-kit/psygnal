@@ -84,14 +84,18 @@ class EventedList(MutableSequence[_T]):
     ----------
     data : iterable, optional
         Elements to initialize the list with.
+    hashable : bool, optional
+        Whether the list should be hashable as id(self).
+        By default True.
     """
 
     events: ListEvents
 
-    def __init__(self, data: Iterable[_T] = ()):
+    def __init__(self, data: Iterable[_T] = (), *, hashable: bool = True):
         super().__init__()
         self.events = ListEvents()
         self._list: List[_T] = []
+        self._hashable = hashable
         self.extend(data)
 
     # WAIT!! ... Read the module docstring before reimplement these methods
@@ -227,9 +231,16 @@ class EventedList(MutableSequence[_T]):
         return bool(self._list == other)
 
     def __hash__(self) -> int:
+        """Return hash(self)."""
         # it's important to add this to allow this object to be hashable
         # given that we've also reimplemented __eq__
-        return id(self)
+        if self._hashable:
+            return id(self)
+        name = self.__class__.__name__
+        raise TypeError(
+            f"unhashable type: {name!r}. "
+            f"Create with {name}(..., hashable=True) if you need hashability"
+        )
 
     def reverse(self, *, emit_individual_events: bool = False) -> None:
         """Reverse list *IN PLACE*."""
