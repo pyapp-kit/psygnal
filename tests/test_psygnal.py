@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, call
 import pytest
 
 from psygnal import Signal, SignalInstance
-from psygnal._signal import _get_proper_name
+from psygnal._signal import _get_method_name
 
 
 def stupid_decorator(fun):
@@ -523,15 +523,13 @@ def test_sig_unavailable():
     We should still connect, but with a warning.
     """
     e = Emitter()
-    with pytest.warns(None):
-        e.one_int.connect(vars, check_nargs=False)  # no warning
+    e.one_int.connect(vars, check_nargs=False)  # no warning
 
     with pytest.warns(UserWarning):
         e.one_int.connect(vars)
 
     # we've special cased print... due to frequency of use.
-    with pytest.warns(None):
-        e.one_int.connect(print)  # no warning
+    e.one_int.connect(print)  # no warning
 
 
 def test_pause():
@@ -611,11 +609,11 @@ def test_debug_import(monkeypatch):
     assert not psygnal._compiled
 
 
-def test_get_proper_name():
+def test_get_method_name():
     obj = MyObj()
-    assert _get_proper_name(obj.f_int_decorated_stupid)[1] == "f_int_decorated_stupid"
-    assert _get_proper_name(obj.f_int_decorated_good)[1] == "f_int_decorated_good"
-    assert _get_proper_name(obj.f_any_assigned)[1] == "f_any_assigned"
+    assert _get_method_name(obj.f_int_decorated_stupid)[1] == "f_int_decorated_stupid"
+    assert _get_method_name(obj.f_int_decorated_good)[1] == "f_int_decorated_good"
+    assert _get_method_name(obj.f_any_assigned)[1] == "f_any_assigned"
 
 
 def test_property_connect():

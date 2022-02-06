@@ -336,6 +336,7 @@ class SignalInstance:
         check_nargs: Optional[bool] = None,
         check_types: Optional[bool] = None,
         unique: Union[bool, str] = False,
+        max_args: Optional[int] = None,
     ) -> Union[Callable[[Callable], Callable], Callable]:
         """Connect a callback ("slot") to this signal.
 
@@ -367,6 +368,10 @@ class SignalInstance:
             connected.  If the literal string "raise" is passed to `unique`, then a
             `ValueError` will be raised if the slot is already connected.
             By default `False`.
+        max_args : int, optional
+            If provided, `slot` will be called with no more more than `max_args` when
+            this SignalInstance is emitted.  (regardless of how many arguments are
+            emitted).
 
         Raises
         ------
@@ -383,7 +388,7 @@ class SignalInstance:
         if check_types is None:
             check_types = self._check_types_on_connect
 
-        def _wrapper(slot: Callable) -> Callable:
+        def _wrapper(slot: Callable, max_args: Optional[int] = max_args) -> Callable:
             if not callable(slot):
                 raise TypeError(f"Cannot connect to non-callable object: {slot}")
 
@@ -396,16 +401,16 @@ class SignalInstance:
                         )
                     return slot
 
-                slot_sig = maxargs = None
-                if check_nargs:
-                    slot_sig, maxargs = self._check_nargs(slot, self.signature)
+                slot_sig = None
+                if check_nargs and (max_args is None):
+                    slot_sig, max_args = self._check_nargs(slot, self.signature)
                 if check_types:
                     slot_sig = slot_sig or signature(slot)
                     if not _parameter_types_match(slot, self.signature, slot_sig):
                         extra = f"- Slot types {slot_sig} do not match types in signal."
                         self._raise_connection_error(slot, extra)
 
-                self._slots.append((self._normalize_slot(slot), maxargs))
+                self._slots.append((self._normalize_slot(slot), max_args))
             return slot
 
         return _wrapper(slot) if slot else _wrapper
@@ -499,15 +504,22 @@ class SignalInstance:
 
         Also returns the maximum number of arguments that we can pass to the slot
         """
-        try:
-            slot_sig = signature(slot)
-        except ValueError as e:
-            warnings.warn(
-                f"{e}. To silence this warning, connect with " "`check_nargs=False`"
-            )
-            return None, None
+        maxargs: Optional[int]
+        str_sig = _guess_qtsignal_signature(slot)
+        if str_sig is not None and "(" in str_sig:
+            inner = str_sig.split("(", 1)[1].split(")", 1)[0]
+            minargs = maxargs = inner.count(",") + 1 if inner else 0
+            slot_sig = None
+        else:
+            try:
+                slot_sig = signature(slot)
+            except ValueError as e:
+                warnings.warn(
+                    f"{e}. To silence this warning, connect with " "`check_nargs=False`"
+                )
+                return None, None
+            minargs, maxargs = _acceptable_posarg_range(slot_sig)
 
-        minargs, maxargs = _acceptable_posarg_range(slot_sig)
         n_spec_params = len(spec.parameters)
         # if `slot` requires more arguments than we will provide, raise.
         if minargs > n_spec_params:
@@ -527,7 +539,7 @@ class SignalInstance:
 
     def _normalize_slot(self, slot: NormedCallback) -> NormedCallback:
         if isinstance(slot, MethodType):
-            return _get_proper_name(slot) + (None,)
+            return _get_method_name(slot) + (None,)
         if isinstance(slot, PartialMethod):
             return _partial_weakref(slot)
         if isinstance(slot, tuple) and not isinstance(slot[0], weakref.ref):
@@ -721,10 +733,11 @@ class SignalInstance:
                         if method is not None:
                             cb = method
                         else:
-                            cb = getattr(obj, name, None)
-                            if cb is None:  # pragma: no cover
+                            _cb = getattr(obj, name, None)
+                            if _cb is None:  # pragma: no cover
                                 rem.append(slot)  # object has changed?
                                 continue
+                            cb = _cb
                     else:
                         cb = slot
 
@@ -1078,7 +1091,7 @@ def _is_subclass(left: AnyType, right: type) -> bool:
 
 def _partial_weakref(slot_partial: PartialMethod) -> Tuple[weakref.ref, str, Callable]:
     """For partial methods, make the weakref point to the wrapped object."""
-    ref, name = _get_proper_name(slot_partial.func)
+    ref, name = _get_method_name(slot_partial.func)
     args_ = slot_partial.args
     kwargs_ = slot_partial.keywords
 
@@ -1088,13 +1101,13 @@ def _partial_weakref(slot_partial: PartialMethod) -> Tuple[weakref.ref, str, Cal
     return (ref, name, wrap)
 
 
-def _get_proper_name(slot: MethodType) -> Tuple[weakref.ref, str]:
+def _get_method_name(slot: MethodType) -> Tuple[weakref.ref, str]:
     obj = slot.__self__
     # some decorators will alter method.__name__, so that obj.method
     # will not be equal to getattr(obj, obj.method.__name__).
     # We check for that case here and find the proper name in the function's closures
     if getattr(obj, slot.__name__, None) != slot:
-        for c in slot.__closure__ or ():  # type: ignore
+        for c in slot.__closure__ or ():
             cname = getattr(c.cell_contents, "__name__", None)
             if cname and getattr(obj, cname, None) == slot:
                 return weakref.ref(obj), cname
@@ -1108,6 +1121,42 @@ def _get_proper_name(slot: MethodType) -> Tuple[weakref.ref, str]:
             f"Could not find method on {obj} corresponding to decorated function {slot}"
         )
     return weakref.ref(obj), slot.__name__
+
+
+def _guess_qtsignal_signature(obj: Any) -> Optional[str]:
+    """Return string signature if `obj` is a SignalInstance or Qt emit method.
+
+    This is a bit of a hack, but we found no better way:
+    https://stackoverflow.com/q/69976089/1631624
+    https://bugreports.qt.io/browse/PYSIDE-1713
+    """
+    # on my machine, this takes ~700ns on PyQt5 and 8.7µs on PySide2
+    _repr = repr(obj)
+    if "built-in method emit of" in _repr:
+        if ".pyqtBoundSignal" in _repr:
+            return cast(str, obj.__self__.signal)
+
+        # we likely have the emit method of a SignalInstance
+        # call it with ridiculous params to get the err
+        return _ridiculously_call_emit(obj)
+    if "bound PYQT_SIGNAL" in _repr:
+        return cast(str, obj.signal)
+    if "QtCore.SignalInstance" in _repr and hasattr(obj, "emit"):
+        return _ridiculously_call_emit(obj.emit)
+    return None
+
+
+_CRAZY_ARGS = (1,) * 255
+
+
+def _ridiculously_call_emit(emitter: Any) -> Optional[str]:
+    """Call SignalInstance emit() to get the signature from err message."""
+    try:
+        emitter(*_CRAZY_ARGS)
+    except TypeError as e:
+        if "only accepts" in str(e):
+            return str(e).split("only accepts")[0].strip()
+    return None  # pragma: no cover
 
 
 try:

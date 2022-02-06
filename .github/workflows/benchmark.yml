@@ -36,7 +36,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: |
           export CONDA_EXE=$(which mamba)
-          asv continuous main HEAD --interleave-processes --show-stderr --split --factor 1.1
+          asv continuous main HEAD --interleave-processes --show-stderr --split --factor 1.15
 
       # IF not PR =======================
 

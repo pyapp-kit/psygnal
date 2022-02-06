@@ -155,6 +155,48 @@ Accepted signature: (p0: str, /)
 *Note: unlike Qt, `psygnal` does **not** perform any type coercion when emitting
 a value.*
 
+### Connection safety (object references)
+
+psygnal tries very hard not to hold strong references to connected objects.
+In the simplest case, if you connect a bound method as a callback to a signal
+instance:
+
+```python
+class T:
+    def my_method(self):
+        ...
+
+obj = T()
+signal.connect(t.my_method)
+```
+
+Then there is a risk of `signal` holding a reference to `obj` even after `obj`
+has been deleted, preventing garbage collection (and possibly causing errors
+when the signal is emitted next).  Psygnal avoids this with weak references. It
+goes a bit farther, trying to prevent strong references in these cases as well:
+
+- class methods used as the callable in `functools.partial`
+- decorated class methods that mangle the name of the callback.
+
+Another common case for leaking strong references is a `partial` closing on an
+object, in order to set an attribute:
+
+```python
+class T:
+    x = 1
+
+obj = T()
+signal.connect(partial(setattr, obj, 'x'))  # ref to obj stuck in the connection
+```
+
+Here, psygnal offers the `connect_settatr` convenience method, which reduces code
+and helps you avoid leaking strong references to `obj`:
+
+```python
+signal.connect_setatttr(obj, 'x')
+```
+
+
 ### Query the sender
 
 Similar to Qt's [`QObject.sender()`](https://doc.qt.io/qt-5/qobject.html#sender)
