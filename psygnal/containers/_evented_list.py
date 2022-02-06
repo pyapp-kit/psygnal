@@ -45,31 +45,31 @@ class ListEvents:
 
     Attributes
     ----------
-    events.insertingItem (index: int)
+    events.inserting (index: int)
         emitted before an item is inserted at `index`
-    events.itemInserted (index: int, value: T)
+    events.inserted (index: int, value: T)
         emitted after `value` is inserted at `index`
-    removingItem (index: int)
+    removing (index: int)
         emitted before an item is removed at `index`
-    itemRemoved (index: int, value: T)
+    removed (index: int, value: T)
         emitted after `value` is removed at `index`
-    movingItem (index: int, new_index: int)
+    moving (index: int, new_index: int)
         emitted before an item is moved from `index` to `new_index`
-    itemMoved (index: int, new_index: int, value: T)
+    moved (index: int, new_index: int, value: T)
         emitted after `value` is moved from `index` to `new_index`
-    itemChanged (index: int or slice, old_value: T or List[T], value: T or List[T])
+    changed (index: int or slice, old_value: T or List[T], value: T or List[T])
         emitted when `index` is set from `old_value` to `value`
     reordered (value: self)
         emitted when the list is reordered (eg. moved/reversed).
     """
 
-    insertingItem = Signal(int)  # idx
-    itemInserted = Signal(int, object)  # (idx, value)
-    removingItem = Signal(int)  # idx
-    itemRemoved = Signal(int, object)  # (idx, value)
-    movingItem = Signal(int, int)  # (src_idx, dest_idx)
-    itemMoved = Signal(tuple, object)  # ((src_idx, dest_idx), value)
-    itemChanged = Signal(object, object, object)  # (int | slice, old, new)
+    inserting = Signal(int)  # idx
+    inserted = Signal(int, object)  # (idx, value)
+    removing = Signal(int)  # idx
+    removed = Signal(int, object)  # (idx, value)
+    moving = Signal(int, int)  # (src_idx, dest_idx)
+    moved = Signal(tuple, object)  # ((src_idx, dest_idx), value)
+    changed = Signal(object, object, object)  # (int | slice, old, new)
     reordered = Signal()
 
 
@@ -104,9 +104,9 @@ class EventedList(MutableSequence[_T]):
     def insert(self, index: int, value: _T) -> None:
         """Insert `value` before index."""
         _value = self._pre_insert(value)
-        self.events.insertingItem.emit(index)
+        self.events.inserting.emit(index)
         self._list.insert(index, _value)
-        self.events.itemInserted.emit(index, value)
+        self.events.inserted.emit(index, value)
 
     @overload
     def __getitem__(self, key: int) -> _T:
@@ -140,8 +140,8 @@ class EventedList(MutableSequence[_T]):
 
             value = [self._pre_insert(v) for v in value]  # before we mutate the list
 
-            _ev_inserting = self.events.insertingItem
-            _ev_inserted = self.events.itemInserted
+            _ev_inserting = self.events.inserting
+            _ev_inserted = self.events.inserted
 
             if key.step is not None:  # extended slices are more restricted
                 indices = list(range(*key.indices(len(self))))
@@ -162,16 +162,16 @@ class EventedList(MutableSequence[_T]):
         else:
             self._list[key] = self._pre_insert(cast(_T, value))
 
-        self.events.itemChanged.emit(key, old, value)
+        self.events.changed.emit(key, old, value)
 
     def __delitem__(self, key: Index) -> None:
         """Delete self[key]."""
         # delete from the end
         for parent, index in sorted(self._delitem_indices(key), reverse=True):
-            parent.events.removingItem.emit(index)
+            parent.events.removing.emit(index)
             parent._pre_remove(index)
             item = parent._list.pop(index)
-            self.events.itemRemoved.emit(index, item)
+            self.events.removed.emit(index, item)
 
     def _delitem_indices(self, key: Index) -> Iterable[Tuple["EventedList[_T]", int]]:
         # returning List[(self, int)] allows subclasses to pass nested members
@@ -251,12 +251,12 @@ class EventedList(MutableSequence[_T]):
     #         # this is a no-op
     #         return False
 
-    #     self.movingItem.emit((src_index, dest_index))
+    #     self.moving.emit((src_index, dest_index))
     #     item = self._list.pop(src_index)
     #     if dest_index > src_index:
     #         dest_index -= 1
     #     self._list.insert(dest_index, item)
-    #     self.itemMoved.emit((src_index, dest_index, item))
+    #     self.moved.emit((src_index, dest_index, item))
     #     self.reordered.emit(self)
     #     return True
 
