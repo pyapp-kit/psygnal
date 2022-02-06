@@ -1,13 +1,19 @@
 """misc utils."""
 from contextlib import contextmanager
 from functools import partial
-from typing import Any, Callable, Iterator
+from typing import Any, Callable, Iterator, Tuple
 
 from ._signal import SignalInstance
 
 
+def _default_event_logger(event_name: str, args: Tuple[Any, ...]) -> None:
+    print(f"{event_name}.emit{args!r}")
+
+
 @contextmanager
-def debug_events(obj: Any, logger: Callable[[str], None] = print) -> Iterator[None]:
+def debug_events(
+    obj: Any, logger: Callable[[str, Tuple[Any, ...]], None] = _default_event_logger
+) -> Iterator[None]:
     """Context manager to print events emitted SignalInstances on `obj`."""
     disconnectors = []
     for n in dir(obj):
@@ -15,8 +21,7 @@ def debug_events(obj: Any, logger: Callable[[str], None] = print) -> Iterator[No
         if isinstance(attr, SignalInstance):
 
             def _report(*args: Any, _n: str = n) -> None:
-                msg = f"{_n}.emit{args!r}"
-                logger(msg)
+                logger(_n, args)
 
             attr.connect(_report)
             disconnectors.append(partial(attr.disconnect, _report))
