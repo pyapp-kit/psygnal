@@ -110,11 +110,11 @@ class EventedList(MutableSequence[_T]):
 
     @overload
     def __getitem__(self, key: int) -> _T:
-        ...  # pragma: no cover
+        ...
 
     @overload
     def __getitem__(self, key: slice) -> "EventedList[_T]":
-        ...  # pragma: no cover
+        ...
 
     def __getitem__(self, key: Index) -> Union[_T, "EventedList[_T]"]:
         result = self._list[key]
@@ -194,6 +194,25 @@ class EventedList(MutableSequence[_T]):
     def __newlike__(self, iterable: Iterable[_T]) -> "EventedList[_T]":
         """Return new instance of same class."""
         return self.__class__(iterable)
+
+    def copy(self) -> "EventedList[_T]":
+        """Return a shallow copy of the list."""
+        return self.__newlike__(self)
+
+    def __add__(self, other: Iterable[_T]) -> "EventedList[_T]":
+        """Add other to self, return new object."""
+        copy = self.copy()
+        copy.extend(other)
+        return copy
+
+    def __iadd__(self, other: Iterable[_T]) -> "EventedList[_T]":
+        """Add other to self in place (self += other)."""
+        self.extend(other)
+        return self
+
+    def __radd__(self, other: List) -> List:
+        """Reflected add (other + self).  Cast self to list."""
+        return other + list(self)
 
     def __len__(self) -> int:
         """Return len(self)."""
