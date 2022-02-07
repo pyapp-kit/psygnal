@@ -343,9 +343,15 @@ def test_child_events_groups():
 
     assert mock.call_count == 3
 
+    # when an object in the list owns an emitter group, then any emitter in that group
+    # will also be detected, and child_event will emit (index, sub-emitter, args)
     expected = [
         call(EmissionInfo(root.events.inserting, (0,))),
         call(EmissionInfo(root.events.inserted, (0, e_obj))),
         call(EmissionInfo(root.events.child_event, (0, e_obj.events.test2, ("hi",)))),
     ]
+
+    # note that we can get back to the actual object in the list using the .instance
+    # attribute on signal instances.
+    assert e_obj.events.test2.instance.instance == e_obj
     mock.assert_has_calls(expected)
