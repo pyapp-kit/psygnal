@@ -1,3 +1,4 @@
+from typing import List, cast
 from unittest.mock import Mock, call
 
 import numpy as np
@@ -12,9 +13,9 @@ def regular_list():
     return list(range(5))
 
 
-@pytest.fixture(params=[EventedList])
-def test_list(request, regular_list):
-    test_list = request.param(regular_list)
+@pytest.fixture
+def test_list(regular_list):
+    test_list = EventedList(regular_list)
     test_list.events = Mock(wraps=test_list.events)
     return test_list
 
@@ -63,6 +64,8 @@ def test_list(request, regular_list):
     ids=lambda x: x[0],
 )
 def test_list_interface_parity(test_list, regular_list, meth):
+    test_list.events = cast(Mock, test_list.events)
+
     method_name, args, expected = meth
     test_list_method = getattr(test_list, method_name)
     assert tuple(test_list) == tuple(regular_list)
@@ -122,12 +125,11 @@ def test_slice(test_list, regular_list):
     assert isinstance(test_slice, test_list.__class__)
 
 
-@pytest.mark.xfail()
-def test_move(test_list):
+def test_move(test_list: EventedList):
     """Test the that we can move objects with the move method"""
-    test_list.events = Mock(wraps=test_list.events)
+    test_list.events = cast(Mock, test_list.events)
 
-    def _fail():
+    def _fail() -> None:
         raise AssertionError("unexpected event called")
 
     test_list.events.removing.connect(_fail)
@@ -142,9 +144,9 @@ def test_move(test_list):
     expectation = [1, 2, 0, 3, 4]
     assert test_list != before
     assert test_list == expectation
-    test_list.events.moving.assert_called_once()
-    test_list.events.moved.assert_called_once()
-    test_list.events.reordered.assert_called_with(value=expectation)
+    test_list.events.moving.emit.assert_called_once_with(0, 3)
+    test_list.events.moved.emit.assert_called_once_with(0, 2, 0)
+    test_list.events.reordered.emit.assert_called_once()
 
     # move the other way
     # pop the object at 3 and insert at current position 0
@@ -157,7 +159,7 @@ def test_move(test_list):
     assert test_list == [3, 2, 0, 1, 4]
 
 
-BASIC_INDICES = [
+BASIC_INDICES: List[tuple] = [
     ((2,), 0, [2, 0, 1, 3, 4, 5, 6, 7]),  # move single item
     ([0, 2, 3], 6, [1, 4, 5, 0, 2, 3, 6, 7]),  # move back
     ([4, 7], 1, [0, 4, 7, 1, 2, 3, 5, 6]),  # move forward
@@ -165,7 +167,7 @@ BASIC_INDICES = [
     ([1, 3, 5, 7], 3, [0, 2, 1, 3, 5, 7, 4, 6]),  # same as above
     ([0, 2, 3, 2, 3], 6, [1, 4, 5, 0, 2, 3, 6, 7]),  # strip dupe indices
 ]
-OTHER_INDICES = [
+OTHER_INDICES: List[tuple] = [
     ([7, 4], 1, [0, 7, 4, 1, 2, 3, 5, 6]),  # move forward reorder
     ([3, 0, 2], 6, [1, 4, 5, 3, 0, 2, 6, 7]),  # move back reorder
     ((2, 4), -2, [0, 1, 3, 5, 6, 2, 4, 7]),  # negative indexing
@@ -178,8 +180,7 @@ OTHER_INDICES = [
 MOVING_INDICES = BASIC_INDICES + OTHER_INDICES
 
 
-@pytest.mark.xfail()
-@pytest.mark.parametrize("sources,dest,expectation", MOVING_INDICES)
+@pytest.mark.parametrize("sources, dest, expectation", MOVING_INDICES)
 def test_move_multiple(sources, dest, expectation):
     """Test the that we can move objects with the move method"""
     el = EventedList(range(8))
@@ -196,12 +197,11 @@ def test_move_multiple(sources, dest, expectation):
 
     el.move_multiple(sources, dest)
     assert el == expectation
-    el.events.moving.assert_called()
-    el.events.moved.assert_called()
-    el.events.reordered.assert_called_with(value=expectation)
+    el.events.moving.emit.assert_called()
+    el.events.moved.emit.assert_called()
+    el.events.reordered.emit.assert_called()
 
 
-@pytest.mark.xfail()
 def test_move_multiple_mimics_slice_reorder():
     """Test the that move_multiple provides the same result as slice insertion."""
     data = list(range(8))
@@ -215,25 +215,25 @@ def test_move_multiple_mimics_slice_reorder():
     data[:] = [data[i] for i in new_order]
     assert el == new_order
     assert el == data
-    assert el.events.moving.call_args_list == [
-        call(index=1, new_index=0),
-        call(index=5, new_index=1),
-        call(index=4, new_index=2),
-        call(index=5, new_index=3),
-        call(index=6, new_index=4),
-        call(index=7, new_index=5),
-        call(index=7, new_index=6),
+    assert el.events.moving.emit.call_args_list == [
+        call(1, 0),
+        call(5, 1),
+        call(4, 2),
+        call(5, 3),
+        call(6, 4),
+        call(7, 5),
+        call(7, 6),
     ]
-    assert el.events.moved.call_args_list == [
-        call(index=1, new_index=0, value=1),
-        call(index=5, new_index=1, value=5),
-        call(index=4, new_index=2, value=3),
-        call(index=5, new_index=3, value=4),
-        call(index=6, new_index=4, value=6),
-        call(index=7, new_index=5, value=7),
-        call(index=7, new_index=6, value=2),
+    assert el.events.moved.emit.call_args_list == [
+        call(1, 0, 1),
+        call(5, 1, 5),
+        call(4, 2, 3),
+        call(5, 3, 4),
+        call(6, 4, 6),
+        call(7, 5, 7),
+        call(7, 6, 2),
     ]
-    el.events.reordered.assert_called_with(value=new_order)
+    el.events.reordered.emit.assert_called()
 
     # move_multiple also works omitting the insertion index
     el[:] = list(range(8))

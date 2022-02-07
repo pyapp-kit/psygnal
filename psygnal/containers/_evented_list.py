@@ -121,6 +121,7 @@ class EventedList(MutableSequence[_T]):
         ...
 
     def __getitem__(self, key: Index) -> Union[_T, "EventedList[_T]"]:
+        """Return self[key]."""
         result = self._list[key]
         return self.__newlike__(result) if isinstance(result, list) else result
 
@@ -248,131 +249,130 @@ class EventedList(MutableSequence[_T]):
             super().reverse()
         else:
             self._list.reverse()
-        self.events.reordered.emit(self)
+        self.events.reordered.emit()
 
-    # def move(self, src_index: int, dest_index: int = 0) -> bool:
-    #     """Insert object at `src_index` before `dest_index`.
+    def move(self, src_index: int, dest_index: int = 0) -> bool:
+        """Insert object at `src_index` before `dest_index`.
 
-    #     Both indices refer to the list prior to any object removal
-    #     (pre-move space).
-    #     """
-    #     if dest_index < 0:
-    #         dest_index += len(self) + 1
-    #     if dest_index in (src_index, src_index + 1):
-    #         # this is a no-op
-    #         return False
+        Both indices refer to the list prior to any object removal
+        (pre-move space).
+        """
+        if dest_index < 0:
+            dest_index += len(self) + 1
+        if dest_index in (src_index, src_index + 1):
+            # this is a no-op
+            return False
 
-    #     self.moving.emit((src_index, dest_index))
-    #     item = self._list.pop(src_index)
-    #     if dest_index > src_index:
-    #         dest_index -= 1
-    #     self._list.insert(dest_index, item)
-    #     self.moved.emit((src_index, dest_index, item))
-    #     self.reordered.emit(self)
-    #     return True
+        self.events.moving.emit(src_index, dest_index)
+        item = self._list.pop(src_index)
+        if dest_index > src_index:
+            dest_index -= 1
+        self._list.insert(dest_index, item)
+        self.events.moved.emit(src_index, dest_index, item)
+        self.events.reordered.emit()
+        return True
 
-    # def move_multiple(self, sources: Iterable[Index], dest_index: int = 0) -> int:
-    #     """Move a batch of `sources` indices, to a single destination.
+    def move_multiple(self, sources: Iterable[Index], dest_index: int = 0) -> int:
+        """Move a batch of `sources` indices, to a single destination.
 
-    #     Note, if `dest_index` is higher than any of the `sources`, then
-    #     the resulting position of the moved objects after the move operation
-    #     is complete will be lower than `dest_index`.
+        Note, if `dest_index` is higher than any of the `sources`, then
+        the resulting position of the moved objects after the move operation
+        is complete will be lower than `dest_index`.
 
-    #     Parameters
-    #     ----------
-    #     sources : Sequence[int or slice]
-    #         A sequence of indices
-    #     dest_index : int, optional
-    #         The destination index.  All sources will be inserted before this
-    #         index (in pre-move space), by default 0... which has the effect of
-    #         "bringing to front" everything in `sources`, or acting as a
-    #         "reorder" method if `sources` contains all indices.
+        Parameters
+        ----------
+        sources : Sequence[int or slice]
+            A sequence of indices
+        dest_index : int, optional
+            The destination index.  All sources will be inserted before this
+            index (in pre-move space), by default 0... which has the effect of
+            "bringing to front" everything in `sources`, or acting as a
+            "reorder" method if `sources` contains all indices.
 
-    #     Returns
-    #     -------
-    #     int
-    #         The number of successful move operations completed.
+        Returns
+        -------
+        int
+            The number of successful move operations completed.
 
-    #     Raises
-    #     ------
-    #     TypeError
-    #         If the destination index is a slice, or any of the source indices
-    #         are not `int` or `slice`.
-    #     """
+        Raises
+        ------
+        TypeError
+            If the destination index is a slice, or any of the source indices
+            are not `int` or `slice`.
+        """
+        # calling list here makes sure that there are no index errors up front
+        move_plan = list(self._move_plan(sources, dest_index))
 
-    #     # calling list here makes sure that there are no index errors up front
-    #     move_plan = list(self._move_plan(sources, dest_index))
+        # don't assume index adjacency ... so move objects one at a time
+        # this *could* be simplified with an intermediate list ... but this way
+        # allows any views (such as QtViews) to update themselves more easily.
+        # If this needs to be changed in the future for performance reasons,
+        # then the associated QtListView will need to changed from using
+        # `beginMoveRows` & `endMoveRows` to using `layoutAboutToBeChanged` &
+        # `layoutChanged` while *manually* updating model indices with
+        # `changePersistentIndexList`.  That becomes much harder to do with
+        # nested tree-like models.
+        with self.events.reordered.blocked():
+            for src, dest in move_plan:
+                self.move(src, dest)
 
-    #     # don't assume index adjacency ... so move objects one at a time
-    #     # this *could* be simplified with an intermediate list ... but this way
-    #     # allows any views (such as QtViews) to update themselves more easily.
-    #     # If this needs to be changed in the future for performance reasons,
-    #     # then the associated QtListView will need to changed from using
-    #     # `beginMoveRows` & `endMoveRows` to using `layoutAboutToBeChanged` &
-    #     # `layoutChanged` while *manually* updating model indices with
-    #     # `changePersistentIndexList`.  That becomes much harder to do with
-    #     # nested tree-like models.
-    #     with self.reordered.blocked():
-    #         for src, dest in move_plan:
-    #             self.move(src, dest)
+        self.events.reordered.emit()
+        return len(move_plan)
 
-    #     self.reordered.emit(self)
-    #     return len(move_plan)
+    def _move_plan(
+        self, sources: Iterable[Index], dest_index: int
+    ) -> Iterable[Tuple[int, int]]:
+        """Yield prepared indices for a multi-move.
 
-    # def _move_plan(self, sources: Iterable[Index], dest_index: int):
-    #     """Prepared indices for a multi-move.
+        Given a set of `sources` from anywhere in the list,
+        and a single `dest_index`, this function computes and yields
+        `(from_index, to_index)` tuples that can be used sequentially in
+        single move operations.  It keeps track of what has moved where and
+        updates the source and destination indices to reflect the model at each
+        point in the process.
 
-    #     Given a set of `sources` from anywhere in the list,
-    #     and a single `dest_index`, this function computes and yields
-    #     `(from_index, to_index)` tuples that can be used sequentially in
-    #     single move operations.  It keeps track of what has moved where and
-    #     updates the source and destination indices to reflect the model at each
-    #     point in the process.
+        This is useful for a drag-drop operation with a QtModel/View.
 
-    #     This is useful for a drag-drop operation with a QtModel/View.
+        Parameters
+        ----------
+        sources : Iterable[tuple[int, ...]]
+            An iterable of tuple[int] that should be moved to `dest_index`.
+        dest_index : Tuple[int]
+            The destination for sources.
+        """
+        if isinstance(dest_index, slice):
+            raise TypeError("Destination index may not be a slice")
 
-    #     Parameters
-    #     ----------
-    #     sources : Iterable[tuple[int, ...]]
-    #         An iterable of tuple[int] that should be moved to `dest_index`.
-    #     dest_index : Tuple[int]
-    #         The destination for sources.
-    #     """
-    #     if isinstance(dest_index, slice):
-    #         raise TypeError(
-    #             f"Destination index may not be a slice",
-    #         )
+        to_move: List[int] = []
+        for idx in sources:
+            if isinstance(idx, slice):
+                to_move.extend(list(range(*idx.indices(len(self)))))
+            elif isinstance(idx, int):
+                to_move.append(idx)
+            else:
+                raise TypeError(
+                    "Can only move integer or slice indices",
+                )
 
-    #     to_move: List[int] = []
-    #     for idx in sources:
-    #         if isinstance(idx, slice):
-    #             to_move.extend(list(range(*idx.indices(len(self)))))
-    #         elif isinstance(idx, int):
-    #             to_move.append(idx)
-    #         else:
-    #             raise TypeError(
-    #                 "Can only move integer or slice indices",
-    #             )
+        to_move = list(dict.fromkeys(to_move))
 
-    #     to_move = list(dict.fromkeys(to_move))
+        if dest_index < 0:
+            dest_index += len(self) + 1
 
-    #     if dest_index < 0:
-    #         dest_index += len(self) + 1
+        d_inc = 0
+        popped: List[int] = []
+        for i, src in enumerate(to_move):
+            if src != dest_index:
+                # we need to decrement the src_i by 1 for each time we have
+                # previously pulled items out from in front of the src_i
+                src -= sum(x <= src for x in popped)
+                # if source is past the insertion point, increment src for each
+                # previous insertion
+                if src >= dest_index:
+                    src += i
+                yield src, dest_index + d_inc
 
-    #     d_inc = 0
-    #     popped: List[int] = []
-    #     for i, src in enumerate(to_move):
-    #         if src != dest_index:
-    #             # we need to decrement the src_i by 1 for each time we have
-    #             # previously pulled items out from in front of the src_i
-    #             src -= sum(x <= src for x in popped)
-    #             # if source is past the insertion point, increment src for each
-    #             # previous insertion
-    #             if src >= dest_index:
-    #                 src += i
-    #             yield src, dest_index + d_inc
-
-    #         popped.append(src)
-    #         # if the item moved up, icrement the destination index
-    #         if dest_index <= src:
-    #             d_inc += 1
+            popped.append(src)
+            # if the item moved up, icrement the destination index
+            if dest_index <= src:
+                d_inc += 1
