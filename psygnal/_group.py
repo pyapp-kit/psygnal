@@ -8,7 +8,17 @@ the args that were emitted.
 
 """
 from contextlib import contextmanager
-from typing import Any, Callable, Dict, Iterator, NamedTuple, Optional, Tuple, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    NamedTuple,
+    Optional,
+    Tuple,
+    Union,
+)
 
 from psygnal._signal import Signal, SignalInstance
 
@@ -177,26 +187,35 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
 
         return _inner if slot is None else _inner(slot)
 
-    def block(self) -> None:
+    def block(self, exclude: Iterable[Union[str, SignalInstance]] = ()) -> None:
         """Block this signal and all emitters from emitting."""
-        self._is_blocked = True
-        self._sig_was_blocked = {}
+        super().block()
         for k, v in self.signals.items():
+            if exclude and v in exclude or k in exclude:
+                continue
             self._sig_was_blocked[k] = v._is_blocked
             v.block()
 
     def unblock(self) -> None:
         """Unblock this signal and all emitters, allowing them to emit."""
-        self._is_blocked = False
+        super().unblock()
         for k, v in self.signals.items():
-            if not self._sig_was_blocked.get(k):
+            if not self._sig_was_blocked.pop(k, False):
                 v.unblock()
-        self._sig_was_blocked = {}
 
     @contextmanager
-    def blocked(self) -> Iterator[None]:
-        """Context manager to temporarly block this signal."""
-        self.block()
+    def blocked(
+        self, exclude: Iterable[Union[str, SignalInstance]] = ()
+    ) -> Iterator[None]:
+        """Provide context manager to temporarly block all emitters in this group.
+
+        Parameters
+        ----------
+        exclude : iterable of str or SignalInstance, optional
+            An iterable of signal instances or names to exempt from the block,
+            by default ()
+        """
+        self.block(exclude=exclude)
         try:
             yield
         finally:
@@ -211,23 +230,26 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
         return f"<SignalGroup{name} with {signals}{instance}>"
 
 
-SignalGroup.connect.__doc__ = """
-Connect `slot` to be called whenever *any* Signal in this group is emitted.
+_doc = SignalGroup.connect.__doc__.split("Parameters")[-1]  # type: ignore
 
-Note that unlike a slot/callback connected to SignalInstance.connect, a slot
-connected to `SignalGroup.connect` does *not* receive the direct arguments that
-were emitted by a given `SignalInstance` in the group. Instead, the slot/callback
-will receive an `EmissionInfo` named tuple, which contains `.signal`: the
-SignalInstance doing the emitting, `.args`: the args that were emitted.
 
-Parameters
-----------
-slot : callable, optional
-    A callback to be called whenever any signal is emitted.
-    Will receive an `EmissionInfo` named tuple.
+SignalGroup.connect.__doc__ = (
+    """
+        Connect `slot` to be called whenever *any* Signal in this group is emitted.
 
-Returns
--------
-callable
-    the same slot provided (i.e. can be used as a decorator)
+        Note that unlike a slot/callback connected to `SignalInstance.connect`, a slot
+        connected to `SignalGroup.connect` does *not* receive the direct arguments that
+        were emitted by a given `SignalInstance` in the group. Instead, the
+        slot/callback will receive an `EmissionInfo` named tuple, which contains
+        `.signal`: the SignalInstance doing the emitting, `.args`: the args that were
+        emitted.
+
+        This method may be used as a decorator.
+
+            @group.connect
+            def my_function(): ...
+
+        Parameters
 """.strip()
+    + _doc
+)

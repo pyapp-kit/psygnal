@@ -115,3 +115,20 @@ def test_group_blocked():
 
     mock1.assert_not_called()
     mock2.assert_not_called()
+
+
+def test_group_blocked_exclude():
+    """Test that we can exempt certain signals from being blocked."""
+    group = MyGroup()
+
+    mock1 = Mock()
+    mock2 = Mock()
+
+    group.sig1.connect(mock1)
+    group.sig2.connect(mock2)
+
+    with group.blocked(exclude=("sig2",)):
+        group.sig1.emit(1)
+        group.sig2.emit("hi")
+    mock1.assert_not_called()
+    mock2.assert_called_once_with("hi")
