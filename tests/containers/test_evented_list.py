@@ -4,7 +4,7 @@ from unittest.mock import Mock, call
 import numpy as np
 import pytest
 
-from psygnal import Signal
+from psygnal import EmissionInfo, Signal, SignalGroup
 from psygnal.containers import EventedList
 
 
@@ -79,6 +79,16 @@ def test_list_interface_parity(test_list, regular_list, meth):
     for c, expect in zip(test_list.events.call_args_list, expected):
         event = c.args[0]
         assert event.type == expect
+
+
+def test_delete(test_list):
+    assert test_list == [0, 1, 2, 3, 4]
+
+    del test_list[1]
+    assert test_list == [0, 2, 3, 4]
+
+    del test_list[2:]
+    assert test_list == [0, 2]
 
 
 def test_hash(test_list):
@@ -288,7 +298,6 @@ def test_move_multiple_mimics_slice_reorder():
     el.move_multiple(new_order) == [el[i] for i in new_order]
 
 
-@pytest.mark.skip
 def test_child_events():
     """Test that evented lists bubble child events."""
     # create a random object that emits events
@@ -296,22 +305,46 @@ def test_child_events():
         test = Signal(str)
 
     e_obj = E()
-    # and two nestable evented lists
-    root: EventedList[str] = EventedList()
-    observed = []
-    root.events.connect(lambda e: observed.append(e))
+    root: EventedList[E] = EventedList(child_events=True)
+    mock = Mock()
+    root.events.connect(mock)
     root.append(e_obj)
+    assert root == [e_obj]
     e_obj.test.emit("hi")
-    obs = [
-        (e.signal.name, e.args[0], e.args[1] if len(e.args) > 1 else None)
-        for e in observed
-    ]
+
+    assert mock.call_count == 3
+
     expected = [
-        ("inserting", 0, None),  # before we inserted b into root
-        ("inserted", 0, e_obj),  # after b was inserted into root
-        ("test", 0, "hi"),  # when e_obj emitted an event called "test"
+        call(EmissionInfo(root.events.inserting, (0,))),
+        call(EmissionInfo(root.events.inserted, (0, e_obj))),
+        call(EmissionInfo(root.events.child_event, (0, e_obj.test, ("hi",)))),
     ]
-    assert len(obs) == len(expected)
-    for o, e in zip(obs, expected):
-        assert o == e
-    raise ValueError()
+    mock.assert_has_calls(expected)
+
+
+def test_child_events_groups():
+    """Test that evented lists bubble child events."""
+    # create a random object that emits events
+    class Group(SignalGroup):
+        test = Signal(str)
+        test2 = Signal(str)
+
+    class E:
+        events = Group()
+
+    e_obj = E()
+    root: EventedList[E] = EventedList(child_events=True)
+    mock = Mock()
+    root.events.connect(mock)
+    root.append(e_obj)
+    assert root == [e_obj]
+    e_obj.events.test2.emit("hi")
+
+    assert mock.call_count == 3
+
+    expected = [
+        call(EmissionInfo(root.events.inserting, (0,))),
+        call(EmissionInfo(root.events.inserted, (0, e_obj))),
+        call(EmissionInfo(root.events.child_event, (0, e_obj.events.test2, ("hi",)))),
+    ]
+    mock.assert_has_calls(expected)

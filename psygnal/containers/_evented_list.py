@@ -23,6 +23,7 @@ cover this in test_evented_list.py)
 """
 
 from typing import (
+    TYPE_CHECKING,
     Any,
     Iterable,
     List,
@@ -34,20 +35,13 @@ from typing import (
     overload,
 )
 
-from .._group import SignalGroup
-from .._signal import Signal
+from typing_extensions import TypeGuard
+
+from .._group import EmissionInfo, SignalGroup
+from .._signal import Signal, SignalInstance
 
 _T = TypeVar("_T")
 Index = Union[int, slice]
-
-# if TYPE_CHECKING:
-
-#     class _SupportsEvents:
-#         events: SignalGroup
-
-
-# def _supports_events(obj: Any) -> TypeGuard["_SupportsEvents"]:
-#     return hasattr(obj, "events") and isinstance(obj.events, SignalGroup)
 
 
 class ListEvents(SignalGroup):
@@ -81,7 +75,7 @@ class ListEvents(SignalGroup):
     moved = Signal(tuple, object)  # ((src_idx, dest_idx), value)
     changed = Signal(object, object, object)  # (int | slice, old, new)
     reordered = Signal()
-    # child_event = Signal(int, EmissionInfo)
+    child_event = Signal(int, EmissionInfo)
 
 
 class EventedList(MutableSequence[_T]):
@@ -100,12 +94,19 @@ class EventedList(MutableSequence[_T]):
         By default True.
     """
 
-    events: ListEvents
+    events: ListEvents  # pragma: no cover
 
-    def __init__(self, data: Iterable[_T] = (), *, hashable: bool = True):
-        self.events = ListEvents()
+    def __init__(
+        self,
+        data: Iterable[_T] = (),
+        *,
+        hashable: bool = True,
+        child_events: bool = False,
+    ):
         self._list: List[_T] = []
         self._hashable = hashable
+        self._child_events = child_events
+        self.events = ListEvents()
         self.extend(data)
 
     # WAIT!! ... Read the module docstring before reimplement these methods
@@ -121,26 +122,7 @@ class EventedList(MutableSequence[_T]):
         self.events.inserting.emit(index)
         self._list.insert(index, _value)
         self.events.inserted.emit(index, value)
-
-    #     self._post_insert(value)
-
-    # def _post_insert(self, new_item: _T) -> None:
-    #     self._connect_child_emitters(new_item)
-
-    # def _connect_child_emitters(self, child: _T) -> None:
-    #     """Connect all events from the child to be reemitted."""
-    #     if _supports_events(child):
-    #         child.events.connect(self._reemit_child_event, source=child)
-
-    # def _reemit_child_event(self, info: EmissionInfo) -> None:
-    #     """An item in the list emitted an event.  Re-emit with index"""
-    #     if 'source' in info.extra_info:
-    #         try:
-    #             idx = self.index(info.extra_info['source'])
-    #         except ValueError:
-    #             pass
-    #         else:
-    #             self.events.child_event.emit(idx, info)
+        self._post_insert(value)
 
     @overload
     def __getitem__(self, key: int) -> _T:
@@ -209,22 +191,28 @@ class EventedList(MutableSequence[_T]):
             self.events.removed.emit(index, item)
 
     def _delitem_indices(self, key: Index) -> Iterable[Tuple["EventedList[_T]", int]]:
-        # returning List[(self, int)] allows subclasses to pass nested members
+        # returning (self, int) allows subclasses to pass nested members
         if isinstance(key, int):
-            return [(self, key if key >= 0 else key + len(self))]
+            yield (self, key if key >= 0 else key + len(self))
         elif isinstance(key, slice):
-            return [(self, i) for i in range(*key.indices(len(self)))]
-
-        raise TypeError(
-            f"EventedList indices must be integers or slices, not {type(key).__name__}"
-        )
+            yield from ((self, i) for i in range(*key.indices(len(self))))
+        else:
+            n = repr(type(key).__name__)
+            raise TypeError(f"EventedList indices must be integers or slices, not {n}")
 
     def _pre_insert(self, value: _T) -> _T:
+        """Validate and or modify values prior to inserted."""
         return value
 
+    def _post_insert(self, new_item: _T) -> None:
+        """Modify and or handle values after insertion."""
+        if self._child_events:
+            self._connect_child_emitters(new_item)
+
     def _pre_remove(self, index: int) -> None:
-        # self._disconnect_child_emitters(self[index])
-        pass
+        """Modify and or handle values before removal."""
+        if self._child_events:
+            self._disconnect_child_emitters(self[index])
 
     def __newlike__(self, iterable: Iterable[_T]) -> "EventedList[_T]":
         """Return new instance of same class."""
@@ -406,3 +394,41 @@ class EventedList(MutableSequence[_T]):
             # if the item moved up, icrement the destination index
             if dest_index <= src:
                 d_inc += 1
+
+    def _connect_child_emitters(self, child: _T) -> None:
+        """Connect all events from the child to be reemitted."""
+        for emitter in _iter_emitters(child):
+            emitter.connect(self._reemit_child_event)
+
+    def _disconnect_child_emitters(self, child: _T) -> None:
+        """Disconnect all events from the child from the reemitter."""
+        for emitter in _iter_emitters(child):
+            emitter.disconnect(self._reemit_child_event)
+
+    def _reemit_child_event(self, *args: Any) -> None:
+        """Re-emit event from child with index."""
+        emitter = Signal.current_emitter()
+        if emitter is not None:
+            try:
+                idx = self.index(emitter.instance)
+            except ValueError:
+                return
+            self.events.child_event.emit(idx, emitter, args)
+
+
+if TYPE_CHECKING:
+
+    class _SupportsEvents:
+        events: SignalGroup
+
+
+def _supports_events(obj: Any) -> TypeGuard["_SupportsEvents"]:
+    return hasattr(obj, "events") and isinstance(obj.events, SignalGroup)
+
+
+def _iter_emitters(obj: Any) -> Iterable[Union[SignalGroup, SignalInstance]]:
+    for n in dir(obj):
+        if not n.startswith("_"):
+            attr = getattr(obj, n)
+            if isinstance(attr, (SignalInstance, SignalGroup)):
+                yield attr
