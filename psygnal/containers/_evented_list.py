@@ -65,6 +65,10 @@ class ListEvents(SignalGroup):
         emitted when `index` is set from `old_value` to `value`
     reordered (value: self)
         emitted when the list is reordered (eg. moved/reversed).
+    child_event (index: int, emitter: SignalInstance, args: tuple)
+        emitted when an object in the list emits an event.
+        Note that the EventedList must be created with `child_events=True` for this
+        to be emitted.
     """
 
     inserting = Signal(int)  # idx
@@ -75,7 +79,7 @@ class ListEvents(SignalGroup):
     moved = Signal(tuple, object)  # ((src_idx, dest_idx), value)
     changed = Signal(object, object, object)  # (int | slice, old, new)
     reordered = Signal()
-    child_event = Signal(int, EmissionInfo)
+    child_event = Signal(int, SignalInstance, tuple)
 
 
 class EventedList(MutableSequence[_T]):
