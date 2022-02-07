@@ -732,10 +732,22 @@ class SignalInstance:
         with self._lock:
             with Signal._emitting(self):
                 for (slot, max_args) in self._slots:
-                    cb = _denorm_slot(slot)
-                    if cb is None:
-                        rem.append(slot)
-                        continue
+                    if isinstance(slot, tuple):
+                        _ref, name, method = slot
+                        obj = _ref()
+                        if obj is None:
+                            rem.append(slot)  # add dead weakref
+                            continue
+                        if method is not None:
+                            cb = method
+                        else:
+                            _cb = getattr(obj, name, None)
+                            if _cb is None:  # pragma: no cover
+                                rem.append(slot)  # object has changed?
+                                continue
+                            cb = _cb
+                    else:
+                        cb = slot
 
                     # TODO: add better exception handling
                     cb(*args[:max_args])
@@ -925,21 +937,6 @@ def _normalize_slot(slot: Union[Callable, NormedCallback]) -> NormedCallback:
     if isinstance(slot, tuple) and not isinstance(slot[0], weakref.ref):
         return (weakref.ref(slot[0]), slot[1], slot[2])
     return slot
-
-
-def _denorm_slot(slot: NormedCallback) -> Optional[Callable]:
-    if not isinstance(slot, tuple):
-        return slot
-    _ref, name, method = slot
-    obj = _ref()
-    if obj is None:
-        return None
-    if method is not None:
-        return method
-    cb = getattr(obj, name, None)
-    if cb is not None:
-        return cast(MethodType, cb)
-    return None
 
 
 # def f(a, /, b, c=None, *d, f=None, **g): print(locals())
