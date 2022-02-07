@@ -330,7 +330,8 @@ def test_child_events_groups():
         test2 = Signal(str)
 
     class E:
-        events = Group()
+        def __init__(self):
+            self.events = Group(self)
 
     e_obj = E()
     root: EventedList[E] = EventedList(child_events=True)

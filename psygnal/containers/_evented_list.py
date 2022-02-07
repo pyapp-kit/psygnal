@@ -408,12 +408,21 @@ class EventedList(MutableSequence[_T]):
     def _reemit_child_event(self, *args: Any) -> None:
         """Re-emit event from child with index."""
         emitter = Signal.current_emitter()
-        if emitter is not None:
-            try:
-                idx = self.index(emitter.instance)
-            except ValueError:
-                return
-            self.events.child_event.emit(idx, emitter, args)
+        if emitter is None:
+            return
+        try:
+            idx = self.index(emitter.instance)
+        except ValueError:
+            return
+
+        if (
+            args
+            and isinstance(emitter, SignalGroup)
+            and isinstance(args[0], EmissionInfo)
+        ):
+            emitter, args = args[0]
+
+        self.events.child_event.emit(idx, emitter, args)
 
 
 if TYPE_CHECKING:
