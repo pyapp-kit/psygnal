@@ -71,6 +71,8 @@ def test_signal_group_connect(direct: bool):
 
 
 def test_signal_group_connect_no_args():
+    """Test that group.connect can take a callback that wants no args"""
+
     class MyGroup(SignalGroup):
         sig1 = Signal(int)
         sig2 = Signal(str)
@@ -78,10 +80,10 @@ def test_signal_group_connect_no_args():
     group = MyGroup()
     count = []
 
-    def my_slot():
+    def my_slot() -> None:
         count.append(1)
 
     group.connect(my_slot)
     group.sig1.emit(1)
-    group.sig1.emit("hi")
+    group.sig2.emit("hi")
     assert len(count) == 2

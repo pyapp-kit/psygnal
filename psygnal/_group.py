@@ -7,7 +7,7 @@ tuple, which contains `.signal`: the SignalInstance doing the emitting, and `.ar
 the args that were emitted.
 
 """
-from typing import Any, Callable, Dict, NamedTuple, Optional, Tuple, Union
+from typing import Any, Callable, Dict, NamedTuple, Optional, Tuple, Union, cast
 
 from psygnal._signal import Signal, SignalInstance, _acceptable_posarg_range, signature
 
@@ -49,6 +49,7 @@ class _SignalGroupMeta(type):
 
 
 InfoSlot = Callable[[EmissionInfo], None]
+OptionalInfoSlot = Union[InfoSlot, Callable[[], None]]
 
 
 class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
@@ -97,7 +98,7 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
         return cls._uniform
 
     def connect(
-        self, slot: Optional[InfoSlot] = None, **extra_info: Any
+        self, slot: Optional[OptionalInfoSlot] = None, **extra_info: Any
     ) -> Union[Callable[[Callable], Callable], Callable]:
         """Connect `slot` to be called whenever *any* Signal in this group is emitted.
 
@@ -120,17 +121,18 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
             the same slot provided (i.e. can be used as a decorator)
         """
 
-        def _inner(slot: InfoSlot) -> InfoSlot:
+        def _inner(slot: OptionalInfoSlot) -> OptionalInfoSlot:
 
             _, max_args = _acceptable_posarg_range(signature(slot))
             if max_args == 0:
                 for sig in self.signals.values():
                     sig.connect(slot, check_nargs=False, check_types=False, max_args=0)
             else:
+                islot = cast(InfoSlot, slot)
                 for sig in self.signals.values():
 
                     def _slotwrapper(
-                        *args: Any, _slot: InfoSlot = slot, _sig: SignalInstance = sig
+                        *args: Any, _slot: InfoSlot = islot, _sig: SignalInstance = sig
                     ) -> Any:
                         info = EmissionInfo(_sig, args, extra_info)
                         return _slot(info)
