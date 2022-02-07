@@ -68,3 +68,22 @@ def test_signal_group_connect(direct: bool):
             call(EmissionInfo(group.sig2, ("hi",), {"extra": "something"})),
         ]
     mock.assert_has_calls(expected_calls)
+
+
+def test_signal_group_connect_no_args():
+    """Test that group.connect can take a callback that wants no args"""
+
+    class MyGroup(SignalGroup):
+        sig1 = Signal(int)
+        sig2 = Signal(str)
+
+    group = MyGroup()
+    count = []
+
+    def my_slot() -> None:
+        count.append(1)
+
+    group.connect(my_slot)
+    group.sig1.emit(1)
+    group.sig2.emit("hi")
+    assert len(count) == 2
