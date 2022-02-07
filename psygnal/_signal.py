@@ -315,6 +315,7 @@ class SignalInstance:
         check_nargs: Optional[bool] = ...,
         check_types: Optional[bool] = ...,
         unique: Union[bool, str] = ...,
+        max_args: Optional[int] = None,
     ) -> Callable[[Callable], Callable]:
         ...  # pragma: no cover
 
@@ -326,6 +327,7 @@ class SignalInstance:
         check_nargs: Optional[bool] = ...,
         check_types: Optional[bool] = ...,
         unique: Union[bool, str] = ...,
+        max_args: Optional[int] = None,
     ) -> Callable:
         ...  # pragma: no cover
 
