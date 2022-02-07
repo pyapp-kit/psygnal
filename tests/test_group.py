@@ -5,10 +5,17 @@ import pytest
 from psygnal import EmissionInfo, Signal, SignalGroup
 
 
+class MyGroup(SignalGroup):
+    sig1 = Signal(int)
+    sig2 = Signal(str)
+
+
+class MyStrictGroup(SignalGroup, strict=True):
+    sig1 = Signal(int)
+    sig2 = Signal(int)
+
+
 def test_signal_group():
-    class MyGroup(SignalGroup):
-        sig1 = Signal(int)
-        sig2 = Signal(str)
 
     assert not MyGroup.is_uniform()
     group = MyGroup()
@@ -16,23 +23,21 @@ def test_signal_group():
     assert isinstance(group.signals, dict)
     assert group.signals == {"sig1": group.sig1, "sig2": group.sig2}
 
+    assert repr(group) == "<SignalGroup 'MyGroup' with 2 signals>"
+
 
 def test_uniform_group():
     """In a uniform group, all signals must have the same signature."""
 
-    class MyGroup(SignalGroup, strict=True):
-        sig1 = Signal(int)
-        sig2 = Signal(int)
-
-    assert MyGroup.is_uniform()
-    group = MyGroup()
+    assert MyStrictGroup.is_uniform()
+    group = MyStrictGroup()
     assert group.is_uniform()
     assert isinstance(group.signals, dict)
     assert set(group.signals) == {"sig1", "sig2"}
 
     with pytest.raises(TypeError) as e:
 
-        class MyGroup2(SignalGroup, strict=True):
+        class BadGroup(SignalGroup, strict=True):
             sig1 = Signal(str)
             sig2 = Signal(int)
 
@@ -41,9 +46,6 @@ def test_uniform_group():
 
 @pytest.mark.parametrize("direct", [True, False])
 def test_signal_group_connect(direct: bool):
-    class MyGroup(SignalGroup):
-        sig1 = Signal(int)
-        sig2 = Signal(str)
 
     mock = Mock()
     group = MyGroup()
@@ -52,8 +54,8 @@ def test_signal_group_connect(direct: bool):
         group.connect_direct(mock)
     else:
         # the callback will receive an EmissionInfo tuple
-        # (SignalInstance, arg_tuple, extra_info_dict)
-        group.connect(mock, extra="something")
+        # (SignalInstance, arg_tuple)
+        group.connect(mock)
     group.sig1.emit(1)
     group.sig2.emit("hi")
 
@@ -64,19 +66,14 @@ def test_signal_group_connect(direct: bool):
         expected_calls = [call(1), call("hi")]
     else:
         expected_calls = [
-            call(EmissionInfo(group.sig1, (1,), {"extra": "something"})),
-            call(EmissionInfo(group.sig2, ("hi",), {"extra": "something"})),
+            call(EmissionInfo(group.sig1, (1,))),
+            call(EmissionInfo(group.sig2, ("hi",))),
         ]
     mock.assert_has_calls(expected_calls)
 
 
 def test_signal_group_connect_no_args():
     """Test that group.connect can take a callback that wants no args"""
-
-    class MyGroup(SignalGroup):
-        sig1 = Signal(int)
-        sig2 = Signal(str)
-
     group = MyGroup()
     count = []
 
@@ -87,3 +84,34 @@ def test_signal_group_connect_no_args():
     group.sig1.emit(1)
     group.sig2.emit("hi")
     assert len(count) == 2
+
+
+def test_group_blocked():
+    group = MyGroup()
+
+    mock1 = Mock()
+    mock2 = Mock()
+
+    group.connect(mock1)
+    group.sig1.connect(mock2)
+    group.sig1.emit(1)
+
+    mock1.assert_called_once_with(EmissionInfo(group.sig1, (1,)))
+    mock2.assert_called_once_with(1)
+
+    mock1.reset_mock()
+    mock2.reset_mock()
+
+    group.sig2.block()
+    assert group.sig2._is_blocked
+
+    with group.blocked():
+        group.sig1.emit(1)
+        assert group.sig1._is_blocked
+
+    assert not group.sig1._is_blocked
+    # the blocker should have restored subthings to their previous states
+    assert group.sig2._is_blocked
+
+    mock1.assert_not_called()
+    mock2.assert_not_called()

@@ -7,9 +7,10 @@ tuple, which contains `.signal`: the SignalInstance doing the emitting, and `.ar
 the args that were emitted.
 
 """
-from typing import Any, Callable, Dict, NamedTuple, Optional, Tuple, Union, cast
+from contextlib import contextmanager
+from typing import Any, Callable, Dict, Iterator, NamedTuple, Optional, Tuple, Union
 
-from psygnal._signal import Signal, SignalInstance, _acceptable_posarg_range, signature
+from psygnal._signal import Signal, SignalInstance
 
 __all__ = ["EmissionInfo", "SignalGroup"]
 
@@ -19,7 +20,6 @@ class EmissionInfo(NamedTuple):
 
     signal: SignalInstance
     args: Tuple[Any, ...]
-    extra_info: Dict[str, Any] = {}
 
 
 class _SignalGroupMeta(type):
@@ -55,6 +55,14 @@ OptionalInfoSlot = Union[InfoSlot, Callable[[], None]]
 class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
     """SignalGroup that enables connecting to all SignalInstances.
 
+    Parameters
+    ----------
+    instance : Any, optional
+        An instance to which this event group is bound, by default None
+    name : str, optional
+        Optional name for this event group, by default will be the name of the group
+        subclass.  (e.g., 'Events' in the example below.)
+
     Example
     -------
     >>> class Events(SignalGroup):
@@ -83,9 +91,19 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
     >>> class Events(SignalGroup, strict=True):
     ...     sig1 = Signal(int)
     ...     sig1 = Signal(str)  # not the same signature
-
-
     """
+
+    __slots__ = ("_instance", "_name", "_is_blocked", "_is_paused", "_sig_was_blocked")
+
+    def __init__(self, instance: Any = None, name: Optional[str] = None) -> None:
+        super().__init__(
+            signature=(EmissionInfo,),
+            instance=instance,
+            name=name or self.__class__.__name__,
+        )
+        self._sig_was_blocked: Dict[str, bool] = {}
+        for name, sig in self.signals.items():
+            sig.connect(self._slot_relay, check_nargs=False, check_types=False)
 
     @property
     def signals(self) -> Dict[str, SignalInstance]:
@@ -94,53 +112,14 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
 
     @classmethod
     def is_uniform(cls) -> bool:
-        """Return true if SignalGroup is uniform (all signals have same signature)."""
+        """Return true if all signals in the group have the same signature."""
         return cls._uniform
 
-    def connect(
-        self, slot: Optional[OptionalInfoSlot] = None, **extra_info: Any
-    ) -> Union[Callable[[Callable], Callable], Callable]:
-        """Connect `slot` to be called whenever *any* Signal in this group is emitted.
-
-        Note that unlike a slot/callback connected to SignalInstance.connect, a slot
-        connected to `SignalGroup.connect` does *not* receive the direct arguments that
-        were emitted by a given `SignalInstance`. Instead, the slot/callback will
-        receive an `EmissionInfo` named tuple, which contains `.signal`: the
-        SignalInstance doing the emitting, `.args`: the args that were emitted, and
-        `extra_info`: a dict of any additional keyword args passed to `connect`.
-
-        Parameters
-        ----------
-        slot : callable, optional
-            A callback to be called whenever any signal is emitted.
-            Will receive an `EmissionInfo` named tuple.
-
-        Returns
-        -------
-        callable
-            the same slot provided (i.e. can be used as a decorator)
-        """
-
-        def _inner(slot: OptionalInfoSlot) -> OptionalInfoSlot:
-
-            _, max_args = _acceptable_posarg_range(signature(slot))
-            if max_args == 0:
-                for sig in self.signals.values():
-                    sig.connect(slot, check_nargs=False, check_types=False, max_args=0)
-            else:
-                islot = cast(InfoSlot, slot)
-                for sig in self.signals.values():
-
-                    def _slotwrapper(
-                        *args: Any, _slot: InfoSlot = islot, _sig: SignalInstance = sig
-                    ) -> Any:
-                        info = EmissionInfo(_sig, args, extra_info)
-                        return _slot(info)
-
-                    sig.connect(_slotwrapper, check_nargs=False, check_types=False)
-            return slot
-
-        return _inner if slot is None else _inner(slot)
+    def _slot_relay(self, *args: Any) -> None:
+        emitter = Signal.current_emitter()
+        if emitter:
+            info = EmissionInfo(emitter, args)
+            self._run_emit_loop((info,))
 
     def connect_direct(
         self,
@@ -153,8 +132,8 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
     ) -> Union[Callable[[Callable], Callable], Callable]:
         """Connect `slot` to be called whenever *any* Signal in this group is emitted.
 
-        Params are the same as {meth}`~psygnal.SignalInstance.connect`
-
+        Params are the same as {meth}`~psygnal.SignalInstance.connect`.  It's probably
+        best to check whether `self.is_uniform()`
 
         Parameters
         ----------
@@ -197,3 +176,58 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
             return slot
 
         return _inner if slot is None else _inner(slot)
+
+    def block(self) -> None:
+        """Block this signal and all emitters from emitting."""
+        self._is_blocked = True
+        self._sig_was_blocked = {}
+        for k, v in self.signals.items():
+            self._sig_was_blocked[k] = v._is_blocked
+            v.block()
+
+    def unblock(self) -> None:
+        """Unblock this signal and all emitters, allowing them to emit."""
+        self._is_blocked = False
+        for k, v in self.signals.items():
+            if not self._sig_was_blocked.get(k):
+                v.unblock()
+        self._sig_was_blocked = {}
+
+    @contextmanager
+    def blocked(self) -> Iterator[None]:
+        """Context manager to temporarly block this signal."""
+        self.block()
+        try:
+            yield
+        finally:
+            self.unblock()
+
+    def __repr__(self) -> str:
+        """Return repr(self)."""
+        name = f" {self.name!r}" if self.name else ""
+        instance = f" on {self.instance!r}" if self.instance else ""
+        nsignals = len(self.signals)
+        signals = f"{nsignals} signal" + "s" if nsignals > 1 else ""
+        return f"<SignalGroup{name} with {signals}{instance}>"
+
+
+SignalGroup.connect.__doc__ = """
+Connect `slot` to be called whenever *any* Signal in this group is emitted.
+
+Note that unlike a slot/callback connected to SignalInstance.connect, a slot
+connected to `SignalGroup.connect` does *not* receive the direct arguments that
+were emitted by a given `SignalInstance` in the group. Instead, the slot/callback
+will receive an `EmissionInfo` named tuple, which contains `.signal`: the
+SignalInstance doing the emitting, `.args`: the args that were emitted.
+
+Parameters
+----------
+slot : callable, optional
+    A callback to be called whenever any signal is emitted.
+    Will receive an `EmissionInfo` named tuple.
+
+Returns
+-------
+callable
+    the same slot provided (i.e. can be used as a decorator)
+""".strip()
