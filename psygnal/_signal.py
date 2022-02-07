@@ -261,7 +261,7 @@ class SignalInstance:
 
     def __init__(
         self,
-        signature: Signature = Signature(),
+        signature: Union[Signature, Tuple] = Signature(),
         *,
         instance: Any = None,
         name: Optional[str] = None,
@@ -298,7 +298,7 @@ class SignalInstance:
         return self._instance
 
     @property
-    def name(self) -> Optional[str]:
+    def name(self) -> str:
         """Name of this `SignalInstance`."""
         return self._name or ""
 
@@ -412,7 +412,7 @@ class SignalInstance:
                         extra = f"- Slot types {slot_sig} do not match types in signal."
                         self._raise_connection_error(slot, extra)
 
-                self._slots.append((self._normalize_slot(slot), max_args))
+                self._slots.append((_normalize_slot(slot), max_args))
             return slot
 
         return _wrapper(slot) if slot else _wrapper
@@ -451,6 +451,20 @@ class SignalInstance:
             If this is not a single-value signal
         AttributeError
             If `obj` has no attribute `attr`.
+
+        Examples
+        --------
+        >>> class T:
+        ...     sig = Signal(int)
+        ...
+        >>> class SomeObj:
+        ...     x = 1
+        ...
+        >>> t = T()
+        >>> my_obj = SomeObj()
+        >>> t.sig.connect_setattr(my_obj, 'x')
+        >>> t.sig.emit(5)
+        >>> assert my_obj.x == 5
         """
         ref = obj if isinstance(obj, weakref.ref) else weakref.ref(obj)
         if not hasattr(ref(), attr):
@@ -539,19 +553,10 @@ class SignalInstance:
         msg += f"\n\nAccepted signature: {self.signature}"
         raise ValueError(msg)
 
-    def _normalize_slot(self, slot: NormedCallback) -> NormedCallback:
-        if isinstance(slot, MethodType):
-            return _get_method_name(slot) + (None,)
-        if isinstance(slot, PartialMethod):
-            return _partial_weakref(slot)
-        if isinstance(slot, tuple) and not isinstance(slot[0], weakref.ref):
-            return (weakref.ref(slot[0]), slot[1], slot[2])
-        return slot
-
     def _slot_index(self, slot: NormedCallback) -> int:
         """Get index of `slot` in `self._slots`.  Return -1 if not connected."""
         with self._lock:
-            normed = self._normalize_slot(slot)
+            normed = _normalize_slot(slot)
             for i, (s, m) in enumerate(self._slots):
                 if s == normed:
                     return i
@@ -587,6 +592,7 @@ class SignalInstance:
                 self._slots.pop(idx)
             elif not missing_ok:
                 raise ValueError(f"slot is not connected: {slot}")
+            # breakpoint()
 
     def __contains__(self, slot: NormedCallback) -> bool:
         """Return `True` if slot is connected."""
@@ -921,6 +927,16 @@ def _build_signature(*types: AnyType) -> Signature:
         for i, t in enumerate(types)
     ]
     return Signature(params)
+
+
+def _normalize_slot(slot: Union[Callable, NormedCallback]) -> NormedCallback:
+    if isinstance(slot, MethodType):
+        return _get_method_name(slot) + (None,)
+    if isinstance(slot, PartialMethod):
+        return _partial_weakref(slot)
+    if isinstance(slot, tuple) and not isinstance(slot[0], weakref.ref):
+        return (weakref.ref(slot[0]), slot[1], slot[2])
+    return slot
 
 
 # def f(a, /, b, c=None, *d, f=None, **g): print(locals())

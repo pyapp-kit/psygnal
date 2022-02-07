@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, call
 import pytest
 
 from psygnal import Signal, SignalInstance
-from psygnal._signal import _get_method_name
+from psygnal._signal import _get_method_name, _normalize_slot
 
 
 def stupid_decorator(fun):
@@ -317,18 +317,56 @@ def test_weakref(slot):
     assert len(emitter.one_int) == 0
 
 
-def test_norm_slot():
-    e = Emitter()
-    r = MyObj()
+@pytest.mark.parametrize(
+    "slot",
+    [
+        "f_no_arg",
+        "f_int_decorated_stupid",
+        "f_int_decorated_good",
+        "f_any_assigned",
+        "partial",
+    ],
+)
+def test_group_weakref(slot):
+    """Test that a connected method doesn't hold strong ref."""
+    from psygnal import SignalGroup
 
-    normed1 = e.one_int._normalize_slot(r.f_any)
-    normed2 = e.one_int._normalize_slot(normed1)
-    normed3 = e.one_int._normalize_slot((r, "f_any", None))
-    normed4 = e.one_int._normalize_slot((weakref.ref(r), "f_any", None))
+    class MyGroup(SignalGroup):
+        sig1 = Signal(int)
+
+    emitter = MyGroup()
+    obj = MyObj()
+
+    # simply by nature of being in a group, sig1 will have a callback
+    assert len(emitter.sig1) == 1
+    # but the group itself doesn't have any
+    assert len(emitter) == 0
+
+    # connecting something to the group adds to the group connections
+    emitter.connect(
+        partial(obj.f_int_int, 1) if slot == "partial" else getattr(obj, slot)
+    )
+    assert len(emitter.sig1) == 1
+    assert len(emitter) == 1
+
+    emitter.sig1.emit(1)
+    assert len(emitter.sig1) == 1
+    del obj
+    gc.collect()
+    emitter.sig1.emit(1)  # this should trigger deletion, so would emitter.emit()
+    assert len(emitter.sig1) == 1
+    assert len(emitter) == 0  # it's been cleaned up
+
+
+def test_norm_slot():
+    r = MyObj()
+    normed1 = _normalize_slot(r.f_any)
+    normed2 = _normalize_slot(normed1)
+    normed3 = _normalize_slot((r, "f_any", None))
+    normed4 = _normalize_slot((weakref.ref(r), "f_any", None))
     assert normed1 == (weakref.ref(r), "f_any", None)
     assert normed1 == normed2 == normed3 == normed4
-
-    assert e.one_int._normalize_slot(f_any) == f_any
+    assert _normalize_slot(f_any) == f_any
 
 
 ALL = {n for n, f in locals().items() if callable(f) and n.startswith("f_")}
