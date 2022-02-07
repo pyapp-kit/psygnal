@@ -84,6 +84,31 @@ def test_list_interface_parity(test_list, regular_list, meth):
 def test_hash(test_list):
     assert id(test_list) == hash(test_list)
 
+    b = EventedList([2, 3], hashable=False)
+    with pytest.raises(TypeError):
+        hash(b)
+
+
+def test_repr(test_list):
+    assert repr(test_list) == "EventedList([0, 1, 2, 3, 4])"
+
+
+def test_reverse(test_list):
+    assert test_list == [0, 1, 2, 3, 4]
+    test_list.reverse()
+    test_list.events.reordered.emit.assert_called_once()
+    test_list.events.changed.emit.assert_not_called()
+    assert test_list == [4, 3, 2, 1, 0]
+
+    test_list.events.reordered.emit.reset_mock()
+    test_list.reverse(emit_individual_events=True)
+    test_list.events.reordered.emit.assert_called_once()
+    assert test_list.events.changed.emit.call_count == 4
+    test_list.events.changed.emit.assert_has_calls(
+        [call(0, 4, 0), call(4, 0, 4), call(1, 3, 1), call(3, 1, 3)]
+    )
+    assert test_list == [0, 1, 2, 3, 4]
+
 
 def test_list_interface_exceptions(test_list):
     bad_index = {"a": "dict"}
@@ -124,6 +149,25 @@ def test_slice(test_list, regular_list):
     assert tuple(test_slice) == tuple(regular_slice)
     assert isinstance(test_slice, test_list.__class__)
 
+    change_emit = test_list.events.changed.emit
+
+    assert test_list == [0, 1, 2, 3, 4]
+    test_list[1:3] = [6, 7, 8]
+    assert test_list == [0, 6, 7, 8, 3, 4]
+    change_emit.assert_called_with(slice(1, 3, None), [1, 2], [6, 7, 8])
+
+    with pytest.raises(ValueError) as e:
+        test_list[1:6:2] = [6, 7, 8, 6, 7]
+    assert str(e.value).startswith("attempt to assign sequence of size 5 to extended ")
+
+    test_list[1:6:2] = [9, 9, 9]
+    assert test_list == [0, 9, 7, 9, 3, 9]
+    change_emit.assert_called_with(slice(1, 6, 2), [6, 8, 4], [9, 9, 9])
+
+    with pytest.raises(TypeError) as e2:
+        test_list[1:3] = 1
+    assert str(e2.value) == "Can only assign an iterable to slice"
+
 
 def test_move(test_list: EventedList):
     """Test the that we can move objects with the move method"""
@@ -147,6 +191,10 @@ def test_move(test_list: EventedList):
     test_list.events.moving.emit.assert_called_once_with(0, 3)
     test_list.events.moved.emit.assert_called_once_with(0, 2, 0)
     test_list.events.reordered.emit.assert_called_once()
+
+    test_list.events.moving.emit.reset_mock()
+    test_list.move(2, 2)
+    test_list.events.moving.emit.assert_not_called()  # noop
 
     # move the other way
     # pop the object at 3 and insert at current position 0
@@ -240,7 +288,7 @@ def test_move_multiple_mimics_slice_reorder():
     el.move_multiple(new_order) == [el[i] for i in new_order]
 
 
-@pytest.mark.xfail()
+@pytest.mark.skip
 def test_child_events():
     """Test that evented lists bubble child events."""
     # create a random object that emits events
@@ -254,11 +302,16 @@ def test_child_events():
     root.events.connect(lambda e: observed.append(e))
     root.append(e_obj)
     e_obj.test.emit("hi")
-    obs = [(e.type, e.index, getattr(e, "value", None)) for e in observed]
+    obs = [
+        (e.signal.name, e.args[0], e.args[1] if len(e.args) > 1 else None)
+        for e in observed
+    ]
     expected = [
         ("inserting", 0, None),  # before we inserted b into root
         ("inserted", 0, e_obj),  # after b was inserted into root
         ("test", 0, "hi"),  # when e_obj emitted an event called "test"
     ]
+    assert len(obs) == len(expected)
     for o, e in zip(obs, expected):
         assert o == e
+    raise ValueError()

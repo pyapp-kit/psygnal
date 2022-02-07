@@ -40,6 +40,15 @@ from .._signal import Signal
 _T = TypeVar("_T")
 Index = Union[int, slice]
 
+# if TYPE_CHECKING:
+
+#     class _SupportsEvents:
+#         events: SignalGroup
+
+
+# def _supports_events(obj: Any) -> TypeGuard["_SupportsEvents"]:
+#     return hasattr(obj, "events") and isinstance(obj.events, SignalGroup)
+
 
 class ListEvents(SignalGroup):
     """Events available on EventedList.
@@ -72,6 +81,7 @@ class ListEvents(SignalGroup):
     moved = Signal(tuple, object)  # ((src_idx, dest_idx), value)
     changed = Signal(object, object, object)  # (int | slice, old, new)
     reordered = Signal()
+    # child_event = Signal(int, EmissionInfo)
 
 
 class EventedList(MutableSequence[_T]):
@@ -111,6 +121,26 @@ class EventedList(MutableSequence[_T]):
         self.events.inserting.emit(index)
         self._list.insert(index, _value)
         self.events.inserted.emit(index, value)
+
+    #     self._post_insert(value)
+
+    # def _post_insert(self, new_item: _T) -> None:
+    #     self._connect_child_emitters(new_item)
+
+    # def _connect_child_emitters(self, child: _T) -> None:
+    #     """Connect all events from the child to be reemitted."""
+    #     if _supports_events(child):
+    #         child.events.connect(self._reemit_child_event, source=child)
+
+    # def _reemit_child_event(self, info: EmissionInfo) -> None:
+    #     """An item in the list emitted an event.  Re-emit with index"""
+    #     if 'source' in info.extra_info:
+    #         try:
+    #             idx = self.index(info.extra_info['source'])
+    #         except ValueError:
+    #             pass
+    #         else:
+    #             self.events.child_event.emit(idx, info)
 
     @overload
     def __getitem__(self, key: int) -> _T:
@@ -153,7 +183,7 @@ class EventedList(MutableSequence[_T]):
                 if len(value) != len(indices):
                     raise ValueError(
                         f"attempt to assign sequence of size {len(value)} to extended "
-                        "slice of size {len(indices)}",
+                        f"slice of size {len(indices)}",
                     )
                 for i, v in zip(indices, value):
                     with _ev_inserting.blocked(), _ev_inserted.blocked():
@@ -341,7 +371,7 @@ class EventedList(MutableSequence[_T]):
             The destination for sources.
         """
         if isinstance(dest_index, slice):
-            raise TypeError("Destination index may not be a slice")
+            raise TypeError("Destination index may not be a slice")  # pragma: no cover
 
         to_move: List[int] = []
         for idx in sources:
@@ -351,8 +381,8 @@ class EventedList(MutableSequence[_T]):
                 to_move.append(idx)
             else:
                 raise TypeError(
-                    "Can only move integer or slice indices",
-                )
+                    "Can only move integer or slice indices"
+                )  # pragma: no cover # noqa
 
         to_move = list(dict.fromkeys(to_move))
 
