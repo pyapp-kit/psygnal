@@ -24,7 +24,8 @@ clean:
 	rm -f .coverage.*
 	rm -rf build
 	rm -rf dist
-	rm -f psygnal/*.c psygnal/*.so
+	rm -f `find psygnal -type f -name '*.c' `
+	rm -f `find psygnal -type f -name '*.so' `
 	python setup.py clean
 	rm -rf coverage.xml
 

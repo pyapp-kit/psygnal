@@ -52,7 +52,8 @@ if (
         # Only the last optimization flag will have effect
         os.environ["CFLAGS"] = "-O3 " + os.environ.get("CFLAGS", "")
         ext_modules = cythonize(
-            ["psygnal/_signal.py", "psygnal/utils.py"],
+            "psygnal/**/*.py",
+            exclude=["**/__init__.py", "psygnal/_version.py"],
             nthreads=int(os.getenv("CYTHON_NTHREADS", 0)),
             language_level=3,
             compiler_directives=compiler_directives,

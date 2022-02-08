@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools", "wheel", "cython", "setuptools_scm"]
+requires = ["setuptools", "wheel", "Cython>=3.0a7", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
 
 [tool.cibuildwheel]
