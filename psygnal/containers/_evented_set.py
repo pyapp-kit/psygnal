@@ -18,7 +18,6 @@ from typing_extensions import Final, Literal
 from psygnal._signal import Signal
 
 _T = TypeVar("_T")
-_S = TypeVar("_S")
 _Cls = TypeVar("_Cls", bound="_BaseMutableSet")
 
 
@@ -28,8 +27,6 @@ class _BAIL(Enum):
 
 BAIL: Final = _BAIL.BAIL
 BailType = Literal[_BAIL.BAIL]
-
-set.update
 
 
 class _BaseMutableSet(MutableSet[_T]):
@@ -99,6 +96,8 @@ class _BaseMutableSet(MutableSet[_T]):
 
     def _do_discard(self, item: _T) -> None:
         self._data.discard(item)
+
+    # -------- To match set API
 
     def __copy__(self: _Cls) -> _Cls:
         inst = self.__class__.__new__(self.__class__)
@@ -203,24 +202,31 @@ class _EventedMixin(_Base):
 
     def update(self, *others: Iterable[_T]) -> None:
         """Update this set with the union of this set and others."""
-        with self.items_changed.paused(self._reduce_events, ((), ())):
+        with self.items_changed.paused(_reduce_events, ((), ())):
             super().update(*others)
 
     def clear(self) -> None:
         """Remove all elements from this set."""
-        with self.items_changed.paused(self._reduce_events, ((), ())):
+        with self.items_changed.paused(_reduce_events, ((), ())):
             super().clear()
 
     def difference_update(self, *s: Iterable[_T]) -> None:
-        with self.items_changed.paused(self._reduce_events, ((), ())):
+        """Remove all elements of another set from this set."""
+        with self.items_changed.paused(_reduce_events, ((), ())):
             super().difference_update(*s)
 
     def intersection_update(self, *s: Iterable[_T]) -> None:
-        with self.items_changed.paused(self._reduce_events, ((), ())):
+        """Update this set with the intersection of itself and another."""
+        with self.items_changed.paused(_reduce_events, ((), ())):
             super().intersection_update(*s)
 
     def symmetric_difference_update(self, __s: Iterable[_T]) -> None:
-        with self.items_changed.paused(self._reduce_events, ((), ())):
+        """Update this set with the symmetric difference of itself and another.
+
+        This will remove any items in this set that are also in `other`, and
+        add any items in others that are not present in this set.
+        """
+        with self.items_changed.paused(_reduce_events, ((), ())):
             super().symmetric_difference_update(__s)
 
     def _pre_add_hook(self, item: _T) -> Union[_T, BailType]:
@@ -238,12 +244,6 @@ class _EventedMixin(_Base):
     def _emit_change(self, added: Tuple[_T, ...], removed: Tuple[_T, ...]) -> None:
         """Emit a change event."""
         self.items_changed.emit(added, removed)
-
-    def _reduce_events(self, a: Tuple, b: Tuple) -> Tuple[tuple, tuple]:
-        """Combine two events (a and b) each of which contain (added, removed)."""
-        a0, a1 = a
-        b0, b1 = b
-        return (a0 + b0, a1 + b1)
 
 
 class EventedSet(_EventedMixin, _BaseMutableSet[_T]):
@@ -296,3 +296,10 @@ class EventedOrderedSet(EventedSet, OrderedSet[_T]):
         `added` and `removed` are tuples containing the objects that have been
         added or removed from the set.
     """
+
+
+def _reduce_events(a: Tuple, b: Tuple) -> Tuple[tuple, tuple]:
+    """Combine two events (a and b) each of which contain (added, removed)."""
+    a0, a1 = a
+    b0, b1 = b
+    return (a0 + b0, a1 + b1)
