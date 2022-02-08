@@ -62,7 +62,7 @@ class ListEvents(SignalGroup):
         emitted when `index` is set from `old_value` to `value`
     reordered (value: self)
         emitted when the list is reordered (eg. moved/reversed).
-    child_event (index: int, emitter: SignalInstance, args: tuple)
+    child_event (index: int, object: Any, emitter: SignalInstance, args: tuple)
         emitted when an object in the list emits an event.
         Note that the EventedList must be created with `child_events=True` for this
         to be emitted.
@@ -105,7 +105,8 @@ class EventedList(MutableSequence[_T]):
         hashable: bool = True,
         child_events: bool = False,
     ):
-        self._list: List[_T] = []
+        super().__init__()
+        self._data: List[_T] = []
         self._hashable = hashable
         self._child_events = child_events
         self.events = ListEvents()
@@ -122,7 +123,7 @@ class EventedList(MutableSequence[_T]):
         """Insert `value` before index."""
         _value = self._pre_insert(value)
         self.events.inserting.emit(index)
-        self._list.insert(index, _value)
+        self._data.insert(index, _value)
         self.events.inserted.emit(index, value)
         self._post_insert(value)
 
@@ -136,7 +137,7 @@ class EventedList(MutableSequence[_T]):
 
     def __getitem__(self, key: Index) -> Union[_T, "EventedList[_T]"]:
         """Return self[key]."""
-        result = self._list[key]
+        result = self._data[key]
         return self.__newlike__(result) if isinstance(result, list) else result
 
     @overload
@@ -149,38 +150,18 @@ class EventedList(MutableSequence[_T]):
 
     def __setitem__(self, key: Index, value: Union[_T, Iterable[_T]]) -> None:
         """Set self[key] to value."""
-        old = self._list[key]
+        old = self._data[key]
         if value is old:
             return
 
         if isinstance(key, slice):
             if not isinstance(value, Iterable):
                 raise TypeError("Can only assign an iterable to slice")
-
             value = [self._pre_insert(v) for v in value]  # before we mutate the list
-
-            _ev_inserting = self.events.inserting
-            _ev_inserted = self.events.inserted
-
-            if key.step is not None:  # extended slices are more restricted
-                indices = list(range(*key.indices(len(self))))
-                if len(value) != len(indices):
-                    raise ValueError(
-                        f"attempt to assign sequence of size {len(value)} to extended "
-                        f"slice of size {len(indices)}",
-                    )
-                for i, v in zip(indices, value):
-                    with _ev_inserting.blocked(), _ev_inserted.blocked():
-                        self._list[i] = v
-            else:
-                del self[key]
-                start = key.start or 0
-                for i, v in enumerate(value):
-                    with _ev_inserting.blocked(), _ev_inserted.blocked():
-                        self.insert(start + i, v)
         else:
-            self._list[key] = self._pre_insert(cast(_T, value))
+            value = self._pre_insert(cast(_T, value))
 
+        self._data[key] = value  # type: ignore
         self.events.changed.emit(key, old, value)
 
     def __delitem__(self, key: Index) -> None:
@@ -189,7 +170,7 @@ class EventedList(MutableSequence[_T]):
         for parent, index in sorted(self._delitem_indices(key), reverse=True):
             parent.events.removing.emit(index)
             parent._pre_remove(index)
-            item = parent._list.pop(index)
+            item = parent._data.pop(index)
             self.events.removed.emit(index, item)
 
     def _delitem_indices(self, key: Index) -> Iterable[Tuple["EventedList[_T]", int]]:
@@ -241,15 +222,15 @@ class EventedList(MutableSequence[_T]):
 
     def __len__(self) -> int:
         """Return len(self)."""
-        return len(self._list)
+        return len(self._data)
 
     def __repr__(self) -> str:
         """Return repr(self)."""
-        return f"{type(self).__name__}({self._list})"
+        return f"{type(self).__name__}({self._data})"
 
     def __eq__(self, other: Any) -> bool:
         """Return self==value."""
-        return bool(self._list == other)
+        return bool(self._data == other)
 
     def __hash__(self) -> int:
         """Return hash(self)."""
@@ -268,7 +249,7 @@ class EventedList(MutableSequence[_T]):
         if emit_individual_events:
             super().reverse()
         else:
-            self._list.reverse()
+            self._data.reverse()
         self.events.reordered.emit()
 
     def move(self, src_index: int, dest_index: int = 0) -> bool:
@@ -284,10 +265,10 @@ class EventedList(MutableSequence[_T]):
             return False
 
         self.events.moving.emit(src_index, dest_index)
-        item = self._list.pop(src_index)
+        item = self._data.pop(src_index)
         if dest_index > src_index:
             dest_index -= 1
-        self._list.insert(dest_index, item)
+        self._data.insert(dest_index, item)
         self.events.moved.emit(src_index, dest_index, item)
         self.events.reordered.emit()
         return True
