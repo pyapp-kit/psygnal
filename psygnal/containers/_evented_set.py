@@ -247,8 +247,52 @@ class _EventedMixin(_Base):
 
 
 class EventedSet(_EventedMixin, _BaseMutableSet[_T]):
-    """A set with an item_changed event emitter."""
+    """A set with an `items_changed` signal that emits when items are added/removed.
+
+    Parameters
+    ----------
+    iterable : iterable of Any, optional
+        Data to populate the set.  If omitted, an empty set is created.
+
+    Attributes
+    ----------
+    items_changed : SignalInstance
+        A signal that will emitted whenever an item or items are added or removed.
+        Connected callbacks will be called with `callback(added, removed)`, where
+        `added` and `removed` are tuples containing the objects that have been
+        added or removed from the set.
+
+    Examples
+    --------
+    >>> from psygnal.containers import EventedSet
+    >>>
+    >>> my_set = EventedSet([1, 2, 3])
+    >>> my_set.items_changed.connect(lambda a, r: print(f"added={a}, removed={r}"))
+    >>> my_set.update({3, 4, 5})
+    added=(4, 5), removed=()
+
+    Multi-item events will be reduced into a single emission:
+    >>> my_set.symmetric_difference_update({4, 5, 6, 7})
+    added=(6, 7), removed=(4, 5)
+
+    >>> my_set
+    EventedSet({1, 2, 3, 6, 7})
+    """
 
 
-class EventedOrderedSet(_EventedMixin, OrderedSet[_T]):
-    """A ordered set with an item_changed event emitter."""
+class EventedOrderedSet(EventedSet, OrderedSet[_T]):
+    """A ordered variant of EventedSet that maintains insertion order.
+
+    Parameters
+    ----------
+    iterable : iterable of Any, optional
+        Data to populate the set.  If omitted, an empty set is created.
+
+    Attributes
+    ----------
+    items_changed : SignalInstance
+        A signal that will emitted whenever an item or items are added or removed.
+        Connected callbacks will be called with `callback(added, removed)`, where
+        `added` and `removed` are tuples containing the objects that have been
+        added or removed from the set.
+    """
