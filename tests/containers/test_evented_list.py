@@ -318,7 +318,7 @@ def test_child_events():
     expected = [
         call(EmissionInfo(root.events.inserting, (0,))),
         call(EmissionInfo(root.events.inserted, (0, e_obj))),
-        call(EmissionInfo(root.events.child_event, (0, e_obj.test, ("hi",)))),
+        call(EmissionInfo(root.events.child_event, (0, e_obj, e_obj.test, ("hi",)))),
     ]
     mock.assert_has_calls(expected)
 
@@ -352,7 +352,11 @@ def test_child_events_groups():
     expected = [
         call(EmissionInfo(root.events.inserting, (0,))),
         call(EmissionInfo(root.events.inserted, (0, e_obj))),
-        call(EmissionInfo(root.events.child_event, (0, e_obj.events.test2, ("hi",)))),
+        call(
+            EmissionInfo(
+                root.events.child_event, (0, e_obj, e_obj.events.test2, ("hi",))
+            )
+        ),
     ]
 
     # note that we can get back to the actual object in the list using the .instance

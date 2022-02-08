@@ -76,7 +76,7 @@ class ListEvents(SignalGroup):
     moved = Signal(tuple, object)  # ((src_idx, dest_idx), value)
     changed = Signal(object, object, object)  # (int | slice, old, new)
     reordered = Signal()
-    child_event = Signal(int, SignalInstance, tuple)
+    child_event = Signal(int, object, SignalInstance, tuple)
 
 
 class EventedList(MutableSequence[_T]):
@@ -411,8 +411,9 @@ class EventedList(MutableSequence[_T]):
         emitter = Signal.current_emitter()
         if emitter is None:
             return  # pragma: no cover
+        obj = emitter.instance
         try:
-            idx = self.index(emitter.instance)
+            idx = self.index(obj)
         except ValueError:  # pragma: no cover
             return
 
@@ -423,7 +424,7 @@ class EventedList(MutableSequence[_T]):
         ):
             emitter, args = args[0]
 
-        self.events.child_event.emit(idx, emitter, args)
+        self.events.child_event.emit(idx, obj, emitter, args)
 
 
 def _iter_emitters(obj: Any) -> Iterable[Union[SignalGroup, SignalInstance]]:
