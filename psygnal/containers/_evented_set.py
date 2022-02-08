@@ -83,16 +83,16 @@ class _BaseMutableSet(MutableSet[_T]):
     # --------
 
     def _pre_add_hook(self, item: _T) -> Union[_T, BailType]:
-        return item
+        return item  # pragma: no cover
 
     def _post_add_hook(self, item: _T) -> None:
-        print("added", item)
+        ...
 
     def _pre_discard_hook(self, item: _T) -> Union[_T, BailType]:
-        return item
+        return item  # pragma: no cover
 
     def _post_discard_hook(self, item: _T) -> None:
-        print("removed", item)
+        ...
 
     def _do_add(self, item: _T) -> None:
         self._data.add(item)

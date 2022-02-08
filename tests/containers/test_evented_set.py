@@ -2,7 +2,7 @@ from unittest.mock import Mock, call
 
 import pytest
 
-from psygnal.containers import EventedOrderedSet, EventedSet
+from psygnal.containers import EventedOrderedSet, EventedSet, OrderedSet
 
 
 @pytest.fixture
@@ -47,6 +47,7 @@ def test_set_interface_parity(test_set: EventedSet, regular_set: set, meth):
     assert tuple(test_set) == tuple(regular_set)
 
     mock.assert_has_calls(expected)
+    assert type(test_set).__name__ in repr(test_set)
 
 
 def test_set_pop(test_set: EventedSet):
@@ -102,3 +103,26 @@ def test_set_new_objects(test_set: EventedSet, regular_set: set, meth):
     assert result is not test_set
 
     mock.assert_not_called()
+
+
+def test_ordering():
+    tup = (24, 16, 8, 4, 5, 6)
+    s_tup = set(tup)
+    os_tup = OrderedSet(tup)
+
+    assert tuple(s_tup) != tup
+    assert repr(s_tup) == "{4, 5, 6, 8, 16, 24}"
+
+    assert tuple(os_tup) == tup
+    assert repr(os_tup) == "OrderedSet((24, 16, 8, 4, 5, 6))"
+    os_tup.discard(8)
+    os_tup.add(8)
+    assert tuple(os_tup) == (24, 16, 4, 5, 6, 8)
+
+
+def test_copy(test_set):
+    from copy import copy
+
+    assert test_set.copy() == copy(test_set)
+    assert test_set is not copy(test_set)
+    assert isinstance(copy(test_set), type(test_set))
