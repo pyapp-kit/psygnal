@@ -23,7 +23,6 @@ cover this in test_evented_list.py)
 """
 
 from typing import (
-    TYPE_CHECKING,
     Any,
     Iterable,
     List,
@@ -34,8 +33,6 @@ from typing import (
     cast,
     overload,
 )
-
-from typing_extensions import TypeGuard
 
 from .._group import EmissionInfo, SignalGroup
 from .._signal import Signal, SignalInstance
@@ -413,10 +410,10 @@ class EventedList(MutableSequence[_T]):
         """Re-emit event from child with index."""
         emitter = Signal.current_emitter()
         if emitter is None:
-            return
+            return  # pragma: no cover
         try:
             idx = self.index(emitter.instance)
-        except ValueError:
+        except ValueError:  # pragma: no cover
             return
 
         if (
@@ -429,19 +426,9 @@ class EventedList(MutableSequence[_T]):
         self.events.child_event.emit(idx, emitter, args)
 
 
-if TYPE_CHECKING:
-
-    class _SupportsEvents:
-        events: SignalGroup
-
-
-def _supports_events(obj: Any) -> TypeGuard["_SupportsEvents"]:
-    return hasattr(obj, "events") and isinstance(obj.events, SignalGroup)
-
-
 def _iter_emitters(obj: Any) -> Iterable[Union[SignalGroup, SignalInstance]]:
     for n in dir(obj):
         if not n.startswith("_"):
             attr = getattr(obj, n)
-            if isinstance(attr, (SignalInstance, SignalGroup)):
+            if isinstance(attr, SignalInstance):
                 yield attr

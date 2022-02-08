@@ -309,6 +309,7 @@ def test_child_events():
     mock = Mock()
     root.events.connect(mock)
     root.append(e_obj)
+    assert len(e_obj.test) == 1
     assert root == [e_obj]
     e_obj.test.emit("hi")
 
@@ -320,6 +321,9 @@ def test_child_events():
         call(EmissionInfo(root.events.child_event, (0, e_obj.test, ("hi",)))),
     ]
     mock.assert_has_calls(expected)
+
+    del root[0]
+    assert len(e_obj.test) == 0
 
 
 def test_child_events_groups():
