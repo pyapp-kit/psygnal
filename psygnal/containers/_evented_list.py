@@ -76,6 +76,7 @@ class ListEvents(SignalGroup):
     moved = Signal(tuple, object)  # ((src_idx, dest_idx), value)
     changed = Signal(object, object, object)  # (int | slice, old, new)
     reordered = Signal()
+    # TODO: is this the best signature?
     child_event = Signal(int, object, SignalInstance, tuple)
 
 
