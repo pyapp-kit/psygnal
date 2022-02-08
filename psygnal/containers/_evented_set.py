@@ -33,7 +33,7 @@ set.update
 
 
 class _BaseMutableSet(MutableSet[_T]):
-    _data: Set[_T]
+    _data: Set[_T]  # pragma: no cover
 
     def __init__(self, iterable: Iterable[_T] = ()):
         self._data = set()
@@ -86,13 +86,13 @@ class _BaseMutableSet(MutableSet[_T]):
         return item  # pragma: no cover
 
     def _post_add_hook(self, item: _T) -> None:
-        ...
+        ...  # pragma: no cover
 
     def _pre_discard_hook(self, item: _T) -> Union[_T, BailType]:
         return item  # pragma: no cover
 
     def _post_discard_hook(self, item: _T) -> None:
-        ...
+        ...  # pragma: no cover
 
     def _do_add(self, item: _T) -> None:
         self._data.add(item)
@@ -174,7 +174,7 @@ class _BaseMutableSet(MutableSet[_T]):
 class OrderedSet(_BaseMutableSet[_T]):
     """A set that preserves insertion order."""
 
-    _data: Dict[_T, None]  # type: ignore
+    _data: Dict[_T, None]  # type: ignore  # pragma: no cover
 
     def __init__(self, iterable: Iterable[_T] = ()):
         self._data = {}
