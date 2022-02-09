@@ -305,7 +305,7 @@ class SignalInstance:
     def __repr__(self) -> str:
         """Return repr."""
         name = f" {self.name!r}" if self.name else ""
-        instance = f" on {self.instance!r}" if self.instance else ""
+        instance = f" on {self.instance!r}" if self.instance is not None else ""
         return f"<{type(self).__name__}{name}{instance}>"
 
     @overload
@@ -557,10 +557,7 @@ class SignalInstance:
         """Get index of `slot` in `self._slots`.  Return -1 if not connected."""
         with self._lock:
             normed = _normalize_slot(slot)
-            for i, (s, m) in enumerate(self._slots):
-                if s == normed:
-                    return i
-            return -1
+            return next((i for i, s in enumerate(self._slots) if s[0] == normed), -1)
 
     def disconnect(
         self, slot: Optional[NormedCallback] = None, missing_ok: bool = True
@@ -667,7 +664,7 @@ class SignalInstance:
                 raise TypeError(
                     f"Cannot emit args {args} from signal {self!r} with "
                     f"signature {self.signature}:\n{e}"
-                )
+                ) from e
 
         if check_types and not _parameter_types_match(
             lambda: None, self.signature, _build_signature(*(type(a) for a in args))

@@ -1,7 +1,7 @@
 from unittest.mock import Mock, call
 
 from psygnal import Signal
-from psygnal.utils import debug_events
+from psygnal.utils import monitor_events
 
 
 def test_event_debugger(capsys):
@@ -15,7 +15,7 @@ def test_event_debugger(capsys):
 
     assert not m.sig._slots
 
-    with debug_events(m, _logger):
+    with monitor_events(m, _logger):
         assert len(m.sig._slots) == 1
         m.sig.emit(1, 2)
         m.sig.emit(3, 4)
@@ -24,7 +24,7 @@ def test_event_debugger(capsys):
     _logger.assert_has_calls([call("sig", (1, 2)), call("sig", (3, 4))])
     assert not m.sig._slots
 
-    with debug_events(m):
+    with monitor_events(m):
         m.sig.emit(1, 2)
         m.sig.emit(3, 4)
 
