@@ -1,17 +1,6 @@
 from enum import Enum
 from itertools import chain
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Dict,
-    Iterable,
-    Iterator,
-    MutableSet,
-    Set,
-    Tuple,
-    TypeVar,
-    Union,
-)
+from typing import Any, Dict, Iterable, Iterator, MutableSet, Set, Tuple, TypeVar, Union
 
 from typing_extensions import Final, Literal
 
@@ -171,7 +160,7 @@ class _BaseMutableSet(MutableSet[_T]):
 
 
 class OrderedSet(_BaseMutableSet[_T]):
-    """A set that preserves insertion order."""
+    """A set that preserves insertion order, uses dict behind the scenes."""
 
     _data: Dict[_T, None]  # type: ignore  # pragma: no cover
 
@@ -191,13 +180,39 @@ class OrderedSet(_BaseMutableSet[_T]):
         return f"{self.__class__.__name__}(({inner}))"
 
 
-if TYPE_CHECKING:  # sourcery skip: assign-if-exp
-    _Base = _BaseMutableSet
-else:
-    _Base = object
+class EventedSet(_BaseMutableSet[_T]):
+    """A set with an `items_changed` signal that emits when items are added/removed.
 
+    Parameters
+    ----------
+    iterable : iterable of Any, optional
+        Data to populate the set.  If omitted, an empty set is created.
 
-class _EventedMixin(_Base):
+    Attributes
+    ----------
+    items_changed : SignalInstance
+        A signal that will emitted whenever an item or items are added or removed.
+        Connected callbacks will be called with `callback(added, removed)`, where
+        `added` and `removed` are tuples containing the objects that have been
+        added or removed from the set.
+
+    Examples
+    --------
+    >>> from psygnal.containers import EventedSet
+    >>>
+    >>> my_set = EventedSet([1, 2, 3])
+    >>> my_set.items_changed.connect(lambda a, r: print(f"added={a}, removed={r}"))
+    >>> my_set.update({3, 4, 5})
+    added=(4, 5), removed=()
+
+    Multi-item events will be reduced into a single emission:
+    >>> my_set.symmetric_difference_update({4, 5, 6, 7})
+    added=(6, 7), removed=(4, 5)
+
+    >>> my_set
+    EventedSet({1, 2, 3, 6, 7})
+    """
+
     items_changed = Signal(tuple, tuple)
 
     def update(self, *others: Iterable[_T]) -> None:
@@ -244,40 +259,6 @@ class _EventedMixin(_Base):
     def _emit_change(self, added: Tuple[_T, ...], removed: Tuple[_T, ...]) -> None:
         """Emit a change event."""
         self.items_changed.emit(added, removed)
-
-
-class EventedSet(_EventedMixin, _BaseMutableSet[_T]):
-    """A set with an `items_changed` signal that emits when items are added/removed.
-
-    Parameters
-    ----------
-    iterable : iterable of Any, optional
-        Data to populate the set.  If omitted, an empty set is created.
-
-    Attributes
-    ----------
-    items_changed : SignalInstance
-        A signal that will emitted whenever an item or items are added or removed.
-        Connected callbacks will be called with `callback(added, removed)`, where
-        `added` and `removed` are tuples containing the objects that have been
-        added or removed from the set.
-
-    Examples
-    --------
-    >>> from psygnal.containers import EventedSet
-    >>>
-    >>> my_set = EventedSet([1, 2, 3])
-    >>> my_set.items_changed.connect(lambda a, r: print(f"added={a}, removed={r}"))
-    >>> my_set.update({3, 4, 5})
-    added=(4, 5), removed=()
-
-    Multi-item events will be reduced into a single emission:
-    >>> my_set.symmetric_difference_update({4, 5, 6, 7})
-    added=(6, 7), removed=(4, 5)
-
-    >>> my_set
-    EventedSet({1, 2, 3, 6, 7})
-    """
 
 
 class EventedOrderedSet(EventedSet, OrderedSet[_T]):
