@@ -36,6 +36,7 @@ from typing import (
 
 from .._group import EmissionInfo, SignalGroup
 from .._signal import Signal, SignalInstance
+from ..utils import iter_signal_instances
 
 _T = TypeVar("_T")
 Index = Union[int, slice]
@@ -380,12 +381,12 @@ class EventedList(MutableSequence[_T]):
 
     def _connect_child_emitters(self, child: _T) -> None:
         """Connect all events from the child to be reemitted."""
-        for emitter in _iter_emitters(child):
+        for emitter in iter_signal_instances(child):
             emitter.connect(self._reemit_child_event)
 
     def _disconnect_child_emitters(self, child: _T) -> None:
         """Disconnect all events from the child from the reemitter."""
-        for emitter in _iter_emitters(child):
+        for emitter in iter_signal_instances(child):
             emitter.disconnect(self._reemit_child_event)
 
     def _reemit_child_event(self, *args: Any) -> None:
@@ -407,11 +408,3 @@ class EventedList(MutableSequence[_T]):
             emitter, args = args[0]
 
         self.events.child_event.emit(idx, obj, emitter, args)
-
-
-def _iter_emitters(obj: Any) -> Iterable[Union[SignalGroup, SignalInstance]]:
-    for n in dir(obj):
-        if not n.startswith("_"):
-            attr = getattr(obj, n)
-            if isinstance(attr, SignalInstance):
-                yield attr
