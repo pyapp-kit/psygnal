@@ -2,7 +2,12 @@ from functools import partial
 from typing import Any, Dict, Generic, List, TypeVar
 from weakref import finalize
 
-from wrapt import ObjectProxy
+try:
+    from wrapt import ObjectProxy
+except ImportError as e:
+    raise type(e)(
+        f"{e}. Please `pip install psygnal[proxy]` to use EventedObjectProxies"
+    ) from e
 
 from .._group import SignalGroup
 from .._signal import Signal
