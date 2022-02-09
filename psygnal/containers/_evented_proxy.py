@@ -40,7 +40,7 @@ _OBJ_CACHE: Dict[int, Events] = {}
 
 class _EventedObjectProxy(ObjectProxy, Generic[T]):  # type: ignore
     @property
-    def events(self) -> Events:
+    def events(self) -> Events:  # pragma: no cover # unclear why
         obj_id = id(self)
         if obj_id not in _OBJ_CACHE:
             _OBJ_CACHE[obj_id] = Events()
@@ -131,7 +131,7 @@ class _EventedObjectProxy(ObjectProxy, Generic[T]):  # type: ignore
 
 class _EventedCallableObjectProxy(_EventedObjectProxy):
     @property
-    def events(self) -> CallableEvents:
+    def events(self) -> CallableEvents:  # pragma: no cover # unclear why
         obj_id = id(self)
         if obj_id not in _OBJ_CACHE:
             _OBJ_CACHE[obj_id] = CallableEvents()
