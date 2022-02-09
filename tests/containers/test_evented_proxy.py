@@ -119,7 +119,7 @@ def test_numpy_proxy():
     mock = Mock()
     with monitor_events(t.events, mock):
         t[0] = 2
-        name, (key, value) = mock.call_args.args
+        ((name, (key, value)), _) = tuple(mock.call_args)
         assert name == "item_set"
         assert key == 0
         assert np.array_equal(value, [2, 2, 2, 2])
@@ -127,7 +127,7 @@ def test_numpy_proxy():
 
         t[2:] = np.arange(8).reshape(2, 4)
 
-        name, (key, value) = mock.call_args.args
+        ((name, (key, value)), _) = tuple(mock.call_args)
         assert name == "item_set"
         assert key == slice(2, None, None)
         assert np.array_equal(value, [[0, 1, 2, 3], [4, 5, 6, 7]])
