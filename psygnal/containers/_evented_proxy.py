@@ -16,7 +16,7 @@ T = TypeVar("T")
 _UNSET = object()
 
 
-class Events(SignalGroup):
+class ProxyEvents(SignalGroup):
     """ObjectProxy events."""
 
     attribute_set = Signal(str, object)
@@ -26,7 +26,7 @@ class Events(SignalGroup):
     in_place = Signal(str, object)
 
 
-class CallableEvents(Events):
+class CallableProxyEvents(ProxyEvents):
     """CallableObjectProxy events."""
 
     called = Signal(tuple, dict)
@@ -35,15 +35,15 @@ class CallableEvents(Events):
 # we're using a cache instead of setting the events object directly on the proxy
 # because when wrapt is compiled as a C extensions, the ObjectProxy is not allowed
 # to add any new attributes.
-_OBJ_CACHE: Dict[int, Events] = {}
+_OBJ_CACHE: Dict[int, ProxyEvents] = {}
 
 
 class _EventedObjectProxy(ObjectProxy, Generic[T]):  # type: ignore
     @property
-    def events(self) -> Events:  # pragma: no cover # unclear why
+    def events(self) -> ProxyEvents:  # pragma: no cover # unclear why
         obj_id = id(self)
         if obj_id not in _OBJ_CACHE:
-            _OBJ_CACHE[obj_id] = Events()
+            _OBJ_CACHE[obj_id] = ProxyEvents()
             finalize(self, partial(_OBJ_CACHE.pop, obj_id, None))
         return _OBJ_CACHE[obj_id]
 
@@ -131,10 +131,10 @@ class _EventedObjectProxy(ObjectProxy, Generic[T]):  # type: ignore
 
 class _EventedCallableObjectProxy(_EventedObjectProxy):
     @property
-    def events(self) -> CallableEvents:  # pragma: no cover # unclear why
+    def events(self) -> CallableProxyEvents:  # pragma: no cover # unclear why
         obj_id = id(self)
         if obj_id not in _OBJ_CACHE:
-            _OBJ_CACHE[obj_id] = CallableEvents()
+            _OBJ_CACHE[obj_id] = CallableProxyEvents()
             finalize(self, partial(_OBJ_CACHE.pop, obj_id, None))
         return _OBJ_CACHE[obj_id]  # type: ignore
 
