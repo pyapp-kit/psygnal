@@ -7,6 +7,7 @@ build-backend = "setuptools.build_meta"
 skip = ["*-win32", "pp*"]
 test-extras = ["testing"]
 test-command = "pytest {project}/tests -v"
+test-skip = "*-musllinux* *-manylinux_i686"
 
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]
