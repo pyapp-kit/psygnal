@@ -1,8 +1,11 @@
-from typing import Generic, Iterable, Optional, Set, TypeVar
+from typing import TYPE_CHECKING, Generic, Set, TypeVar
 
 from .._group import SignalGroup
 from .._signal import Signal
 from ._evented_set import EventedSet
+
+if TYPE_CHECKING:
+    from typing import Iterable, Optional
 
 _T = TypeVar("_T")
 _S = TypeVar("_S")
@@ -23,12 +26,13 @@ class SelectionEvents(SignalGroup):
     """
 
     changed = Signal(Set[_T])
-    active = Signal(_T)
-    _current = Signal(_T)
+    active = Signal(object)
+    _current = Signal(object)
 
 
 class Selection(EventedSet[_T]):
     """An model of selected items, with a `active` and `current` item.
+
     There can only be one `active` and one `current` item, but there can be
     multiple selected items.  An "active" item is defined as a single selected
     item (if multiple items are selected, there is no active item).  The
@@ -42,10 +46,12 @@ class Selection(EventedSet[_T]):
     for example, requires a current item.
     This pattern mimics current/selected items from Qt:
     https://doc.qt.io/qt-5/model-view-programming.html#current-item-and-selected-items
+
     Parameters
     ----------
     data : iterable, optional
         Elements to initialize the set with.
+
     Attributes
     ----------
     active : Any, optional
@@ -68,7 +74,7 @@ class Selection(EventedSet[_T]):
 
     def __init__(self, data: Iterable[_T] = ()):
         self._active: Optional[_T] = None
-        self._current_ = None
+        self._current_: Optional[_T] = None
         super().__init__(iterable=data)
         self.events = SelectionEvents()
         self.events.changed.connect(self._update_active)
@@ -87,7 +93,7 @@ class Selection(EventedSet[_T]):
         return self._current_
 
     @_current.setter
-    def _current(self, value: Optional[_T]):
+    def _current(self, value: Optional[_T]) -> None:
         """Set current item."""
         if value == self._current_:
             return
@@ -100,7 +106,7 @@ class Selection(EventedSet[_T]):
         return self._active
 
     @active.setter
-    def active(self, value: Optional[_T]):
+    def active(self, value: Optional[_T]) -> None:
         """Set the active item.
 
         This makes `value` the only selected item, and makes it current.
@@ -112,9 +118,10 @@ class Selection(EventedSet[_T]):
         self._current = value
         self.events.active.emit(value)
 
-    def _update_active(self):
+    def _update_active(self) -> None:
         """On a selection event, update the active item based on selection.
-        (An active item is a single selected item).
+
+        An active item is a single selected item.
         """
         if len(self) == 1:
             self.active = list(self)[0]
@@ -128,26 +135,22 @@ class Selection(EventedSet[_T]):
             self._current = None
         super().clear()
 
-    def toggle(self, obj: _T):
+    def toggle(self, obj: _T) -> None:
         """Toggle selection state of obj."""
         self.symmetric_difference_update({obj})
 
-    def select_only(self, obj: _T):
+    def select_only(self, obj: _T) -> None:
         """Unselect everything but `obj`. Add to selection if not present."""
         self.intersection_update({obj})
         self.add(obj)
-
-    @classmethod
-    def __get_validators__(cls):
-        yield cls.validate
 
 
 class Selectable(Generic[_S]):
     """Mixin that adds a selection model to an object."""
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, **kwargs) -> None:  # type: ignore
         self._selection: Selection[_S] = Selection()
-        super().__init__(*args, **kwargs)  # type: ignore
+        super().__init__(*args, **kwargs)
 
     @property
     def selection(self) -> Selection[_S]:
