@@ -1,12 +1,9 @@
-from typing import TYPE_CHECKING, Generic, Iterable, Optional, TypeVar, Set
+from typing import Generic, Iterable, Optional, TypeVar, Set
 
 from ._evented_set import EventedSet
 
-from .._group import EmissionInfo, SignalGroup
-from .._signal import Signal, SignalInstance
-
-if TYPE_CHECKING:
-    from pydantic.fields import ModelField
+from .._group import SignalGroup
+from .._signal import Signal
 
 _T = TypeVar("_T")
 _S = TypeVar("_S")
@@ -71,13 +68,13 @@ class Selection(EventedSet[_T]):
     def __init__(self, data: Iterable[_T] = ()):
         self._active: Optional[_T] = None
         self._current_ = None
-        super().__init__(data=data)
+        super().__init__(iterable=data)
         self.events = SelectionEvents()
         self.events.changed.connect(self._update_active)
         self._update_active()
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({repr(self._set)})"
+        return f"{type(self).__name__}({repr(self._active)})"
 
     def __hash__(self) -> int:
         """Make selection hashable."""
@@ -143,54 +140,54 @@ class Selection(EventedSet[_T]):
     def __get_validators__(cls):
         yield cls.validate
 
-    @classmethod
-    def validate(cls, v, field: 'ModelField'):
-        """Pydantic validator."""
-        from pydantic.utils import sequence_like
-
-        if isinstance(v, dict):
-            data = v.get("selection", [])
-            current = v.get("_current", None)
-        elif isinstance(v, Selection):
-            data = v._set
-            current = v._current
-        else:
-            data = v
-            current = None
-
-        if not sequence_like(data):
-            raise TypeError('Value is not a valid sequence: {data}')
-
-        # no type parameter was provided, just return
-        if not field.sub_fields:
-            obj = cls(data=data)
-            obj._current_ = current
-            return obj
-
-        # Selection[type] parameter was provided.  Validate contents
-        type_field = field.sub_fields[0]
-        errors = []
-        for i, v_ in enumerate(data):
-            _, error = type_field.validate(v_, {}, loc=f'[{i}]')
-            if error:
-                errors.append(error)
-        if current is not None:
-            _, error = type_field.validate(current, {}, loc='current')
-            if error:
-                errors.append(error)
-
-        if errors:
-            from pydantic import ValidationError
-
-            raise ValidationError(errors, cls)  # type: ignore
-        obj = cls(data=data)
-        obj._current_ = current
-        return obj
-
-    def _json_encode(self):
-        """Return an object that can be used by json.dumps."""
-        # we don't serialize active, as it's gleaned from the selection.
-        return {'selection': super()._json_encode(), '_current': self._current}
+    # @classmethod
+    # def validate(cls, v, field: 'ModelField'):
+    #     """Pydantic validator."""
+    #     from pydantic.utils import sequence_like
+    #
+    #     if isinstance(v, dict):
+    #         data = v.get("selection", [])
+    #         current = v.get("_current", None)
+    #     elif isinstance(v, Selection):
+    #         data = v._set
+    #         current = v._current
+    #     else:
+    #         data = v
+    #         current = None
+    #
+    #     if not sequence_like(data):
+    #         raise TypeError('Value is not a valid sequence: {data}')
+    #
+    #     # no type parameter was provided, just return
+    #     if not field.sub_fields:
+    #         obj = cls(data=data)
+    #         obj._current_ = current
+    #         return obj
+    #
+    #     # Selection[type] parameter was provided.  Validate contents
+    #     type_field = field.sub_fields[0]
+    #     errors = []
+    #     for i, v_ in enumerate(data):
+    #         _, error = type_field.validate(v_, {}, loc=f'[{i}]')
+    #         if error:
+    #             errors.append(error)
+    #     if current is not None:
+    #         _, error = type_field.validate(current, {}, loc='current')
+    #         if error:
+    #             errors.append(error)
+    #
+    #     if errors:
+    #         from pydantic import ValidationError
+    #
+    #         raise ValidationError(errors, cls)  # type: ignore
+    #     obj = cls(data=data)
+    #     obj._current_ = current
+    #     return obj
+    #
+    # def _json_encode(self):
+    #     """Return an object that can be used by json.dumps."""
+    #     # we don't serialize active, as it's gleaned from the selection.
+    #     return {'selection': super()._json_encode(), '_current': self._current}
 
 
 class Selectable(Generic[_S]):
