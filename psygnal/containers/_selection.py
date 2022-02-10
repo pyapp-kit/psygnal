@@ -75,7 +75,7 @@ class Selection(EventedSet[_T]):
         self._update_active()
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({repr(self._active)})"
+        return f"{type(self).__name__}({repr(self._data)})"
 
     def __hash__(self) -> int:
         """Make selection hashable."""
