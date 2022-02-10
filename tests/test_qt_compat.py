@@ -4,7 +4,7 @@ import pytest
 from psygnal import Signal
 from psygnal._signal import _guess_qtsignal_signature
 
-pytest.importorskip("pytest_qt")
+pytest.importorskip("pytestqt")
 
 
 def is_(*val):
