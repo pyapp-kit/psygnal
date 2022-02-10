@@ -1,5 +1,25 @@
 # Changelog
 
+## [v0.3.0](https://github.com/tlambert03/psygnal/tree/v0.3.0) (2022-02-10)
+
+[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.2.0...v0.3.0)
+
+**Implemented enhancements:**
+
+- Add EventedObjectProxy [\#62](https://github.com/tlambert03/psygnal/pull/62) ([tlambert03](https://github.com/tlambert03))
+- Misc small changes, add iter\_signal\_instances to utils [\#61](https://github.com/tlambert03/psygnal/pull/61) ([tlambert03](https://github.com/tlambert03))
+- Add EventedSet and EventedOrderedSet [\#59](https://github.com/tlambert03/psygnal/pull/59) ([tlambert03](https://github.com/tlambert03))
+- add SignalGroup blocked context manager, improve inheritance, and fix strong refs [\#57](https://github.com/tlambert03/psygnal/pull/57) ([tlambert03](https://github.com/tlambert03))
+- Add evented list \(more evented containers coming\) [\#56](https://github.com/tlambert03/psygnal/pull/56) ([tlambert03](https://github.com/tlambert03))
+- add debug\_events util \(later changed to `monitor_events`\) [\#55](https://github.com/tlambert03/psygnal/pull/55) ([tlambert03](https://github.com/tlambert03))
+- support Qt SignalInstance Emit [\#49](https://github.com/tlambert03/psygnal/pull/49) ([tlambert03](https://github.com/tlambert03))
+- Add SignalGroup [\#42](https://github.com/tlambert03/psygnal/pull/42) ([tlambert03](https://github.com/tlambert03))
+
+**Tests & CI:**
+
+- add typesafety tests to evented containers [\#60](https://github.com/tlambert03/psygnal/pull/60) ([tlambert03](https://github.com/tlambert03))
+- deal with changing API in benchmarks [\#43](https://github.com/tlambert03/psygnal/pull/43) ([tlambert03](https://github.com/tlambert03))
+
 ## [v0.2.0](https://github.com/tlambert03/psygnal/tree/v0.2.0) (2021-11-07)
 
 [Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.1.4...v0.2.0)
