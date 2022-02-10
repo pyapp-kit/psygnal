@@ -59,6 +59,7 @@ class Selection(EventedSet[_T]):
     _current : Any, optional
         The current item, if any.  This is used primarily by GUI views when
         handling mouse/key events.
+
     Events
     ------
     changed (added: Set[_T], removed: Set[_T])
