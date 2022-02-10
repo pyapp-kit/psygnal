@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.cibuildwheel]
 # Skip 32-bit builds & PyPy wheels on all platforms
-skip = ["*-win32", "pp*"]
+skip = ["*-win32", "pp*", '*-manylinux_i686']
 test-extras = ["testing"]
 test-command = "pytest {project}/tests -v"
 
