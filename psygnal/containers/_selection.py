@@ -1,8 +1,8 @@
-from typing import Generic, Iterable, Optional, TypeVar, Set
+from typing import Generic, Iterable, Optional, Set, TypeVar
 
-from ._evented_set import EventedSet
 from .._group import SignalGroup
 from .._signal import Signal
+from ._evented_set import EventedSet
 
 _T = TypeVar("_T")
 _S = TypeVar("_S")
@@ -21,6 +21,7 @@ class SelectionEvents(SignalGroup):
     _current (value: _T)
         emitted when the current item has changed. (Private event)
     """
+
     changed = Signal(Set[_T])
     active = Signal(_T)
     _current = Signal(_T)
@@ -62,6 +63,7 @@ class Selection(EventedSet[_T]):
     _current (value: _T)
         emitted when the current item has changed. (Private event)
     """
+
     events: SelectionEvents  # pragma: no cover
 
     def __init__(self, data: Iterable[_T] = ()):
