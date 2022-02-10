@@ -30,7 +30,7 @@ jobs:
       - name: install
         run: |
           python -m pip install -U wheel pip
-          pip install -e .[testing,build]
+          pip install -e .[testing,testingqt,build]
         env:
           SKIP_CYTHON: 1
 
@@ -93,7 +93,7 @@ jobs:
       - name: install
         run: |
           python -m pip install -U wheel pip
-          pip install -e .[testing,build]
+          pip install -e .[testing,testingqt,build]
 
       - name: test
         run: pytest --color=yes --cov=psygnal --cov-report=xml

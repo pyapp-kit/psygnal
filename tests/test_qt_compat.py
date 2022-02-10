@@ -1,13 +1,10 @@
 """qtbot should work for testing!"""
-import os
-
 import pytest
 
 from psygnal import Signal
 from psygnal._signal import _guess_qtsignal_signature
 
-if os.getenv("CIBUILDWHEEL") == "1":
-    pytest.skip(reason="skip on CIBUILDWHEEL", allow_module_level=True)
+pytest.importorskip("pytest_qt")
 
 
 def is_(*val):
