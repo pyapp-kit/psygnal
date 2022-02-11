@@ -116,17 +116,17 @@ jobs:
 
       - uses: actions/setup-python@v2
         with:
-          python-version: "3.x"
+          python-version: "3.9"
 
       - name: install
         run: |
           python -m pip install -U pip
           pip install -e .
-          pip install -e ./magicgui[testing]
-          pip install PyQt5
+          pip install -e ./magicgui[testing,pyqt5]
 
       - name: test
-        run: pytest magicgui/tests
+        run: pytest -v
+        working-directory: magicgui
 
 
   build:
