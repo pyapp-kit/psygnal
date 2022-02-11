@@ -116,6 +116,7 @@ jobs:
       - uses: actions/checkout@v2
         with:
           repository: napari/magicgui
+          path: magicgui
 
       - uses: actions/setup-python@v2
         with:
@@ -124,13 +125,13 @@ jobs:
       - name: install
         run: |
           python -m pip install -U pip
-          pip install -e .[testing,pyside2]
-          pip install -e ./psygnal
+          pip install -e magicgui[testing,pyside2]
+          pip install -e psygnal
 
       - name: test magicgui
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: python -m pytest -v --color=yes
+          run: python -m pytest magicgui/tests -v --color=yes
 
 
   build:
