@@ -103,6 +103,31 @@ jobs:
         with:
           fail_ci_if_error: true
 
+  test-magicgui:
+    name: test magicgui
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
+        with:
+          repository: napari/magicgui
+          path: magicgui
+
+      - uses: actions/setup-python@v2
+        with:
+          python-version: "3.x"
+
+      - name: install
+        run: |
+          python -m pip install -U pip
+          pip install -e .
+          pip install -e ./magicgui[testing]
+
+      - name: test
+        run: pytest magicgui/tests
+
+
   build:
     name: Build wheels on ${{ matrix.os }}
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
