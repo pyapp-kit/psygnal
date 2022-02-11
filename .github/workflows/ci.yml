@@ -123,7 +123,7 @@ jobs:
           python -m pip install -U pip
           pip install -e .
           pip install -e ./magicgui[testing]
-          pip install PySide2
+          pip install PyQt5
 
       - name: test
         run: pytest magicgui/tests
