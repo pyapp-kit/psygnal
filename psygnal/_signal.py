@@ -520,21 +520,14 @@ class SignalInstance:
 
         Also returns the maximum number of arguments that we can pass to the slot
         """
-        maxargs: Optional[int]
-        str_sig = _guess_qtsignal_signature(slot)
-        if str_sig is not None and "(" in str_sig:
-            inner = str_sig.split("(", 1)[1].split(")", 1)[0]
-            minargs = maxargs = inner.count(",") + 1 if inner else 0
-            slot_sig = None
-        else:
-            try:
-                slot_sig = signature(slot)
-            except ValueError as e:
-                warnings.warn(
-                    f"{e}. To silence this warning, connect with " "`check_nargs=False`"
-                )
-                return None, None
-            minargs, maxargs = _acceptable_posarg_range(slot_sig)
+        try:
+            slot_sig = _get_signature_possibly_qt(slot)
+        except ValueError as e:
+            warnings.warn(
+                f"{e}. To silence this warning, connect with " "`check_nargs=False`"
+            )
+            return None, None
+        minargs, maxargs = _acceptable_posarg_range(slot_sig)
 
         n_spec_params = len(spec.parameters)
         # if `slot` requires more arguments than we will provide, raise.
@@ -544,7 +537,8 @@ class SignalInstance:
                 f"arguments, but spec only provides {n_spec_params}"
             )
             self._raise_connection_error(slot, extra)
-        return slot_sig, maxargs
+        _sig = None if isinstance(slot_sig, str) else slot_sig
+        return _sig, maxargs
 
     def _raise_connection_error(self, slot: Callable, extra: str = "") -> NoReturn:
         name = getattr(slot, "__name__", str(slot))
@@ -899,7 +893,7 @@ def signature(obj: Any) -> inspect.Signature:
                 return _stub_sig(obj)
         except Exception:
             pass
-        raise e
+        raise e from e
 
 
 @lru_cache()
@@ -947,8 +941,16 @@ def _normalize_slot(slot: Union[Callable, NormedCallback]) -> NormedCallback:
 # g: kind=VAR_KEYWORD,           default=Parameter.empty    # N optional kwargs
 
 
+def _get_signature_possibly_qt(slot: Callable) -> Union[Signature, str]:
+    # checking qt has to come first, since the signature of the emit method
+    # of a Qt SignalInstance is just <Signature (*args: typing.Any) -> None>
+    # https://bugreports.qt.io/browse/PYSIDE-1713
+    sig = _guess_qtsignal_signature(slot)
+    return signature(slot) if sig is None else sig
+
+
 def _acceptable_posarg_range(
-    sig: Signature, forbid_required_kwarg: bool = True
+    sig: Union[Signature, str], forbid_required_kwarg: bool = True
 ) -> Tuple[int, Optional[int]]:
     """Return tuple of (min, max) accepted positional arguments.
 
@@ -970,6 +972,12 @@ def _acceptable_posarg_range(
         If the signature has a required keyword_only parameter and
         `forbid_required_kwarg` is `True`.
     """
+    if isinstance(sig, str):
+        assert "(" in sig, f"Unrecognized string signature format: {sig}"
+        inner = sig.split("(", 1)[1].split(")", 1)[0]
+        minargs = maxargs = inner.count(",") + 1 if inner else 0
+        return minargs, maxargs
+
     required = 0
     optional = 0
     posargs_unlimited = False
@@ -1079,17 +1087,19 @@ def _guess_qtsignal_signature(obj: Any) -> Optional[str]:
     https://bugreports.qt.io/browse/PYSIDE-1713
     """
     # on my machine, this takes ~700ns on PyQt5 and 8.7µs on PySide2
-    _repr = repr(obj)
-    if "built-in method emit of" in _repr:
-        if ".pyqtBoundSignal" in _repr:
-            return cast(str, obj.__self__.signal)
-
+    type_ = type(obj)
+    if "pyqtBoundSignal" in type_.__name__:
+        return cast(str, obj.signal)
+    qualname = getattr(obj, "__qualname__", "")
+    if qualname == "pyqtBoundSignal.emit":
+        return cast(str, obj.__self__.signal)
+    if qualname == "SignalInstance.emit" and type_.__name__.startswith("builtin"):
         # we likely have the emit method of a SignalInstance
         # call it with ridiculous params to get the err
-        return _ridiculously_call_emit(obj)
-    if "bound PYQT_SIGNAL" in _repr:
-        return cast(str, obj.signal)
-    if "QtCore.SignalInstance" in _repr and hasattr(obj, "emit"):
+        return _ridiculously_call_emit(obj.__self__.emit)
+    if "SignalInstance" in type_.__name__ and "QtCore" in getattr(
+        type_, "__module__", ""
+    ):
         return _ridiculously_call_emit(obj.emit)
     return None
 
