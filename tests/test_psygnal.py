@@ -689,3 +689,21 @@ def test_property_connect():
 
     with pytest.raises(AttributeError):
         emitter.one_int.connect_setattr(a, "y")
+
+
+def test_repr_not_used():
+    """Test that we don't use repr() or __call__ to check signature."""
+    mock = MagicMock()
+
+    class T:
+        def __repr__(self):
+            mock()
+            return "<REPR>"
+
+        def __call__(self):
+            mock()
+
+    t = T()
+    sig = SignalInstance()
+    sig.connect(t)
+    mock.assert_not_called()
