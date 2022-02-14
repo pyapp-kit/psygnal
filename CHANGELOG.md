@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.3.3](https://github.com/tlambert03/psygnal/tree/v0.3.3) (2022-02-14)
+
+[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.3.2...v0.3.3)
+
+**Merged pull requests:**
+
+- Used custom tuple for cython compatibility [\#69](https://github.com/tlambert03/psygnal/pull/69) ([tlambert03](https://github.com/tlambert03))
+
 ## [v0.3.2](https://github.com/tlambert03/psygnal/tree/v0.3.2) (2022-02-14)
 
 [Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.3.1...v0.3.2)
