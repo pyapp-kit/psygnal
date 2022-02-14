@@ -8,28 +8,30 @@ the args that were emitted.
 
 """
 from contextlib import contextmanager
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    Iterator,
-    NamedTuple,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import Any, Callable, Dict, Iterable, Iterator, Optional, Tuple, Union
 
 from psygnal._signal import Signal, SignalInstance
 
 __all__ = ["EmissionInfo", "SignalGroup"]
 
 
-class EmissionInfo(NamedTuple):
+# this is a variant of a NamedTuple that works with Cython<3.0a7
+class EmissionInfo(tuple):
     """Tuple containing information about an emission event."""
 
     signal: SignalInstance
     args: Tuple[Any, ...]
+
+    def __new__(cls, signal: SignalInstance, args: Tuple[Any, ...]) -> "EmissionInfo":
+        """Create new object."""
+        obj = tuple.__new__(cls, (signal, args))
+        obj.signal = signal
+        obj.args = args
+        return obj
+
+    def __repr__(self) -> str:  # pragma: no cover
+        """Return repr(self)."""
+        return f"EmissionInfo(signal={self.signal}, args={self.args})"
 
 
 class _SignalGroupMeta(type):
