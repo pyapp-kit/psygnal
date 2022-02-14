@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.3.2](https://github.com/tlambert03/psygnal/tree/v0.3.2) (2022-02-14)
+
+[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.3.1...v0.3.2)
+
+**Implemented enhancements:**
+
+- work with older cython [\#67](https://github.com/tlambert03/psygnal/pull/67) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- generate gh release in CI [\#68](https://github.com/tlambert03/psygnal/pull/68) ([tlambert03](https://github.com/tlambert03))
+
 ## [v0.3.1](https://github.com/tlambert03/psygnal/tree/v0.3.1) (2022-02-12)
 
 [Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.3.0...v0.3.1)
