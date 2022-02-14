@@ -59,16 +59,6 @@ class Selection(EventedSet[_T]):
     _current : Any, optional
         The current item, if any.  This is used primarily by GUI views when
         handling mouse/key events.
-
-    Events
-    ------
-    changed (added: Set[_T], removed: Set[_T])
-        Emitted when the set changes, includes item(s) that have been added
-        and/or removed from the set.
-    active (value: _T)
-        emitted when the current item has changed.
-    _current (value: _T)
-        emitted when the current item has changed. (Private event)
     """
 
     events: SelectionEvents  # pragma: no cover
