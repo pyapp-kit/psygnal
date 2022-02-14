@@ -181,3 +181,7 @@ jobs:
         with:
           user: __token__
           password: ${{ secrets.pypi_token }}
+
+      - uses: softprops/action-gh-release@v1
+        with:
+          generate_release_notes: true
