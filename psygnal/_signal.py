@@ -257,6 +257,7 @@ class SignalInstance:
         "_lock",
         "_check_nargs_on_connect",
         "_check_types_on_connect",
+        "__weakref__",
     )
 
     def __init__(
@@ -415,7 +416,7 @@ class SignalInstance:
                 self._slots.append((_normalize_slot(slot), max_args))
             return slot
 
-        return _wrapper(slot) if slot else _wrapper
+        return _wrapper if slot is None else _wrapper(slot)
 
     def connect_setattr(
         self,
