@@ -5,7 +5,7 @@ from functools import partial, wraps
 from inspect import Signature
 from types import FunctionType
 from typing import Optional
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock, Mock, call
 
 import pytest
 
@@ -707,3 +707,25 @@ def test_repr_not_used():
     sig = SignalInstance()
     sig.connect(t)
     mock.assert_not_called()
+
+
+def test_signal_emit_as_slot():
+    class A:
+        signal1 = Signal(int)
+
+    class B:
+        signal2 = Signal(int)
+
+    mock = Mock()
+    a = A()
+    b = B()
+    a.signal1.connect(b.signal2.emit)
+    b.signal2.connect(mock)
+    a.signal1.emit(1)
+    mock.assert_called_once_with(1)
+
+    mock.reset_mock()
+    a.signal1.disconnect(b.signal2.emit)
+    a.signal1.connect(b.signal2)  # you can also just connect the signal instance
+    a.signal1.emit(2)
+    mock.assert_called_once_with(2)
