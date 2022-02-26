@@ -9,6 +9,8 @@
 
 Pure python implementation of Qt-style Signals, with (optional) signature and type checking, and support for threading.
 
+> Note: this library does _not_ require Qt. It just implements a similar pattern of inter-object communication with loose coupling.
+
 ## Usage
 
 ### Install
