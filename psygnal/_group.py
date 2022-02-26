@@ -7,20 +7,15 @@ tuple, which contains `.signal`: the SignalInstance doing the emitting, and `.ar
 the args that were emitted.
 
 """
+from __future__ import annotations
+
 from contextlib import contextmanager
-from typing import (
-    Any,
-    Callable,
-    Dict,
-    Iterable,
-    Iterator,
-    NamedTuple,
-    Optional,
-    Tuple,
-    Union,
-)
+from typing import TYPE_CHECKING, Callable, NamedTuple, Union
 
 from psygnal._signal import Signal, SignalInstance
+
+if TYPE_CHECKING:
+    from typing import Any, Dict, Iterable, Iterator, Optional, Tuple
 
 __all__ = ["EmissionInfo", "SignalGroup"]
 
@@ -43,7 +38,7 @@ class _SignalGroupMeta(type):
         namespace: dict,
         strict: bool = False,
         **kwargs: Any,
-    ) -> "_SignalGroupMeta":
+    ) -> _SignalGroupMeta:
         cls: _SignalGroupMeta = type.__new__(mcls, name, bases, namespace)
         cls._signals_ = {k: v for k, v in namespace.items() if isinstance(v, Signal)}
         _sigs = {
@@ -232,24 +227,23 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
 
 _doc = SignalGroup.connect.__doc__.split("Parameters")[-1]  # type: ignore
 
-
-SignalGroup.connect.__doc__ = (
+SignalGroup.connect.__doc__ = (  # noqa: E731,E123
     """
-        Connect `slot` to be called whenever *any* Signal in this group is emitted.
+            Connect `slot` to be called whenever *any* Signal in this group is emitted.
 
-        Note that unlike a slot/callback connected to `SignalInstance.connect`, a slot
-        connected to `SignalGroup.connect` does *not* receive the direct arguments that
-        were emitted by a given `SignalInstance` in the group. Instead, the
-        slot/callback will receive an `EmissionInfo` named tuple, which contains
-        `.signal`: the SignalInstance doing the emitting, `.args`: the args that were
-        emitted.
+            Note that unlike a slot/callback connected to `SignalInstance.connect`,
+            a slot connected to `SignalGroup.connect` does *not* receive the direct
+            arguments that were emitted by a given `SignalInstance` in the group.
+            Instead, the slot/callback will receive an `EmissionInfo` named tuple,
+            which contains `.signal`: the SignalInstance doing the emitting, `.args`:
+            the args that were emitted.
 
-        This method may be used as a decorator.
+            This method may be used as a decorator.
 
-            @group.connect
-            def my_function(): ...
+                @group.connect
+                def my_function(): ...
 
-        Parameters
-""".strip()
+            Parameters
+    """.strip()
     + _doc
 )
