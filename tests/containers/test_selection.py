@@ -33,3 +33,14 @@ def test_selection_active_event_emitted_on_selection_change():
     selection.add(1)
     assert selection.active == 1
     selection.events.active.emit.assert_called_once()
+
+
+def test_selection_current_setter():
+    """Current event should only emit if value changes."""
+    selection = Selection()
+    selection._current = 1
+    selection.events._current = Mock()
+    selection._current = 1
+    selection.events._current.emit.assert_not_called()
+    selection._current = 2
+    selection.events._current.emit.assert_called_once()
