@@ -69,7 +69,6 @@ class Selection(EventedSet[_T]):
         self._active: Optional[_T] = None
         self._current_: Optional[_T] = None
         super().__init__(iterable=data)
-        self.events.changed.connect(self._update_active)
         self._update_active()
 
     def __repr__(self) -> str:
@@ -139,6 +138,11 @@ class Selection(EventedSet[_T]):
     def _get_events_class(self) -> SelectionEvents:
         """Override SetEvents with SelectionEvents."""
         return SelectionEvents()
+
+    def _emit_change(self, added: Tuple[_T, ...], removed: Tuple[_T, ...]) -> None:
+        """Emit a change event."""
+        super()._emit_change(added, removed)
+        self._update_active()
 
 
 class Selectable(Generic[_S]):
