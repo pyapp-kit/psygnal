@@ -1,11 +1,13 @@
-from typing import TYPE_CHECKING, Generic, Set, TypeVar
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 from .._group import SignalGroup
 from .._signal import Signal
 from ._evented_set import EventedSet
 
 if TYPE_CHECKING:
-    from typing import Iterable, Optional
+    from typing import Iterable, Optional, Tuple
 
 _T = TypeVar("_T")
 _S = TypeVar("_S")
@@ -63,7 +65,7 @@ class Selection(EventedSet[_T]):
         handling mouse/key events.
     """
 
-    events: SelectionEvents
+    events: SelectionEvents  # type: ignore  # pragma: no cover
 
     def __init__(self, data: Iterable[_T] = ()):
         self._active: Optional[_T] = None
@@ -135,7 +137,7 @@ class Selection(EventedSet[_T]):
         self.intersection_update({obj})
         self.add(obj)
 
-    def _get_events_class(self) -> SelectionEvents:
+    def _get_events_class(self) -> SelectionEvents:  # type: ignore
         """Override SetEvents with SelectionEvents."""
         return SelectionEvents()
 

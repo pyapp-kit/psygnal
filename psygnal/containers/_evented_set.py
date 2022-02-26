@@ -215,7 +215,9 @@ class EventedSet(_BaseMutableSet[_T]):
     >>> from psygnal.containers import EventedSet
     >>>
     >>> my_set = EventedSet([1, 2, 3])
-    >>> my_set.events.items_changed.connect(lambda a, r: print(f"added={a}, removed={r}"))
+    >>> my_set.events.items_changed.connect(
+    >>>     lambda a, r: print(f"added={a}, removed={r}")
+    >>> )
     >>> my_set.update({3, 4, 5})
     added=(4, 5), removed=()
 
@@ -227,7 +229,7 @@ class EventedSet(_BaseMutableSet[_T]):
     EventedSet({1, 2, 3, 6, 7})
     """
 
-    events: SetEvents
+    events: SetEvents  # pragma: no cover
 
     def __init__(self, iterable: Iterable[_T] = ()):
         super().__init__(iterable)
@@ -289,14 +291,6 @@ class EventedOrderedSet(EventedSet, OrderedSet[_T]):
     ----------
     iterable : iterable of Any, optional
         Data to populate the set.  If omitted, an empty set is created.
-
-    Attributes
-    ----------
-    items_changed : SignalInstance
-        A signal that will emitted whenever an item or items are added or removed.
-        Connected callbacks will be called with `callback(added, removed)`, where
-        `added` and `removed` are tuples containing the objects that have been
-        added or removed from the set.
     """
 
 
