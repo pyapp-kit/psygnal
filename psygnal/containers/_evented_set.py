@@ -231,7 +231,7 @@ class EventedSet(_BaseMutableSet[_T]):
 
     def __init__(self, iterable: Iterable[_T] = ()):
         super().__init__(iterable)
-        self._get_events_class()
+        self.events = self._get_events_class()
 
     def update(self, *others: Iterable[_T]) -> None:
         """Update this set with the union of this set and others."""
@@ -278,8 +278,8 @@ class EventedSet(_BaseMutableSet[_T]):
         """Emit a change event."""
         self.events.items_changed.emit(added, removed)
 
-    def _get_events_class(self) -> None:
-        self.events = SetEvents()
+    def _get_events_class(self) -> SetEvents:
+        return SetEvents()
 
 
 class EventedOrderedSet(EventedSet, OrderedSet[_T]):

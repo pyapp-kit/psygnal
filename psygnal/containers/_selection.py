@@ -61,13 +61,12 @@ class Selection(EventedSet[_T]):
         handling mouse/key events.
     """
 
-    events: SelectionEvents  # pragma: no cover
+    events: SelectionEvents
 
     def __init__(self, data: Iterable[_T] = ()):
         self._active: Optional[_T] = None
         self._current_: Optional[_T] = None
         super().__init__(iterable=data)
-        self.events = SelectionEvents()
         self.events.changed.connect(self._update_active)
         self._update_active()
 
@@ -134,6 +133,10 @@ class Selection(EventedSet[_T]):
         """Unselect everything but `obj`. Add to selection if not present."""
         self.intersection_update({obj})
         self.add(obj)
+
+    def _get_events_class(self) -> SelectionEvents:
+        """Override SetEvents with SelectionEvents."""
+        return SelectionEvents()
 
 
 class Selectable(Generic[_S]):
