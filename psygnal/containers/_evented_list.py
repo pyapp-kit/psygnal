@@ -21,13 +21,12 @@ interface, and call one of those 4 methods.  So if you override a method, you
 MUST make sure that all the appropriate events are emitted.  (Tests should
 cover this in test_evented_list.py)
 """
+from __future__ import annotations
 
 from typing import (
-    Any,
+    TYPE_CHECKING,
     Iterable,
-    List,
     MutableSequence,
-    Tuple,
     TypeVar,
     Union,
     cast,
@@ -38,6 +37,8 @@ from .._group import EmissionInfo, SignalGroup
 from .._signal import Signal, SignalInstance
 from ..utils import iter_signal_instances
 
+if TYPE_CHECKING:
+    from typing import Any, List, Tuple
 _T = TypeVar("_T")
 Index = Union[int, slice]
 
@@ -47,9 +48,9 @@ class ListEvents(SignalGroup):
 
     Attributes
     ----------
-    events.inserting (index: int)
+    inserting (index: int)
         emitted before an item is inserted at `index`
-    events.inserted (index: int, value: T)
+    inserted (index: int, value: T)
         emitted after `value` is inserted at `index`
     removing (index: int)
         emitted before an item is removed at `index`
@@ -133,10 +134,10 @@ class EventedList(MutableSequence[_T]):
         ...
 
     @overload
-    def __getitem__(self, key: slice) -> "EventedList[_T]":
+    def __getitem__(self, key: slice) -> EventedList[_T]:
         ...
 
-    def __getitem__(self, key: Index) -> Union[_T, "EventedList[_T]"]:
+    def __getitem__(self, key: Index) -> Union[_T, EventedList[_T]]:
         """Return self[key]."""
         result = self._data[key]
         return self.__newlike__(result) if isinstance(result, list) else result
@@ -174,7 +175,7 @@ class EventedList(MutableSequence[_T]):
             item = parent._data.pop(index)
             self.events.removed.emit(index, item)
 
-    def _delitem_indices(self, key: Index) -> Iterable[Tuple["EventedList[_T]", int]]:
+    def _delitem_indices(self, key: Index) -> Iterable[Tuple[EventedList[_T], int]]:
         # returning (self, int) allows subclasses to pass nested members
         if isinstance(key, int):
             yield (self, key if key >= 0 else key + len(self))
@@ -198,21 +199,21 @@ class EventedList(MutableSequence[_T]):
         if self._child_events:
             self._disconnect_child_emitters(self[index])
 
-    def __newlike__(self, iterable: Iterable[_T]) -> "EventedList[_T]":
+    def __newlike__(self, iterable: Iterable[_T]) -> EventedList[_T]:
         """Return new instance of same class."""
         return self.__class__(iterable)
 
-    def copy(self) -> "EventedList[_T]":
+    def copy(self) -> EventedList[_T]:
         """Return a shallow copy of the list."""
         return self.__newlike__(self)
 
-    def __add__(self, other: Iterable[_T]) -> "EventedList[_T]":
+    def __add__(self, other: Iterable[_T]) -> EventedList[_T]:
         """Add other to self, return new object."""
         copy = self.copy()
         copy.extend(other)
         return copy
 
-    def __iadd__(self, other: Iterable[_T]) -> "EventedList[_T]":
+    def __iadd__(self, other: Iterable[_T]) -> EventedList[_T]:
         """Add other to self in place (self += other)."""
         self.extend(other)
         return self
