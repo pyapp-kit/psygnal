@@ -192,7 +192,7 @@ class SetEvents(SignalGroup):
 
     Attributes
     ----------
-    items_changed : SignalInstance
+    items_changed (added: Tuple[_T], removed: Tuple[_T])
         A signal that will emitted whenever an item or items are added or removed.
         Connected callbacks will be called with `callback(added, removed)`, where
         `added` and `removed` are tuples containing the objects that have been
@@ -215,7 +215,7 @@ class EventedSet(_BaseMutableSet[_T]):
     >>> from psygnal.containers import EventedSet
     >>>
     >>> my_set = EventedSet([1, 2, 3])
-    >>> my_set.items_changed.connect(lambda a, r: print(f"added={a}, removed={r}"))
+    >>> my_set.events.items_changed.connect(lambda a, r: print(f"added={a}, removed={r}"))
     >>> my_set.update({3, 4, 5})
     added=(4, 5), removed=()
 

@@ -16,16 +16,18 @@ class SelectionEvents(SignalGroup):
 
     Attributes
     ----------
-    changed (added: Set[_T], removed: Set[_T])
-        Emitted when the set changes, includes item(s) that have been added
-        and/or removed from the set.
+    items_changed (added: Tuple[_T], removed: Tuple[_T])
+        A signal that will emitted whenever an item or items are added or removed.
+        Connected callbacks will be called with `callback(added, removed)`, where
+        `added` and `removed` are tuples containing the objects that have been
+        added or removed from the set.
     active (value: _T)
         emitted when the current item has changed.
     _current (value: _T)
         emitted when the current item has changed. (Private event)
     """
 
-    changed = Signal(Set[_T])
+    items_changed = Signal(tuple, tuple)
     active = Signal(object)
     _current = Signal(object)
 
