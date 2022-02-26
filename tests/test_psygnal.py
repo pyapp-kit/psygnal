@@ -4,13 +4,16 @@ import weakref
 from functools import partial, wraps
 from inspect import Signature
 from types import FunctionType
-from typing import Optional
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, call
 
 import pytest
 
 from psygnal import Signal, SignalInstance
 from psygnal._signal import _get_method_name, _normalize_slot
+
+if TYPE_CHECKING:
+    from typing import Optional
 
 
 def stupid_decorator(fun):
