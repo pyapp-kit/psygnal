@@ -37,7 +37,7 @@ def test_set_interface_parity(test_set: EventedSet, regular_set: set, meth):
     method_name, arg, expected = meth
     mock = Mock()
 
-    test_set.items_changed.connect(mock)
+    test_set.events.items_changed.connect(mock)
 
     test_set_method = getattr(test_set, method_name)
     assert tuple(test_set) == tuple(regular_set)
@@ -52,7 +52,7 @@ def test_set_interface_parity(test_set: EventedSet, regular_set: set, meth):
 
 def test_set_pop(test_set: EventedSet):
     mock = Mock()
-    test_set.items_changed.connect(mock)
+    test_set.events.items_changed.connect(mock)
 
     npops = len(test_set)
     while test_set:
@@ -68,7 +68,7 @@ def test_set_pop(test_set: EventedSet):
 
 def test_set_clear(test_set: EventedSet):
     mock = Mock()
-    test_set.items_changed.connect(mock)
+    test_set.events.items_changed.connect(mock)
     mock.assert_not_called()
     test_set.clear()
     mock.assert_called_once_with((), (0, 1, 2, 3, 4))
@@ -95,7 +95,7 @@ def test_set_new_objects(test_set: EventedSet, regular_set: set, meth):
     assert tuple(test_set) == tuple(regular_set)
 
     mock = Mock()
-    test_set.items_changed.connect(mock)
+    test_set.events.items_changed.connect(mock)
     regular_set_method = getattr(regular_set, method_name)
     result = test_set_method(arg)
     assert result == regular_set_method(arg)

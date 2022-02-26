@@ -232,8 +232,8 @@ class EventedSet(_BaseMutableSet[_T]):
     events: SetEvents  # pragma: no cover
 
     def __init__(self, iterable: Iterable[_T] = ()):
-        super().__init__(iterable)
         self.events = self._get_events_class()
+        super().__init__(iterable)
 
     def update(self, *others: Iterable[_T]) -> None:
         """Update this set with the union of this set and others."""
