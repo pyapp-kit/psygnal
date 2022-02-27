@@ -44,7 +44,7 @@ jobs:
       - name: test
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: pytest -v --color=yes --cov=psygnal --cov-report=xml  --cov-append
+          run: pytest -v --color=yes
 
       - name: remove compiled binaries
         run: |
@@ -56,7 +56,7 @@ jobs:
       - name: test uncompiled
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: pytest -v --color=yes --cov=psygnal --cov-report=xml --cov-append
+          run: pytest -v --color=yes --cov=psygnal --cov-report=xml --cov-report=term-missing
 
       - name: switch qt backend
         run: |
