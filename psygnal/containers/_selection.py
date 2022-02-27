@@ -2,9 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Generic, TypeVar
 
-from .._group import SignalGroup
 from .._signal import Signal
-from ._evented_set import EventedSet
+from ._evented_set import EventedSet, SetEvents
 
 if TYPE_CHECKING:
     from typing import Iterable, Optional, Tuple
@@ -13,7 +12,7 @@ _T = TypeVar("_T")
 _S = TypeVar("_S")
 
 
-class SelectionEvents(SignalGroup):
+class SelectionEvents(SetEvents):
     """Events available on a Selection.
 
     Attributes
@@ -29,7 +28,6 @@ class SelectionEvents(SignalGroup):
         emitted when the current item has changed. (Private event)
     """
 
-    items_changed = Signal(tuple, tuple)
     active = Signal(object)
     _current = Signal(object)
 
@@ -58,6 +56,8 @@ class Selection(EventedSet[_T]):
 
     Attributes
     ----------
+    events : SelectionEvents
+        SignalGroup that with events related to selection changes. (see SelectionEvents)
     active : Any, optional
         The active item, if any.  An active item is the one being edited.
     _current : Any, optional
@@ -65,7 +65,7 @@ class Selection(EventedSet[_T]):
         handling mouse/key events.
     """
 
-    events: SelectionEvents  # type: ignore  # pragma: no cover
+    events: SelectionEvents  # pragma: no cover
 
     def __init__(self, data: Iterable[_T] = ()):
         self._active: Optional[_T] = None
@@ -74,6 +74,7 @@ class Selection(EventedSet[_T]):
         self._update_active()
 
     def __repr__(self) -> str:
+        """Return repr(self)."""
         return f"{type(self).__name__}({repr(self._data)})"
 
     def __hash__(self) -> int:
@@ -137,7 +138,7 @@ class Selection(EventedSet[_T]):
         self.intersection_update({obj})
         self.add(obj)
 
-    def _get_events_class(self) -> SelectionEvents:  # type: ignore
+    def _get_events_class(self) -> SelectionEvents:
         """Override SetEvents with SelectionEvents."""
         return SelectionEvents()
 

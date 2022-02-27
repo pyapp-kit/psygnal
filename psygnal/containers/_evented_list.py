@@ -50,17 +50,17 @@ class ListEvents(SignalGroup):
     ----------
     inserting (index: int)
         emitted before an item is inserted at `index`
-    inserted (index: int, value: T)
+    inserted (index: int, value: Any)
         emitted after `value` is inserted at `index`
     removing (index: int)
         emitted before an item is removed at `index`
-    removed (index: int, value: T)
+    removed (index: int, value: Any)
         emitted after `value` is removed at `index`
     moving (index: int, new_index: int)
         emitted before an item is moved from `index` to `new_index`
-    moved (index: int, new_index: int, value: T)
+    moved (index: int, new_index: int, value: Any)
         emitted after `value` is moved from `index` to `new_index`
-    changed (index: int or slice, old_value: T or List[T], value: T or List[T])
+    changed (index: int or slice, old_value: Any or List[Any], value: Any or List[Any])
         emitted when `index` is set from `old_value` to `value`
     reordered (value: self)
         emitted when the list is reordered (eg. moved/reversed).
@@ -96,6 +96,11 @@ class EventedList(MutableSequence[_T]):
     hashable : bool, optional
         Whether the list should be hashable as id(self).
         By default True.
+
+    Attributes
+    ----------
+    events : ListEvents
+        SignalGroup that with events related to list mutation.  (see ListEvents)
     """
 
     events: ListEvents  # pragma: no cover
@@ -119,7 +124,7 @@ class EventedList(MutableSequence[_T]):
     # def clear(self): ...
     # def pop(self, index=-1): ...
     # def extend(self, value: Iterable[_T]): ...
-    # def remove(self, value: T): ...
+    # def remove(self, value: Any): ...
 
     def insert(self, index: int, value: _T) -> None:
         """Insert `value` before index."""

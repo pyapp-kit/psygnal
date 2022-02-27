@@ -187,7 +187,7 @@ class SetEvents(SignalGroup):
 
     Attributes
     ----------
-    items_changed (added: Tuple[_T], removed: Tuple[_T])
+    items_changed (added: Tuple[Any, ...], removed: Tuple[Any, ...])
         A signal that will emitted whenever an item or items are added or removed.
         Connected callbacks will be called with `callback(added, removed)`, where
         `added` and `removed` are tuples containing the objects that have been
@@ -204,6 +204,11 @@ class EventedSet(_BaseMutableSet[_T]):
     ----------
     iterable : iterable of Any, optional
         Data to populate the set.  If omitted, an empty set is created.
+
+    Attributes
+    ----------
+    events : SetEvents
+        SignalGroup that with events related to set mutation.  (see SetEvents)
 
     Examples
     --------
@@ -286,6 +291,11 @@ class EventedOrderedSet(EventedSet, OrderedSet[_T]):
     ----------
     iterable : iterable of Any, optional
         Data to populate the set.  If omitted, an empty set is created.
+
+    Attributes
+    ----------
+    events : SetEvents
+        SignalGroup that with events related to set mutation.  (see SetEvents)
     """
 
 
