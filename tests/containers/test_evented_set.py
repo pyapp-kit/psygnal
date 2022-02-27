@@ -126,3 +126,10 @@ def test_copy(test_set):
     assert test_set.copy() == copy(test_set)
     assert test_set is not copy(test_set)
     assert isinstance(copy(test_set), type(test_set))
+
+
+def test_repr(test_set):
+    if isinstance(test_set, EventedOrderedSet):
+        assert repr(test_set) == "EventedOrderedSet((0, 1, 2, 3, 4))"
+    else:
+        assert repr(test_set) == "EventedSet({0, 1, 2, 3, 4})"

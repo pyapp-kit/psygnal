@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Generic, TypeVar
 
 from .._signal import Signal
-from ._evented_set import EventedSet, SetEvents
+from ._evented_set import EventedOrderedSet, SetEvents
 
 if TYPE_CHECKING:
     from typing import Iterable, Optional, Tuple
@@ -32,7 +32,7 @@ class SelectionEvents(SetEvents):
     _current = Signal(object)
 
 
-class Selection(EventedSet[_T]):
+class Selection(EventedOrderedSet[_T]):
     """An model of selected items, with a `active` and `current` item.
 
     There can only be one `active` and one `current` item, but there can be
@@ -72,10 +72,6 @@ class Selection(EventedSet[_T]):
         self._current_: Optional[_T] = None
         super().__init__(iterable=data)
         self._update_active()
-
-    def __repr__(self) -> str:
-        """Return repr(self)."""
-        return f"{type(self).__name__}({repr(self._data)})"
 
     def __hash__(self) -> int:
         """Make selection hashable."""
