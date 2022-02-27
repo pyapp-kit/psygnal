@@ -12,6 +12,10 @@ __all__ = [
     "Signal",
     "SignalGroup",
     "SignalInstance",
+    "throttled",
+    "debounced",
+    "SignalThrottler",
+    "SignalDebouncer",
 ]
 import os
 from typing import TYPE_CHECKING
@@ -50,11 +54,13 @@ if os.getenv("PSYGNAL_UNCOMPILED"):
     Signal, SignalInstance, _compiled = m.Signal, m.SignalInstance, m._compiled
     m = _import_purepy_mod("_group")
     SignalGroup, EmissionInfo = m.SignalGroup, m.EmissionInfo
-
+    m = _import_purepy_mod("_throttler")
+    throttled, debounced = m.throttled, m.debounced
     del _import_purepy_mod
 
 else:
     from ._group import EmissionInfo, SignalGroup
     from ._signal import Signal, SignalInstance, _compiled
+    from ._throttler import debounced, throttled
 
 del os, TYPE_CHECKING
