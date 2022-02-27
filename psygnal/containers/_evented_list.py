@@ -21,6 +21,7 @@ interface, and call one of those 4 methods.  So if you override a method, you
 MUST make sure that all the appropriate events are emitted.  (Tests should
 cover this in test_evented_list.py)
 """
+from __future__ import annotations  # pragma: no cover
 
 from typing import (
     Any,
@@ -47,19 +48,19 @@ class ListEvents(SignalGroup):
 
     Attributes
     ----------
-    events.inserting (index: int)
+    inserting (index: int)
         emitted before an item is inserted at `index`
-    events.inserted (index: int, value: T)
+    inserted (index: int, value: Any)
         emitted after `value` is inserted at `index`
     removing (index: int)
         emitted before an item is removed at `index`
-    removed (index: int, value: T)
+    removed (index: int, value: Any)
         emitted after `value` is removed at `index`
     moving (index: int, new_index: int)
         emitted before an item is moved from `index` to `new_index`
-    moved (index: int, new_index: int, value: T)
+    moved (index: int, new_index: int, value: Any)
         emitted after `value` is moved from `index` to `new_index`
-    changed (index: int or slice, old_value: T or List[T], value: T or List[T])
+    changed (index: int or slice, old_value: Any or List[Any], value: Any or List[Any])
         emitted when `index` is set from `old_value` to `value`
     reordered (value: self)
         emitted when the list is reordered (eg. moved/reversed).
@@ -95,6 +96,11 @@ class EventedList(MutableSequence[_T]):
     hashable : bool, optional
         Whether the list should be hashable as id(self).
         By default True.
+
+    Attributes
+    ----------
+    events : ListEvents
+        SignalGroup that with events related to list mutation.  (see ListEvents)
     """
 
     events: ListEvents  # pragma: no cover
@@ -118,7 +124,7 @@ class EventedList(MutableSequence[_T]):
     # def clear(self): ...
     # def pop(self, index=-1): ...
     # def extend(self, value: Iterable[_T]): ...
-    # def remove(self, value: T): ...
+    # def remove(self, value: Any): ...
 
     def insert(self, index: int, value: _T) -> None:
         """Insert `value` before index."""
@@ -133,10 +139,10 @@ class EventedList(MutableSequence[_T]):
         ...
 
     @overload
-    def __getitem__(self, key: slice) -> "EventedList[_T]":
+    def __getitem__(self, key: slice) -> EventedList[_T]:
         ...
 
-    def __getitem__(self, key: Index) -> Union[_T, "EventedList[_T]"]:
+    def __getitem__(self, key: Index) -> Union[_T, EventedList[_T]]:
         """Return self[key]."""
         result = self._data[key]
         return self.__newlike__(result) if isinstance(result, list) else result
@@ -174,7 +180,7 @@ class EventedList(MutableSequence[_T]):
             item = parent._data.pop(index)
             self.events.removed.emit(index, item)
 
-    def _delitem_indices(self, key: Index) -> Iterable[Tuple["EventedList[_T]", int]]:
+    def _delitem_indices(self, key: Index) -> Iterable[Tuple[EventedList[_T], int]]:
         # returning (self, int) allows subclasses to pass nested members
         if isinstance(key, int):
             yield (self, key if key >= 0 else key + len(self))
@@ -198,21 +204,21 @@ class EventedList(MutableSequence[_T]):
         if self._child_events:
             self._disconnect_child_emitters(self[index])
 
-    def __newlike__(self, iterable: Iterable[_T]) -> "EventedList[_T]":
+    def __newlike__(self, iterable: Iterable[_T]) -> EventedList[_T]:
         """Return new instance of same class."""
         return self.__class__(iterable)
 
-    def copy(self) -> "EventedList[_T]":
+    def copy(self) -> EventedList[_T]:
         """Return a shallow copy of the list."""
         return self.__newlike__(self)
 
-    def __add__(self, other: Iterable[_T]) -> "EventedList[_T]":
+    def __add__(self, other: Iterable[_T]) -> EventedList[_T]:
         """Add other to self, return new object."""
         copy = self.copy()
         copy.extend(other)
         return copy
 
-    def __iadd__(self, other: Iterable[_T]) -> "EventedList[_T]":
+    def __iadd__(self, other: Iterable[_T]) -> EventedList[_T]:
         """Add other to self in place (self += other)."""
         self.extend(other)
         return self

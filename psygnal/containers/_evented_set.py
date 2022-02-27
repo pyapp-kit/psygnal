@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 from enum import Enum
 from itertools import chain
 from typing import Any, Dict, Iterable, Iterator, MutableSet, Set, Tuple, TypeVar, Union
 
 from typing_extensions import Final, Literal
 
-from psygnal._signal import Signal
+from psygnal import Signal, SignalGroup
 
 _T = TypeVar("_T")
 _Cls = TypeVar("_Cls", bound="_BaseMutableSet")
@@ -180,6 +182,21 @@ class OrderedSet(_BaseMutableSet[_T]):
         return f"{self.__class__.__name__}(({inner}))"
 
 
+class SetEvents(SignalGroup):
+    """Events available on an EventedSet.
+
+    Attributes
+    ----------
+    items_changed (added: Tuple[Any, ...], removed: Tuple[Any, ...])
+        A signal that will emitted whenever an item or items are added or removed.
+        Connected callbacks will be called with `callback(added, removed)`, where
+        `added` and `removed` are tuples containing the objects that have been
+        added or removed from the set.
+    """
+
+    items_changed = Signal(tuple, tuple)
+
+
 class EventedSet(_BaseMutableSet[_T]):
     """A set with an `items_changed` signal that emits when items are added/removed.
 
@@ -190,18 +207,17 @@ class EventedSet(_BaseMutableSet[_T]):
 
     Attributes
     ----------
-    items_changed : SignalInstance
-        A signal that will emitted whenever an item or items are added or removed.
-        Connected callbacks will be called with `callback(added, removed)`, where
-        `added` and `removed` are tuples containing the objects that have been
-        added or removed from the set.
+    events : SetEvents
+        SignalGroup that with events related to set mutation.  (see SetEvents)
 
     Examples
     --------
     >>> from psygnal.containers import EventedSet
     >>>
     >>> my_set = EventedSet([1, 2, 3])
-    >>> my_set.items_changed.connect(lambda a, r: print(f"added={a}, removed={r}"))
+    >>> my_set.events.items_changed.connect(
+    >>>     lambda a, r: print(f"added={a}, removed={r}")
+    >>> )
     >>> my_set.update({3, 4, 5})
     added=(4, 5), removed=()
 
@@ -213,26 +229,30 @@ class EventedSet(_BaseMutableSet[_T]):
     EventedSet({1, 2, 3, 6, 7})
     """
 
-    items_changed = Signal(tuple, tuple)
+    events: SetEvents  # pragma: no cover
+
+    def __init__(self, iterable: Iterable[_T] = ()):
+        self.events = self._get_events_class()
+        super().__init__(iterable)
 
     def update(self, *others: Iterable[_T]) -> None:
         """Update this set with the union of this set and others."""
-        with self.items_changed.paused(_reduce_events, ((), ())):
+        with self.events.items_changed.paused(_reduce_events, ((), ())):
             super().update(*others)
 
     def clear(self) -> None:
         """Remove all elements from this set."""
-        with self.items_changed.paused(_reduce_events, ((), ())):
+        with self.events.items_changed.paused(_reduce_events, ((), ())):
             super().clear()
 
     def difference_update(self, *s: Iterable[_T]) -> None:
         """Remove all elements of another set from this set."""
-        with self.items_changed.paused(_reduce_events, ((), ())):
+        with self.events.items_changed.paused(_reduce_events, ((), ())):
             super().difference_update(*s)
 
     def intersection_update(self, *s: Iterable[_T]) -> None:
         """Update this set with the intersection of itself and another."""
-        with self.items_changed.paused(_reduce_events, ((), ())):
+        with self.events.items_changed.paused(_reduce_events, ((), ())):
             super().intersection_update(*s)
 
     def symmetric_difference_update(self, __s: Iterable[_T]) -> None:
@@ -241,7 +261,7 @@ class EventedSet(_BaseMutableSet[_T]):
         This will remove any items in this set that are also in `other`, and
         add any items in others that are not present in this set.
         """
-        with self.items_changed.paused(_reduce_events, ((), ())):
+        with self.events.items_changed.paused(_reduce_events, ((), ())):
             super().symmetric_difference_update(__s)
 
     def _pre_add_hook(self, item: _T) -> Union[_T, BailType]:
@@ -258,7 +278,10 @@ class EventedSet(_BaseMutableSet[_T]):
 
     def _emit_change(self, added: Tuple[_T, ...], removed: Tuple[_T, ...]) -> None:
         """Emit a change event."""
-        self.items_changed.emit(added, removed)
+        self.events.items_changed.emit(added, removed)
+
+    def _get_events_class(self) -> SetEvents:
+        return SetEvents()
 
 
 class EventedOrderedSet(EventedSet, OrderedSet[_T]):
@@ -271,11 +294,8 @@ class EventedOrderedSet(EventedSet, OrderedSet[_T]):
 
     Attributes
     ----------
-    items_changed : SignalInstance
-        A signal that will emitted whenever an item or items are added or removed.
-        Connected callbacks will be called with `callback(added, removed)`, where
-        `added` and `removed` are tuples containing the objects that have been
-        added or removed from the set.
+    events : SetEvents
+        SignalGroup that with events related to set mutation.  (see SetEvents)
     """
 
 
