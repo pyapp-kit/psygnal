@@ -23,9 +23,10 @@ class SelectionEvents(SetEvents):
         `added` and `removed` are tuples containing the objects that have been
         added or removed from the set.
     active (value: _T)
-        emitted when the current item has changed.
+        Emitted when the active item has changed. An active item is a single selected
+        item.
     _current (value: _T)
-        emitted when the current item has changed. (Private event)
+        Emitted when the current item has changed. (Private event)
     """
 
     active = Signal(object)
@@ -43,6 +44,7 @@ class Selection(EventedOrderedSet[_T]):
     events (like up and down) can modify that current item.  It's possible to
     have a current item without an active item, but an active item will always
     be the current item.
+
     An item can be the current item and selected at the same time. Qt views
     will ensure that there is always a current item as keyboard navigation,
     for example, requires a current item.
@@ -59,9 +61,10 @@ class Selection(EventedOrderedSet[_T]):
     events : SelectionEvents
         SignalGroup that with events related to selection changes. (see SelectionEvents)
     active : Any, optional
-        The active item, if any.  An active item is the one being edited.
+        The active item, if any. An "active" item is defined as a single selected
+        item (if multiple items are selected, there is no active item)
     _current : Any, optional
-        The current item, if any.  This is used primarily by GUI views when
+        The current item, if any. This is used primarily by GUI views when
         handling mouse/key events.
     """
 
@@ -72,10 +75,6 @@ class Selection(EventedOrderedSet[_T]):
         self._current_: Optional[_T] = None
         super().__init__(iterable=data)
         self._update_active()
-
-    def __hash__(self) -> int:
-        """Make selection hashable."""
-        return id(self)
 
     @property
     def _current(self) -> Optional[_T]:  # pragma: no cover
@@ -108,6 +107,27 @@ class Selection(EventedOrderedSet[_T]):
         self._current = value
         self.events.active.emit(value)
 
+    def clear(self, keep_current: bool = False) -> None:
+        """Clear the selection.
+
+        Parameters
+        ----------
+        keep_current : bool, optional
+            If `False` (the default), the "current" item will also be set to None.
+        """
+        if not keep_current:
+            self._current = None
+        super().clear()
+
+    def toggle(self, obj: _T) -> None:
+        """Toggle selection state of obj."""
+        self.symmetric_difference_update({obj})
+
+    def select_only(self, obj: _T) -> None:
+        """Unselect everything but `obj`. Add to selection if not currently selected."""
+        self.intersection_update({obj})
+        self.add(obj)
+
     def _update_active(self) -> None:
         """On a selection event, update the active item based on selection.
 
@@ -119,21 +139,6 @@ class Selection(EventedOrderedSet[_T]):
             self._active = None
             self.events.active.emit(None)
 
-    def clear(self, keep_current: bool = False) -> None:
-        """Clear the selection."""
-        if not keep_current:
-            self._current = None
-        super().clear()
-
-    def toggle(self, obj: _T) -> None:
-        """Toggle selection state of obj."""
-        self.symmetric_difference_update({obj})
-
-    def select_only(self, obj: _T) -> None:
-        """Unselect everything but `obj`. Add to selection if not present."""
-        self.intersection_update({obj})
-        self.add(obj)
-
     def _get_events_class(self) -> SelectionEvents:
         """Override SetEvents with SelectionEvents."""
         return SelectionEvents()
@@ -142,6 +147,10 @@ class Selection(EventedOrderedSet[_T]):
         """Emit a change event."""
         super()._emit_change(added, removed)
         self._update_active()
+
+    def __hash__(self) -> int:
+        """Make selection hashable."""
+        return id(self)
 
 
 class Selectable(Generic[_S]):
