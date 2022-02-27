@@ -39,10 +39,17 @@ if (
     and "SKIP_CYTHON" not in os.environ
 ):
     try:
+        from Cython import __version__
         from Cython.Build import cythonize
+
     except ImportError:
         pass
     else:
+        if tuple(__version__.split(".")) < ("3",):
+            cython_modules = "psygnal/*.py"
+        else:
+            cython_modules = "psygnal/**/*.py"
+
         # For cython test coverage install with `make build-trace`
         compiler_directives = {}
         if "CYTHON_TRACE" in sys.argv:
@@ -52,7 +59,7 @@ if (
         # Only the last optimization flag will have effect
         os.environ["CFLAGS"] = "-O3 " + os.environ.get("CFLAGS", "")
         ext_modules = cythonize(
-            "psygnal/**/*.py",
+            cython_modules,
             exclude=["**/__init__.py", "psygnal/_version.py"],
             nthreads=int(os.getenv("CYTHON_NTHREADS", 0)),
             language_level=3,

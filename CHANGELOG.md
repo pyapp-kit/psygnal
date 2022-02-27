@@ -1,5 +1,38 @@
 # Changelog
 
+## [v0.3.3](https://github.com/tlambert03/psygnal/tree/v0.3.3) (2022-02-14)
+
+[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.3.2...v0.3.3)
+
+**Merged pull requests:**
+
+- Used custom tuple for cython compatibility [\#69](https://github.com/tlambert03/psygnal/pull/69) ([tlambert03](https://github.com/tlambert03))
+
+## [v0.3.2](https://github.com/tlambert03/psygnal/tree/v0.3.2) (2022-02-14)
+
+[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.3.1...v0.3.2)
+
+**Implemented enhancements:**
+
+- work with older cython [\#67](https://github.com/tlambert03/psygnal/pull/67) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- generate gh release in CI [\#68](https://github.com/tlambert03/psygnal/pull/68) ([tlambert03](https://github.com/tlambert03))
+
+## [v0.3.1](https://github.com/tlambert03/psygnal/tree/v0.3.1) (2022-02-12)
+
+[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.3.0...v0.3.1)
+
+**Fixed bugs:**
+
+- Don't use `repr(obj)` when checking for Qt emit signature [\#66](https://github.com/tlambert03/psygnal/pull/66) ([tlambert03](https://github.com/tlambert03))
+
+**Tests & CI:**
+
+- add a magicgui test to CI [\#65](https://github.com/tlambert03/psygnal/pull/65) ([tlambert03](https://github.com/tlambert03))
+- skip cibuildwheel tests on musllinux and i686 [\#63](https://github.com/tlambert03/psygnal/pull/63) ([tlambert03](https://github.com/tlambert03))
+
 ## [v0.3.0](https://github.com/tlambert03/psygnal/tree/v0.3.0) (2022-02-10)
 
 [Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.2.0...v0.3.0)
@@ -91,23 +124,7 @@
 
 ## [v0.1.0](https://github.com/tlambert03/psygnal/tree/v0.1.0) (2021-07-06)
 
-[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.1.0rc3...v0.1.0)
-
-## [v0.1.0rc3](https://github.com/tlambert03/psygnal/tree/v0.1.0rc3) (2021-07-05)
-
-[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.1.0rc2...v0.1.0rc3)
-
-## [v0.1.0rc2](https://github.com/tlambert03/psygnal/tree/v0.1.0rc2) (2021-07-05)
-
-[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.1.0rc1...v0.1.0rc2)
-
-## [v0.1.0rc1](https://github.com/tlambert03/psygnal/tree/v0.1.0rc1) (2021-07-05)
-
-[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.1.0rc0...v0.1.0rc1)
-
-## [v0.1.0rc0](https://github.com/tlambert03/psygnal/tree/v0.1.0rc0) (2021-07-05)
-
-[Full Changelog](https://github.com/tlambert03/psygnal/compare/bd037d2cb3cdc1c9423fd7d88ac6edfdd40f39d9...v0.1.0rc0)
+[Full Changelog](https://github.com/tlambert03/psygnal/compare/bd037d2cb3cdc1c9423fd7d88ac6edfdd40f39d9...v0.1.0)
 
 **Implemented enhancements:**
 
