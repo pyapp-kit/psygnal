@@ -39,6 +39,15 @@ class _ThrottlerBase:
         self._timer = Timer(self._interval / 1000, self._call_if_has_pending)
         self._timer.start()
 
+    def cancel(self) -> None:
+        """Cancel any pending calls."""
+        self._has_pending = False
+        self._timer.cancel()
+
+    def flush(self) -> None:
+        """Force a call if there is one pending."""
+        self._call_if_has_pending()
+
 
 class Throttler(_ThrottlerBase):
     """Class that prevents calling `func` more than once per `interval`.
