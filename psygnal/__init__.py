@@ -56,12 +56,11 @@ if os.getenv("PSYGNAL_UNCOMPILED"):
     SignalGroup, EmissionInfo = m.SignalGroup, m.EmissionInfo
     m = _import_purepy_mod("_throttler")
     throttled, debounced = m.throttled, m.debounced
-    SignalThrottler, SignalDebouncer = m.SignalThrottler, m.SignalDebouncer
     del _import_purepy_mod
 
 else:
     from ._group import EmissionInfo, SignalGroup
     from ._signal import Signal, SignalInstance, _compiled
-    from ._throttler import SignalDebouncer, SignalThrottler, debounced, throttled
+    from ._throttler import debounced, throttled
 
 del os, TYPE_CHECKING

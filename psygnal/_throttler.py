@@ -1,172 +1,146 @@
-from __future__ import annotations
-
-from concurrent.futures import Future
-from functools import wraps
 from threading import Timer
-from typing import TYPE_CHECKING, overload
+from typing import Any, Callable, Dict, Generic, Optional, Tuple, Union, overload
 
-from ._signal import Signal
+from typing_extensions import Literal, ParamSpec
 
-if TYPE_CHECKING:
-    import sys
-    from typing import Callable, Generic, Optional, TypeVar, Union
+P = ParamSpec("P")
+P2 = ParamSpec("P2")
 
-    from typing_extensions import Literal, ParamSpec, Protocol
-
-    from ._signal import SignalInstance
-
-    P = ParamSpec("P")
-    R = TypeVar("R")
-
-    class _ThrottledCallable(Generic[P, R], Protocol):
-        triggered: SignalInstance
-
-        def cancel(self) -> None:
-            ...
-
-        def flush(self) -> None:
-            ...
-
-        def set_timeout(self, timeout: int) -> None:
-            ...
-
-        if sys.version_info < (3, 9):
-
-            def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Future:
-                ...
-
-        else:
-
-            def __call__(self, *args: P.args, **kwargs: P.kwargs) -> Future[R]:
-                ...
-
-    Kind = Literal["throttler", "debouncer"]
-    EmissionPolicy = Literal["trailing", "leading"]
+Kind = Literal["throttler", "debouncer"]
+EmissionPolicy = Literal["trailing", "leading"]
 
 
-class _GenericSignalThrottler:
-
-    triggered = Signal()
-    timeoutChanged = Signal(int)
+class _ThrottlerBase:
+    _timer: Timer
 
     def __init__(
-        self, kind: Kind, emissionPolicy: EmissionPolicy, timeout: int = 1
+        self,
+        func: Callable[P, Any],
+        interval: int = 100,
+        policy: "EmissionPolicy" = "leading",
     ) -> None:
-
-        self.kind = kind
-        self.emission_policy = emissionPolicy
-        self._hasPendingEmission = False
-        self._timeout: int = timeout  # ms
-        self._timer: Optional[Timer] = None
-
-    @property
-    def timeout(self) -> int:
-        """Return current timeout in milliseconds."""
-        return self._timeout
-
-    @timeout.setter
-    def timeout(self, timeout: int) -> None:
-        """Set timeout in milliseconds."""
-        if self._timeout != timeout:
-            self._timeout = timeout
-            self.timeoutChanged.emit(timeout)
-
-    def throttle(self) -> None:
-        """Emit triggered if not running, then start timer."""
-        # public slot
-        self._hasPendingEmission = True
-        # Emit only if we haven't emitted already. We know if that's
-        # the case by checking if the timer is running.
-        if self.emission_policy == "leading" and not (
-            self._timer and self._timer.is_alive()
-        ):
-            self._emitTriggered()
-
-        # The timer is started in all cases. If we got a signal, and we're Leading,
-        # and we did emit because of that, then we don't re-emit when the timer fires
-        # (unless we get ANOTHER signal).
-        if self.kind == "throttler":  # sourcery skip: merge-duplicate-blocks
-            if not (self._timer and self._timer.is_alive()):
-                self._start_timer()  # actual start, not restart
-        elif self.kind == "debouncer":
-            self._start_timer()  # restart
-
-        assert self._timer and self._timer.is_alive()
-
-    def _start_timer(self) -> None:
-        if self._timer and self._timer.is_alive():
-            self._timer.cancel()
-        self._timer = Timer(self._timeout / 1000, self._maybeEmitTriggered)
+        self._func = func
+        self._interval = interval
+        self._policy = policy
+        self._has_pending = False
+        self._timer = Timer(0, lambda: None)
         self._timer.start()
+        self._args: Tuple[Any, ...] = ()
+        self._kwargs: Dict[str, Any] = {}
 
-    def cancel(self) -> None:
-        """Cancel any pending emissions."""
-        self._hasPendingEmission = False
-
-    def flush(self) -> None:
-        """Force emission of any pending emissions."""
-        self._maybeEmitTriggered()
-
-    def _emitTriggered(self) -> None:
-        self._hasPendingEmission = False
-        self.triggered.emit()
+    def _actually_call(self) -> None:
+        self._has_pending = False
+        self._func(*self._args, **self._kwargs)
         self._start_timer()
 
-    def _maybeEmitTriggered(self) -> None:
-        if self._hasPendingEmission:
-            self._emitTriggered()
+    def _call_if_has_pending(self) -> None:
+        if self._has_pending:
+            self._actually_call()
+
+    def _start_timer(self) -> None:
+        self._timer.cancel()
+        self._timer = Timer(self._interval / 1000, self._call_if_has_pending)
+        self._timer.start()
 
 
-# ### Convenience classes ###
+class Throttler(_ThrottlerBase, Generic[P]):
+    """Class that prevents calling `func` more than once per `interval`.
 
-
-class SignalThrottler(_GenericSignalThrottler):
-    """A Signal Throttler.
-
-    This object's `triggered` signal will emit at most once per timeout
-    (set with setTimeout()).
+    Parameters
+    ----------
+    func : Callable[P, Any]
+        a function to wrap
+    interval : int, optional
+        the minimum interval in ms that must pass before the function is called again,
+        by default 100
+    policy : EmissionPolicy, optional
+        Whether to invoke the function on the "leading" or "trailing" edge of the
+        wait timer, by default "leading"
     """
 
-    def __init__(self, policy: EmissionPolicy = "leading") -> None:
-        super().__init__("throttler", policy)
+    _timer: Timer
+
+    def __init__(
+        self,
+        func: Callable[P, Any],
+        interval: int = 100,
+        policy: "EmissionPolicy" = "leading",
+    ) -> None:
+
+        super().__init__(func, interval, policy)
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> None:
+        """Call underlying function."""
+        self._has_pending = True
+        self._args = args  # type: ignore
+        self._kwargs = kwargs  # type: ignore
+
+        if not self._timer.is_alive():
+            if self._policy == "leading":
+                self._actually_call()
+            else:
+                self._start_timer()
 
 
-class SignalDebouncer(_GenericSignalThrottler):
-    """A Signal Debouncer.
+class Debouncer(_ThrottlerBase, Generic[P]):
+    """Class that waits at least `interval` before calling `func`.
 
-    This object's `triggered` signal will not be emitted until `self.timeout()`
-    milliseconds have elapsed since the last time `triggered` was emitted.
+    Parameters
+    ----------
+    func : Callable[P, Any]
+        a function to wrap
+    interval : int, optional
+        the minimum interval in ms that must pass before the function is called again,
+        by default 100
+    policy : EmissionPolicy, optional
+        Whether to invoke the function on the "leading" or "trailing" edge of the
+        wait timer, by default "trailing"
     """
 
-    def __init__(self, policy: EmissionPolicy = "trailing") -> None:
-        super().__init__("debouncer", policy)
+    _timer: Timer
+
+    def __init__(
+        self,
+        func: Callable[P, Any],
+        interval: int = 100,
+        policy: "EmissionPolicy" = "trailing",
+    ) -> None:
+        super().__init__(func, interval, policy)
+
+    def __call__(self, *args: P.args, **kwargs: P.kwargs) -> None:
+        """Call underlying function."""
+        self._has_pending = True
+        self._args = args  # type: ignore
+        self._kwargs = kwargs  # type: ignore
+
+        if not self._timer.is_alive() and self._policy == "leading":
+            self._actually_call()
+        self._start_timer()
 
 
 @overload
 def throttled(
-    func: Callable[P, R],
+    func: Callable[P, Any],
     timeout: int = 100,
     leading: bool = True,
-) -> _ThrottledCallable[P, R]:
+) -> Throttler[P]:
     ...
 
 
 @overload
 def throttled(
-    func: Literal[None] = None,
+    func: "Literal[None]" = None,
     timeout: int = 100,
     leading: bool = True,
-) -> Callable[[Callable[P, R]], _ThrottledCallable[P, R]]:
+) -> Callable[[Callable[P, Any]], Throttler[P]]:
     ...
 
 
 def throttled(  # type: ignore [misc]
-    func: Optional[Callable[P, R]] = None,
+    func: Optional[Callable[P, Any]] = None,
     timeout: int = 100,
     leading: bool = True,
-) -> Union[
-    _ThrottledCallable[P, R], Callable[[Callable[P, R]], _ThrottledCallable[P, R]]
-]:
+) -> Union[Throttler[P], Callable[[Callable[P, Any]], Throttler[P]]]:
     """Create a throttled function that invokes func at most once per timeout.
 
     The throttled function comes with a `cancel` method to cancel delayed func
@@ -188,34 +162,37 @@ def throttled(  # type: ignore [misc]
         Whether to invoke the function on the leading edge of the wait timer,
         by default True
     """
-    return _make_decorator(func, timeout, leading, "throttler")  # type: ignore
+
+    def deco(func: Callable[P, Any]) -> Throttler[P]:
+        policy: "EmissionPolicy" = "leading" if leading else "trailing"
+        return Throttler(func, timeout, policy)  # type: ignore
+
+    return deco(func) if func is not None else deco
 
 
 @overload
 def debounced(
-    func: Callable[P, R],
+    func: Callable[P, Any],
     timeout: int = 100,
     leading: bool = False,
-) -> _ThrottledCallable[P, R]:
+) -> Debouncer[P]:
     ...
 
 
 @overload
 def debounced(
-    func: Literal[None] = None,
+    func: "Literal[None]" = None,
     timeout: int = 100,
     leading: bool = False,
-) -> Callable[[Callable[P, R]], _ThrottledCallable[P, R]]:
+) -> Callable[[Callable[P, Any]], Debouncer[P]]:
     ...
 
 
 def debounced(  # type: ignore [misc]
-    func: Optional[Callable[P, R]] = None,
+    func: Optional[Callable[P, Any]] = None,
     timeout: int = 100,
     leading: bool = False,
-) -> Union[
-    _ThrottledCallable[P, R], Callable[[Callable[P, R]], _ThrottledCallable[P, R]]
-]:
+) -> Union[Debouncer[P], Callable[[Callable[P, Any]], Debouncer[P]]]:
     """Create a debounced function that delays invoking `func`.
 
     `func` will not be invoked until `timeout` ms have elapsed since the last time
@@ -240,45 +217,9 @@ def debounced(  # type: ignore [misc]
         Whether to invoke the function on the leading edge of the wait timer,
         by default False
     """
-    return _make_decorator(func, timeout, leading, "debouncer")  # type: ignore
 
-
-def _make_decorator(
-    func: Optional[Callable[P, R]],
-    timeout: int,
-    leading: bool,
-    kind: Kind,
-) -> Union[
-    _ThrottledCallable[P, R], Callable[[Callable[P, R]], _ThrottledCallable[P, R]]
-]:
-    def deco(func: Callable[P, R]) -> _ThrottledCallable[P, R]:
-        policy: EmissionPolicy = "leading" if leading else "trailing"
-        throttle = _GenericSignalThrottler(kind, policy, timeout)
-        last_f: Optional[Callable] = None
-        future: Optional[Future] = None
-
-        @wraps(func)
-        def inner(*args: P.args, **kwargs: P.kwargs) -> Future[R]:
-            nonlocal last_f  # type: ignore [misc]
-            nonlocal future
-            if last_f is not None:
-                throttle.triggered.disconnect(last_f)
-            if future is not None and not future.done():
-                future.cancel()
-
-            future = Future()
-
-            def last_f() -> None:
-                future.set_result(func(*args, **kwargs))  # type: ignore [union-attr]
-
-            throttle.triggered.connect(last_f, check_nargs=False)  # type: ignore
-            throttle.throttle()
-            return future
-
-        setattr(inner, "cancel", throttle.cancel)
-        setattr(inner, "flush", throttle.flush)
-        setattr(inner, "timeout", throttle.timeout)
-        setattr(inner, "triggered", throttle.triggered)
-        return inner  # type: ignore
+    def deco(func: Callable[P, Any]) -> Debouncer[P]:
+        policy: "EmissionPolicy" = "leading" if leading else "trailing"
+        return Debouncer(func, timeout, policy)  # type: ignore
 
     return deco(func) if func is not None else deco
