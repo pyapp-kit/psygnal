@@ -78,12 +78,12 @@ class Selection(EventedOrderedSet[_T]):
         return id(self)
 
     @property
-    def _current(self) -> Optional[_T]:
+    def _current(self) -> Optional[_T]:  # pragma: no cover
         """Get current item."""
         return self._current_
 
     @_current.setter
-    def _current(self, value: Optional[_T]) -> None:
+    def _current(self, value: Optional[_T]) -> None:  # pragma: no cover
         """Set current item."""
         if value == self._current_:
             return
@@ -91,12 +91,12 @@ class Selection(EventedOrderedSet[_T]):
         self.events._current.emit(value)
 
     @property
-    def active(self) -> Optional[_T]:
+    def active(self) -> Optional[_T]:  # pragma: no cover
         """Return the currently active item or None."""
         return self._active
 
     @active.setter
-    def active(self, value: Optional[_T]) -> None:
+    def active(self, value: Optional[_T]) -> None:  # pragma: no cover
         """Set the active item.
 
         This makes `value` the only selected item, and makes it current.
@@ -152,12 +152,12 @@ class Selectable(Generic[_S]):
         super().__init__(*args, **kwargs)
 
     @property
-    def selection(self) -> Selection[_S]:
+    def selection(self) -> Selection[_S]:  # pragma: no cover
         """Get current selection."""
         return self._selection
 
     @selection.setter
-    def selection(self, new_selection: Iterable[_S]) -> None:
+    def selection(self, new_selection: Iterable[_S]) -> None:  # pragma: no cover
         """Set selection, without deleting selection model object."""
         self._selection.intersection_update(new_selection)
         self._selection.update(new_selection)

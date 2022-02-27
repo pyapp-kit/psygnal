@@ -21,7 +21,7 @@ interface, and call one of those 4 methods.  So if you override a method, you
 MUST make sure that all the appropriate events are emitted.  (Tests should
 cover this in test_evented_list.py)
 """
-from __future__ import annotations
+from __future__ import annotations  # pragma: no cover
 
 from typing import (
     Any,
