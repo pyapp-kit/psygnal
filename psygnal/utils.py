@@ -1,14 +1,9 @@
 """misc utils."""
-from __future__ import annotations
-
 from contextlib import contextmanager
 from functools import partial
-from typing import TYPE_CHECKING
+from typing import Any, Callable, Iterable, Iterator, Tuple
 
 from ._signal import SignalInstance
-
-if TYPE_CHECKING:
-    from typing import Any, Callable, Iterable, Iterator, Tuple
 
 __all__ = ["monitor_events", "iter_signal_instances"]
 

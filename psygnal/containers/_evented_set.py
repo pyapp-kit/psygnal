@@ -2,16 +2,11 @@ from __future__ import annotations
 
 from enum import Enum
 from itertools import chain
-from typing import TYPE_CHECKING, MutableSet, TypeVar
+from typing import Any, Dict, Iterable, Iterator, MutableSet, Set, Tuple, TypeVar, Union
 
-from typing_extensions import Literal
+from typing_extensions import Final, Literal
 
 from psygnal import Signal, SignalGroup
-
-if TYPE_CHECKING:
-    from typing import Any, Dict, Iterable, Iterator, Set, Tuple, Union
-
-    from typing_extensions import Final
 
 _T = TypeVar("_T")
 _Cls = TypeVar("_Cls", bound="_BaseMutableSet")

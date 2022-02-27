@@ -24,9 +24,11 @@ cover this in test_evented_list.py)
 from __future__ import annotations
 
 from typing import (
-    TYPE_CHECKING,
+    Any,
     Iterable,
+    List,
     MutableSequence,
+    Tuple,
     TypeVar,
     Union,
     cast,
@@ -37,8 +39,6 @@ from .._group import EmissionInfo, SignalGroup
 from .._signal import Signal, SignalInstance
 from ..utils import iter_signal_instances
 
-if TYPE_CHECKING:
-    from typing import Any, List, Tuple
 _T = TypeVar("_T")
 Index = Union[int, slice]
 
