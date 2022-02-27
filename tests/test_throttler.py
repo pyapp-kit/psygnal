@@ -11,7 +11,7 @@ def test_debounced() -> None:
 
     [(f1(), f2()) for _ in range(10)]
 
-    time.sleep(0.019)
+    time.sleep(0.1)
     mock1.assert_called_once()
 
     assert f2.call_count == 10
@@ -24,7 +24,7 @@ def test_debounced_leading() -> None:
 
     [(f1(), f2()) for _ in range(10)]
 
-    time.sleep(0.019)
+    time.sleep(0.1)
     assert mock1.call_count == 2
     assert f2.call_count == 10
 
@@ -36,7 +36,7 @@ def test_throttled() -> None:
 
     [(f1(), f2()) for _ in range(10)]
 
-    time.sleep(0.019)
+    time.sleep(0.1)
     assert mock1.call_count == 2
     assert f2.call_count == 10
 
@@ -48,6 +48,6 @@ def test_throttled_trailing() -> None:
 
     [(f1(), f2()) for _ in range(10)]
 
-    time.sleep(0.019)
+    time.sleep(0.1)
     assert mock1.call_count == 1
     assert f2.call_count == 10
