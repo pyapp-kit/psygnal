@@ -3,6 +3,3 @@ coverage:
     patch:
       default:
         target: 100%
-codecov:
-  notify:
-    after_n_builds: 10

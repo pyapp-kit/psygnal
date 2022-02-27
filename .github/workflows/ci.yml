@@ -44,7 +44,7 @@ jobs:
       - name: test
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: pytest -v --color=yes --cov=psygnal --cov-report=xml --cov-report=term-missing
+          run: pytest --color=yes --cov=psygnal --cov-report=xml --cov-report=term-missing
 
       - name: remove compiled binaries
         run: |
@@ -56,7 +56,7 @@ jobs:
       - name: test uncompiled
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: pytest -v --color=yes --cov=psygnal --cov-report=xml
+          run: pytest --color=yes --cov=psygnal --cov-report=xml --cov-append
 
       - name: switch qt backend
         run: |
@@ -66,12 +66,15 @@ jobs:
       - name: test uncompiled
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: pytest -v --color=yes --cov=psygnal --cov-report=xml --cov-append tests/test_qt_compat.py
+          run: pytest --color=yes --cov=psygnal --cov-report=xml --cov-append tests/test_qt_compat.py
+
+      - run: ls -la
 
       - name: Coverage
         uses: codecov/codecov-action@v2
         with:
           fail_ci_if_error: true
+          verbose: true
 
   test-windows-mac:
     name: test py${{ matrix.python-version }} on ${{ matrix.platform }}
@@ -96,12 +99,7 @@ jobs:
           pip install -e .[testing,testingqt,build]
 
       - name: test
-        run: pytest --color=yes --cov=psygnal --cov-report=xml --cov-report=term-missing
-
-      - name: Coverage
-        uses: codecov/codecov-action@v2
-        with:
-          fail_ci_if_error: true
+        run: pytest --color=yes
 
   test-magicgui:
     name: test magicgui
