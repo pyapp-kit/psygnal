@@ -4,7 +4,6 @@ from typing import Any, Callable, Dict, Generic, Optional, Tuple, Union, overloa
 from typing_extensions import Literal, ParamSpec
 
 P = ParamSpec("P")
-P2 = ParamSpec("P2")
 
 Kind = Literal["throttler", "debouncer"]
 EmissionPolicy = Literal["trailing", "leading"]
@@ -17,7 +16,7 @@ class _ThrottlerBase:
         self,
         func: Callable[P, Any],
         interval: int = 100,
-        policy: "EmissionPolicy" = "leading",
+        policy: EmissionPolicy = "leading",
     ) -> None:
         self._func = func
         self._interval = interval
@@ -64,7 +63,7 @@ class Throttler(_ThrottlerBase, Generic[P]):
         self,
         func: Callable[P, Any],
         interval: int = 100,
-        policy: "EmissionPolicy" = "leading",
+        policy: EmissionPolicy = "leading",
     ) -> None:
 
         super().__init__(func, interval, policy)
@@ -103,7 +102,7 @@ class Debouncer(_ThrottlerBase, Generic[P]):
         self,
         func: Callable[P, Any],
         interval: int = 100,
-        policy: "EmissionPolicy" = "trailing",
+        policy: EmissionPolicy = "trailing",
     ) -> None:
         super().__init__(func, interval, policy)
 
@@ -129,7 +128,7 @@ def throttled(
 
 @overload
 def throttled(
-    func: "Literal[None]" = None,
+    func: Literal[None] = None,
     timeout: int = 100,
     leading: bool = True,
 ) -> Callable[[Callable[P, Any]], Throttler[P]]:
@@ -164,7 +163,7 @@ def throttled(  # type: ignore [misc]
     """
 
     def deco(func: Callable[P, Any]) -> Throttler[P]:
-        policy: "EmissionPolicy" = "leading" if leading else "trailing"
+        policy: EmissionPolicy = "leading" if leading else "trailing"
         return Throttler(func, timeout, policy)  # type: ignore
 
     return deco(func) if func is not None else deco
@@ -181,7 +180,7 @@ def debounced(
 
 @overload
 def debounced(
-    func: "Literal[None]" = None,
+    func: Literal[None] = None,
     timeout: int = 100,
     leading: bool = False,
 ) -> Callable[[Callable[P, Any]], Debouncer[P]]:
@@ -219,7 +218,7 @@ def debounced(  # type: ignore [misc]
     """
 
     def deco(func: Callable[P, Any]) -> Debouncer[P]:
-        policy: "EmissionPolicy" = "leading" if leading else "trailing"
+        policy: EmissionPolicy = "leading" if leading else "trailing"
         return Debouncer(func, timeout, policy)  # type: ignore
 
     return deco(func) if func is not None else deco
