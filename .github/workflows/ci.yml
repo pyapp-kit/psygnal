@@ -44,7 +44,7 @@ jobs:
       - name: test
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: pytest -v --color=yes
+          run: pytest -v --color=yes --cov=psygnal --cov-report=xml
 
       - name: remove compiled binaries
         run: |
@@ -96,7 +96,7 @@ jobs:
           pip install -e .[testing,testingqt,build]
 
       - name: test
-        run: pytest --color=yes --cov=psygnal --cov-report=xml --cov-append
+        run: pytest --color=yes --cov=psygnal --cov-report=xml
 
       - name: Coverage
         uses: codecov/codecov-action@v2
