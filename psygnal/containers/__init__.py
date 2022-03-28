@@ -3,6 +3,7 @@ from typing import Any
 
 from ._evented_list import EventedList
 from ._evented_set import EventedOrderedSet, EventedSet, OrderedSet
+from ._selectable_evented_list import SelectableEventedList
 from ._selection import Selection
 
 __all__ = [
@@ -12,6 +13,7 @@ __all__ = [
     "EventedSet",
     "OrderedSet",
     "Selection",
+    "SelectableEventedList",
 ]
 
 
