@@ -45,7 +45,7 @@ def test_select_all(test_list):
 def test_deselect_all(test_list):
     """Deselect all should clear the selection"""
     test_list.selection.clear = Mock(wraps=test_list.selection.clear)
-    test_list.selection.update([el for el in range(5)])
+    test_list.selection = [el for el in range(5)]
     assert all(el in test_list.selection for el in range(5))
     test_list.deselect_all()
     assert not test_list.selection
@@ -67,8 +67,7 @@ def test_select_next(
     test_list, initial_selection, step, expand_selection, wraparound, expected
 ):
     """Test select next method behaviour."""
-    test_list.selection.clear()
-    test_list.selection.update(initial_selection)
+    test_list.selection = initial_selection
     test_list.select_next(
         step=step, expand_selection=expand_selection, wraparound=wraparound
     )
@@ -89,19 +88,31 @@ def test_select_previous(
     test_list, initial_selection, expand_selection, wraparound, expected
 ):
     """Test select next method behaviour."""
-    test_list.selection.clear()
-    test_list.selection.update(initial_selection)
+    test_list.selection = initial_selection
     test_list.select_previous(expand_selection=expand_selection, wraparound=wraparound)
     assert test_list.selection == expected
+
+
+def test_item_discarded_from_selection_on_removal_from_list(test_list):
+    """Check that items removed from a list are also removed from the selection."""
+    test_list.selection.clear()
+    test_list.selection.discard = Mock(wraps=test_list.selection.discard)
+    test_list.selection = {0}
+    assert 0 in test_list.selection
+    test_list.remove(0)
+    assert 0 not in test_list.selection
+    test_list.selection.discard.assert_called_once()
 
 
 def test_remove_selected(test_list):
     """Test that remove selected method removes all selected elements"""
     test_list.selection.clear()
-    selection = {0, 1}
-    assert all(el in test_list for el in selection)
-    test_list.selection.update(selection)
+    initial_selection = {0, 1}
+    test_list.selection = initial_selection
+    assert test_list.selection == initial_selection
+
     output = test_list.remove_selected()
-    assert all(el not in test_list for el in selection)
-    assert all(el not in test_list.selection for el in selection)
-    assert set(output) == selection
+    assert set(output) == initial_selection
+    assert all(el not in test_list for el in initial_selection)
+    assert all(el not in test_list.selection for el in initial_selection)
+    assert test_list.selection == {2}

@@ -73,6 +73,8 @@ class SelectableEventedList(Selectable[_T], EventedList[_T]):
         for item in list(self.selection):
             idx = self.index(item)
             self.remove(item)
+            # shouldn't be necessary but remove is not discarding from selection
+            # when called from here...
             self.selection.discard(item)
         new_idx = max(0, idx - 1)
         if len(self) > new_idx:
