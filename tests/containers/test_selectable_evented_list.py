@@ -61,6 +61,7 @@ def test_deselect_all(test_list):
         ({0, 1}, 1, False, False, {1}),
         ({0}, 5, False, False, {4}),
         ({0}, 5, False, True, {0}),
+        ({}, 1, False, False, {4}),
     ],
 )
 def test_select_next(
