@@ -19,7 +19,7 @@ class SelectableEventedList(Selectable[_T], EventedList[_T]):
     def _pre_select_hook(self, value: _T) -> _T:
         """Called before adding an item to the selection."""
         if value not in self:
-            raise ValueError(f"Cannot select an item that is not in the list.")
+            raise ValueError("Cannot select an item that is not in the list.")
         return value
 
     def insert(self, index: int, value: _T) -> None:
