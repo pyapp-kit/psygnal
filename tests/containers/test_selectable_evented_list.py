@@ -74,6 +74,14 @@ def test_select_next(
     assert test_list.selection == expected
 
 
+def test_select_next_with_empty_list():
+    """Selection should remain unchanged on advancing if list is empty."""
+    test_list = SelectableEventedList([])
+    initial_selection = test_list.selection.copy()
+    test_list.select_next()
+    assert test_list.selection == initial_selection
+
+
 @pytest.mark.parametrize(
     "initial_selection, expand_selection, wraparound, expected",
     [
