@@ -105,7 +105,7 @@ def test_item_discarded_from_selection_on_removal_from_list(test_list):
 
 
 def test_remove_selected(test_list):
-    """Test that remove selected method removes all selected elements"""
+    """Test items are removed from both the selection and the list."""
     test_list.selection.clear()
     initial_selection = {0, 1}
     test_list.selection = initial_selection
