@@ -1,5 +1,5 @@
 """MutableSequence with a selection model."""
-from typing import Any, Tuple, TypeVar
+from typing import Tuple, TypeVar
 
 from ._evented_list import EventedList
 from ._selection import Selectable
@@ -66,7 +66,7 @@ class SelectableEventedList(Selectable[_T], EventedList[_T]):
             step=-1, expand_selection=expand_selection, wraparound=wraparound
         )
 
-    def remove_selected(self) -> Tuple[Any, ...]:
+    def remove_selected(self) -> Tuple[_T, ...]:
         """Remove selected items from the list and the selection."""
         selected_items = tuple(self.selection)
         idx = 0
