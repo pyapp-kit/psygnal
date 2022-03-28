@@ -14,6 +14,7 @@ def regular_list():
 def test_list(regular_list):
     test_list = SelectableEventedList(regular_list)
     test_list.events = Mock(wraps=test_list.events)
+    test_list.selection.events = Mock(wraps=test_list.selection.events)
     return test_list
 
 
@@ -29,3 +30,78 @@ def test_newly_selected_item_is_active(test_list):
     test_list.selection.clear()
     test_list.selection.add(1)
     assert test_list.selection.active == 1
+
+
+def test_select_all(test_list):
+    """Select all should populate the selection."""
+    test_list.selection.update = Mock(wraps=test_list.selection.update)
+    test_list.selection.clear()
+    assert not test_list.selection
+    test_list.select_all()
+    assert all(el in test_list.selection for el in range(5))
+    test_list.selection.update.assert_called_once()
+
+
+def test_deselect_all(test_list):
+    """Deselect all should clear the selection"""
+    test_list.selection.clear = Mock(wraps=test_list.selection.clear)
+    test_list.selection.update([el for el in range(5)])
+    assert all(el in test_list.selection for el in range(5))
+    test_list.deselect_all()
+    assert not test_list.selection
+    test_list.selection.clear.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "initial_selection, step, expand_selection, wraparound, expected",
+    [
+        ({0}, 1, False, False, {1}),
+        ({0}, 2, False, False, {2}),
+        ({0}, 2, True, False, {0, 2}),
+        ({0, 1}, 1, False, False, {1}),
+        ({0}, 5, False, False, {4}),
+        ({0}, 5, False, True, {0}),
+    ],
+)
+def test_select_next(
+    test_list, initial_selection, step, expand_selection, wraparound, expected
+):
+    """Test select next method behaviour."""
+    test_list.selection.clear()
+    test_list.selection.update(initial_selection)
+    test_list.select_next(
+        step=step, expand_selection=expand_selection, wraparound=wraparound
+    )
+    assert test_list.selection == expected
+
+
+@pytest.mark.parametrize(
+    "initial_selection, expand_selection, wraparound, expected",
+    [
+        ({1}, False, False, {0}),
+        ({0}, False, False, {0}),
+        ({1}, True, False, {0, 1}),
+        ({1, 2}, False, False, {0}),
+        ({0}, False, True, {4}),
+    ],
+)
+def test_select_previous(
+    test_list, initial_selection, expand_selection, wraparound, expected
+):
+    """Test select next method behaviour."""
+    test_list.selection.clear()
+    test_list.selection.update(initial_selection)
+    test_list.select_previous(expand_selection=expand_selection, wraparound=wraparound)
+    assert test_list.selection == expected
+
+
+def test_remove_selected(test_list):
+    """Test that remove selected method removes all selected elements"""
+    test_list.selection.clear()
+    selection = {0, 1}
+    assert all(el in test_list for el in selection)
+    test_list.selection.update(selection)
+    output = test_list.remove_selected()
+    assert all(el not in test_list for el in selection)
+    assert all(el not in test_list.selection for el in selection)
+    assert set(output) == selection
