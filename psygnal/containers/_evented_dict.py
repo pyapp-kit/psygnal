@@ -9,7 +9,7 @@ from typing import (
     Sequence,
     Type,
     TypeVar,
-    Union,
+    Union, Optional,
 )
 
 from .. import Signal, SignalGroup
@@ -23,7 +23,7 @@ class TypedMutableMapping(MutableMapping[_K, _T]):
 
     def __init__(
         self,
-        data: Mapping[_K, _T] = None,
+        data: Optional[Mapping[_K, _T]] = None,
         basetype: Union[Type[_T], Sequence[Type[_T]]] = (),
     ):
         if data is None:
@@ -61,7 +61,7 @@ class TypedMutableMapping(MutableMapping[_K, _T]):
             )
         return e
 
-    def __newlike__(self, iterable: MutableMapping[_K, _T]):  # noqa: D105
+    def __newlike__(self, iterable: MutableMapping[_K, _T]) -> MutableMapping[_K, _T]:  # noqa: D105
         new = self.__class__()
         # separating this allows subclasses to omit these from their `__init__`
         new._basetypes = self._basetypes
