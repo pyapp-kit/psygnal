@@ -32,7 +32,7 @@ class TypedMutableMapping(MutableMapping[_K, _T]):
         self._basetypes = basetype if isinstance(basetype, Sequence) else (basetype,)
         self.update(data)
 
-    def __setitem__(self, key: int, value: _T):  # noqa: D105
+    def __setitem__(self, key: _K, value: _T):  # noqa: D105
         self._dict[key] = self._type_check(value)
 
     def __delitem__(self, key: _K) -> None:  # noqa: D105
@@ -139,7 +139,7 @@ class EventedDict(TypedMutableMapping[_K, _T]):
             super().__setitem__(key, value)
             self.events.changed.emit(key, old_value, value)
 
-    def __delitem__(self, key: _K):  # noqa: D105
+    def __delitem__(self, key: _K) -> None:  # noqa: D105
         self.events.removing.emit(key)
         item = self._dict.pop(key)
         self.events.removed.emit(key, item)
