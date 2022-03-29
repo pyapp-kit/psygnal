@@ -138,9 +138,3 @@ class EventedDict(TypedMutableMapping[_K, _T]):
         self.events.removing.emit(key)
         item = self._dict.pop(key)
         self.events.removed.emit(key, item)
-
-    def key(self, value: _T):
-        """Return first instance of value."""
-        for k, v in self._dict.items():
-            if v is value or v == value:
-                return k
