@@ -65,7 +65,7 @@ class TypedMutableMapping(MutableMapping[_K, _T]):
         new = self.__class__()
         # separating this allows subclasses to omit these from their `__init__`
         new._basetypes = self._basetypes
-        new.update(**iterable)
+        new.update(**iterable)  # type: ignore
         return new
 
     def copy(self) -> "TypedMutableMapping[_T]":
