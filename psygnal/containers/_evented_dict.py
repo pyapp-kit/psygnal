@@ -68,7 +68,7 @@ class TypedMutableMapping(MutableMapping[_K, _T]):
         new.update(**iterable)  # type: ignore
         return new
 
-    def copy(self) -> "TypedMutableMapping[_T]":
+    def copy(self) -> "TypedMutableMapping[_K, _T]":
         """Return a shallow copy of the dictionary."""
         return self.__newlike__(self)
 
