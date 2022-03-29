@@ -44,7 +44,7 @@ class TypedMutableMapping(MutableMapping[_K, _T]):
     def __len__(self) -> int:  # noqa: D105
         return len(self._dict)
 
-    def __iter__(self) -> Iterator[_T]:  # noqa: D105
+    def __iter__(self) -> Iterator[_K]:  # noqa: D105
         return iter(self._dict)
 
     def __repr__(self):  # noqa: D105
