@@ -128,7 +128,7 @@ class EventedDict(TypedMutableMapping[_K, _T]):
         self.events = DictEvents()
         super().__init__(data, basetype)
 
-    def __setitem__(self, key: _K, value: _T):  # noqa: D105
+    def __setitem__(self, key: _K, value: _T) -> None:  # noqa: D105
         old_value = self._dict.get(key, None)
         if value is old_value or value == old_value:
             return
