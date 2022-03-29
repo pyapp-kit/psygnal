@@ -32,7 +32,7 @@ class TypedMutableMapping(MutableMapping[_K, _T]):
         self._basetypes = basetype if isinstance(basetype, Sequence) else (basetype,)
         self.update(data)
 
-    def __setitem__(self, key: _K, value: _T):  # noqa: D105
+    def __setitem__(self, key: _K, value: _T) -> None:  # noqa: D105
         self._dict[key] = self._type_check(value)
 
     def __delitem__(self, key: _K) -> None:  # noqa: D105
