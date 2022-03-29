@@ -38,7 +38,19 @@ def test_dict_interface_parity(regular_dict, test_dict, method_name, args, expec
         test_dict_method(*args)  # smoke test
 
 
-def test_events_on_add(test_dict):
+def test_dict_add_events(test_dict):
     """Test that events are emitted before and after an item is added."""
-    test_dict.events.adding.connect(lambda: print('whee'))
-    test_dict['D'] = 4
+    test_dict.events.adding.emit = Mock(wraps=test_dict.events.adding.emit)
+    test_dict.events.added.emit = Mock(wraps=test_dict.events.added.emit)
+    test_dict["D"] = 4
+    test_dict.events.adding.emit.assert_called_with("D")
+    test_dict.events.added.emit.assert_called_with("D", 4)
+
+
+def test_dict_remove_events(test_dict):
+    """Test that events are emitted before and after an item is removed."""
+    test_dict.events.removing.emit = Mock(wraps=test_dict.events.removing.emit)
+    test_dict.events.removed.emit = Mock(wraps=test_dict.events.removed.emit)
+    test_dict.pop("C")
+    test_dict.events.removing.emit.assert_called_with("C")
+    test_dict.events.removed.emit.assert_called_with("C", 3)
