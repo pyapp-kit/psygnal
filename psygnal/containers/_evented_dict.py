@@ -1,15 +1,15 @@
 """Dict that emits events when altered."""
 
 from typing import (
-    Any,
     Dict,
     Iterator,
     Mapping,
     MutableMapping,
+    Optional,
     Sequence,
     Type,
     TypeVar,
-    Union, Optional,
+    Union,
 )
 
 from .. import Signal, SignalGroup
@@ -62,7 +62,7 @@ class TypedMutableMapping(MutableMapping[_K, _T]):
         return e
 
     def __newlike__(
-            self, iterable: MutableMapping[_K, _T]
+        self, iterable: MutableMapping[_K, _T]
     ) -> "TypedMutableMapping[_K, _T]":  # noqa: D105
         new = self.__class__()
         # separating this allows subclasses to omit these from their `__init__`
