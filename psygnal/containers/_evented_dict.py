@@ -47,7 +47,7 @@ class TypedMutableMapping(MutableMapping[_K, _T]):
     def __iter__(self) -> Iterator[_K]:  # noqa: D105
         return iter(self._dict)
 
-    def __repr__(self):  # noqa: D105
+    def __repr__(self):  # type: ignore
         return str(self._dict)
 
     def _type_check(self, e: _T) -> _T:
