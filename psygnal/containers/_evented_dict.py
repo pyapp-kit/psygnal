@@ -50,7 +50,7 @@ class TypedMutableMapping(MutableMapping[_K, _T]):
     def __repr__(self):  # noqa: D105
         return str(self._dict)
 
-    def _type_check(self, e: Any) -> _T:
+    def _type_check(self, e: _T) -> _T:
         """Check the types of items if basetypes are set for the model."""
         if self._basetypes and not any(isinstance(e, t) for t in self._basetypes):
             raise TypeError(
