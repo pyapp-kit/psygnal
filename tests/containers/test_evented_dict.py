@@ -46,6 +46,26 @@ def test_dict_add_events(test_dict):
     test_dict.events.adding.emit.assert_called_with("D")
     test_dict.events.added.emit.assert_called_with("D", 4)
 
+    test_dict.events.adding.emit.reset_mock()
+    test_dict.events.added.emit.reset_mock()
+    test_dict["D"] = 4
+    test_dict.events.adding.emit.assert_not_called()
+    test_dict.events.added.emit.assert_not_called()
+
+
+def test_dict_change_events(test_dict):
+    """Test that events are emitted when an item in the dictionary is replaced."""
+    # events shouldn't be emitted on addition
+
+    test_dict.events.changing.emit = Mock(wraps=test_dict.events.changing.emit)
+    test_dict.events.changed.emit = Mock(wraps=test_dict.events.changed.emit)
+    test_dict["D"] = 4
+    test_dict.events.changing.emit.assert_not_called()
+    test_dict.events.changed.emit.assert_not_called()
+    test_dict["C"] = 4
+    test_dict.events.changing.emit.assert_called_with("C")
+    test_dict.events.changed.emit.assert_called_with("C", 3, 4)
+
 
 def test_dict_remove_events(test_dict):
     """Test that events are emitted before and after an item is removed."""
