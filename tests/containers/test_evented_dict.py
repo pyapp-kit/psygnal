@@ -12,9 +12,9 @@ def regular_dict():
 
 @pytest.fixture
 def test_dict(regular_dict):
-    evented_dict = EventedDict(regular_dict)
-    evented_dict.events = Mock(wraps=evented_dict.events)
-    return EventedDict(regular_dict)
+    test_dict = EventedDict(regular_dict)
+    test_dict.events = Mock(wraps=test_dict.events)
+    return test_dict
 
 
 @pytest.mark.parametrize(
@@ -36,3 +36,9 @@ def test_dict_interface_parity(regular_dict, test_dict, method_name, args, expec
         assert test_dict == regular_dict
     else:
         test_dict_method(*args)  # smoke test
+
+
+def test_events_on_add(test_dict):
+    """Test that events are emitted before and after an item is added."""
+    test_dict.events.adding.connect(lambda: print('whee'))
+    test_dict['D'] = 4
