@@ -122,7 +122,7 @@ class EventedDict(TypedMutableMapping[_K, _T]):
 
     def __init__(
         self,
-        data: Mapping[_K, _T] = None,
+        data: Optional[Mapping[_K, _T]] = None,
         basetype: Union[Type[_T], Sequence[Type[_T]]] = (),
     ):
         self.events = DictEvents()
