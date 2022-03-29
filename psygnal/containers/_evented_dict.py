@@ -32,32 +32,36 @@ class TypedMutableMapping(MutableMapping[_K, _T]):
         self._basetypes = basetype if isinstance(basetype, Sequence) else (basetype,)
         self.update(data)
 
-    def __setitem__(self, key: int, value: _T):  # noqa: F811
+    def __setitem__(self, key: int, value: _T):  # noqa: D105
         self._dict[key] = self._type_check(value)
 
-    def __delitem__(self, key: _K) -> None:
+    def __delitem__(self, key: _K) -> None:  # noqa: D105
         del self._dict[key]
 
-    def __getitem__(self, key: _K) -> _T:
+    def __getitem__(self, key: _K) -> _T:  # noqa: D105
         return self._dict[key]
 
-    def __len__(self) -> int:
+    def __len__(self) -> int:  # noqa: D105
         return len(self._dict)
 
-    def __iter__(self) -> Iterator[_T]:
+    def __iter__(self) -> Iterator[_T]:  # noqa: D105
         return iter(self._dict)
 
-    def __repr__(self):
+    def __repr__(self):  # noqa: D105
         return str(self._dict)
 
     def _type_check(self, e: Any) -> _T:
+        """Check the types of items if basetypes are set for the model."""
         if self._basetypes and not any(isinstance(e, t) for t in self._basetypes):
             raise TypeError(
-                f"Cannot add object with type {type(e)} to TypedDict expecting type {self._basetypes}",
+                (
+                    f"Cannot add object with type {type(e)} to TypedDict expecting"
+                    f"type {self._basetypes}"
+                ),
             )
         return e
 
-    def __newlike__(self, iterable: MutableMapping[_K, _T]):
+    def __newlike__(self, iterable: MutableMapping[_K, _T]):  # noqa: D105
         new = self.__class__()
         # separating this allows subclasses to omit these from their `__init__`
         new._basetypes = self._basetypes
@@ -98,6 +102,7 @@ class DictEvents(SignalGroup):
 
 class EventedDict(TypedMutableMapping[_K, _T]):
     """Mutable dictionary that emits events when altered.
+
     This class is designed to behave exactly like the builtin `dict`, but
     will emit events before and after all mutations (addition, removal, and
     changing).
@@ -121,7 +126,7 @@ class EventedDict(TypedMutableMapping[_K, _T]):
         self.events = DictEvents()
         super().__init__(data, basetype)
 
-    def __setitem__(self, key: _K, value: _T):
+    def __setitem__(self, key: _K, value: _T):  # noqa: D105
         old_value = self._dict.get(key, None)
         if value is old_value or value == old_value:
             return
@@ -134,7 +139,7 @@ class EventedDict(TypedMutableMapping[_K, _T]):
             super().__setitem__(key, value)
             self.events.changed.emit(key, old_value, value)
 
-    def __delitem__(self, key: _K):
+    def __delitem__(self, key: _K):  # noqa: D105
         self.events.removing.emit(key)
         item = self._dict.pop(key)
         self.events.removed.emit(key, item)
