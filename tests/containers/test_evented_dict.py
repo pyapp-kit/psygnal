@@ -24,6 +24,7 @@ def test_dict(regular_dict):
         ("__setitem__", ("A", 3), ("changed",)),  # update
         ("__setitem__", ("D", 3), ("adding", "added")),  # add new entry
         ("__delitem__", ("A",), ("removing", "removed")),  # delete
+        ("__len__", (), 3),
     ],
 )
 def test_dict_interface_parity(regular_dict, test_dict, method_name, args, expected):
