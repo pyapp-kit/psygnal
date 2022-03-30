@@ -50,16 +50,16 @@ class TypedMutableMapping(MutableMapping[_K, _T]):
     def __repr__(self):  # type: ignore
         return str(self._dict)
 
-    def _type_check(self, e: _T) -> _T:
+    def _type_check(self, value: _T) -> _T:
         """Check the types of items if basetypes are set for the model."""
-        if self._basetypes and not any(isinstance(e, t) for t in self._basetypes):
+        if self._basetypes and not any(isinstance(value, t) for t in self._basetypes):
             raise TypeError(
                 (
-                    f"Cannot add object with type {type(e)} to TypedDict expecting"
+                    f"Cannot add object with type {type(value)} to TypedDict expecting"
                     f"type {self._basetypes}"
                 ),
             )
-        return e
+        return value
 
     def __newlike__(
         self, iterable: MutableMapping[_K, _T]

@@ -12,6 +12,7 @@ def regular_dict():
 
 @pytest.fixture
 def test_dict(regular_dict):
+    """EventedDict without basetype set."""
     test_dict = EventedDict(regular_dict)
     test_dict.events = Mock(wraps=test_dict.events)
     return test_dict
@@ -44,6 +45,22 @@ def test_instantiation_without_data():
     """Test that EventedDict can be instantiated without data."""
     test_dict = EventedDict()
     assert isinstance(test_dict, EventedDict)
+
+
+def test_basetype_enforcement_on_instantiation():
+    """EventedDict with basetype set should enforce types on instantiation."""
+    with pytest.raises(TypeError):
+        test_dict = EventedDict({"A": "not an int"}, basetype=int)
+    test_dict = EventedDict({"A": 1})
+    assert isinstance(test_dict, EventedDict)
+
+
+def test_basetype_enforcement_on_set_item():
+    """EventedDict with basetype set should enforces types on setitem."""
+    test_dict = EventedDict(basetype=int)
+    test_dict["A"] = 1
+    with pytest.raises(TypeError):
+        test_dict["A"] = "not an int"
 
 
 def test_dict_add_events(test_dict):
