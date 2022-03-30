@@ -38,6 +38,12 @@ def test_dict_interface_parity(regular_dict, test_dict, method_name, args, expec
         test_dict_method(*args)  # smoke test
 
 
+def test_instantiation_without_data():
+    """Test that EventedDict can be instantiated without data."""
+    test_dict = EventedDict()
+    assert isinstance(test_dict, EventedDict)
+
+
 def test_dict_add_events(test_dict):
     """Test that events are emitted before and after an item is added."""
     test_dict.events.adding.emit = Mock(wraps=test_dict.events.adding.emit)
