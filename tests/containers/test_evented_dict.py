@@ -28,6 +28,7 @@ def test_dict(regular_dict):
         ("__len__", (), 3),
         ("__repr__", (), "{'A': 1, 'B': 2, 'C': 3}"),
         ("__newlike__", ({"A": 1},), {"A": 1}),
+        ("copy", (), {"A": 1, "B": 2, "C": 3}),
     ],
 )
 def test_dict_interface_parity(regular_dict, test_dict, method_name, args, expected):
