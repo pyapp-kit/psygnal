@@ -6,33 +6,33 @@ from psygnal.containers import SelectableEventedList
 
 
 @pytest.fixture
-def regular_list():
+def regular_list() -> list:
     return list(range(5))
 
 
 @pytest.fixture
-def test_list(regular_list):
+def test_list(regular_list: list) -> SelectableEventedList:
     test_list = SelectableEventedList(regular_list)
     test_list.events = Mock(wraps=test_list.events)
     test_list.selection.events = Mock(wraps=test_list.selection.events)
     return test_list
 
 
-def test_select_item_not_in_list(test_list):
+def test_select_item_not_in_list(test_list: SelectableEventedList) -> None:
     """Items not in list should not be added to selection."""
     with pytest.raises(ValueError):
         test_list.selection.add(6)
     assert 6 not in test_list.selection
 
 
-def test_newly_selected_item_is_active(test_list):
+def test_newly_selected_item_is_active(test_list: SelectableEventedList) -> None:
     """Items added to a selection should become active."""
     test_list.selection.clear()
     test_list.selection.add(1)
     assert test_list.selection.active == 1
 
 
-def test_select_all(test_list):
+def test_select_all(test_list: SelectableEventedList) -> None:
     """Select all should populate the selection."""
     test_list.selection.update = Mock(wraps=test_list.selection.update)
     test_list.selection.clear()
@@ -42,10 +42,10 @@ def test_select_all(test_list):
     test_list.selection.update.assert_called_once()
 
 
-def test_deselect_all(test_list):
+def test_deselect_all(test_list: SelectableEventedList) -> None:
     """Deselect all should clear the selection"""
     test_list.selection.clear = Mock(wraps=test_list.selection.clear)
-    test_list.selection = [el for el in range(5)]
+    test_list.selection = list(range(5))
     assert all(el in test_list.selection for el in range(5))
     test_list.deselect_all()
     assert not test_list.selection
@@ -65,7 +65,12 @@ def test_deselect_all(test_list):
     ],
 )
 def test_select_next(
-    test_list, initial_selection, step, expand_selection, wraparound, expected
+    test_list: SelectableEventedList,
+    initial_selection,
+    step,
+    expand_selection,
+    wraparound,
+    expected,
 ):
     """Test select next method behaviour."""
     test_list.selection = initial_selection
@@ -102,7 +107,9 @@ def test_select_previous(
     assert test_list.selection == expected
 
 
-def test_item_discarded_from_selection_on_removal_from_list(test_list):
+def test_item_discarded_from_selection_on_removal_from_list(
+    test_list: SelectableEventedList,
+) -> None:
     """Check that items removed from a list are also removed from the selection."""
     test_list.selection.clear()
     test_list.selection.discard = Mock(wraps=test_list.selection.discard)
@@ -113,7 +120,7 @@ def test_item_discarded_from_selection_on_removal_from_list(test_list):
     test_list.selection.discard.assert_called_once()
 
 
-def test_remove_selected(test_list):
+def test_remove_selected(test_list: SelectableEventedList) -> None:
     """Test items are removed from both the selection and the list."""
     test_list.selection.clear()
     initial_selection = {0, 1}
