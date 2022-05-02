@@ -1,5 +1,5 @@
 """MutableSequence with a selection model."""
-from typing import Tuple, TypeVar
+from typing import Iterable, Tuple, TypeVar
 
 from ._evented_list import EventedList
 from ._selection import Selectable
@@ -8,12 +8,41 @@ _T = TypeVar("_T")
 
 
 class SelectableEventedList(Selectable[_T], EventedList[_T]):
-    """List object with a built in selection model."""
+    """`EventedList` subclass with a built in selection model.
 
-    def __init__(self, *args: _T, **kwargs: _T) -> None:
+    In addition to all `EventedList` properties, this class also has a `selection`
+    attribute that manages a set of selected items in the list.
+
+    Parameters
+    ----------
+    data : iterable, optional
+        Elements to initialize the list with.
+    hashable : bool, optional
+        Whether the list should be hashable as id(self). By default `True`.
+    child_events: bool
+        Whether to re-emit events from emitted from evented items in the list
+        (i.e. items that have SignalInstances). If `True`, child events can be connected
+        at `EventedList.events.child_event`. By default, `False`.
+
+    Attributes
+    ----------
+    events : ListEvents
+        SignalGroup that with events related to list mutation.  (see ListEvents)
+    selection : Selection
+        An evented set containing the currently selected items, along with an `active`
+        and `current` item.  (See `Selection`)
+    """
+
+    def __init__(
+        self,
+        data: Iterable[_T] = (),
+        *,
+        hashable: bool = True,
+        child_events: bool = False,
+    ):
         self._activate_on_insert: bool = True
-        super().__init__(*args, **kwargs)
-        self.events.removed.connect(self.selection.discard)
+        super().__init__(data=data, hashable=hashable, child_events=child_events)
+        self.events.removed.connect(lambda _, b: self.selection.discard(b))
 
     def insert(self, index: int, value: _T) -> None:
         """Insert item(s) into the list and update the selection."""
@@ -32,10 +61,22 @@ class SelectableEventedList(Selectable[_T], EventedList[_T]):
     def select_next(
         self, step: int = 1, expand_selection: bool = False, wraparound: bool = False
     ) -> None:
-        """Select the next item in the list."""
+        """Select the next item in the list.
+
+        Parameters
+        ----------
+        step : int, optional
+            The step size to take when picking the next item, by default 1
+        expand_selection : bool, optional
+            If True, will expand the selection to contain the both the current item and
+            the next item, by default False
+        wraparound : bool, optional
+            Whether to return to the beginning of the list of the end has been reached,
+            by default False
+        """
         if len(self) == 0:
             return
-        elif not self.selection and len(self) > 0:
+        elif not self.selection:
             idx = -1 if step > 0 else 0
         else:
             idx = self.index(self.selection._current) + step
@@ -60,15 +101,18 @@ class SelectableEventedList(Selectable[_T], EventedList[_T]):
         )
 
     def remove_selected(self) -> Tuple[_T, ...]:
-        """Remove selected items from the list and the selection."""
+        """Remove selected items from the list and the selection.
+
+        Returns
+        -------
+        Tuple[_T, ...]
+            The items that were removed.
+        """
         selected_items = tuple(self.selection)
         idx = 0
         for item in list(self.selection):
             idx = self.index(item)
             self.remove(item)
-            # shouldn't be necessary but remove is not discarding from selection
-            # when called from here...
-            self.selection.discard(item)
         new_idx = max(0, idx - 1)
         if len(self) > new_idx:
             self.selection.add(self[new_idx])
