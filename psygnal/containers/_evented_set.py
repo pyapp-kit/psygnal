@@ -116,12 +116,12 @@ class _BaseMutableSet(MutableSet[_T]):
 
         (i.e. all elements that are in both sets.)
         """
-        other = set.intersection(*(map(set, s)))
+        other = set.intersection(*(set(x) for x in s))
         return self.__class__(i for i in self if i in other)
 
     def intersection_update(self, *s: Iterable[_T]) -> None:
         """Update this set with the intersection of itself and another."""
-        other = set.intersection(*(map(set, s)))
+        other = set.intersection(*(set(x) for x in s))
         for i in tuple(self):
             if i not in other:
                 self.discard(i)
