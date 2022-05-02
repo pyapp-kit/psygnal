@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from abc import ABC
-from typing import TYPE_CHECKING, Container, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Container, TypeVar, Union
 
 from .._signal import Signal
 from ._evented_set import BailType, EventedOrderedSet, SetEvents
@@ -56,6 +55,9 @@ class Selection(EventedOrderedSet[_T]):
     ----------
     data : iterable, optional
         Elements to initialize the set with.
+    parent : Container, optional
+        The parent container, if any. This is used to provide validation upon
+        mutation in common use cases.
 
     Attributes
     ----------
@@ -67,12 +69,9 @@ class Selection(EventedOrderedSet[_T]):
     _current : Any, optional
         The current item, if any. This is used primarily by GUI views when
         handling mouse/key events.
-    _parent : Container, optional
-        The parent container, if any. This is used to provide validation upon
-        mutation in common use cases.
     """
 
-    events: SelectionEvents  # pragma: no cover
+    events: SelectionEvents
 
     def __init__(self, data: Iterable[_T] = (), parent: Optional[Container] = None):
         self._active: Optional[_T] = None
@@ -82,12 +81,12 @@ class Selection(EventedOrderedSet[_T]):
         self._update_active()
 
     @property
-    def _current(self) -> Optional[_T]:  # pragma: no cover
+    def _current(self) -> Optional[_T]:
         """Get current item."""
         return self._current_
 
     @_current.setter
-    def _current(self, value: Optional[_T]) -> None:  # pragma: no cover
+    def _current(self, value: Optional[_T]) -> None:
         """Set current item."""
         if value == self._current_:
             return
@@ -95,12 +94,12 @@ class Selection(EventedOrderedSet[_T]):
         self.events._current.emit(value)
 
     @property
-    def active(self) -> Optional[_T]:  # pragma: no cover
+    def active(self) -> Optional[_T]:
         """Return the currently active item or None."""
         return self._active
 
     @active.setter
-    def active(self, value: Optional[_T]) -> None:  # pragma: no cover
+    def active(self, value: Optional[_T]) -> None:
         """Set the active item.
 
         This makes `value` the only selected item, and makes it current.
@@ -154,7 +153,7 @@ class Selection(EventedOrderedSet[_T]):
         self._update_active()
 
     def _pre_add_hook(self, item: _T) -> Union[_T, BailType]:
-        if self._parent and item not in self._parent:
+        if self._parent is not None and item not in self._parent:
             raise ValueError(
                 "Cannot select an item that is not in the parent container."
             )
@@ -165,20 +164,20 @@ class Selection(EventedOrderedSet[_T]):
         return id(self)
 
 
-class Selectable(Container[_S], ABC):
+class Selectable(Container[_S]):
     """Mixin that adds a selection model to a container."""
 
-    def __init__(self, *args, **kwargs) -> None:  # type: ignore
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         self._selection: Selection[_S] = Selection(parent=self)
         super().__init__(*args, **kwargs)
 
     @property
-    def selection(self) -> Selection[_S]:  # pragma: no cover
+    def selection(self) -> Selection[_S]:
         """Get current selection."""
         return self._selection
 
     @selection.setter
-    def selection(self, new_selection: Iterable[_S]) -> None:  # pragma: no cover
+    def selection(self, new_selection: Iterable[_S]) -> None:
         """Set selection, without deleting selection model object."""
         self._selection.intersection_update(new_selection)
         self._selection.update(new_selection)
