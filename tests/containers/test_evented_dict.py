@@ -21,12 +21,11 @@ def test_dict(regular_dict):
 @pytest.mark.parametrize(
     "method_name, args, expected",
     [
-        ("__getitem__", ("A",), ()),  # read
-        ("__setitem__", ("A", 3), ("changed",)),  # update
-        ("__setitem__", ("D", 3), ("adding", "added")),  # add new entry
-        ("__delitem__", ("A",), ("removing", "removed")),  # delete
+        ("__getitem__", ("A",), 1),  # read
+        ("__setitem__", ("A", 3), None),  # update
+        ("__setitem__", ("D", 3), None),  # add new entry
+        ("__delitem__", ("A",), None),  # delete
         ("__len__", (), 3),
-        ("__repr__", (), "{'A': 1, 'B': 2, 'C': 3}"),
         ("__newlike__", ({"A": 1},), {"A": 1}),
         ("copy", (), {"A": 1, "B": 2, "C": 3}),
     ],
@@ -37,10 +36,21 @@ def test_dict_interface_parity(regular_dict, test_dict, method_name, args, expec
     assert test_dict == regular_dict
     if hasattr(regular_dict, method_name):
         regular_dict_method = getattr(regular_dict, method_name)
-        assert test_dict_method(*args) == regular_dict_method(*args)
+        assert test_dict_method(*args) == regular_dict_method(*args) == expected
         assert test_dict == regular_dict
     else:
         test_dict_method(*args)  # smoke test
+
+
+def test_dict_inits():
+    a = EventedDict({"A": 1, "B": 2, "C": 3})
+    b = EventedDict(A=1, B=2, C=3)
+    c = EventedDict({"A": 1}, B=2, C=3)
+    assert a == b == c
+
+
+def test_dict_repr(test_dict):
+    assert repr(test_dict) == "EventedDict({'A': 1, 'B': 2, 'C': 3})"
 
 
 def test_instantiation_without_data():

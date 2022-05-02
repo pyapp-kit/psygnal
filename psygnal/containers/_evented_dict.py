@@ -6,6 +6,7 @@ from typing import (
     Iterator,
     Mapping,
     MutableMapping,
+    Optional,
     Sequence,
     Tuple,
     Type,
@@ -18,6 +19,7 @@ from .. import Signal, SignalGroup
 _K = TypeVar("_K")
 _V = TypeVar("_V")
 TypeOrSequenceOfTypes = Union[Type[_V], Sequence[Type[_V]]]
+DictArg = Union[Mapping[_K, _V], Iterable[Tuple[_K, _V]]]
 
 
 class TypedMutableMapping(MutableMapping[_K, _V]):
@@ -35,7 +37,7 @@ class TypedMutableMapping(MutableMapping[_K, _V]):
 
     def __init__(
         self,
-        data: Union[Mapping[_K, _V], Iterable[Tuple[_K, _V]], None] = None,
+        data: Optional[DictArg] = None,
         *,
         basetype: TypeOrSequenceOfTypes = (),
         **kwargs: _V,
@@ -45,7 +47,7 @@ class TypedMutableMapping(MutableMapping[_K, _V]):
         self._basetypes: Tuple[Type[_V], ...] = (
             tuple(basetype) if isinstance(basetype, Sequence) else (basetype,)
         )
-        self.update({} if data is None else dict(data, **kwargs))  # type: ignore
+        self.update({} if data is None else data, **kwargs)
 
     def __setitem__(self, key: _K, value: _V) -> None:
         self._dict[key] = self._type_check(value)
@@ -63,7 +65,7 @@ class TypedMutableMapping(MutableMapping[_K, _V]):
         return iter(self._dict)
 
     def __repr__(self) -> str:
-        return str(self._dict)
+        return repr(self._dict)
 
     def _type_check(self, value: _V) -> _V:
         """Check the types of items if basetypes are set for the model."""
@@ -136,7 +138,7 @@ class EventedDict(TypedMutableMapping[_K, _V]):
 
     def __init__(
         self,
-        data: Union[Mapping[_K, _V], Iterable[Tuple[_K, _V]], None] = None,
+        data: Optional[DictArg] = None,
         *,
         basetype: TypeOrSequenceOfTypes = (),
         **kwargs: _V,
@@ -157,6 +159,10 @@ class EventedDict(TypedMutableMapping[_K, _V]):
                 self.events.changed.emit(key, old_value, value)
 
     def __delitem__(self, key: _K) -> None:
+        item = self._dict[key]
         self.events.removing.emit(key)
-        item = self._dict.pop(key)
+        super().__delitem__(key)
         self.events.removed.emit(key, item)
+
+    def __repr__(self) -> str:
+        return f"EventedDict({super().__repr__()})"
