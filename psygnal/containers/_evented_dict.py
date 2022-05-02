@@ -2,11 +2,12 @@
 
 from typing import (
     Dict,
+    Iterable,
     Iterator,
     Mapping,
     MutableMapping,
-    Optional,
     Sequence,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -15,62 +16,74 @@ from typing import (
 from .. import Signal, SignalGroup
 
 _K = TypeVar("_K")
-_T = TypeVar("_T")
+_V = TypeVar("_V")
+TypeOrSequenceOfTypes = Union[Type[_V], Sequence[Type[_V]]]
 
 
-class TypedMutableMapping(MutableMapping[_K, _T]):
-    """Dictionary mixin that enforces item type."""
+class TypedMutableMapping(MutableMapping[_K, _V]):
+    """Dictionary that enforces value type.
+
+    Parameters
+    ----------
+    data : Union[Mapping[_K, _V], Iterable[Tuple[_K, _V]], None], optional
+        Data suitable of passing to dict(). Mapping of {key: value} pairs, or
+        Iterable of two-tuples [(key, value), ...], or None to create an
+    basetype : TypeOrSequenceOfTypes, optional
+        Type or Sequence of Type objects. If provided, values entered into this Mapping
+        must be an instance of one of the provided types. by default ()
+    """
 
     def __init__(
         self,
-        data: Optional[Mapping[_K, _T]] = None,
-        basetype: Union[Type[_T], Sequence[Type[_T]]] = (),
+        data: Union[Mapping[_K, _V], Iterable[Tuple[_K, _V]], None] = None,
+        *,
+        basetype: TypeOrSequenceOfTypes = (),
+        **kwargs: _V,
     ):
-        if data is None:
-            data = {}
-        self._dict: Dict[_K, _T] = dict()
-        self._basetypes = basetype if isinstance(basetype, Sequence) else (basetype,)
-        self.update(data)
 
-    def __setitem__(self, key: _K, value: _T) -> None:  # noqa: D105
+        self._dict: Dict[_K, _V] = {}
+        self._basetypes: Tuple[Type[_V], ...] = (
+            tuple(basetype) if isinstance(basetype, Sequence) else (basetype,)
+        )
+        self.update({} if data is None else dict(data, **kwargs))  # type: ignore
+
+    def __setitem__(self, key: _K, value: _V) -> None:
         self._dict[key] = self._type_check(value)
 
-    def __delitem__(self, key: _K) -> None:  # noqa: D105
-        del self._dict[key]  # pragma: no cover
+    def __delitem__(self, key: _K) -> None:
+        del self._dict[key]
 
-    def __getitem__(self, key: _K) -> _T:  # noqa: D105
+    def __getitem__(self, key: _K) -> _V:
         return self._dict[key]
 
-    def __len__(self) -> int:  # noqa: D105
+    def __len__(self) -> int:
         return len(self._dict)
 
-    def __iter__(self) -> Iterator[_K]:  # noqa: D105
+    def __iter__(self) -> Iterator[_K]:
         return iter(self._dict)
 
-    def __repr__(self):  # type: ignore
+    def __repr__(self) -> str:
         return str(self._dict)
 
-    def _type_check(self, value: _T) -> _T:
+    def _type_check(self, value: _V) -> _V:
         """Check the types of items if basetypes are set for the model."""
         if self._basetypes and not any(isinstance(value, t) for t in self._basetypes):
             raise TypeError(
-                (
-                    f"Cannot add object with type {type(value)} to TypedDict expecting"
-                    f"type {self._basetypes}"
-                ),
+                f"Cannot add object with type {type(value)} to TypedDict expecting"
+                f"type {self._basetypes}"
             )
         return value
 
     def __newlike__(
-        self, iterable: MutableMapping[_K, _T]
-    ) -> "TypedMutableMapping[_K, _T]":  # noqa: D105
+        self, mapping: MutableMapping[_K, _V]
+    ) -> "TypedMutableMapping[_K, _V]":
         new = self.__class__()
         # separating this allows subclasses to omit these from their `__init__`
         new._basetypes = self._basetypes
-        new.update(**iterable)  # type: ignore
+        new.update(mapping)
         return new
 
-    def copy(self) -> "TypedMutableMapping[_K, _T]":
+    def copy(self) -> "TypedMutableMapping[_K, _V]":
         """Return a shallow copy of the dictionary."""
         return self.__newlike__(self)
 
@@ -82,15 +95,15 @@ class DictEvents(SignalGroup):
     ----------
     adding (key: _K)
         emitted before an item is added at `key`
-    added (key: _K, value: _T)
+    added (key: _K, value: _V)
         emitted after a `value` is added at `key`
-    changing (key: _K, old_value: _T, value: _T)
+    changing (key: _K, old_value: _V, value: _V)
         emitted before `old_value` is replaced with `value` at `key`
-    changed (key: _K, old_value: _T, value: _T)
+    changed (key: _K, old_value: _V, value: _V)
         emitted before `old_value` is replaced with `value` at `key`
     removing (key: _K)
         emitted before an item is removed at `key`
-    removed (key: _K, value: _T)
+    removed (key: _K, value: _V)
         emitted after `value` is removed at `index`
     """
 
@@ -102,7 +115,7 @@ class DictEvents(SignalGroup):
     removed = Signal(object, object)  # (key, value)
 
 
-class EventedDict(TypedMutableMapping[_K, _T]):
+class EventedDict(TypedMutableMapping[_K, _V]):
     """Mutable dictionary that emits events when altered.
 
     This class is designed to behave exactly like the builtin `dict`, but
@@ -111,37 +124,39 @@ class EventedDict(TypedMutableMapping[_K, _T]):
 
     Parameters
     ----------
-    data : Mapping, optional
-        Dictionary to initialize the class with.
-    basetype : type of sequence of types, optional
-        Type of the element in the dictionary.
-
+    data : Union[Mapping[_K, _V], Iterable[Tuple[_K, _V]], None], optional
+        Data suitable of passing to dict(). Mapping of {key: value} pairs, or
+        Iterable of two-tuples [(key, value), ...], or None to create an
+    basetype : TypeOrSequenceOfTypes, optional
+        Type or Sequence of Type objects. If provided, values entered into this Mapping
+        must be an instance of one of the provided types. by default ().
     """
 
     events: DictEvents  # pragma: no cover
 
     def __init__(
         self,
-        data: Optional[Mapping[_K, _T]] = None,
-        basetype: Union[Type[_T], Sequence[Type[_T]]] = (),
+        data: Union[Mapping[_K, _V], Iterable[Tuple[_K, _V]], None] = None,
+        *,
+        basetype: TypeOrSequenceOfTypes = (),
+        **kwargs: _V,
     ):
         self.events = DictEvents()
-        super().__init__(data, basetype)
+        super().__init__(data, basetype=basetype, **kwargs)
 
-    def __setitem__(self, key: _K, value: _T) -> None:  # noqa: D105
-        old_value = self._dict.get(key, None)  # type: ignore
-        if value is old_value or value == old_value:
-            return
-        if old_value is None:
+    def __setitem__(self, key: _K, value: _V) -> None:
+        if key not in self._dict:
             self.events.adding.emit(key)
             super().__setitem__(key, value)
             self.events.added.emit(key, value)
         else:
-            self.events.changing.emit(key)
-            super().__setitem__(key, value)
-            self.events.changed.emit(key, old_value, value)
+            old_value = self._dict[key]
+            if value is not old_value:
+                self.events.changing.emit(key)
+                super().__setitem__(key, value)
+                self.events.changed.emit(key, old_value, value)
 
-    def __delitem__(self, key: _K) -> None:  # noqa: D105
+    def __delitem__(self, key: _K) -> None:
         self.events.removing.emit(key)
         item = self._dict.pop(key)
         self.events.removed.emit(key, item)
