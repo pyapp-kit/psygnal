@@ -36,7 +36,7 @@ class TypedMutableMapping(MutableMapping[_K, _T]):
         self._dict[key] = self._type_check(value)
 
     def __delitem__(self, key: _K) -> None:  # noqa: D105
-        del self._dict[key]  # pragma: nocover
+        del self._dict[key]  # pragma: no cover
 
     def __getitem__(self, key: _K) -> _T:  # noqa: D105
         return self._dict[key]
