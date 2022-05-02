@@ -172,12 +172,12 @@ class Selectable(Container[_S]):
         super().__init__(*args, **kwargs)
 
     @property
-    def selection(self) -> Selection[_S]:
+    def selection(self) -> Selection[_S]:  # pragma: no cover
         """Get current selection."""
         return self._selection
 
     @selection.setter
-    def selection(self, new_selection: Iterable[_S]) -> None:
+    def selection(self, new_selection: Iterable[_S]) -> None:  # pragma: no cover
         """Set selection, without deleting selection model object."""
         self._selection.intersection_update(new_selection)
         self._selection.update(new_selection)
