@@ -1,7 +1,6 @@
 from unittest.mock import Mock
 
 from psygnal.containers import Selection
-from psygnal.containers._selection import Selectable
 
 
 def test_add_and_remove_from_selection():
@@ -91,15 +90,6 @@ def test_emit_change():
     selection._update_active = Mock()
     selection._emit_change((None), (None))
     selection._update_active.assert_called_once()
-
-
-def test_selectable():
-    selectable = Selectable()
-    assert isinstance(selectable.selection, Selection)
-    selectable._selection = Mock()
-    selectable.selection = [1, 2]
-    selectable._selection.intersection_update.assert_called_once()
-    selectable._selection.update.assert_called_once()
 
 
 def test_hash():
