@@ -1,5 +1,5 @@
 """MutableSequence with a selection model."""
-from typing import Iterable, Tuple, TypeVar
+from typing import Any, Iterable, Tuple, TypeVar
 
 from ._evented_list import EventedList
 from ._selection import Selectable
@@ -42,7 +42,10 @@ class SelectableEventedList(Selectable[_T], EventedList[_T]):
     ):
         self._activate_on_insert: bool = True
         super().__init__(data=data, hashable=hashable, child_events=child_events)
-        self.events.removed.connect(lambda _, b: self.selection.discard(b))
+        self.events.removed.connect(self._on_item_removed)
+
+    def _on_item_removed(self, idx: int, obj: Any) -> None:
+        self.selection.discard(obj)
 
     def insert(self, index: int, value: _T) -> None:
         """Insert item(s) into the list and update the selection."""
