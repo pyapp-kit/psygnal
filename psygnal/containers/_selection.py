@@ -71,7 +71,7 @@ class Selection(EventedOrderedSet[_T]):
         handling mouse/key events.
     """
 
-    events: SelectionEvents
+    events: SelectionEvents  # pragma: no cover
 
     def __init__(self, data: Iterable[_T] = (), parent: Optional[Container] = None):
         self._active: Optional[_T] = None
@@ -81,12 +81,12 @@ class Selection(EventedOrderedSet[_T]):
         self._update_active()
 
     @property
-    def _current(self) -> Optional[_T]:
+    def _current(self) -> Optional[_T]:  # pragma: no cover
         """Get current item."""
         return self._current_
 
     @_current.setter
-    def _current(self, value: Optional[_T]) -> None:
+    def _current(self, value: Optional[_T]) -> None:  # pragma: no cover
         """Set current item."""
         if value == self._current_:
             return
@@ -94,12 +94,12 @@ class Selection(EventedOrderedSet[_T]):
         self.events._current.emit(value)
 
     @property
-    def active(self) -> Optional[_T]:
+    def active(self) -> Optional[_T]:  # pragma: no cover
         """Return the currently active item or None."""
         return self._active
 
     @active.setter
-    def active(self, value: Optional[_T]) -> None:
+    def active(self, value: Optional[_T]) -> None:  # pragma: no cover
         """Set the active item.
 
         This makes `value` the only selected item, and makes it current.
