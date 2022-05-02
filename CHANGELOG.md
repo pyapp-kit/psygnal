@@ -1,10 +1,25 @@
 # Changelog
 
+## [0.3.4](https://github.com/tlambert03/psygnal/tree/0.3.4) (2022-05-02)
+
+[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.3.3...0.3.4)
+
+**Implemented enhancements:**
+
+- Add `EventedDict` [\#79](https://github.com/tlambert03/psygnal/pull/79) ([alisterburt](https://github.com/alisterburt))
+- add `SelectableEventedList` [\#78](https://github.com/tlambert03/psygnal/pull/78) ([alisterburt](https://github.com/alisterburt))
+- Add Throttler class [\#75](https://github.com/tlambert03/psygnal/pull/75) ([tlambert03](https://github.com/tlambert03))
+- Add Selection model ported from napari [\#64](https://github.com/tlambert03/psygnal/pull/64) ([alisterburt](https://github.com/alisterburt))
+
+**Fixed bugs:**
+
+- Make SignalInstance weak referenceable \(Fix forwarding signals\) [\#71](https://github.com/tlambert03/psygnal/pull/71) ([tlambert03](https://github.com/tlambert03))
+
 ## [v0.3.3](https://github.com/tlambert03/psygnal/tree/v0.3.3) (2022-02-14)
 
 [Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.3.2...v0.3.3)
 
-**Merged pull requests:**
+**Fixed bugs:**
 
 - Used custom tuple for cython compatibility [\#69](https://github.com/tlambert03/psygnal/pull/69) ([tlambert03](https://github.com/tlambert03))
 
