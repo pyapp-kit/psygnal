@@ -94,8 +94,11 @@ class EventedList(MutableSequence[_T]):
     data : iterable, optional
         Elements to initialize the list with.
     hashable : bool, optional
-        Whether the list should be hashable as id(self).
-        By default True.
+        Whether the list should be hashable as id(self). By default `True`.
+    child_events: bool
+        Whether to re-emit events from emitted from evented items in the list
+        (i.e. items that have SignalInstances). If `True`, child events can be connected
+        at `EventedList.events.child_event`. By default, `False`.
 
     Attributes
     ----------

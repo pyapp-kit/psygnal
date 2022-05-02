@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Container, TypeVar, Union
 
 from .._signal import Signal
-from ._evented_set import EventedOrderedSet, SetEvents
+from ._evented_set import BailType, EventedOrderedSet, SetEvents
 
 if TYPE_CHECKING:
     from typing import Iterable, Optional, Tuple
@@ -55,6 +55,9 @@ class Selection(EventedOrderedSet[_T]):
     ----------
     data : iterable, optional
         Elements to initialize the set with.
+    parent : Container, optional
+        The parent container, if any. This is used to provide validation upon
+        mutation in common use cases.
 
     Attributes
     ----------
@@ -70,9 +73,10 @@ class Selection(EventedOrderedSet[_T]):
 
     events: SelectionEvents  # pragma: no cover
 
-    def __init__(self, data: Iterable[_T] = ()):
+    def __init__(self, data: Iterable[_T] = (), parent: Optional[Container] = None):
         self._active: Optional[_T] = None
         self._current_: Optional[_T] = None
+        self._parent: Optional[Container] = parent
         super().__init__(iterable=data)
         self._update_active()
 
@@ -148,16 +152,23 @@ class Selection(EventedOrderedSet[_T]):
         super()._emit_change(added, removed)
         self._update_active()
 
+    def _pre_add_hook(self, item: _T) -> Union[_T, BailType]:
+        if self._parent is not None and item not in self._parent:
+            raise ValueError(
+                "Cannot select an item that is not in the parent container."
+            )
+        return super()._pre_add_hook(item)
+
     def __hash__(self) -> int:
         """Make selection hashable."""
         return id(self)
 
 
-class Selectable(Generic[_S]):
-    """Mixin that adds a selection model to an object."""
+class Selectable(Container[_S]):
+    """Mixin that adds a selection model to a container."""
 
-    def __init__(self, *args, **kwargs) -> None:  # type: ignore
-        self._selection: Selection[_S] = Selection()
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self._selection: Selection[_S] = Selection(parent=self)
         super().__init__(*args, **kwargs)
 
     @property
