@@ -146,7 +146,7 @@ class EventedMetaclass(pydantic.main.ModelMetaclass):
                     cls.__property_setters__[name] = attr
                     signals[name] = Signal(object)
 
-        cls.__field_dependents__ = _get_field_dependents(cls) if allow_props else {}
+        cls.__field_dependents__ = _get_field_dependents(cls)
         cls.__signal_group__ = type(f"{name}SignalGroup", (SignalGroup,), signals)
         return cls
 
@@ -175,9 +175,6 @@ def _get_field_dependents(cls: EventedModel) -> Dict[str, Set[str]]:
             class Config:
                 property_dependencies={'c': ['a', 'b']}
     """
-    if not cls.__property_setters__:
-        return {}  # pragma: no cover
-
     deps: Dict[str, Set[str]] = {}
 
     cfg_deps = getattr(cls.__config__, PROPERTY_DEPENDENCIES, {})  # sourcery skip
@@ -221,14 +218,13 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
        `Config`.
 
     3. If you would like properties (i.e. "computed fields") to emit an event when
-       one of the model fields it depends on is mutated you must first set
-       `allow_property_setters` to True, then set one of the following options in the
-       `Config`:
+       one of the model fields it depends on is mutated you must set one of the
+       following options in the `Config`:
 
-       - `property_dependencies`: this should be a `Dict[str, List[str]]`, where the
+       - `property_dependencies` may be a `Dict[str, List[str]]`, where the
          keys are the names of properties, and the values are a list of field names
          (strings) that the property depends on for its value
-       - `guess_property_dependencies`: set this to `True` to guess property
+       - `guess_property_dependencies` may be set to `True` to "guess" property
          dependencies by inspecting the source code of the property getter for.
 
     4. If you would like to allow custom fields to provide their own json_encoders, you
