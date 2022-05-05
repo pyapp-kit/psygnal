@@ -341,13 +341,24 @@ class T(EventedModel):
 
 
 def test_defaults():
-    t = T()
-    assert t._defaults == {"a": 1, "b": 1}
+    class R(EventedModel):
+        x: str = "hi"
 
-    t.a = 2
-    assert t.dict() != t._defaults
-    t.reset()
-    assert t.dict() == t._defaults
+    default_r = R()
+
+    class D(EventedModel):
+        a: int = 1
+        b: int = 1
+        r: R = default_r
+
+    d = D()
+    assert d._defaults == {"a": 1, "b": 1, "r": default_r}
+
+    d.update({"a": 2, "r": {"x": "asdf"}}, recurse=True)
+    assert d.dict() == {"a": 2, "b": 1, "r": {"x": "asdf"}}
+    assert d.dict() != d._defaults
+    d.reset()
+    assert d.dict() == d._defaults
 
 
 def test_enums_as_values():
@@ -434,3 +445,45 @@ def test_evented_model_with_property_setters_events():
     mock_c.assert_called_with([5, 20])
     mock_b.assert_not_called()
     assert t.c == [5, 20]
+
+
+def test_non_setter_with_dependencies():
+    with pytest.raises(ValueError) as e:
+
+        class M(EventedModel):
+            x: int
+
+            @property
+            def y(self):
+                ...
+
+            @y.setter
+            def y(self, v):
+                ...
+
+            class Config:
+                allow_property_setters = True
+                property_dependencies = {"a": []}
+
+    assert "Fields with dependencies must be property.setters" in str(e.value)
+
+
+def test_unrecognized_property_dependencies():
+    with pytest.warns(UserWarning) as e:
+
+        class M(EventedModel):
+            x: int
+
+            @property
+            def y(self):
+                ...
+
+            @y.setter
+            def y(self, v):
+                ...
+
+            class Config:
+                allow_property_setters = True
+                property_dependencies = {"y": ["b"]}
+
+    assert "Unrecognized field dependency: 'b'" in str(e[0])

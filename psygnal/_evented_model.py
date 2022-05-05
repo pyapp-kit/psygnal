@@ -176,7 +176,7 @@ def _get_field_dependents(cls: EventedModel) -> Dict[str, Set[str]]:
                 property_dependencies={'c': ['a', 'b']}
     """
     if not cls.__property_setters__:
-        return {}
+        return {}  # pragma: no cover
 
     deps: Dict[str, Set[str]] = {}
 
@@ -186,12 +186,12 @@ def _get_field_dependents(cls: EventedModel) -> Dict[str, Set[str]]:
         for prop, fields in cfg_deps.items():
             if prop not in cls.__property_setters__:
                 raise ValueError(
-                    "Fields with dependencies must be property.setters. "
+                    "Fields with dependencies must be property.setters."
                     f"{prop!r} is not."
                 )
             for field in fields:
                 if field not in cls.__fields__:
-                    warnings.warn(f"Unrecognized field dependency: {field}")
+                    warnings.warn(f"Unrecognized field dependency: {field!r}")
                 deps.setdefault(field, set()).add(prop)
     elif getattr(cls.__config__, GUESS_PROPERTY_DEPENDENCIES, False):
         # if property_dependencies haven't been explicitly defined, we can glean
@@ -297,10 +297,10 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
             which is useful when the declared field type (e.g. ``Union``) can have
             different realized types with different fields.
         """
-        if isinstance(values, self.__class__):
+        if isinstance(values, BaseModel):
             values = values.dict()
-        if not isinstance(values, dict):
-            raise ValueError(f"Unsupported update from {type(values)}")
+        if not isinstance(values, dict):  # pragma: no cover
+            raise TypeError(f"values must be a dict or BaseModel. got {type(values)}")
 
         with self.events.paused():  # TODO: reduce?
             for key, value in values.items():
@@ -323,7 +323,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
 
         for f_name, eq in self.__eq_operators__.items():
             if not hasattr(self, f_name) or not hasattr(other, f_name):
-                return False
+                return False  # pragma: no cover
             a = getattr(self, f_name)
             b = getattr(other, f_name)
             if not self._check_field_equality(f_name, a, b):
@@ -338,7 +338,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
             return bool(are_equal(a, b))
         except Exception:
             if fail:
-                raise
+                raise  # pragma: no cover
 
             try:
                 np: Optional[ModuleType] = __import__("numpy")
@@ -372,7 +372,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
             yield
         finally:
             if before is not _NULL:
-                setattr(self.Config, "use_enum_values", before)
+                setattr(self.Config, "use_enum_values", before)  # pragma: no cover
             else:
                 delattr(self.Config, "use_enum_values")
 
@@ -383,6 +383,6 @@ def get_defaults(obj: BaseModel) -> Dict[str, Any]:
     for k, v in obj.__fields__.items():
         d = v.get_default()
         if d is None and isinstance(v.type_, pydantic.main.ModelMetaclass):
-            d = get_defaults(v.type_)
+            d = get_defaults(v.type_)  # pragma: no cover
         dflt[k] = d
     return dflt

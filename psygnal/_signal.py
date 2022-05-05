@@ -269,6 +269,10 @@ class SignalInstance:
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
     ) -> None:
+        self._name = name
+        self._instance: Any = instance
+        self._args_queue: List[Any] = []  # filled when paused
+
         if isinstance(signature, (list, tuple)):
             signature = _build_signature(*signature)
         elif not isinstance(signature, Signature):  # pragma: no cover
@@ -278,14 +282,11 @@ class SignalInstance:
             )
 
         self._signature = signature
-        self._instance: Any = instance
         self._check_nargs_on_connect = check_nargs_on_connect
         self._check_types_on_connect = check_types_on_connect
-        self._name = name
         self._slots: List[StoredSlot] = []
         self._is_blocked: bool = False
         self._is_paused: bool = False
-        self._args_queue: List[Any] = []  # filled when paused
         self._lock = threading.RLock()
 
     @property
@@ -584,7 +585,6 @@ class SignalInstance:
                 self._slots.pop(idx)
             elif not missing_ok:
                 raise ValueError(f"slot is not connected: {slot}")
-            # breakpoint()
 
     def __contains__(self, slot: NormedCallback) -> bool:
         """Return `True` if slot is connected."""
@@ -806,7 +806,9 @@ class SignalInstance:
         >>> # results in t.sig.emit({1, 2, 3})
         """
         self._is_paused = False
-        if not self._args_queue:
+        # not sure why this attribute wouldn't be set, but when resuming in
+        # EventedModel.update, it may be undefined (as seen in tests)
+        if not getattr(self, "_args_queue", None):
             return
         if reducer is not None:
             if initial is _NULL:
@@ -817,7 +819,7 @@ class SignalInstance:
         else:
             for args in self._args_queue:
                 self._run_emit_loop(args)
-        self._args_queue = []
+        self._args_queue.clear()
 
     @contextmanager
     def paused(
@@ -851,6 +853,12 @@ class SignalInstance:
             yield
         finally:
             self.resume(reducer, initial)
+
+    def __getstate__(self) -> dict:
+        """Return dict of current state, for pickle."""
+        d = {slot: getattr(self, slot) for slot in self.__slots__}
+        d.pop("_lock", None)
+        return d
 
 
 class EmitThread(threading.Thread):
