@@ -40,7 +40,7 @@ _NULL = object()
 
 
 @contextmanager
-def no_class_attributes() -> Iterator[None]:
+def no_class_attributes() -> Iterator[None]:  # pragma: no cover
     """Context in which pydantic.main.ClassAttribute just passes value 2.
 
     Due to a very annoying decision by PySide2, all class ``__signature__``

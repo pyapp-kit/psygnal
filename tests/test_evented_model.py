@@ -305,6 +305,27 @@ class T(EventedModel):
         self.a, self.b = val
 
 
+def test_nnn():
+    class MyModel(EventedModel):
+        a: int = 1
+        b: int = 1
+
+        @property
+        def c(self) -> List[int]:
+            return [self.a, self.b]
+
+        @c.setter
+        def c(self, val: Sequence[int]) -> None:
+            self.a, self.b = val
+
+        class Config:
+            dependencies = {"c": ["a", "b"]}
+
+    assert list(MyModel.__property_setters__) == ["c"]
+    # the metaclass should have figured out that both a and b affect c
+    assert MyModel.__field_dependents__ == {"a": {"c"}, "b": {"c"}}
+
+
 def test_evented_model_with_property_setters():
     t = T()
 
