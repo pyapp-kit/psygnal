@@ -4,6 +4,7 @@ import operator
 import sys
 import warnings
 from contextlib import contextmanager
+from types import ModuleType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -11,6 +12,7 @@ from typing import (
     ClassVar,
     Dict,
     Iterator,
+    Optional,
     Set,
     Type,
     Union,
@@ -33,7 +35,6 @@ if TYPE_CHECKING:
 
     ConfigType = Type[BaseConfig]
     EqOperator = Callable[[Any, Any], bool]
-
 
 _NULL = object()
 
@@ -213,8 +214,14 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
     # when field is changed, an event for dependent properties will be emitted.
     __field_dependents__: ClassVar[Dict[str, Set[str]]]
     __eq_operators__: ClassVar[Dict[str, EqOperator]]
-    __slots__: ClassVar[Set[str]] = {"__weakref__"}
+    __slots__ = {"__weakref__"}
     __signal_group__: ClassVar[Type[SignalGroup]]
+    # pydantic BaseModel configuration.  see:
+    # https://pydantic-docs.helpmanual.io/usage/model_config/
+
+    class Config:  # noqa
+        # this seems to be necessary for the _json_encoders trick to work
+        json_encoders = {"____": None}
 
     def __init__(_model_self_, **data: Any) -> None:
         super().__init__(**data)
@@ -329,13 +336,22 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         except Exception:
             if fail:
                 raise
-            if hasattr(a, "__array__"):
-                import numpy as np
 
+            try:
+                np: Optional[ModuleType] = __import__("numpy")
+            except ImportError:
+                np = None
+
+            if (
+                hasattr(a, "__array__")
+                and np is not None
+                and are_equal is not np.array_equal
+            ):
                 self.__eq_operators__[field_name] = np.array_equal
+                return self._check_field_equality(field_name, a, b, fail=False)
             else:
                 self.__eq_operators__[field_name] = operator.is_
-            return self._check_field_equality(field_name, a, b, fail=True)
+                return self._check_field_equality(field_name, a, b, fail=True)
 
     @contextmanager
     def enums_as_values(self, as_values: bool = True) -> Iterator[None]:
@@ -348,14 +364,14 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
             by default `True`
         """
         before = getattr(self.Config, "use_enum_values", _NULL)
-        self.Config.use_enum_values = as_values
+        self.__config__.use_enum_values = as_values
         try:
             yield
         finally:
             if before is not _NULL:
-                self.Config.use_enum_values = cast(bool, before)
+                self.__config__.use_enum_values = cast(bool, before)
             else:
-                delattr(self.Config, "use_enum_values")
+                delattr(self.__config__, "use_enum_values")
 
 
 def get_defaults(obj: BaseModel) -> Dict[str, Any]:

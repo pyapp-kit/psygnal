@@ -20,16 +20,6 @@ def test_evented_model():
     """Test creating an evented pydantic model."""
 
     class User(EventedModel):
-        """Demo evented model.
-
-        Parameters
-        ----------
-        id : int
-            User id.
-        name : str, optional
-            User name.
-        """
-
         id: int
         name: str = "Alex"
         age: ClassVar[int] = 100
@@ -90,6 +80,9 @@ def test_evented_model_da_array_equality():
 
     class Model(EventedModel):
         values: da.Array
+
+        class Config:
+            arbitrary_types_allowed = True
 
     r = da.ones((64, 64))
     model1 = Model(values=r)
@@ -257,7 +250,7 @@ def test_evented_model_serialization():
 
     m = Model(obj=MyObj(1, "hi"))
     raw = m.json()
-    assert raw == '{"obj": {"a": 1, "b": "hi"}'
+    assert raw == '{"obj": {"a": 1, "b": "hi"}}'
     deserialized = Model.parse_raw(raw)
     assert deserialized == m
 
@@ -280,10 +273,14 @@ def test_nested_evented_model_serialization():
 
 def test_evented_model_dask_delayed():
     """Test that evented models work with dask delayed objects"""
+    dd = pytest.importorskip("dask.delayed")
     dask = pytest.importorskip("dask")
 
     class MyObject(EventedModel):
-        attribute: dask.delayed.Delayed
+        attribute: dd.Delayed
+
+        class Config:
+            arbitrary_types_allowed = True
 
     @dask.delayed
     def my_function():
