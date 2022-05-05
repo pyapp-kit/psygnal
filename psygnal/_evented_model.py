@@ -193,7 +193,7 @@ def _get_field_dependents(cls: EventedModel) -> Dict[str, Set[str]]:
                 if field not in cls.__fields__:
                     warnings.warn(f"Unrecognized field dependency: {field!r}")
                 deps.setdefault(field, set()).add(prop)
-    elif getattr(cls.__config__, GUESS_PROPERTY_DEPENDENCIES, False):
+    if getattr(cls.__config__, GUESS_PROPERTY_DEPENDENCIES, False):
         # if property_dependencies haven't been explicitly defined, we can glean
         # them from the property.fget code object:
         # SKIP THIS MAGIC FOR NOW?
@@ -206,7 +206,79 @@ def _get_field_dependents(cls: EventedModel) -> Dict[str, Set[str]]:
 
 
 class EventedModel(BaseModel, metaclass=EventedMetaclass):
-    """A Model subclass that emits an event whenever a field value is changed."""
+    """A pydantic BaseModel that emits a signal whenever a field value is changed.
+
+    In addition to standard pydantic `BaseModel` properties (see
+    https://pydantic-docs.helpmanual.io/usage/models/), this class adds the following:
+
+    1. gains an `events` attribute that is an instance of `psygnal.SignalGroup`. This
+       group will have a signal for each field in the model (excluding private
+       attributes and non-mutable fields).  Whenever a field in the model is mutated,
+       the corresponding signal will emit with the new value (see example below).
+
+    2. Gains support for properties and property.setters (not supported in pydantic's
+       BaseModel).  Enable by adding `allow_property_setters = True` to your model
+       `Config`.
+
+    3. If you would like properties (i.e. "computed fields") to emit an event when
+       one of the model fields it depends on is mutated you must first set
+       `allow_property_setters` to True, then set one of the following options in the
+       `Config`:
+
+       - `property_dependencies`: this should be a `Dict[str, List[str]]`, where the
+         keys are the names of properties, and the values are a list of field names
+         (strings) that the property depends on for its value
+       - `guess_property_dependencies`: set this to `True` to guess property
+         dependencies by inspecting the source code of the property getter for.
+
+    4. If you would like to allow custom fields to provide their own json_encoders, you
+       can either use the standard pydantic method of adding json_encoders to your
+       model, for each field type you'd like to support:
+       https://pydantic-docs.helpmanual.io/usage/exporting_models/#json_encoders
+       This `EventedModel` class will additionally look for a `_json_encode` method
+       on any field types in the model.  If a field type declares a `_json_encode`
+       method, it will be added to the `json_encoders` dict in the model `Config`.
+
+    Examples
+    --------
+    Standard EventedModel example:
+
+    ```
+    class MyModel(EventedModel):
+        x: int = 1
+
+    m = MyModel()
+    m.events.x.connect(lambda v: print(f'new value is {v}'))
+    m.x = 3  # prints 'new value is 3'
+    ```
+
+    An example of using property_setters and emitting signals when a field dependency
+    is mutated.
+
+    ```
+    class MyModel(EventedModel):
+        a: int = 1
+        b: int = 1
+
+        @property
+        def c(self) -> List[int]:
+            return [self.a, self.b]
+
+        @c.setter
+        def c(self, val: Sequence[int]) -> None:
+            self.a, self.b = val
+
+        class Config:
+            allow_property_setters = True
+            property_dependencies = {"c": ["a", "b"]}
+
+    m = MyModel()
+    assert m.c == [1, 1]
+    m.events.c.connect(lambda v: print(f"c updated to {v}"))
+    m.a = 2  # prints 'c updated to [2, 1]'
+    ```
+
+    """
 
     # add private attributes for event emission
     _events: SignalGroup = PrivateAttr()
@@ -269,7 +341,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
 
     @property
     def _defaults(self) -> dict:
-        return get_defaults(self)
+        return _get_defaults(self)
 
     def reset(self) -> None:
         """Reset the state of the model to default values."""
@@ -377,12 +449,12 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
                 delattr(self.Config, "use_enum_values")
 
 
-def get_defaults(obj: BaseModel) -> Dict[str, Any]:
+def _get_defaults(obj: BaseModel) -> Dict[str, Any]:
     """Get possibly nested default values for a Model object."""
     dflt = {}
     for k, v in obj.__fields__.items():
         d = v.get_default()
         if d is None and isinstance(v.type_, pydantic.main.ModelMetaclass):
-            d = get_defaults(v.type_)  # pragma: no cover
+            d = _get_defaults(v.type_)  # pragma: no cover
         dflt[k] = d
     return dflt

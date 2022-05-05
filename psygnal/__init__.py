@@ -71,7 +71,9 @@ def __getattr__(name: str) -> Any:
         from ._evented_model import EventedModel
 
         return EventedModel
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    raise AttributeError(  # pragma: no cover
+        f"module {__name__!r} has no attribute {name!r}"
+    )
 
 
 del os, TYPE_CHECKING
