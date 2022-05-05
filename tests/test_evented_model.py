@@ -55,6 +55,37 @@ def test_evented_model():
     name_mock.assert_not_called()
 
 
+def test_evented_model_array_updates():
+    """Test updating an evented pydantic model with an array."""
+
+    class Model(EventedModel):
+        """Demo evented model."""
+
+        values: np.ndarray
+
+        class Config:
+            arbitrary_types_allowed = True
+
+    first_values = np.array([1, 2, 3])
+    model = Model(values=first_values)
+
+    # Mock events
+    values_mock = Mock()
+    model.events.values.connect(values_mock)
+
+    np.testing.assert_almost_equal(model.values, first_values)
+
+    # Updating with new data
+    new_array = np.array([1, 2, 4])
+    model.values = new_array
+    np.testing.assert_array_equal(values_mock.call_args.args[0], new_array)
+    values_mock.reset_mock()
+
+    # Updating with same data, no event should be emitted
+    model.values = new_array
+    values_mock.assert_not_called()
+
+
 def test_evented_model_np_array_equality():
     """Test checking equality with an evented model with direct numpy."""
 

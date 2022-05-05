@@ -206,14 +206,10 @@ def _get_field_dependents(cls: EventedModel) -> Dict[str, Set[str]]:
 
 
 class EventedModel(BaseModel, metaclass=EventedMetaclass):
-    """A Model subclass that emits an event whenever a field value is changed.
-
-    Note: As per the standard pydantic behavior, default Field values are
-    not validated (#4138) and should be correctly typed.
-    """
+    """A Model subclass that emits an event whenever a field value is changed."""
 
     # add private attributes for event emission
-    _events: SignalGroup = PrivateAttr(default_factory=SignalGroup)
+    _events: SignalGroup = PrivateAttr()
 
     # mapping of name -> property obj for methods that are property setters
     __property_setters__: ClassVar[Dict[str, property]]
