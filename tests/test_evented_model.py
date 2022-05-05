@@ -340,7 +340,33 @@ class T(EventedModel):
         guess_property_dependencies = True
 
 
-def test_nnn():
+def test_defaults():
+    t = T()
+    assert t._defaults == {"a": 1, "b": 1}
+
+    t.a = 2
+    assert t.dict() != t._defaults
+    t.reset()
+    assert t.dict() == t._defaults
+
+
+def test_enums_as_values():
+    from enum import Enum
+
+    class MyEnum(Enum):
+        A = "value"
+
+    class SomeModel(EventedModel):
+        a: MyEnum = MyEnum.A
+
+    m = SomeModel()
+    assert m.dict() == {"a": MyEnum.A}
+    with m.enums_as_values():
+        assert m.dict() == {"a": "value"}
+    assert m.dict() == {"a": MyEnum.A}
+
+
+def test_properties_with_explicit_property_dependencies():
     class MyModel(EventedModel):
         a: int = 1
         b: int = 1

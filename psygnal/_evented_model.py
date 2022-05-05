@@ -367,14 +367,14 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
             by default `True`
         """
         before = getattr(self.Config, "use_enum_values", _NULL)
-        self.__config__.use_enum_values = as_values
+        setattr(self.Config, "use_enum_values", as_values)
         try:
             yield
         finally:
             if before is not _NULL:
-                self.__config__.use_enum_values = cast(bool, before)
+                setattr(self.Config, "use_enum_values", before)
             else:
-                delattr(self.__config__, "use_enum_values")
+                delattr(self.Config, "use_enum_values")
 
 
 def get_defaults(obj: BaseModel) -> Dict[str, Any]:
