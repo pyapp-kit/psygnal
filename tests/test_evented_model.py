@@ -73,12 +73,12 @@ def test_evented_model_array_updates():
     values_mock = Mock()
     model.events.values.connect(values_mock)
 
-    np.testing.assert_almost_equal(model.values, first_values)
+    assert np.array_equal(model.values, first_values)
 
     # Updating with new data
     new_array = np.array([1, 2, 4])
     model.values = new_array
-    np.testing.assert_array_equal(values_mock.call_args.args[0], new_array)
+    assert np.array_equal(values_mock.call_args.args[0], new_array)
     values_mock.reset_mock()
 
     # Updating with same data, no event should be emitted
