@@ -9,6 +9,7 @@ __all__ = [
     "__version__",
     "_compiled",
     "EmissionInfo",
+    "EventedModel",
     "Signal",
     "SignalGroup",
     "SignalInstance",
@@ -18,12 +19,13 @@ __all__ = [
     "SignalDebouncer",
 ]
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from types import ModuleType
 
     from . import _group, _signal
+    from ._pydantic import EventedModel
 
     Signal = _signal.Signal
     SignalInstance = _signal.SignalInstance
@@ -62,5 +64,14 @@ else:
     from ._group import EmissionInfo, SignalGroup
     from ._signal import Signal, SignalInstance, _compiled
     from ._throttler import debounced, throttled
+
+
+def __getattr__(name: str) -> Any:
+    if name == "EventedModel":
+        from ._pydantic import EventedModel
+
+        return EventedModel
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 del os, TYPE_CHECKING
