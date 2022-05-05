@@ -37,6 +37,9 @@ if TYPE_CHECKING:
     EqOperator = Callable[[Any, Any], bool]
 
 _NULL = object()
+ALLOW_PROPERTY_SETTERS = "allow_property_setters"
+PROPERTY_DEPENDENCIES = "property_dependencies"
+GUESS_PROPERTY_DEPENDENCIES = "guess_property_dependencies"
 
 
 @contextmanager
@@ -132,15 +135,18 @@ class EventedMetaclass(pydantic.main.ModelMetaclass):
                 # https://github.com/samuelcolvin/pydantic/pull/2064
                 EventedModel.__config__.json_encoders[f.type_] = encoder
 
+        allow_props = getattr(cls.__config__, ALLOW_PROPERTY_SETTERS, False)
+
         # check for @_.setters defined on the class, so we can allow them
         # in EventedModel.__setattr__
         cls.__property_setters__ = {}
-        for name, attr in namespace.items():
-            if isinstance(attr, property) and attr.fset is not None:
-                cls.__property_setters__[name] = attr
-                signals[name] = Signal(object)
+        if allow_props:
+            for name, attr in namespace.items():
+                if isinstance(attr, property) and attr.fset is not None:
+                    cls.__property_setters__[name] = attr
+                    signals[name] = Signal(object)
 
-        cls.__field_dependents__ = _get_field_dependents(cls)
+        cls.__field_dependents__ = _get_field_dependents(cls) if allow_props else {}
         cls.__signal_group__ = type(f"{name}SignalGroup", (SignalGroup,), signals)
         return cls
 
@@ -167,16 +173,16 @@ def _get_field_dependents(cls: EventedModel) -> Dict[str, Set[str]]:
                 self.a, self.b = val
 
             class Config:
-                dependencies={'c': ['a', 'b']}
+                property_dependencies={'c': ['a', 'b']}
     """
     if not cls.__property_setters__:
         return {}
 
     deps: Dict[str, Set[str]] = {}
 
-    cfg_deps = getattr(cls.__config__, "dependencies", {})  # sourcery skip
+    cfg_deps = getattr(cls.__config__, PROPERTY_DEPENDENCIES, {})  # sourcery skip
     if cfg_deps:
-        assert isinstance(cfg_deps, dict), "`Config.dependencies` must be a dict"
+        assert isinstance(cfg_deps, dict), "Config.property_dependencies must be a dict"
         for prop, fields in cfg_deps.items():
             if prop not in cls.__property_setters__:
                 raise ValueError(
@@ -187,9 +193,10 @@ def _get_field_dependents(cls: EventedModel) -> Dict[str, Set[str]]:
                 if field not in cls.__fields__:
                     warnings.warn(f"Unrecognized field dependency: {field}")
                 deps.setdefault(field, set()).add(prop)
-    else:  # SKIP THIS MAGIC FOR NOW? ... could potentially re-add
-        # if dependencies haven't been explicitly defined, we can glean
+    elif getattr(cls.__config__, GUESS_PROPERTY_DEPENDENCIES, False):
+        # if property_dependencies haven't been explicitly defined, we can glean
         # them from the property.fget code object:
+        # SKIP THIS MAGIC FOR NOW?
         for prop, setter in cls.__property_setters__.items():
             if setter.fget is not None:
                 for name in setter.fget.__code__.co_names:
