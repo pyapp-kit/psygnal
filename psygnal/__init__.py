@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from types import ModuleType
 
     from . import _group, _signal
-    from ._pydantic import EventedModel
+    from ._evented_model import EventedModel
 
     Signal = _signal.Signal
     SignalInstance = _signal.SignalInstance
@@ -68,7 +68,7 @@ else:
 
 def __getattr__(name: str) -> Any:
     if name == "EventedModel":
-        from ._pydantic import EventedModel
+        from ._evented_model import EventedModel
 
         return EventedModel
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
