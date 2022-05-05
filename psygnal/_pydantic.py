@@ -66,7 +66,6 @@ def no_class_attributes() -> Iterator[None]:
     - https://bugreports.qt.io/browse/PYSIDE-1004
     - https://codereview.qt-project.org/c/pyside/pyside-setup/+/261411
     """
-
     if "PySide2" not in sys.modules:
         yield
         return
@@ -76,12 +75,12 @@ def no_class_attributes() -> Iterator[None]:
     def _return2(x: str, y: inspect.Signature) -> inspect.Signature:
         return y
 
-    pydantic.main.ClassAttribute = _return2  # type: ignore
+    setattr(pydantic.main, "ClassAttribute", _return2)
     try:
         yield
     finally:
         # undo our monkey patch
-        pydantic.main.ClassAttribute = utils.ClassAttribute  # type: ignore
+        setattr(pydantic.main, "ClassAttribute", utils.ClassAttribute)
 
 
 def _pick_equality_operator(type_: Type) -> EqOperator:
@@ -108,6 +107,7 @@ class EventedMetaclass(pydantic.main.ModelMetaclass):
     def __new__(
         mcs: type, name: str, bases: tuple, namespace: dict, **kwargs: Any
     ) -> EventedMetaclass:
+        """Create new EventedModel class."""
         with no_class_attributes():
             cls = super().__new__(mcs, name, bases, namespace, **kwargs)
 
@@ -213,7 +213,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
     # when field is changed, an event for dependent properties will be emitted.
     __field_dependents__: ClassVar[Dict[str, Set[str]]]
     __eq_operators__: ClassVar[Dict[str, EqOperator]]
-    __slots__: ClassVar[Set[str]] = {"__weakref__"}  # type: ignore
+    __slots__: ClassVar[Set[str]] = {"__weakref__"}
     __signal_group__: ClassVar[Type[SignalGroup]]
 
     def __init__(_model_self_, **data: Any) -> None:
@@ -254,6 +254,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
     # expose the private EmitterGroup publically
     @property
     def events(self) -> SignalGroup:
+        """Return the `SignalGroup` containing all events for this model."""
         return self._events
 
     @property
@@ -320,7 +321,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         return True
 
     def _check_field_equality(
-        self, field_name: str, a: Any, b: Any, fail=False
+        self, field_name: str, a: Any, b: Any, fail: bool = False
     ) -> bool:
         are_equal = self.__eq_operators__.get(field_name, operator.eq)
         try:
