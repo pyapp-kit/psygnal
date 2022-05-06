@@ -29,44 +29,55 @@ from typing_extensions import Literal, get_args, get_origin, get_type_hints
 MethodRef = Tuple["weakref.ReferenceType[object]", str, Optional[Callable]]
 NormedCallback = Union[MethodRef, Callable]
 StoredSlot = Tuple[NormedCallback, Optional[int]]
-AnyType = Type[Any]
 ReducerFunc = Callable[[tuple, tuple], tuple]
 _NULL = object()
 
 
 class Signal:
-    """Signal descriptor, for declaring a signal on a class.
+    """Declares a signal emitter on a class.
 
-    This is designed to be used as a class attribute, with the supported signature(s)
+    This is class implements the [descriptor
+    protocol](https://docs.python.org/3/howto/descriptor.html#descriptorhowto)
+    and is designed to be used as a class attribute, with the supported signature types
     provided in the contructor:
 
-        class MyEmitter:
-            changed = Signal(int)  # changed will emit an int
+    ```python
+    from psygnal import Signal
 
-        def receiver(arg: int):
-            print("new value:", arg)
+    class MyEmitter:
+        changed = Signal(int)
 
-        emitter = MyEmitter()
-        emitter.changed.connect(receiver)
-        emitter.emit(1)
+    def receiver(arg: int):
+        print("new value:", arg)
 
-    Note: in the example above, `MyEmitter.changed` is an instance of `Signal`,
-    and `emitter.changed` is an instance of `SignalInstance`.
+    emitter = MyEmitter()
+    emitter.changed.connect(receiver)
+    emitter.changed.emit(1)  # prints 'new value: 1'
+    ```
+
+    !!! note
+
+        in the example above, `MyEmitter.changed` is an instance of `Signal`,
+        and `emitter.changed` is an instance of `SignalInstance`.  See the
+        documentation on [`SignalInstance`][psygnal.SignalInstance] for details
+        on how to connect to and/or emit a signal on an instance of an object
+        that has a `Signal`.
+
 
     Parameters
     ----------
-    *types : sequence of Type
-        A sequence of individual types
-    description : str, optional
+    *types : Union[Type[Any], Signature]
+        A sequence of individual types, or a *single* [`inspect.Signature`][] object.
+    description : str
         Optional descriptive text for the signal.  (not used internally).
-    name : str, optional
+    name : Optional[str]
         Optional name of the signal. If it is not specified then the name of the
         class attribute that is bound to the signal will be used. default None
-    check_nargs_on_connect : str, optional
+    check_nargs_on_connect : bool
         Whether to check the number of positional args against `signature` when
         connecting a new callback. This can also be provided at connection time using
         `.connect(..., check_nargs=True)`. By default, True.
-    check_types_on_connect : str, optional
+    check_types_on_connect : bool
         Whether to check the callback parameter types against `signature` when
         connecting a new callback. This can also be provided at connection time using
         `.connect(..., check_types=True)`. By default, False.
@@ -87,7 +98,7 @@ class Signal:
 
     def __init__(
         self,
-        *types: Union[AnyType, Signature],
+        *types: Union[Type[Any], Signature],
         description: str = "",
         name: Optional[str] = None,
         check_nargs_on_connect: bool = True,
@@ -107,14 +118,14 @@ class Signal:
                     f" `Signature`.  These args were ignored: {types[1:]}"
                 )
         else:
-            self._signature = _build_signature(*cast(Tuple[AnyType, ...], types))
+            self._signature = _build_signature(*cast(Tuple[Type[Any], ...], types))
 
     @property
     def signature(self) -> Signature:
-        """Signature supported by this Signal."""
+        """[Signature][inspect.Signature] supported by this Signal."""
         return self._signature
 
-    def __set_name__(self, owner: AnyType, name: str) -> None:
+    def __set_name__(self, owner: Type[Any], name: str) -> None:
         """Set name of signal when declared as a class attribute on `owner`."""
         if self._name is None:
             self._name = name
@@ -132,18 +143,18 @@ class Signal:
 
     @overload
     def __get__(  # noqa
-        self, instance: None, owner: Optional[AnyType] = None
+        self, instance: None, owner: Optional[Type[Any]] = None
     ) -> "Signal":
         ...  # pragma: no cover
 
     @overload
     def __get__(  # noqa
-        self, instance: Any, owner: Optional[AnyType] = None
+        self, instance: Any, owner: Optional[Type[Any]] = None
     ) -> "SignalInstance":
         ...  # pragma: no cover
 
     def __get__(
-        self, instance: Any, owner: Optional[AnyType] = None
+        self, instance: Any, owner: Optional[Type[Any]] = None
     ) -> Union["Signal", "SignalInstance"]:
         """Get signal instance.
 
@@ -196,45 +207,68 @@ class Signal:
 
     @classmethod
     def current_emitter(cls) -> Optional["SignalInstance"]:
-        """Return currently emitting SignalInstance, if any."""
+        """Return currently emitting `SignalInstance`, if any.
+
+        This will typically be used in a callback.
+
+        Examples
+        --------
+        ```python
+        from psygnal import Signal
+
+        def my_callback():
+            source = Signal.current_emitter()
+        ```
+        """
         return cls._current_emitter
 
     @classmethod
     def sender(cls) -> Any:
-        """Return currently emitting object, if any."""
+        """Return currently emitting object, if any.
+
+        This will typically be used in a callback.
+        """
         return getattr(cls._current_emitter, "instance", None)
 
 
 class SignalInstance:
     """A signal instance (optionally) bound to an object.
 
-    Normally this object will be instantiated by the `Signal.__get__` method when a
-    `Signal` instance is accessed from an *instance* of a class with Signal attribute.
+    In most cases, users will not create a `SignalInstance` directly -- instead
+    creating a [Signal][psygnal.Signal] class attribute.  This object will be
+    instantiated by the `Signal.__get__` method (i.e. the descriptor protocol),
+    when a `Signal` instance is accessed from an *instance* of a class with `Signal`
+    attribute.
 
-        class Emitter:
-            signal = Signal()
+    ```python
+    class Emitter:
+        signal = Signal()
 
-        e = Emitter()
+    e = Emitter()
 
-        # this next line returns: `SignalInstance(Signature(), e, 'signal')`
-        e.signal
+    # when accessed on an *instance* of Emitter,
+    # the signal attribute will be a SignalInstance
+    e.signal
 
+    # This is what you will use to connect your callbacks
+    e.signal.connect(some_callback)
+    ```
     Parameters
     ----------
-    signature : inspect.Signature, optional
+    signature : Optional[inspect.Signature]
         The signature that this signal accepts and will emit, by default `Signature()`.
-    instance : Any, optional
+    instance : Optional[Any]
         An object to which this signal is bound. Normally this will be provied by the
         `Signal.__get__` method (see above).  However, an unbound `SignalInstance`
         may also be created directly. by default `None`.
-    name : str, optional
+    name : Optional[str]
         An optional name for this signal.  Normally this will be provided by the
         `Signal.__get__` method. by default `None`
-    check_nargs_on_connect : str, optional
+    check_nargs_on_connect : bool
         Whether to check the number of positional args against `signature` when
         connecting a new callback. This can also be provided at connection time using
         `.connect(..., check_nargs=True)`. By default, True.
-    check_types_on_connect : str, optional
+    check_types_on_connect : bool
         Whether to check the callback parameter types against `signature` when
         connecting a new callback. This can also be provided at connection time using
         `.connect(..., check_types=True)`. By default, False.
@@ -243,7 +277,7 @@ class SignalInstance:
     ------
     TypeError
         If `signature` is neither an instance of `inspect.Signature`, or a `tuple`
-        of `type`s.
+        of types.
     """
 
     __slots__ = (
@@ -341,17 +375,24 @@ class SignalInstance:
         unique: Union[bool, str] = False,
         max_args: Optional[int] = None,
     ) -> Union[Callable[[Callable], Callable], Callable]:
-        """Connect a callback ("slot") to this signal.
+        """Connect a callback (`slot`) to this signal.
 
         `slot` is compatible if:
-            - it has equal or less required positional arguments.
-            - it has no required keyword arguments
-            - if `check_types` is True, all provided types must match
+
+        * it requires no more than the number of positional arguments emitted by this
+          `SignalInstance`.  (It *may* require less)
+        * it has no *required* keyword arguments (keyword only arguments that have
+          no default).
+        * if `check_types` is `True`, the parameter types in the callback signature must
+          match the signature of this `SignalInstance`.
 
         This method may be used as a decorator.
 
-            @signal.connect
-            def my_function(): ...
+        ```python
+        @signal.connect
+        def my_function():
+            ...
+        ```
 
         Parameters
         ----------
@@ -359,19 +400,19 @@ class SignalInstance:
             A callable to connect to this signal.  If the callable accepts less
             arguments than the signature of this slot, then they will be discarded when
             calling the slot.
-        check_nargs : bool, optional
+        check_nargs : Optional[bool]
             If `True` and the provided `slot` requires more positional arguments than
             the signature of this Signal, raise `TypeError`. by default `True`.
-        check_types : bool, optional
+        check_types : Optional[bool]
             If `True`, An additional check will be performed to make sure that types
             declared in the slot signature are compatible with the signature
             declared by this signal, by default `False`.
-        unique : bool or str, optional
+        unique : Union[bool, str, None]
             If `True`, returns without connecting if the slot has already been
             connected.  If the literal string "raise" is passed to `unique`, then a
             `ValueError` will be raised if the slot is already connected.
             By default `False`.
-        max_args : int, optional
+        max_args : Optional[int]
             If provided, `slot` will be called with no more more than `max_args` when
             this SignalInstance is emitted.  (regardless of how many arguments are
             emitted).
@@ -426,9 +467,11 @@ class SignalInstance:
     ) -> MethodRef:
         """Bind the an object attribute to emitted value of this signal.
 
-        Equivalent to calling self.connect(partial(setattr, obj, attr)), with
-        weakref safety.  The return object can be used to disconnect, (or can use
-        disconnect_setattr).
+        Equivalent to calling `self.connect(functools.partial(setattr, obj, attr))`,
+        but with additional weakref safety (i.e. a strong reference to `obj` will not
+        be retained). The return object can be used to
+        [`disconnect()`][psygnal.SignalInstance.disconnect], (or you can use
+        [`disconnect_setattr()`][psygnal.SignalInstance.disconnect_setattr]).
 
         Parameters
         ----------
@@ -437,7 +480,7 @@ class SignalInstance:
         attr : str
             The name of an attribute on `obj` that should be set to the value of this
             signal when emitted.
-        maxargs : int, optional
+        maxargs : Optional[int]
             max number of positional args to accept
 
         Returns
@@ -492,14 +535,14 @@ class SignalInstance:
         attr : str
             The name of an attribute on `obj` that was previously used for
             `connect_setattr`.
-        missing_ok : bool, optional
-            If `False` and the provided `slot` is not connected, raises `ValueError.
+        missing_ok : bool
+            If `False` and the provided `slot` is not connected, raises `ValueError`.
             by default `True`
 
         Raises
         ------
         ValueError
-            If `missing_ok` is True and no attribute setter is connected.
+            If `missing_ok` is `True` and no attribute setter is connected.
         """
         with self._lock:
             idx = None
@@ -564,7 +607,7 @@ class SignalInstance:
         slot : callable, optional
             The specific slot to disconnect.  If `None`, all slots will be disconnected,
             by default `None`
-        missing_ok : bool, optional
+        missing_ok : Optional[bool]
             If `False` and the provided `slot` is not connected, raises `ValueError.
             by default `True`
 
@@ -632,15 +675,15 @@ class SignalInstance:
         *args : Any
             These arguments will be passed when calling each slot (unless the slot
             accepts fewer arguments, in which case extra args will be discarded.)
-        check_nargs : bool, optional
+        check_nargs : Optional[bool]
             If `False` and the provided arguments cannot be successfuly bound to the
             signature of this Signal, raise `TypeError`.  Incurs some overhead.
             by default False.
-        check_types : bool, optional
+        check_types : Optional[bool]
             If `False` and the provided arguments do not match the types declared by
             the signature of this Signal, raise `TypeError`.  Incurs some overhead.
             by default False.
-        asynchronous : bool, optional
+        asynchronous : Optional[bool]
             If `True`, run signal emission in another thread. by default `False`.
 
         Raises
@@ -759,7 +802,26 @@ class SignalInstance:
 
     @contextmanager
     def blocked(self) -> Iterator[None]:
-        """Context manager to temporarly block this signal."""
+        """Context manager to temporarily block this signal.
+
+        Useful if you need to temporarily block all emission of a given signal,
+        (for example, to avoid a recursive signal loop)
+
+        Examples
+        --------
+        ```python
+        class MyEmitter:
+            changed = Signal()
+
+            def make_a_change(self):
+                self.changed.emit()
+
+        obj = MyEmitter()
+
+        with obj.changed.blocked()
+            obj.make_a_change()  # will NOT emit a changed signal.
+        ```
+        """
         self.block()
         try:
             yield
@@ -913,7 +975,7 @@ def _stub_sig(obj: Any) -> Signature:
     raise ValueError("unknown object")
 
 
-def _build_signature(*types: AnyType) -> Signature:
+def _build_signature(*types: Type[Any]) -> Signature:
     params = [
         Parameter(name=f"p{i}", kind=Parameter.POSITIONAL_ONLY, annotation=t)
         for i, t in enumerate(types)
@@ -959,7 +1021,7 @@ def _acceptable_posarg_range(
     ----------
     sig : Signature
         Signature object to evaluate
-    forbid_required_kwarg : bool, optional
+    forbid_required_kwarg : Optional[bool]
         Whether to allow required KEYWORD_ONLY parameters. by default True.
 
     Returns
@@ -1039,7 +1101,7 @@ def _parameter_types_match(
     return True
 
 
-def _is_subclass(left: AnyType, right: type) -> bool:
+def _is_subclass(left: Type[Any], right: type) -> bool:
     """Variant of issubclass with support for unions."""
     if not isclass(left) and get_origin(left) is Union:
         return any(issubclass(i, right) for i in get_args(left))

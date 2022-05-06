@@ -1,7 +1,7 @@
 """MutableSequence with a selection model."""
 from typing import Any, Iterable, Tuple, TypeVar
 
-from ._evented_list import EventedList
+from ._evented_list import EventedList, ListEvents
 from ._selection import Selectable
 
 _T = TypeVar("_T")
@@ -32,6 +32,8 @@ class SelectableEventedList(Selectable[_T], EventedList[_T]):
         An evented set containing the currently selected items, along with an `active`
         and `current` item.  (See `Selection`)
     """
+
+    events: ListEvents  # pragma: no cover
 
     def __init__(
         self,

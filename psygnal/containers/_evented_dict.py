@@ -91,22 +91,24 @@ class TypedMutableMapping(MutableMapping[_K, _V]):
 
 
 class DictEvents(SignalGroup):
-    """Events available on EventedDict.
+    """Events available on [EventedDict][psygnal.containers.EventedDict].
 
     Attributes
     ----------
-    adding (key: _K)
-        emitted before an item is added at `key`
-    added (key: _K, value: _V)
-        emitted after a `value` is added at `key`
-    changing (key: _K, old_value: _V, value: _V)
-        emitted before `old_value` is replaced with `value` at `key`
-    changed (key: _K, old_value: _V, value: _V)
-        emitted before `old_value` is replaced with `value` at `key`
-    removing (key: _K)
-        emitted before an item is removed at `key`
-    removed (key: _K, value: _V)
-        emitted after `value` is removed at `index`
+    adding: Signal[Any]
+        `(key,)` emitted before an item is added at `key`
+    added : Signal[Any, Any]
+        `(key, value)` emitted after a `value` is added at `key`
+    changing : Signal[Any, Any, Any]
+        `(key, old_value, new_value)` emitted before `old_value` is replaced with
+        `new_value` at `key`
+    changed : Signal[Any, Any, Any]
+        `(key, old_value, new_value)` emitted before `old_value` is replaced with
+        `new_value` at `key`
+    removing: Signal[Any]
+        `(key,)` emitted before an item is removed at `key`
+    removed : Signal[Any, Any]
+        `(key, value)` emitted after `value` is removed at `index`
     """
 
     adding = Signal(object)  # (key, )
@@ -118,9 +120,9 @@ class DictEvents(SignalGroup):
 
 
 class EventedDict(TypedMutableMapping[_K, _V]):
-    """Mutable dictionary that emits events when altered.
+    """Mutable mapping that emits events when altered.
 
-    This class is designed to behave exactly like the builtin `dict`, but
+    This class is designed to behave exactly like the builtin [`dict`][], but
     will emit events before and after all mutations (addition, removal, and
     changing).
 
@@ -132,6 +134,11 @@ class EventedDict(TypedMutableMapping[_K, _V]):
     basetype : TypeOrSequenceOfTypes, optional
         Type or Sequence of Type objects. If provided, values entered into this Mapping
         must be an instance of one of the provided types. by default ().
+
+    Attributes
+    ----------
+    events: DictEvents
+        The `SignalGroup` object that emits all events available on an `EventedDict`.
     """
 
     events: DictEvents  # pragma: no cover

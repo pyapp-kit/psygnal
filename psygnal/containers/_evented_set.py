@@ -183,7 +183,7 @@ class OrderedSet(_BaseMutableSet[_T]):
 
 
 class SetEvents(SignalGroup):
-    """Events available on an EventedSet.
+    """Events available on [EventedSet][psygnal.containers.EventedSet].
 
     Attributes
     ----------
@@ -202,7 +202,7 @@ class EventedSet(_BaseMutableSet[_T]):
 
     Parameters
     ----------
-    iterable : iterable of Any, optional
+    iterable : Iterable[_T]
         Data to populate the set.  If omitted, an empty set is created.
 
     Attributes
@@ -289,7 +289,7 @@ class EventedOrderedSet(EventedSet, OrderedSet[_T]):
 
     Parameters
     ----------
-    iterable : iterable of Any, optional
+    iterable : Iterable[_T]
         Data to populate the set.  If omitted, an empty set is created.
 
     Attributes

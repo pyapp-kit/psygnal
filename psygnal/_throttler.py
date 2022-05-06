@@ -167,6 +167,25 @@ def throttled(
     leading : bool
         Whether to invoke the function on the leading edge of the wait timer,
         by default True
+
+    Examples
+    --------
+    ```python
+    from psygnal import Signal, throttled
+
+    class MyEmitter:
+        changed = Signal(int)
+
+    def on_change(val: int)
+        # do something possibly expensive
+        ...
+
+    emitter = MyEmitter()
+
+    # connect the `on_change` whenever `emitter.changed` is emitted
+    # BUT, no more than once every 50 milliseconds
+    emitter.changed.connect(throttled(on_change, timeout=50))
+    ```
     """
 
     def deco(func: Callable[P, Any]) -> Callable[P, None]:
@@ -222,6 +241,25 @@ def debounced(
     leading : bool
         Whether to invoke the function on the leading edge of the wait timer,
         by default False
+
+    Examples
+    --------
+    ```python
+    from psygnal import Signal, debounced
+
+    class MyEmitter:
+        changed = Signal(int)
+
+    def on_change(val: int)
+        # do something possibly expensive
+        ...
+
+    emitter = MyEmitter()
+
+    # connect the `on_change` whenever `emitter.changed` is emitted
+    # ONLY once at least 50 milliseconds have passed since the last signal emission.
+    emitter.changed.connect(debounced(on_change, timeout=50))
+    ```
     """
 
     def deco(func: Callable[P, Any]) -> Callable[P, None]:
