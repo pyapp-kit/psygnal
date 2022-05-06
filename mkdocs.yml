@@ -1,0 +1,70 @@
+site_name: psygnal
+site_url: https://github.com/tlambert03/psygnal
+site_author: Talley Lambert
+site_description: >-
+  Create a branded static site from a set of Markdown files to host the
+  documentation of your Open Source or commercial project
+
+# Repository
+repo_name: tlambert03/psygnal
+repo_url: https://github.com/tlambert03/psygnal
+
+# Copyright
+copyright: Copyright &copy; 2021 - 2022 Talley Lambert
+
+extra_css:
+  - stylesheets/extra.css
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to dark mode
+    - scheme: slate
+      primary: blue grey
+      accent: blue grey
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    # - navigation.tabs
+    # - navigation.top
+    # - navigation.tracking
+    - search.highlight
+    - search.suggest
+    # - toc.follow
+    # - content.code.annotate
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+
+plugins:
+  - search
+  - autorefs
+  - minify:
+      minify_html: true
+  - mkdocstrings:
+      watch:
+        - psygnal
+      handlers:
+        python:
+          import:
+            - https://docs.python.org/3/objects.inv
+          selection:
+            docstring_style: numpy
+            filters: ["!^_"]
+          rendering:
+            show_root_heading: true
+            show_root_full_path: false
+            # merge_init_into_class: true
+            # show_signature_annotations: true
+            show_source: false
+            docstring_section_style: list
+            # separate_signature: true

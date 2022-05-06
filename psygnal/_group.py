@@ -17,7 +17,13 @@ __all__ = ["EmissionInfo", "SignalGroup"]
 
 # this is a variant of a NamedTuple that works with Cython<3.0a7
 class EmissionInfo(tuple):
-    """Tuple containing information about an emission event."""
+    """Tuple containing information about an emission event.
+
+    Attributes
+    ----------
+    signal : SignalInstance
+    args: tuple
+    """
 
     signal: SignalInstance
     args: Tuple[Any, ...]
@@ -65,7 +71,7 @@ OptionalInfoSlot = Union[InfoSlot, Callable[[], None]]
 
 
 class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
-    """SignalGroup that enables connecting to all SignalInstances.
+    """`SignalGroup` that enables connecting to all `SignalInstances`.
 
     Parameters
     ----------
@@ -75,8 +81,8 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
         Optional name for this event group, by default will be the name of the group
         subclass.  (e.g., 'Events' in the example below.)
 
-    Example
-    -------
+    Examples
+    --------
     >>> class Events(SignalGroup):
     ...     sig1 = Signal(str)
     ...     sig2 = Signal(str)
@@ -89,7 +95,7 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
     ...
     >>> events.connect(some_callback)
 
-    note that the SignalGroup may also be created with `strict=True`, which will
+    note that the `SignalGroup` may also be created with `strict=True`, which will
     enforce that *all* signals have the same emission signature
 
     This is ok:

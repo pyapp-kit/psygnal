@@ -13,7 +13,7 @@ _S = TypeVar("_S")
 
 
 class SelectionEvents(SetEvents):
-    """Events available on a Selection.
+    """Events available on [Selection][psygnal.containers.Selection].
 
     Attributes
     ----------

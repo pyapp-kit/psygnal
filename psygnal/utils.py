@@ -1,4 +1,5 @@
-"""misc utils."""
+"""These utilities may help when using signals and evented objects."""
+
 from contextlib import contextmanager
 from functools import partial
 from typing import Any, Callable, Iterable, Iterator, Tuple

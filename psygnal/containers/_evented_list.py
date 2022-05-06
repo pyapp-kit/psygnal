@@ -44,30 +44,32 @@ Index = Union[int, slice]
 
 
 class ListEvents(SignalGroup):
-    """Events available on EventedList.
+    """Events available on [EventedList][psygnal.containers.EventedList].
 
     Attributes
     ----------
-    inserting (index: int)
-        emitted before an item is inserted at `index`
-    inserted (index: int, value: Any)
-        emitted after `value` is inserted at `index`
-    removing (index: int)
-        emitted before an item is removed at `index`
-    removed (index: int, value: Any)
-        emitted after `value` is removed at `index`
-    moving (index: int, new_index: int)
-        emitted before an item is moved from `index` to `new_index`
-    moved (index: int, new_index: int, value: Any)
-        emitted after `value` is moved from `index` to `new_index`
-    changed (index: int or slice, old_value: Any or List[Any], value: Any or List[Any])
-        emitted when `index` is set from `old_value` to `value`
-    reordered (value: self)
+    inserting : Signal[int]
+        `(index)` emitted before an item is inserted at `index`
+    inserted : Signal[int, Any]
+        `(index, value)` emitted after `value` is inserted at `index`
+    removing : Signal[int]
+        `(index)` emitted before an item is removed at `index`
+    removed: Signal[int, Any]
+        `(index, value)` emitted after `value` is removed at `index`
+    moving : Signal[int, int]
+        `(index, new_index)` emitted before an item is moved from `index` to `new_index`
+    moved : Signal[int, int]
+        `(index, new_index, value)` emitted after `value` is moved from `index` to
+        `new_index`
+    changed : Signal[Union[int, slice], Any, Any]
+        `(index_or_slice, old_value, value)` emitted when `index` is set from
+        `old_value` to `value`
+    reordered : Signal
         emitted when the list is reordered (eg. moved/reversed).
-    child_event (index: int, object: Any, emitter: SignalInstance, args: tuple)
-        emitted when an object in the list emits an event.
-        Note that the EventedList must be created with `child_events=True` for this
-        to be emitted.
+    child_event : Signal[int, Any, SignalInstance, tuple]
+        `(index, object, emitter, args)` emitted when an object in the list emits an
+        event. Note that the `EventedList` must be created with `child_events=True` in
+        order for this to be emitted.
     """
 
     inserting = Signal(int)  # idx
@@ -78,7 +80,6 @@ class ListEvents(SignalGroup):
     moved = Signal(tuple, object)  # ((src_idx, dest_idx), value)
     changed = Signal(object, object, object)  # (int | slice, old, new)
     reordered = Signal()
-    # TODO: is this the best signature?
     child_event = Signal(int, object, SignalInstance, tuple)
 
 
