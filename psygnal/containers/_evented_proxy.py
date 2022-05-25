@@ -38,7 +38,7 @@ class CallableProxyEvents(ProxyEvents):
 _OBJ_CACHE: Dict[int, ProxyEvents] = {}
 
 
-class _EventedObjectProxy(ObjectProxy, Generic[T]):  # type: ignore
+class _EventedObjectProxy(ObjectProxy, Generic[T]):
     @property
     def events(self) -> ProxyEvents:  # pragma: no cover # unclear why
         obj_id = id(self)
