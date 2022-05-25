@@ -329,7 +329,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
             for dep in self.__field_dependents__.get(name, ()):
                 getattr(self.events, dep).emit(getattr(self, dep))
 
-    # expose the private EmitterGroup publically
+    # expose the private SignalGroup publically
     @property
     def events(self) -> SignalGroup:
         """Return the `SignalGroup` containing all events for this model."""
