@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Dict, Generic, List, TypeVar
+from typing import Any, Callable, Dict, Generic, List, TypeVar
 from weakref import finalize
 
 try:
@@ -38,9 +38,41 @@ class CallableProxyEvents(ProxyEvents):
 _OBJ_CACHE: Dict[int, ProxyEvents] = {}
 
 
-class _EventedObjectProxy(ObjectProxy, Generic[T]):
+class EventedObjectProxy(ObjectProxy, Generic[T]):
+    """Create a proxy of `target` that includes an `events` [psygnal.SignalGroup][].
+
+    !!! important
+
+        This class requires `wrapt` to be installed.
+        You can install directly (`pip install wrapt`) or by using the psygnal
+        extra: `pip install psygnal[proxy]`
+
+    Signals will be emitted whenever an attribute is set or deleted, or
+    (if the object implements `__getitem__`) whenever an item is set or deleted.
+    If the object supports in-place modification (i.e. any of the `__i{}__` magic
+    methods), then an `in_place` event is emitted (with the name of the method)
+    whenever any of them are used.
+
+    The events available at target.events include:
+
+    - `attribute_set`: `Signal(str, object)`
+    - `attribute_deleted`: `Signal(str)`
+    - `item_set`: `Signal(object, object)`
+    - `item_deleted`: `Signal(object)`
+    - `in_place`: `Signal(str, object)`
+
+    Parameters
+    ----------
+    target : Any
+        An object to wrap
+    """
+
+    def __init__(self, target: Any):
+        super().__init__(target)
+
     @property
     def events(self) -> ProxyEvents:  # pragma: no cover # unclear why
+        """`SignalGroup` containing events for this object proxy."""
         obj_id = id(self)
         if obj_id not in _OBJ_CACHE:
             _OBJ_CACHE[obj_id] = ProxyEvents()
@@ -129,9 +161,46 @@ class _EventedObjectProxy(ObjectProxy, Generic[T]):
         return super().__ior__(other)  # type: ignore
 
 
-class _EventedCallableObjectProxy(_EventedObjectProxy):
+class EventedCallableObjectProxy(EventedObjectProxy):
+    """Create a proxy of `target` that includes an `events` [psygnal.SignalGroup][].
+
+    `target` must be callable.
+
+    !!! important
+
+        This class requires `wrapt` to be installed.
+        You can install directly (`pip install wrapt`) or by using the psygnal
+        extra: `pip install psygnal[proxy]`
+
+    Signals will be emitted whenever an attribute is set or deleted, or
+    (if the object implements `__getitem__`) whenever an item is set or deleted.
+    If the object supports in-place modification (i.e. any of the `__i{}__` magic
+    methods), then an `in_place` event is emitted (with the name of the method)
+    whenever any of them are used.  Lastly, if the item is called, a `called`
+    event is emitted with the (args, kwargs) used in the call.
+
+    The events available at `target.events` include:
+
+    - `attribute_set`: `Signal(str, object)`
+    - `attribute_deleted`: `Signal(str)`
+    - `item_set`: `Signal(object, object)`
+    - `item_deleted`: `Signal(object)`
+    - `in_place`: `Signal(str, object)`
+    - `called`: `Signal(tuple, dict)`
+
+    Parameters
+    ----------
+    target : Callable
+        An callable object to wrap
+
+    """
+
+    def __init__(self, target: Callable):
+        super().__init__(target)
+
     @property
     def events(self) -> CallableProxyEvents:  # pragma: no cover # unclear why
+        """`SignalGroup` containing events for this object proxy."""
         obj_id = id(self)
         if obj_id not in _OBJ_CACHE:
             _OBJ_CACHE[obj_id] = CallableProxyEvents()
@@ -139,24 +208,6 @@ class _EventedCallableObjectProxy(_EventedObjectProxy):
         return _OBJ_CACHE[obj_id]  # type: ignore
 
     def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        """Call the wrapped object and emit a `called` signal."""
         self.events.called(args, kwargs)
         return self.__wrapped__(*args, **kwargs)
-
-
-def EventedObjectProxy(target: T) -> T:
-    """Create a proxy of `target` that includes an `events` SignalGroup.
-
-    The events available at target.events include:
-        attribute_set = Signal(str, object)
-        attribute_deleted = Signal(str)
-        item_set = Signal(object, object)
-        item_deleted = Signal(object)
-        in_place = Signal(str, object)
-
-    and if `target` is callable:
-        called = Signal(tuple, dict)
-    """
-    if callable(target):
-        return _EventedCallableObjectProxy(target)
-    else:
-        return _EventedObjectProxy(target)

@@ -159,10 +159,10 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
             A callable to connect to this signal.  If the callable accepts less
             arguments than the signature of this slot, then they will be discarded when
             calling the slot.
-        check_nargs : bool, optional
+        check_nargs : Optional[bool]
             If `True` and the provided `slot` requires more positional arguments than
             the signature of this Signal, raise `TypeError`. by default `True`.
-        check_types : bool, optional
+        check_types : Optional[bool]
             If `True`, An additional check will be performed to make sure that types
             declared in the slot signature are compatible with the signature
             declared by this signal, by default `False`.

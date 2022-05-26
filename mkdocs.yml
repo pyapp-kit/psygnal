@@ -2,8 +2,7 @@ site_name: psygnal
 site_url: https://github.com/tlambert03/psygnal
 site_author: Talley Lambert
 site_description: >-
-  Create a branded static site from a set of Markdown files to host the
-  documentation of your Open Source or commercial project
+  Pure python callback/event system modeled after Qt Signals
 
 # Repository
 repo_name: tlambert03/psygnal
@@ -62,9 +61,22 @@ plugins:
             filters: ["!^_"]
           rendering:
             show_root_heading: true
-            show_root_full_path: false
-            # merge_init_into_class: true
-            # show_signature_annotations: true
-            show_source: false
-            docstring_section_style: list
-            # separate_signature: true
+            # show_root_toc_entry: true
+            show_root_full_path: true
+            # show_object_full_path: false
+            # show_root_members_full_path: false
+            # show_category_heading: false
+            # show_if_no_docstring: false
+            # show_signature: true
+            # show_signature_annotations: false
+            show_source: true
+            # show_bases: true
+            # group_by_category: true
+            # heading_level: 2
+            members_order: alphabetical  # alphabetical/source
+
+            ## experimental
+            # separate_signature: false
+            # line_length: 60
+            # show_submodules: true
+            docstring_section_style: list  # or table/list/spacy
