@@ -3,7 +3,11 @@ from unittest.mock import Mock, call
 import numpy as np
 
 from psygnal import SignalGroup
-from psygnal.containers import EventedObjectProxy, _evented_proxy
+from psygnal.containers import (
+    EventedCallableObjectProxy,
+    EventedObjectProxy,
+    _evented_proxy,
+)
 from psygnal.utils import monitor_events
 
 
@@ -154,6 +158,6 @@ def test_evented_callable_proxy():
     def f(*args, **kwargs):
         calls.append((args, kwargs))
 
-    ef = EventedObjectProxy(f)
+    ef = EventedCallableObjectProxy(f)
     ef(1, 2, foo="bar")
     assert calls == [((1, 2), {"foo": "bar"})]
