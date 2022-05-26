@@ -16,7 +16,7 @@ Psygnal (pronounced "signal") is a pure python implementation of
 
 ## Documentation
 
-https://psygnal.readthedocs.io/en/latest/
+https://psygnal.readthedocs.io/
 
 ### Install
 
@@ -48,7 +48,7 @@ def on_change(new_value: str):
 my_obj.value_changed.emit('hi')
 ```
 
-Much more detail available in the [documentation](https://psygnal.readthedocs.io/en/latest/)!
+Much more detail available in the [documentation](https://psygnal.readthedocs.io/)!
 
 ## Alternatives
 
