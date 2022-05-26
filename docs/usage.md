@@ -85,6 +85,9 @@ obj.value_changed.disconnect(on_value_changed)
 
 ## Connection safety
 
+The [`connect`][psygnal.SignalInstance.connect] method provides
+a number of "safety" measures:
+
 ### too many arguments
 
 By default `psygnal` prevents you from connecting a callback function that is

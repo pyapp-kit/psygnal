@@ -240,6 +240,10 @@ class SignalInstance:
     when a `Signal` instance is accessed from an *instance* of a class with `Signal`
     attribute.
 
+    However, it is the `SignalInstance` that you will most often be interacting
+    with when you access the name of a `Signal` on an instance -- so understanding
+    the `SignalInstance` API is key to using psygnal.
+
     ```python
     class Emitter:
         signal = Signal()

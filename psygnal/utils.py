@@ -30,7 +30,7 @@ def monitor_events(
         must take two positional args: a signal name string, and a tuple that contains
         the emitted arguments. The default logger simply prints the signal name and
         emitted args.
-    include_private_attrs : Optional[bool]
+    include_private_attrs : bool
         Whether private signals (starting with an underscore) should also be logged,
         by default False
     """
@@ -59,7 +59,7 @@ def iter_signal_instances(
     ----------
     obj : object
         Any object that has an attribute that has a SignalInstance (or SignalGroup).
-    include_private_attrs : Optional[bool]
+    include_private_attrs : bool
         Whether private signals (starting with an underscore) should also be logged,
         by default False
 
