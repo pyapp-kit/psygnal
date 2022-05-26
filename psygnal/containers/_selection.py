@@ -116,7 +116,7 @@ class Selection(EventedOrderedSet[_T]):
 
         Parameters
         ----------
-        keep_current : Optional[bool]
+        keep_current : bool
             If `False` (the default), the "current" item will also be set to None.
         """
         if not keep_current:

@@ -439,7 +439,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
 
         Parameters
         ----------
-        as_values : Optional[bool]
+        as_values : bool
             Whether enums should be shown as values (or as enum objects),
             by default `True`
         """
