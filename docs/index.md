@@ -10,11 +10,12 @@ Psygnal (pronounced "signal") is a pure python implementation of
     It simply implements a similar pattern of inter-object communication
     with loose coupling.
 
-It additionally contains a number of ["evented" versions of mutable python
-containers](API/containers.md), an ["evented" pydantic model](API/model.md) that
-emits signals whenever a model field changes, as well as
-[throttling/debouncing](API/throttler.md) and a number of other
-[utilties](API/utilities.md).
+It additionally contains:
+- a number of ["evented" versions of mutable python containers](API/containers.md)
+- an ["evented" pydantic model](API/model.md) that emits signals whenever a model field changes
+- [throttling/debouncing](API/throttler.md) decorators
+- an experimental ["evented object proxy"](API/proxy.md)
+- a few other [utilties](API/utilities.md) for dealing with events.
 
 **Performance** is a high priority, as signals are often emitted frequently,
 [benchmarks](https://www.talleylambert.com/psygnal/) are routinely measured.

@@ -205,6 +205,12 @@ def _get_field_dependents(cls: EventedModel) -> Dict[str, Set[str]]:
 class EventedModel(BaseModel, metaclass=EventedMetaclass):
     """A pydantic BaseModel that emits a signal whenever a field value is changed.
 
+    !!! important
+
+        This class requires `pydantic` to be installed.
+        You can install directly (`pip install pydantic`) or by using the psygnal
+        extra: `pip install psygnal[pydantic]`
+
     In addition to standard pydantic `BaseModel` properties
     (see [pydantic docs](https://pydantic-docs.helpmanual.io/usage/models/)),
     this class adds the following:

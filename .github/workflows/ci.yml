@@ -20,7 +20,10 @@ jobs:
       - name: install
         run: |
           pip install -U pip
+          pip install -e .
           pip install -r docs/requirements.txt
+        env:
+          SKIP_CYTHON: 1
       - name: build
         run: mkdocs build
 
