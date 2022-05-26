@@ -18,9 +18,11 @@ jobs:
         with:
           python-version: '3.9'
       - name: install
-        run: pip install -r docs/requirements.txt
+        run: |
+          pip install -U pip
+          pip install -r docs/requirements.txt
       - name: build
-        run: mkdocs build --strict
+        run: mkdocs build
 
   test-linux:
     name: test py${{ matrix.python-version }} on linux
