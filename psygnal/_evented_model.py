@@ -205,11 +205,12 @@ def _get_field_dependents(cls: EventedModel) -> Dict[str, Set[str]]:
 class EventedModel(BaseModel, metaclass=EventedMetaclass):
     """A pydantic BaseModel that emits a signal whenever a field value is changed.
 
-    In addition to standard pydantic `BaseModel` properties (see
-    https://pydantic-docs.helpmanual.io/usage/models/), this class adds the following:
+    In addition to standard pydantic `BaseModel` properties
+    (see [pydantic docs](https://pydantic-docs.helpmanual.io/usage/models/)),
+    this class adds the following:
 
-    1. gains an `events` attribute that is an instance of `psygnal.SignalGroup`. This
-       group will have a signal for each field in the model (excluding private
+    1. gains an `events` attribute that is an instance of [`psygnal.SignalGroup`][].
+       This group will have a signal for each field in the model (excluding private
        attributes and non-mutable fields).  Whenever a field in the model is mutated,
        the corresponding signal will emit with the new value (see example below).
 
@@ -221,11 +222,11 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
        one of the model fields it depends on is mutated you must set one of the
        following options in the `Config`:
 
-       - `property_dependencies` may be a `Dict[str, List[str]]`, where the
-         keys are the names of properties, and the values are a list of field names
-         (strings) that the property depends on for its value
-       - `guess_property_dependencies` may be set to `True` to "guess" property
-         dependencies by inspecting the source code of the property getter for.
+        - `property_dependencies` may be a `Dict[str, List[str]]`, where the
+          keys are the names of properties, and the values are a list of field names
+          (strings) that the property depends on for its value
+        - `guess_property_dependencies` may be set to `True` to "guess" property
+          dependencies by inspecting the source code of the property getter for.
 
     4. If you would like to allow custom fields to provide their own json_encoders, you
        can either use the standard pydantic method of adding json_encoders to your
@@ -233,13 +234,15 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
        https://pydantic-docs.helpmanual.io/usage/exporting_models/#json_encoders
        This `EventedModel` class will additionally look for a `_json_encode` method
        on any field types in the model.  If a field type declares a `_json_encode`
-       method, it will be added to the `json_encoders` dict in the model `Config`.
+       method, it will be added to the
+       [`json_encoders`](https://pydantic-docs.helpmanual.io/usage/exporting_models/#json_encoders)
+       dict in the model `Config`.
 
     Examples
     --------
     Standard EventedModel example:
 
-    ```
+    ```python
     class MyModel(EventedModel):
         x: int = 1
 
@@ -251,7 +254,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
     An example of using property_setters and emitting signals when a field dependency
     is mutated.
 
-    ```
+    ```python
     class MyModel(EventedModel):
         a: int = 1
         b: int = 1
@@ -355,7 +358,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
 
         Parameters
         ----------
-        values : dict, napari.utils.events.EventedModel
+        values : Union[dict, EventedModel]
             Values to update the model with. If an EventedModel is passed it is
             first converted to a dictionary. The keys of this dictionary must
             be found as attributes on the current model.
@@ -430,7 +433,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
 
         Parameters
         ----------
-        as_values : bool, optional
+        as_values : Optional[bool]
             Whether enums should be shown as values (or as enum objects),
             by default `True`
         """

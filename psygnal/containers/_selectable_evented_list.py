@@ -17,7 +17,7 @@ class SelectableEventedList(Selectable[_T], EventedList[_T]):
     ----------
     data : iterable, optional
         Elements to initialize the list with.
-    hashable : bool, optional
+    hashable : Optional[bool]
         Whether the list should be hashable as id(self). By default `True`.
     child_events: bool
         Whether to re-emit events from emitted from evented items in the list
@@ -72,10 +72,10 @@ class SelectableEventedList(Selectable[_T], EventedList[_T]):
         ----------
         step : int, optional
             The step size to take when picking the next item, by default 1
-        expand_selection : bool, optional
+        expand_selection : Optional[bool]
             If True, will expand the selection to contain the both the current item and
             the next item, by default False
-        wraparound : bool, optional
+        wraparound : Optional[bool]
             Whether to return to the beginning of the list of the end has been reached,
             by default False
         """
