@@ -9,23 +9,6 @@ on:
   pull_request: {}
 
 jobs:
-  test-docs:
-    name: test docs build
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: '3.9'
-      - name: install
-        run: |
-          pip install -U pip
-          pip install -e .
-          pip install -r docs/requirements.txt
-        env:
-          SKIP_CYTHON: 1
-      - name: build
-        run: mkdocs build --strict
 
   test-linux:
     name: test py${{ matrix.python-version }} on linux
