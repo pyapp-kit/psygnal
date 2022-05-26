@@ -25,7 +25,7 @@ jobs:
         env:
           SKIP_CYTHON: 1
       - name: build
-        run: mkdocs build
+        run: mkdocs build --strict
 
   test-linux:
     name: test py${{ matrix.python-version }} on linux
