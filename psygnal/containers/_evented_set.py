@@ -298,6 +298,11 @@ class EventedOrderedSet(EventedSet, OrderedSet[_T]):
         SignalGroup that with events related to set mutation.  (see SetEvents)
     """
 
+    # reproducing init here to avoid a mkdocs warning:
+    # "Parameter 'iterable' does not appear in the function signature"
+    def __init__(self, iterable: Iterable[_T] = ()):
+        super().__init__(iterable)
+
 
 def _reduce_events(a: Tuple, b: Tuple) -> Tuple[tuple, tuple]:
     """Combine two events (a and b) each of which contain (added, removed)."""
