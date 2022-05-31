@@ -24,10 +24,6 @@ from typing import (
     overload,
 )
 
-
-
-
-
 from typing_extensions import Literal, get_args, get_origin, get_type_hints
 
 MethodRef = Tuple["weakref.ReferenceType[object]", str, Optional[Callable]]
