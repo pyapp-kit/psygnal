@@ -151,7 +151,7 @@ jobs:
           python-version: "3.9"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.3.1
+        uses: pypa/cibuildwheel@2.6.0
 
       - uses: actions/upload-artifact@v2
         with:
