@@ -120,7 +120,7 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
             name=name or self.__class__.__name__,
         )
         self._sig_was_blocked: Dict[str, bool] = {}
-        for name, sig in self.signals.items():
+        for _, sig in self.signals.items():
             sig.connect(self._slot_relay, check_nargs=False, check_types=False)
 
     @property

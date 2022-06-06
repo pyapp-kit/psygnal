@@ -79,12 +79,12 @@ def no_class_attributes() -> Iterator[None]:  # pragma: no cover
     def _return2(x: str, y: inspect.Signature) -> inspect.Signature:
         return y
 
-    setattr(pydantic.main, "ClassAttribute", _return2)
+    pydantic.main.ClassAttribute = _return2
     try:
         yield
     finally:
         # undo our monkey patch
-        setattr(pydantic.main, "ClassAttribute", utils.ClassAttribute)
+        pydantic.main.ClassAttribute = utils.ClassAttribute
 
 
 def _pick_equality_operator(type_: Type) -> EqOperator:
@@ -398,7 +398,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         if not isinstance(other, EventedModel):
             return self.dict() == other  # type: ignore
 
-        for f_name, eq in self.__eq_operators__.items():
+        for f_name, _ in self.__eq_operators__.items():
             if not hasattr(self, f_name) or not hasattr(other, f_name):
                 return False  # pragma: no cover
             a = getattr(self, f_name)
@@ -444,12 +444,12 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
             by default `True`
         """
         before = getattr(self.Config, "use_enum_values", _NULL)
-        setattr(self.Config, "use_enum_values", as_values)
+        self.Config.use_enum_values = as_values  # type: ignore
         try:
             yield
         finally:
             if before is not _NULL:
-                setattr(self.Config, "use_enum_values", before)  # pragma: no cover
+                self.Config.use_enum_values = before  # type: ignore  # pragma: no cover
             else:
                 delattr(self.Config, "use_enum_values")
 
