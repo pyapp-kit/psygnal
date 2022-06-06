@@ -79,12 +79,12 @@ def no_class_attributes() -> Iterator[None]:  # pragma: no cover
     def _return2(x: str, y: inspect.Signature) -> inspect.Signature:
         return y
 
-    pydantic.main.ClassAttribute = _return2
+    setattr(pydantic.main, "ClassAttribute", _return2)
     try:
         yield
     finally:
         # undo our monkey patch
-        pydantic.main.ClassAttribute = utils.ClassAttribute
+        setattr(pydantic.main, "ClassAttribute", utils.ClassAttribute)
 
 
 def _pick_equality_operator(type_: Type) -> EqOperator:
