@@ -1,10 +1,17 @@
 """psygnal is a pure-python implementation of Qt-style signals & slots."""
 try:
-    from ._version import version as __version__
-except ImportError:  # pragma: no cover
-    __version__ = "unknown"
+    from importlib.metadata import PackageNotFoundError, version
+except ImportError:
+    from importlib_metadata import PackageNotFoundError, version  # type: ignore
+
+try:
+    __version__ = version("psygnal")
+except PackageNotFoundError:
+    __version__ = "0.0.0"
 __author__ = "Talley Lambert"
 __email__ = "talley.lambert@gmail.com"
+
+
 __all__ = [
     "__version__",
     "_compiled",

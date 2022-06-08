@@ -66,7 +66,4 @@ if (
             compiler_directives=compiler_directives,
         )
 
-setuptools.setup(
-    use_scm_version={"write_to": "psygnal/_version.py"},
-    ext_modules=ext_modules,
-)
+setuptools.setup(ext_modules=ext_modules)
