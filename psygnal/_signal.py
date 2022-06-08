@@ -1,3 +1,5 @@
+from contextlib import suppress
+
 __all__ = ["Signal", "SignalInstance", "_compiled"]
 
 import inspect
@@ -231,6 +233,9 @@ class Signal:
         return getattr(cls._current_emitter, "instance", None)
 
 
+_empty_signature = Signature()
+
+
 class SignalInstance:
     """A signal instance (optionally) bound to an object.
 
@@ -300,7 +305,7 @@ class SignalInstance:
 
     def __init__(
         self,
-        signature: Union[Signature, Tuple] = Signature(),
+        signature: Union[Signature, Tuple] = _empty_signature,
         *,
         instance: Any = None,
         name: Optional[str] = None,
@@ -963,11 +968,9 @@ def signature(obj: Any) -> inspect.Signature:
     try:
         return inspect.signature(obj)
     except ValueError as e:
-        try:
-            if not inspect.ismethod(obj):  # avoid caching strong refs
+        with suppress(Exception):
+            if not inspect.ismethod(obj):
                 return _stub_sig(obj)
-        except Exception:
-            pass
         raise e from e
 
 

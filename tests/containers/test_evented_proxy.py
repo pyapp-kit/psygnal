@@ -36,7 +36,7 @@ def test_evented_proxy():
         t.x = 2
         t.f = "f"
         del t.x
-        setattr(t, "y", "new")
+        t.y = "new"
         t[0] = 7
         t[0] = 7  # no event
         del t[0]

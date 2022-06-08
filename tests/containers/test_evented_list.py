@@ -297,7 +297,9 @@ def test_move_multiple_mimics_slice_reorder():
 
     # move_multiple also works omitting the insertion index
     el[:] = list(range(8))
-    el.move_multiple(new_order) == [el[i] for i in new_order]
+    expected = [el[i] for i in new_order]
+    el.move_multiple(new_order)
+    assert el == expected
 
 
 def test_child_events():
