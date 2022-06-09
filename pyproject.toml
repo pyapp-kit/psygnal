@@ -9,11 +9,8 @@ name = "psygnal"
 description = "Pure python callback/event system modeled after Qt Signals"
 readme = "README.md"
 requires-python = ">=3.7"
-license = {file = "LICENSE"}
-authors = [
-  {email = "talley.lambert@gmail.com"},
-  {name = "Talley Lambert"},
-]
+license = { file = "LICENSE" }
+authors = [{ email = "talley.lambert@gmail.com" }, { name = "Talley Lambert" }]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: BSD License",
@@ -34,9 +31,7 @@ dependencies = [
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 [project.optional-dependencies]
-build = [
-    "Cython>=3.0a7;sys_platform != 'win32'",
-]
+build = ["Cython>=3.0a7;sys_platform != 'win32'"]
 dev = [
     "black",
     "cruft",
@@ -69,12 +64,8 @@ docs = [
     "mkdocs-minify-plugin==0.5.0",
     "mkdocstrings[python]==0.19.0",
 ]
-proxy = [
-    "wrapt",
-]
-pydantic = [
-    "pydantic",
-]
+proxy = ["wrapt"]
+pydantic = ["pydantic"]
 test = [
     "dask",
     "numpy",
@@ -84,11 +75,7 @@ test = [
     "pytest>=6.0",
     "wrapt",
 ]
-testingqt = [
-    "PyQt5",
-    "pytest-qt",
-    "qtpy",
-]
+testingqt = ["PyQt5", "pytest-qt", "qtpy"]
 
 [project.urls]
 homepage = "https://github.com/tlambert03/psygnal"
@@ -108,8 +95,17 @@ documentation = "https://psygnal.readthedocs.io"
 [tool.setuptools]
 zip-safe = false
 include-package-data = true
-packages = {find = {where = ["src"], exclude=["tests", "benchmarks"]}}
-package-data = {"psygnal" = ["py.typed"]}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+exclude = ["tests", "benchmarks"]
+
+[tool.setuptools.package-data]
+psygnal = ["py.typed"]
+
+[tool.setuptools.exclude-package-data]
+psygnal = ["**/*.c"]
+
 
 # https://github.com/pypa/setuptools_scm/#pyprojecttoml-usage
 [tool.setuptools_scm]
@@ -120,15 +116,15 @@ profile = "black"
 src_paths = ["src/psygnal", "tests"]
 
 
- # https://flake8.pycqa.org/en/latest/user/options.html
- # https://gitlab.com/durko/flake8-pyprojecttoml
- [tool.flake8]
- exclude = "docs,.eggs,examples,_version.py"
- max-line-length = 88
- ignore = "E203"
- min-python-version = "3.7.0"
- docstring-convention = "all" # use numpy convention, while allowing D417
- extend-ignore = """
+# https://flake8.pycqa.org/en/latest/user/options.html
+# https://gitlab.com/durko/flake8-pyprojecttoml
+[tool.flake8]
+exclude = "docs,.eggs,examples,_version.py"
+max-line-length = 88
+ignore = "E203"
+min-python-version = "3.7.0"
+docstring-convention = "all" # use numpy convention, while allowing D417
+extend-ignore = """
  E203  # whitespace before ':'
  D107,D203,D212,D213,D402,D413,D415,D416  # numpy
  D100  # missing docstring in public module
@@ -137,12 +133,12 @@ src_paths = ["src/psygnal", "tests"]
  W503  # line break before binary operator
  TC002,B010
  """
- per-file-ignores = [
+per-file-ignores = [
     "tests/*:D",
     "tests/test_psygnal.py:E704,E701,E302,D",
     "benchmarks/**:D",
     "setup.py:D",
- ]
+]
 
 # http://www.pydocstyle.org/en/stable/usage.html
 [tool.pydocstyle]
@@ -171,12 +167,7 @@ show_error_codes = true
 pretty = true
 
 [[tool.mypy.overrides]]
-module = [
-    "numpy.*",
-    "cython",
-    "wrapt",
-    "pydantic.*",
-]
+module = ["numpy.*", "cython", "wrapt", "pydantic.*"]
 ignore_errors = true
 
 [[tool.mypy.overrides]]
@@ -185,9 +176,7 @@ ignore_missing_imports = true
 
 # https://coverage.readthedocs.io/en/6.4/config.html
 [tool.coverage.run]
-omit = [
-    "psygnal/containers/__init__.py",
-]
+omit = ["psygnal/containers/__init__.py"]
 
 [tool.coverage.report]
 exclude_lines = [
@@ -204,30 +193,30 @@ skip = ["tests"]
 # https://github.com/mgedmin/check-manifest#configuration
 [tool.check-manifest]
 ignore = [
-  ".cruft.json",
-  ".flake8",
-  ".github_changelog_generator",
-  ".pre-commit-config.yaml",
-  "tests/**/*",
-  "typesafety/*",
-  "tox.ini",
-  ".devcontainer/*",
-  ".readthedocs.yaml",
-  "Makefile",
-  "asv.conf.json",
-  "benchmarks/*",
-  "docs/**/*",
-  "mkdocs.yml",
-  "src/**/*.c",
-  "codecov.yml",
-  "CHANGELOG.md",
+    ".cruft.json",
+    ".flake8",
+    ".github_changelog_generator",
+    ".pre-commit-config.yaml",
+    "tests/**/*",
+    "typesafety/*",
+    "tox.ini",
+    ".devcontainer/*",
+    ".readthedocs.yaml",
+    "Makefile",
+    "asv.conf.json",
+    "benchmarks/*",
+    "docs/**/*",
+    "mkdocs.yml",
+    "src/**/*.c",
+    "codecov.yml",
+    "CHANGELOG.md",
 ]
 
 # https://python-semantic-release.readthedocs.io/en/latest/configuration.html
 [tool.semantic_release]
 version_source = "tag_only"
 branch = "main"
-changelog_sections="feature,fix,breaking,documentation,performance,chore,:boom:,:sparkles:,:children_crossing:,:lipstick:,:iphone:,:egg:,:chart_with_upwards_trend:,:ambulance:,:lock:,:bug:,:zap:,:goal_net:,:alien:,:wheelchair:,:speech_balloon:,:mag:,:apple:,:penguin:,:checkered_flag:,:robot:,:green_apple:,Other"
+changelog_sections = "feature,fix,breaking,documentation,performance,chore,:boom:,:sparkles:,:children_crossing:,:lipstick:,:iphone:,:egg:,:chart_with_upwards_trend:,:ambulance:,:lock:,:bug:,:zap:,:goal_net:,:alien:,:wheelchair:,:speech_balloon:,:mag:,:apple:,:penguin:,:checkered_flag:,:robot:,:green_apple:,Other"
 # commit_parser=semantic_release.history.angular_parser
 build_command = "pip install build && python -m build"
 
