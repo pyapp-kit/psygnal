@@ -6,7 +6,7 @@ except ImportError:
 
 try:
     __version__ = version("psygnal")
-except PackageNotFoundError:
+except PackageNotFoundError:  # pragma: no cover
     __version__ = "0.0.0"
 __author__ = "Talley Lambert"
 __email__ = "talley.lambert@gmail.com"

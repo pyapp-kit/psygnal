@@ -53,7 +53,7 @@ plugins:
       minify_html: true
   - mkdocstrings:
       watch:
-        - psygnal
+        - src/psygnal
       handlers:
         python:
           import:

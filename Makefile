@@ -1,12 +1,12 @@
 .PHONY: build build-trace check clean benchmark-all benchmark-compare
 
 build:
-	python setup.py build_ext --inplace
-	rm -f psygnal/*.c
+	pip install -e .
+	rm -f src/psygnal/*.c
 
 build-trace:
-	python setup.py build_ext --force --inplace --define CYTHON_TRACE
-	rm -f psygnal/*.c
+	CYTHON_TRACE=1 pip install -e .
+	rm -f src/psygnal/*.c
 
 check:
 	pre-commit run --all-files
@@ -24,8 +24,8 @@ clean:
 	rm -f .coverage.*
 	rm -rf build
 	rm -rf dist
-	rm -f `find psygnal -type f -name '*.c' `
-	rm -f `find psygnal -type f -name '*.so' `
+	rm -f `find src -type f -name '*.c' `
+	rm -f `find src -type f -name '*.so' `
 	python setup.py clean
 	rm -rf coverage.xml
 
