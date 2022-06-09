@@ -24,6 +24,7 @@ clean:
 	rm -f .coverage.*
 	rm -rf build
 	rm -rf dist
+	rm -rf wheelhouse
 	rm -f `find src -type f -name '*.c' `
 	rm -f `find src -type f -name '*.so' `
 	python setup.py clean

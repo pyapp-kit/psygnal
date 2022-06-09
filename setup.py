@@ -68,4 +68,5 @@ if (
 setuptools.setup(
     ext_modules=ext_modules,
     exclude_package_data={"": ["*.c"]},
+    package_dir={"": "src"},
 )
