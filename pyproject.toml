@@ -67,6 +67,7 @@ docs = [
 proxy = ["wrapt"]
 pydantic = ["pydantic"]
 test = [
+    "cython",
     "dask",
     "numpy",
     "pydantic",
@@ -162,6 +163,7 @@ ignore_missing_imports = true
 
 # https://coverage.readthedocs.io/en/6.4/config.html
 [tool.coverage.run]
+plugins = ["Cython.Coverage"]
 omit = ["psygnal/containers/__init__.py"]
 
 [tool.coverage.report]
