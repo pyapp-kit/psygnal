@@ -82,10 +82,6 @@ homepage = "https://github.com/tlambert03/psygnal"
 repository = "https://github.com/tlambert03/psygnal"
 documentation = "https://psygnal.readthedocs.io"
 
-# same as console_scripts entry point
-# [project.scripts]
-# spam-cli = "spam:main_cli"
-
 # Entry points
 # https://peps.python.org/pep-0621/#entry-points
 # [project.entry-points."spam.magical"]
@@ -95,17 +91,8 @@ documentation = "https://psygnal.readthedocs.io"
 [tool.setuptools]
 zip-safe = false
 include-package-data = true
-
-[tool.setuptools.packages.find]
-where = ["src"]
-exclude = ["tests", "benchmarks"]
-
-[tool.setuptools.package-data]
-psygnal = ["py.typed"]
-
-[tool.setuptools.exclude-package-data]
-psygnal = ["**/*.c"]
-
+packages = { find = { where = ["src"], exclude = ["tests", "benchmarks"] } }
+package-data = { "psygnal" = ["py.typed"] }
 
 # https://github.com/pypa/setuptools_scm/#pyprojecttoml-usage
 [tool.setuptools_scm]
@@ -114,7 +101,6 @@ psygnal = ["**/*.c"]
 [tool.isort]
 profile = "black"
 src_paths = ["src/psygnal", "tests"]
-
 
 # https://flake8.pycqa.org/en/latest/user/options.html
 # https://gitlab.com/durko/flake8-pyprojecttoml

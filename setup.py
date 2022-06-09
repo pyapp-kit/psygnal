@@ -65,4 +65,7 @@ if (
             compiler_directives=compiler_directives,
         )
 
-setuptools.setup(ext_modules=ext_modules)
+setuptools.setup(
+    ext_modules=ext_modules,
+    exclude_package_data={"": ["*.c"]},
+)
