@@ -40,7 +40,7 @@ jobs:
       - name: install
         run: |
           python -m pip install -U wheel pip
-          pip install -e .[testing,testingqt,build]
+          pip install -e .[test,testqt,build]
         env:
           SKIP_CYTHON: 1
 
@@ -106,7 +106,7 @@ jobs:
       - name: install
         run: |
           python -m pip install -U wheel pip
-          pip install -e .[testing,testingqt,build]
+          pip install -e .[test,testqt,build]
 
       - name: test
         run: pytest --color=yes
@@ -167,7 +167,7 @@ jobs:
 
       - name: Build sdist
         if: matrix.os == 'ubuntu-20.04'
-        run: python setup.py sdist
+        run: python -m build --sdist
 
       - uses: actions/upload-artifact@v3
         if: matrix.os == 'ubuntu-20.04'

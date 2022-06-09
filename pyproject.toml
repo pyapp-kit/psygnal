@@ -75,7 +75,7 @@ test = [
     "pytest>=6.0",
     "wrapt",
 ]
-testingqt = ["PyQt5", "pytest-qt", "qtpy"]
+testqt = ["PyQt5", "pytest-qt", "qtpy"]
 
 [project.urls]
 homepage = "https://github.com/tlambert03/psygnal"
@@ -210,7 +210,7 @@ build_command = "pip install build && python -m build"
 [tool.cibuildwheel]
 # Skip 32-bit builds & PyPy wheels on all platforms
 skip = ["*-win32", "pp*"]
-test-extras = ["testing"]
+test-extras = ["test"]
 test-command = "pytest {project}/tests -v"
 test-skip = "*-musllinux* *-manylinux_i686"
 
