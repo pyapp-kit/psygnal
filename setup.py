@@ -51,7 +51,7 @@ if (
 
         # For cython test coverage install with `make build-trace`
         compiler_directives = {}
-        if "CYTHON_TRACE" in sys.argv or "CYTHON_TRACE" in os.environ:
+        if "CYTHON_TRACE" in sys.argv:
             compiler_directives["linetrace"] = True
         # Set CFLAG to all optimizations (-O3)
         # Any additional CFLAGS will be appended.

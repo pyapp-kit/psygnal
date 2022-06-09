@@ -5,7 +5,7 @@ build:
 	rm -f `find src -type f -name '*.c' `
 
 build-trace:
-	CYTHON_TRACE=1 pip install -e .
+	python setup.py build_ext --force --inplace --define CYTHON_TRACE
 	rm -f `find src -type f -name '*.c' `
 
 check:
