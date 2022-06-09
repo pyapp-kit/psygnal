@@ -6,7 +6,6 @@ build:
 
 build-trace:
 	CYTHON_TRACE=1 pip install -e .
-	rm -f `find src -type f -name '*.c' `
 
 check:
 	pre-commit run --all-files
