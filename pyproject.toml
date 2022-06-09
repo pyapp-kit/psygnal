@@ -90,10 +90,14 @@ documentation = "https://psygnal.readthedocs.io"
 
 # https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
 [tool.setuptools]
-zip-safe = false
 include-package-data = true
-packages = { find = { where = ["src"], exclude = ["tests", "benchmarks"] } }
 package-data = { "psygnal" = ["py.typed"] }
+package-dir = {"" = "src"}
+packages = { find = { where = ["src"], exclude = ["tests", "benchmarks"] } }
+zip-safe = false
+
+[tool.setuptools.exclude-package-data]
+"*" = ["*.c"]
 
 # https://github.com/pypa/setuptools_scm/#pyprojecttoml-usage
 [tool.setuptools_scm]
