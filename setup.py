@@ -32,7 +32,6 @@ if os.name == "nt":
 
     build_ext.build_ext.get_export_symbols = get_export_symbols  # type: ignore
 
-
 ext_modules = None
 if (
     all(arg not in sys.argv for arg in ["clean", "check"])
@@ -46,9 +45,9 @@ if (
         pass
     else:
         if tuple(__version__.split(".")) < ("3",):
-            cython_modules = "psygnal/*.py"
+            cython_modules = "src/psygnal/*.py"
         else:
-            cython_modules = "psygnal/**/*.py"
+            cython_modules = "src/psygnal/**/*.py"
 
         # For cython test coverage install with `make build-trace`
         compiler_directives = {}
@@ -60,13 +59,13 @@ if (
         os.environ["CFLAGS"] = "-O3 " + os.environ.get("CFLAGS", "")
         ext_modules = cythonize(
             cython_modules,
-            exclude=["**/__init__.py", "psygnal/_version.py"],
+            exclude=["**/__init__.py"],
             nthreads=int(os.getenv("CYTHON_NTHREADS", 0)),
             language_level=3,
             compiler_directives=compiler_directives,
         )
 
 setuptools.setup(
-    use_scm_version={"write_to": "psygnal/_version.py"},
     ext_modules=ext_modules,
+    package_dir={"": "src"},  # needed for CI
 )

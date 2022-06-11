@@ -1,13 +1,221 @@
+# https://peps.python.org/pep-0517/
 [build-system]
-requires = ["setuptools", "wheel", "Cython>=3.0a7", "setuptools_scm"]
+requires = ["setuptools>=45", "wheel", "Cython>=3.0a7", "setuptools-scm>=6.2"]
 build-backend = "setuptools.build_meta"
+
+# https://peps.python.org/pep-0621/
+[project]
+name = "psygnal"
+description = "Pure python callback/event system modeled after Qt Signals"
+readme = "README.md"
+requires-python = ">=3.7"
+license = { file = "LICENSE" }
+authors = [{ email = "talley.lambert@gmail.com" }, { name = "Talley Lambert" }]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: BSD License",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Typing :: Typed",
+]
+dynamic = ["version"]
+dependencies = [
+    "typing-extensions",
+    "importlib_metadata ; python_version < '3.8'",
+]
+
+# extras
+# https://peps.python.org/pep-0621/#dependencies-optional-dependencies
+[project.optional-dependencies]
+build = ["Cython>=3.0a7;sys_platform != 'win32'"]
+dev = [
+    "black",
+    "cruft",
+    "dask",
+    "flake8-bugbear",
+    "flake8-docstrings",
+    "flake8-type-checking",
+    "flake8-typing-imports",
+    "flake8-pyprojecttoml",
+    "flake8",
+    "ipython",
+    "isort",
+    "mypy",
+    "numpy",
+    "pre-commit",
+    "pydantic",
+    "pydocstyle",
+    "PyQt5",
+    "pytest-cov",
+    "pytest-mypy-plugins",
+    "pytest-qt",
+    "pytest",
+    "qtpy",
+    "rich",
+    "wrapt",
+]
+docs = [
+    "mkdocs==1.3.0",
+    "mkdocs-material==8.3",
+    "mkdocs-minify-plugin==0.5.0",
+    "mkdocstrings[python]==0.19.0",
+]
+proxy = ["wrapt"]
+pydantic = ["pydantic"]
+test = [
+    "cython",
+    "dask",
+    "numpy",
+    "pydantic",
+    "pytest-cov",
+    "pytest-mypy-plugins",
+    "pytest>=6.0",
+    "wrapt",
+]
+testqt = ["PyQt5", "pytest-qt", "qtpy"]
+
+[project.urls]
+homepage = "https://github.com/tlambert03/psygnal"
+repository = "https://github.com/tlambert03/psygnal"
+documentation = "https://psygnal.readthedocs.io"
+
+# Entry points
+# https://peps.python.org/pep-0621/#entry-points
+# [project.entry-points."spam.magical"]
+# tomatoes = "spam:main_tomatoes"
+
+# https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
+[tool.setuptools]
+include-package-data = true
+package-data = { "psygnal" = ["py.typed"] }
+package-dir = {"" = "src"}
+packages = { find = { where = ["src"], exclude = ["tests", "benchmarks"] } }
+zip-safe = false
+
+[tool.setuptools.exclude-package-data]
+"*" = ["*.c"]
+
+# https://github.com/pypa/setuptools_scm/#pyprojecttoml-usage
+[tool.setuptools_scm]
+
+# https://pycqa.github.io/isort/docs/configuration/options.html
+[tool.isort]
+profile = "black"
+src_paths = ["src/psygnal", "tests"]
+
+# https://flake8.pycqa.org/en/latest/user/options.html
+# https://gitlab.com/durko/flake8-pyprojecttoml
+[tool.flake8]
+exclude = "docs,.eggs,examples,_version.py"
+max-line-length = 88
+ignore = "E203"
+min-python-version = "3.7.0"
+docstring-convention = "all" # use numpy convention, while allowing D417
+extend-ignore = """
+ E203  # whitespace before ':'
+ D107,D203,D212,D213,D402,D413,D415,D416  # numpy
+ D100  # missing docstring in public module
+ D105  # missing docstring in magic method
+ D401  # imperative mood
+ W503  # line break before binary operator
+ TC002,B010
+ """
+per-file-ignores = [
+    "tests/*:D",
+    "tests/test_psygnal.py:E704,E701,E302,D",
+    "benchmarks/**:D",
+    "setup.py:D",
+]
+
+# http://www.pydocstyle.org/en/stable/usage.html
+[tool.pydocstyle]
+match_dir = "src/psygnal"
+convention = "numpy"
+add_select = "D402,D415,D417"
+ignore = "D100,D213,D401,D413,D107"
+
+# https://docs.pytest.org/en/6.2.x/customize.html
+[tool.pytest.ini_options]
+addopts = "--mypy-ini-file=setup.cfg --cov=psygnal --cov-report=term-missing"
+minversion = "6.0"
+testpaths = ["tests"]
+filterwarnings = [
+    "error",
+    "ignore:The distutils package is deprecated:DeprecationWarning:",
+]
+
+# https://mypy.readthedocs.io/en/stable/config_file.html
+[tool.mypy]
+files = "src/**/"
+strict = true
+disallow_any_generics = false
+disallow_subclassing_any = false
+show_error_codes = true
+pretty = true
+
+[[tool.mypy.overrides]]
+module = ["numpy.*", "cython", "wrapt", "pydantic.*"]
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "wrapt"
+ignore_missing_imports = true
+
+# https://coverage.readthedocs.io/en/6.4/config.html
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "@overload",
+    "except ImportError",
+]
+
+# https://github.com/cruft/cruft
+[tool.cruft]
+skip = ["tests"]
+
+# https://github.com/mgedmin/check-manifest#configuration
+[tool.check-manifest]
+ignore = [
+    ".cruft.json",
+    ".flake8",
+    ".github_changelog_generator",
+    ".pre-commit-config.yaml",
+    "tests/**/*",
+    "typesafety/*",
+    "tox.ini",
+    ".devcontainer/*",
+    ".readthedocs.yaml",
+    "Makefile",
+    "asv.conf.json",
+    "benchmarks/*",
+    "docs/**/*",
+    "mkdocs.yml",
+    "src/**/*.c",
+    "codecov.yml",
+    "CHANGELOG.md",
+]
+
+# https://python-semantic-release.readthedocs.io/en/latest/configuration.html
+[tool.semantic_release]
+version_source = "tag_only"
+branch = "main"
+changelog_sections = "feature,fix,breaking,documentation,performance,chore,:boom:,:sparkles:,:children_crossing:,:lipstick:,:iphone:,:egg:,:chart_with_upwards_trend:,:ambulance:,:lock:,:bug:,:zap:,:goal_net:,:alien:,:wheelchair:,:speech_balloon:,:mag:,:apple:,:penguin:,:checkered_flag:,:robot:,:green_apple:,Other"
+# commit_parser=semantic_release.history.angular_parser
+build_command = "pip install build && python -m build"
+
 
 [tool.cibuildwheel]
 # Skip 32-bit builds & PyPy wheels on all platforms
 skip = ["*-win32", "pp*"]
-test-extras = ["testing"]
+test-extras = ["test"]
 test-command = "pytest {project}/tests -v"
 test-skip = "*-musllinux* *-manylinux_i686"
+
 
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]

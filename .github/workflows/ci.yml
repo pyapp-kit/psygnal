@@ -7,8 +7,17 @@ on:
     tags:
       - "v*"
   pull_request: {}
+  workflow_dispatch:
 
 jobs:
+
+  check-manifest:
+    name: Check Manifest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
+      - run: pip install check-manifest && check-manifest
 
   test-linux:
     name: test py${{ matrix.python-version }} on linux
@@ -31,7 +40,7 @@ jobs:
       - name: install
         run: |
           python -m pip install -U wheel pip
-          pip install -e .[testing,testingqt,build]
+          pip install -e .[test,testqt,build]
         env:
           SKIP_CYTHON: 1
 
@@ -40,7 +49,7 @@ jobs:
           make build-trace
           python -c "import sys, psygnal; print('compiled:', psygnal._compiled); sys.exit(0 if psygnal._compiled else 1)"
           ls -alh
-          ls -alh psygnal/
+          ls -alh src/psygnal/
 
       - name: test
         uses: GabrielBB/xvfb-action@v1
@@ -50,9 +59,9 @@ jobs:
       - name: remove compiled binaries
         run: |
           pip uninstall -y cython
-          rm -rf psygnal/*.so psygnal/*.c psygnal/__pycache__
+          rm -rf src/**/*.so src/**/*.c src/**/__pycache__
           ls -alh
-          ls -alh psygnal/
+          ls -alh src/psygnal/
 
       - name: test uncompiled
         uses: GabrielBB/xvfb-action@v1
@@ -97,7 +106,7 @@ jobs:
       - name: install
         run: |
           python -m pip install -U wheel pip
-          pip install -e .[testing,testingqt,build]
+          pip install -e .[test,testqt,build]
 
       - name: test
         run: pytest --color=yes
@@ -132,7 +141,6 @@ jobs:
         with:
           run: python -m pytest magicgui/tests -v --color=yes
 
-
   build:
     name: Build wheels on ${{ matrix.os }}
     if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
@@ -159,7 +167,7 @@ jobs:
 
       - name: Build sdist
         if: matrix.os == 'ubuntu-20.04'
-        run: python setup.py sdist
+        run: python -m build --sdist
 
       - uses: actions/upload-artifact@v3
         if: matrix.os == 'ubuntu-20.04'
