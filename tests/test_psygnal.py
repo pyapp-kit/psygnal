@@ -691,6 +691,31 @@ def test_property_connect():
         emitter.one_int.connect_setattr(a, "y")
 
 
+def test_connect_setitem():
+    class T:
+        sig = Signal(int)
+
+    class SupportsItem:
+        def __init__(self) -> None:
+            self._dict = {}
+
+        def __setitem__(self, key, value):
+            self._dict[key] = value
+
+    t = T()
+    my_obj = SupportsItem()
+    t.sig.connect_setitem(my_obj, "x")
+    t.sig.emit(5)
+    assert my_obj._dict == {"x": 5}
+    t.sig.disconnect_setitem(my_obj, "x")
+    t.sig.emit(7)
+    assert my_obj._dict == {"x": 5}
+
+    obj = object()
+    with pytest.raises(TypeError, match="does not support __setitem__"):
+        t.sig.connect_setitem(obj, "x")
+
+
 def test_repr_not_used():
     """Test that we don't use repr() or __call__ to check signature."""
     mock = MagicMock()
