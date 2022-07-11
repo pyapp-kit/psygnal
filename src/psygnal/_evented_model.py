@@ -4,7 +4,6 @@ import operator
 import sys
 import warnings
 from contextlib import contextmanager
-from types import ModuleType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -27,8 +26,8 @@ from ._group import SignalGroup
 from ._signal import Signal, SignalInstance
 
 if TYPE_CHECKING:
-
     import inspect
+    from types import ModuleType
 
     from pydantic import BaseConfig
     from pydantic.fields import ModelField
@@ -416,7 +415,6 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         except Exception:
             if fail:
                 raise  # pragma: no cover
-
             try:
                 np: Optional[ModuleType] = __import__("numpy")
             except ImportError:
