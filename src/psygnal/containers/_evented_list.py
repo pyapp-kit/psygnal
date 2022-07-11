@@ -293,7 +293,7 @@ class EventedList(MutableSequence[_T]):
 
         Parameters
         ----------
-        sources : Sequence[int or slice]
+        sources : Iterable[Union[int, slice]]
             A sequence of indices
         dest_index : int, optional
             The destination index.  All sources will be inserted before this
