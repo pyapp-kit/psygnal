@@ -59,7 +59,7 @@ dev = [
     "wrapt",
 ]
 docs = [
-    "griffe==0.21.0",
+    "griffe==0.22.0",
     "mkdocs-material~=8.3",
     "mkdocs-minify-plugin==0.5.0",
     "mkdocs==1.3.0",
