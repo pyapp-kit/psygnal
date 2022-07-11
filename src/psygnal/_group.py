@@ -166,7 +166,7 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
             If `True`, An additional check will be performed to make sure that types
             declared in the slot signature are compatible with the signature
             declared by this signal, by default `False`.
-        unique : bool or str, optional
+        unique : Union[bool, str]
             If `True`, returns without connecting if the slot has already been
             connected.  If the literal string "raise" is passed to `unique`, then a
             `ValueError` will be raised if the slot is already connected.
