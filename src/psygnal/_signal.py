@@ -616,7 +616,7 @@ class SignalInstance:
         >>> assert my_obj == {'x': 5}
         """
         if isinstance(obj, weakref.ref):
-            ref = obj
+            ref = obj  # pragma: no cover
         else:
             try:
                 ref = weakref.ref(obj)

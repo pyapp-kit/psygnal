@@ -715,6 +715,9 @@ def test_connect_setitem():
     with pytest.raises(TypeError, match="does not support __setitem__"):
         t.sig.connect_setitem(obj, "x")
 
+    with pytest.raises(ValueError):
+        t.sig.disconnect_setitem(obj, "x", missing_ok=False)
+
 
 def test_repr_not_used():
     """Test that we don't use repr() or __call__ to check signature."""
