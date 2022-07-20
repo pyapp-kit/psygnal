@@ -475,7 +475,7 @@ class SignalInstance:
         attr: str,
         maxargs: Optional[int] = None,
     ) -> MethodRef:
-        """Bind the an object attribute to emitted value of this signal.
+        """Bind an object attribute to the emitted value of this signal.
 
         Equivalent to calling `self.connect(functools.partial(setattr, obj, attr))`,
         but with additional weakref safety (i.e. a strong reference to `obj` will not
@@ -566,6 +566,110 @@ class SignalInstance:
                 self._slots.pop(idx)
             elif not missing_ok:
                 raise ValueError(f"No attribute setter connected for {obj}.{attr}")
+
+    def connect_setitem(
+        self,
+        obj: Union[weakref.ref, object],
+        key: str,
+        maxargs: Optional[int] = None,
+    ) -> MethodRef:
+        """Bind a container item (such as a dict key) to emitted value of this signal.
+
+        Equivalent to calling `self.connect(functools.partial(obj.__setitem__, attr))`,
+        but with additional weakref safety (i.e. a strong reference to `obj` will not
+        be retained). The return object can be used to
+        [`disconnect()`][psygnal.SignalInstance.disconnect], (or you can use
+        [`disconnect_setitem()`][psygnal.SignalInstance.disconnect_setitem]).
+
+        Parameters
+        ----------
+        obj : Union[weakref.ref, object]
+            An object or weak reference to an object.
+        key : str
+            Name of the key in `obj` that should be set to the value of this
+            signal when emitted
+        maxargs : Optional[int]
+            max number of positional args to accept
+
+        Returns
+        -------
+        Tuple
+            (weakref.ref, name, callable).  Reference to the object, name of the
+            attribute, and setitem closure.  Can be used to disconnect the slot.
+
+        Raises
+        ------
+        ValueError
+            If this is not a single-value signal
+        TypeError
+            If `obj` does not support __setitem__.
+
+        Examples
+        --------
+        >>> class T:
+        ...     sig = Signal(int)
+        ...
+        >>> t = T()
+        >>> my_obj = dict()
+        >>> t.sig.connect_setitem(my_obj, 'x')
+        >>> t.sig.emit(5)
+        >>> assert my_obj == {'x': 5}
+        """
+        if isinstance(obj, weakref.ref):
+            ref = obj  # pragma: no cover
+        else:
+            try:
+                ref = weakref.ref(obj)
+            except TypeError:
+                ref = lambda: obj  # type: ignore # noqa # object doesn't support weakref
+
+        if not hasattr(ref(), "__setitem__"):
+            raise TypeError(f"Object {ref()} does not support __setitem__")
+
+        with self._lock:
+
+            def _slot(*args: Any) -> None:
+                _obj = ref()
+                if _obj:
+                    _obj.__setitem__(key, args[0] if len(args) == 1 else args)
+
+            normed_callback = (ref, key, _slot)
+            self._slots.append((normed_callback, maxargs))
+        return cast(MethodRef, normed_callback)
+
+    def disconnect_setitem(
+        self, obj: object, key: str, missing_ok: bool = True
+    ) -> None:
+        """Disconnect a previously connected item setter.
+
+        Parameters
+        ----------
+        obj : object
+            An object.
+        key : str
+            The name of a key in `obj` that was previously used for
+            `connect_setitem`.
+        missing_ok : bool
+            If `False` and the provided `slot` is not connected, raises `ValueError`.
+            by default `True`
+
+        Raises
+        ------
+        ValueError
+            If `missing_ok` is `True` and no item setter is connected.
+        """
+        with self._lock:
+            idx = None
+            for i, (slot, _) in enumerate(self._slots):
+                if isinstance(slot, tuple):
+                    ref, name, _ = slot
+                    if ref() is obj and key == name:
+                        idx = i
+                        break
+            if idx is not None:
+                self._slots.pop(idx)
+            elif not missing_ok:
+                raise ValueError(f"No item setter connected for {obj}.{key}")
 
     def _check_nargs(
         self, slot: Callable, spec: Signature
