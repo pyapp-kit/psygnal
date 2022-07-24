@@ -1,12 +1,15 @@
+from __future__ import annotations
+
 from threading import Timer
-from typing import Any, Callable, Optional, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union, overload
 
-from typing_extensions import Literal, ParamSpec
+if TYPE_CHECKING:
+    from typing_extensions import Literal, ParamSpec
 
-P = ParamSpec("P")
+    P = ParamSpec("P")
 
-Kind = Literal["throttler", "debouncer"]
-EmissionPolicy = Literal["trailing", "leading"]
+    Kind = Literal["throttler", "debouncer"]
+    EmissionPolicy = Literal["trailing", "leading"]
 
 
 class _ThrottlerBase:
