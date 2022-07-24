@@ -141,7 +141,7 @@ jobs:
       - name: test magicgui
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: python -m pytest magicgui/tests -v --color=yes
+          run: python -m pytest magicgui/tests -v --color=yes --ignore magicgui/tests/typesafety
 
   build:
     name: Build wheels on ${{ matrix.os }}
