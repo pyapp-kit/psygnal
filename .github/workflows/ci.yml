@@ -134,7 +134,7 @@ jobs:
       - uses: tlambert03/setup-qt-libs@v1
       - name: install
         run: |
-          python -m pip install -U pip
+          python -m pip install -U pip pytest-mypy-testing
           pip install -e magicgui[testing,pyside2]
           pip install -e psygnal
 
