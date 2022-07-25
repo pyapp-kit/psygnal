@@ -1,6 +1,7 @@
 import gc
 import time
 import weakref
+from contextlib import suppress
 from functools import partial, wraps
 from inspect import Signature
 from types import FunctionType
@@ -9,7 +10,7 @@ from unittest.mock import MagicMock, Mock, call
 
 import pytest
 
-from psygnal import Signal, SignalInstance
+from psygnal import EmitLoopError, Signal, SignalInstance
 from psygnal._signal import _get_method_name, _normalize_slot
 
 
@@ -112,17 +113,20 @@ def test_basic_signal():
 
 def test_decorator():
     emitter = Emitter()
+    err = ValueError()
 
     @emitter.one_int.connect
     def boom(v: int):
-        raise ValueError
+        raise err
 
     @emitter.one_int.connect(check_nargs=False)
     def bad_cb(a, b, c):
         ...
 
-    with pytest.raises(ValueError):
+    with pytest.raises(EmitLoopError) as e:
         emitter.one_int.emit(1)
+    assert e.value.slot is boom
+    assert e.value.__cause__ is err
 
 
 def test_misc():
@@ -247,8 +251,13 @@ def test_basic_signal_with_sender_receiver():
 
     # sanity check... to make sure that methods are in fact being called.
     emitter.one_int.connect(receiver.assert_not_sender)
-    with pytest.raises(AssertionError):
+    with pytest.raises(EmitLoopError) as e:
         emitter.one_int.emit(1)
+
+    ref, name, *_ = e.value.slot
+    assert ref() == receiver
+    assert name == "assert_not_sender"
+    assert isinstance(e.value.__cause__, AssertionError)
 
 
 def test_basic_signal_with_sender_nonreceiver():
@@ -757,3 +766,23 @@ def test_signal_emit_as_slot():
     a.signal1.connect(b.signal2)  # you can also just connect the signal instance
     a.signal1.emit(2)
     mock.assert_called_once_with(2)
+
+
+def test_emit_loop_exceptions():
+    emitter = Emitter()
+    mock1 = Mock(side_effect=ValueError("Bad callback!"))
+    mock2 = Mock()
+    emitter.one_int.connect(mock1)
+    emitter.one_int.connect(mock2)
+
+    with pytest.raises(EmitLoopError):
+        emitter.one_int.emit(1)
+
+    mock1.assert_called_once_with(1)
+    mock1.reset_mock()
+    mock2.assert_not_called()
+
+    with suppress(EmitLoopError):
+        emitter.one_int.emit(2)
+    mock1.assert_called_once_with(2)
+    mock1.assert_called_once_with(2)
