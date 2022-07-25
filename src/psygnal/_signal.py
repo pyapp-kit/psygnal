@@ -907,7 +907,6 @@ class SignalInstance:
                     else:
                         cb = slot
 
-                    # TODO: add better exception handling
                     try:
                         cb(*args[:max_args])
                     except Exception as e:
