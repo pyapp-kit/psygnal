@@ -1,8 +1,38 @@
 # Changelog
 
-## [0.3.4](https://github.com/tlambert03/psygnal/tree/0.3.4) (2022-05-02)
+## [0.4.0](https://github.com/tlambert03/psygnal/tree/0.4.0) (2022-07-26)
 
-[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.3.3...0.3.4)
+[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.3.5...0.4.0)
+
+**Implemented enhancements:**
+
+- feat: raise exceptions as EmitLoopError [\#115](https://github.com/tlambert03/psygnal/pull/115) ([tlambert03](https://github.com/tlambert03))
+- feat: add connect\_setitem [\#108](https://github.com/tlambert03/psygnal/pull/108) ([tlambert03](https://github.com/tlambert03))
+- build: move entirely to pyproject, and src setup [\#101](https://github.com/tlambert03/psygnal/pull/101) ([tlambert03](https://github.com/tlambert03))
+- add readthedocs config, make EventedCallableObjectProxy public [\#86](https://github.com/tlambert03/psygnal/pull/86) ([tlambert03](https://github.com/tlambert03))
+
+**Fixed bugs:**
+
+- refactor: guard paramspec import [\#112](https://github.com/tlambert03/psygnal/pull/112) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- replace docs/requirements with extra, fix rtd install [\#87](https://github.com/tlambert03/psygnal/pull/87) ([tlambert03](https://github.com/tlambert03))
+
+## [v0.3.5](https://github.com/tlambert03/psygnal/tree/v0.3.5) (2022-05-25)
+
+[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.3.4...v0.3.5)
+
+**Merged pull requests:**
+
+- \[pre-commit.ci\] pre-commit autoupdate [\#85](https://github.com/tlambert03/psygnal/pull/85) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- Add documentation [\#84](https://github.com/tlambert03/psygnal/pull/84) ([tlambert03](https://github.com/tlambert03))
+- Evented pydantic model [\#83](https://github.com/tlambert03/psygnal/pull/83) ([tlambert03](https://github.com/tlambert03))
+- \[pre-commit.ci\] pre-commit autoupdate [\#82](https://github.com/tlambert03/psygnal/pull/82) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+
+## [v0.3.4](https://github.com/tlambert03/psygnal/tree/v0.3.4) (2022-05-02)
+
+[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.3.3...v0.3.4)
 
 **Implemented enhancements:**
 
