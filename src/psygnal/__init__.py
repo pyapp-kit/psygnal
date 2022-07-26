@@ -16,6 +16,7 @@ __all__ = [
     "__version__",
     "_compiled",
     "EmissionInfo",
+    "EmitLoopError",
     "EventedModel",
     "Signal",
     "SignalGroup",
@@ -34,6 +35,7 @@ if TYPE_CHECKING:
 
     Signal = _signal.Signal
     SignalInstance = _signal.SignalInstance
+    EmitLoopError = _signal.EmitLoopError
     _compiled = _signal._compiled
     SignalGroup = _group.SignalGroup
     EmissionInfo = _group.EmissionInfo
@@ -59,6 +61,7 @@ if os.getenv("PSYGNAL_UNCOMPILED"):
 
     m = _import_purepy_mod("_signal")
     Signal, SignalInstance, _compiled = m.Signal, m.SignalInstance, m._compiled
+    EmitLoopError = m.EmitLoopError  # type: ignore
     m = _import_purepy_mod("_group")
     SignalGroup, EmissionInfo = m.SignalGroup, m.EmissionInfo
     m = _import_purepy_mod("_throttler")
@@ -67,7 +70,7 @@ if os.getenv("PSYGNAL_UNCOMPILED"):
 
 else:
     from ._group import EmissionInfo, SignalGroup
-    from ._signal import Signal, SignalInstance, _compiled
+    from ._signal import EmitLoopError, Signal, SignalInstance, _compiled
     from ._throttler import debounced, throttled
 
 

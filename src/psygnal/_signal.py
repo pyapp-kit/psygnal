@@ -35,6 +35,16 @@ ReducerFunc = Callable[[tuple, tuple], tuple]
 _NULL = object()
 
 
+class EmitLoopError(RuntimeError):
+    def __init__(self, slot: NormedCallback, args: Tuple, exc: BaseException) -> None:
+        self.slot = slot
+        self.args = args
+        super().__init__(
+            f"calling {slot} with args={args!r} caused "
+            f"{type(exc).__name__} in emit loop."
+        )
+
+
 class Signal:
     """Declares a signal emitter on a class.
 
@@ -897,8 +907,12 @@ class SignalInstance:
                     else:
                         cb = slot
 
-                    # TODO: add better exception handling
-                    cb(*args[:max_args])
+                    try:
+                        cb(*args[:max_args])
+                    except Exception as e:
+                        raise EmitLoopError(
+                            slot=slot, args=args[:max_args], exc=e
+                        ) from e
 
             for slot in rem:
                 self.disconnect(slot)
