@@ -58,8 +58,8 @@ class ListEvents(SignalGroup):
         `(index, value)` emitted after `value` is removed at `index`
     moving : Signal[int, int]
         `(index, new_index)` emitted before an item is moved from `index` to `new_index`
-    moved : Signal[int, int]
-        `(index, new_index, value)` emitted after `value` is moved from `index` to
+    moved : Signal[tuple, int]
+        `((index, new_index), value)` emitted after `value` is moved from `index` to
         `new_index`
     changed : Signal[Union[int, slice], Any, Any]
         `(index_or_slice, old_value, value)` emitted when `index` is set from
@@ -170,7 +170,7 @@ class EventedList(MutableSequence[_T]):
                 raise TypeError("Can only assign an iterable to slice")
             value = [self._pre_insert(v) for v in value]  # before we mutate the list
         else:
-            value = self._pre_insert(cast(_T, value))
+            value = self._pre_insert(cast("_T", value))
 
         self._data[key] = value  # type: ignore
         self.events.changed.emit(key, old, value)
