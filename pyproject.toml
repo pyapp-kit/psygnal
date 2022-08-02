@@ -31,7 +31,7 @@ dependencies = [
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 [project.optional-dependencies]
-build = ["Cython>=3.0a7;sys_platform != 'win32'"]
+build = ["Cython==3.0a10;sys_platform != 'win32'"]
 dev = [
     "black",
     "cruft",
@@ -69,7 +69,7 @@ docs = [
 proxy = ["wrapt"]
 pydantic = ["pydantic"]
 test = [
-    "cython",
+    "Cython==3.0a10",
     "dask",
     "numpy",
     "pydantic",
