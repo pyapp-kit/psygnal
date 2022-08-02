@@ -1,6 +1,6 @@
 # https://peps.python.org/pep-0517/
 [build-system]
-requires = ["setuptools>=45", "wheel", "Cython>=3.0a7", "setuptools-scm>=6.2"]
+requires = ["setuptools>=45", "wheel", "Cython==3.0a10", "setuptools-scm>=6.2"]
 build-backend = "setuptools.build_meta"
 
 # https://peps.python.org/pep-0621/
