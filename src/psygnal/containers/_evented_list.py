@@ -170,7 +170,7 @@ class EventedList(MutableSequence[_T]):
                 raise TypeError("Can only assign an iterable to slice")
             value = [self._pre_insert(v) for v in value]  # before we mutate the list
         else:
-            value = self._pre_insert(cast(_T, value))
+            value = self._pre_insert(cast("_T", value))
 
         self._data[key] = value  # type: ignore
         self.events.changed.emit(key, old, value)
