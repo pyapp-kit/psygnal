@@ -131,7 +131,7 @@ class Signal:
                     f" `Signature`.  These args were ignored: {types[1:]}"
                 )
         else:
-            self._signature = _build_signature(*cast(Tuple[Type[Any], ...], types))
+            self._signature = _build_signature(*cast("Tuple[Type[Any], ...]", types))
 
     @property
     def signature(self) -> Signature:
@@ -190,7 +190,7 @@ class Signal:
         """
         if instance is None:
             return self
-        name = cast(str, self._name)
+        name = cast("str", self._name)
         signal_instance = SignalInstance(
             self.signature,
             instance=instance,
@@ -646,7 +646,7 @@ class SignalInstance:
 
             normed_callback = (ref, key, _slot)
             self._slots.append((normed_callback, maxargs))
-        return cast(MethodRef, normed_callback)
+        return cast("MethodRef", normed_callback)
 
     def disconnect_setitem(
         self, obj: object, key: str, missing_ok: bool = True
@@ -1286,10 +1286,10 @@ def _guess_qtsignal_signature(obj: Any) -> Optional[str]:
     # on my machine, this takes ~700ns on PyQt5 and 8.7µs on PySide2
     type_ = type(obj)
     if "pyqtBoundSignal" in type_.__name__:
-        return cast(str, obj.signal)
+        return cast("str", obj.signal)
     qualname = getattr(obj, "__qualname__", "")
     if qualname == "pyqtBoundSignal.emit":
-        return cast(str, obj.__self__.signal)
+        return cast("str", obj.__self__.signal)
     if qualname == "SignalInstance.emit" and type_.__name__.startswith("builtin"):
         # we likely have the emit method of a SignalInstance
         # call it with ridiculous params to get the err

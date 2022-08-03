@@ -65,7 +65,7 @@ def test_list(regular_list):
     ids=lambda x: x[0],
 )
 def test_list_interface_parity(test_list, regular_list, meth):
-    test_list.events = cast(Mock, test_list.events)
+    test_list.events = cast("Mock", test_list.events)
 
     method_name, args, expected = meth
     test_list_method = getattr(test_list, method_name)
@@ -183,7 +183,7 @@ def test_slice(test_list, regular_list):
 
 def test_move(test_list: EventedList):
     """Test the that we can move objects with the move method"""
-    test_list.events = cast(Mock, test_list.events)
+    test_list.events = cast("Mock", test_list.events)
 
     def _fail() -> None:
         raise AssertionError("unexpected event called")
