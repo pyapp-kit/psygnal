@@ -132,3 +132,39 @@ def test_group_blocked_exclude():
         group.sig2.emit("hi")
     mock1.assert_not_called()
     mock2.assert_called_once_with("hi")
+
+
+def test_group_disconnect_single_slot():
+    """Test that we can disconnect single slots from groups."""
+    group = MyGroup()
+
+    mock1 = Mock()
+    mock2 = Mock()
+
+    group.sig1.connect(mock1)
+    group.sig2.connect(mock2)
+
+    group.disconnect(mock1)
+    group.sig1.emit()
+    mock1.assert_not_called()
+
+    group.sig2.emit()
+    mock2.assert_called_once()
+
+
+def test_group_disconnect_all_slots():
+    """Test that we can disconnect all slots from groups."""
+    group = MyGroup()
+
+    mock1 = Mock()
+    mock2 = Mock()
+
+    group.sig1.connect(mock1)
+    group.sig2.connect(mock2)
+
+    group.disconnect()
+    group.sig1.emit()
+    group.sig2.emit()
+
+    mock1.assert_not_called()
+    mock2.assert_not_called()

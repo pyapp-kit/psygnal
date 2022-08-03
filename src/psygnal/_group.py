@@ -10,7 +10,7 @@ the args that were emitted.
 from contextlib import contextmanager
 from typing import Any, Callable, Dict, Iterable, Iterator, Optional, Tuple, Union
 
-from psygnal._signal import Signal, SignalInstance
+from psygnal._signal import NormedCallback, Signal, SignalInstance
 
 __all__ = ["EmissionInfo", "SignalGroup"]
 
@@ -228,6 +228,29 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
             yield
         finally:
             self.unblock()
+
+    def disconnect(
+        self, slot: Optional[NormedCallback] = None, missing_ok: bool = True
+    ) -> None:
+        """Disconnect slot from all signals.
+
+        Parameters
+        ----------
+        slot : callable, optional
+            The specific slot to disconnect.  If `None`, all slots will be disconnected,
+            by default `None`
+        missing_ok : bool, optional
+            If `False` and the provided `slot` is not connected, raises `ValueError.
+            by default `True`
+
+        Raises
+        ------
+        ValueError
+            If `slot` is not connected and `missing_ok` is False.
+        """
+        for signal in self.signals.values():
+            signal.disconnect(slot, missing_ok)
+        super().disconnect(slot, missing_ok)
 
     def __repr__(self) -> str:
         """Return repr(self)."""
