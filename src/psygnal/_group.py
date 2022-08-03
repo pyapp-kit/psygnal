@@ -250,6 +250,7 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
         """
         for signal in self.signals.values():
             signal.disconnect(slot, missing_ok)
+        super().disconnect(slot, missing_ok)
 
     def __repr__(self) -> str:
         """Return repr(self)."""
