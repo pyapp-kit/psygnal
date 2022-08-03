@@ -58,8 +58,8 @@ class ListEvents(SignalGroup):
         `(index, value)` emitted after `value` is removed at `index`
     moving : Signal[int, int]
         `(index, new_index)` emitted before an item is moved from `index` to `new_index`
-    moved : Signal[tuple, int]
-        `((index, new_index), value)` emitted after `value` is moved from `index` to
+    moved : Signal[int, int, Any]
+        `(index, new_index, value)` emitted after `value` is moved from `index` to
         `new_index`
     changed : Signal[Union[int, slice], Any, Any]
         `(index_or_slice, old_value, value)` emitted when `index` is set from
@@ -77,7 +77,7 @@ class ListEvents(SignalGroup):
     removing = Signal(int)  # idx
     removed = Signal(int, object)  # (idx, value)
     moving = Signal(int, int)  # (src_idx, dest_idx)
-    moved = Signal(tuple, object)  # ((src_idx, dest_idx), value)
+    moved = Signal(int, int, object)  # (src_idx, dest_idx, value)
     changed = Signal(object, object, object)  # (int | slice, old, new)
     reordered = Signal()
     child_event = Signal(int, object, SignalInstance, tuple)
