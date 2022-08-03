@@ -351,7 +351,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         """Reset the state of the model to default values."""
         for name, value in self._defaults.items():
             if isinstance(value, EventedModel):
-                cast(EventedModel, getattr(self, name)).reset()
+                cast("EventedModel", getattr(self, name)).reset()
             elif (
                 self.__config__.allow_mutation
                 and self.__fields__[name].field_info.allow_mutation
