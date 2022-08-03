@@ -23,11 +23,11 @@ from typing import (
     Type,
     Union,
     cast,
+    get_type_hints,
     overload,
 )
 
 from typing_extensions import Literal, get_args, get_origin
-from typing import get_type_hints
 
 MethodRef = Tuple["weakref.ReferenceType[object]", str, Optional[Callable]]
 NormedCallback = Union[MethodRef, Callable]
