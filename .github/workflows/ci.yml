@@ -94,7 +94,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10"]
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
         platform: [macos-latest, windows-latest]
 
     steps:
@@ -145,7 +145,7 @@ jobs:
 
   build:
     name: Build wheels on ${{ matrix.os }}
-    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+    # if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
