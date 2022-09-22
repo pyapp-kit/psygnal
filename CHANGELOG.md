@@ -1,8 +1,31 @@
 # Changelog
 
-## [0.4.0](https://github.com/tlambert03/psygnal/tree/0.4.0) (2022-07-26)
+## [0.4.1](https://github.com/tlambert03/psygnal/tree/0.4.1) (2022-09-22)
 
-[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.3.5...0.4.0)
+[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.4.0...0.4.1)
+
+**Implemented enhancements:**
+
+- feat: Add ability to disconnect slots from Signal group directly [\#118](https://github.com/tlambert03/psygnal/pull/118) ([alisterburt](https://github.com/alisterburt))
+
+**Fixed bugs:**
+
+- fix: fix listevents docstring parameter mismatch [\#119](https://github.com/tlambert03/psygnal/pull/119) ([alisterburt](https://github.com/alisterburt))
+
+**Tests & CI:**
+
+- ci: skip building py311 wheel [\#124](https://github.com/tlambert03/psygnal/pull/124) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.9.0 to 2.10.1 [\#123](https://github.com/tlambert03/psygnal/pull/123) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.8.1 to 2.9.0 [\#121](https://github.com/tlambert03/psygnal/pull/121) ([dependabot[bot]](https://github.com/apps/dependabot))
+- build: pin cython [\#120](https://github.com/tlambert03/psygnal/pull/120) ([tlambert03](https://github.com/tlambert03))
+- ci\(dependabot\): bump pypa/gh-action-pypi-publish from 1.5.0 to 1.5.1 [\#116](https://github.com/tlambert03/psygnal/pull/116) ([dependabot[bot]](https://github.com/apps/dependabot))
+
+## [v0.4.0](https://github.com/tlambert03/psygnal/tree/v0.4.0) (2022-07-26)
+
+[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.3.5...v0.4.0)
 
 **Implemented enhancements:**
 
