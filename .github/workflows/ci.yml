@@ -145,7 +145,7 @@ jobs:
 
   build:
     name: Build wheels on ${{ matrix.os }}
-    # if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -169,7 +169,7 @@ jobs:
 
       - name: Build sdist
         if: matrix.os == 'ubuntu-20.04'
-        run: python -m build --sdist
+        run: pip install build && python -m build --sdist
 
       - uses: actions/upload-artifact@v3
         if: matrix.os == 'ubuntu-20.04'
