@@ -316,7 +316,11 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
             super().__setattr__(name, value)
 
     def __setattr__(self, name: str, value: Any) -> None:
-        if name == "_events" or name not in self._events.signals:
+        if (
+            name == "_events"
+            or not hasattr(self, "_events")  # can happen on init
+            or name not in self._events.signals
+        ):
             # fallback to default behavior
             return self._super_setattr_(name, value)
 
