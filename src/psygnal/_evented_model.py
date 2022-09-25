@@ -140,10 +140,21 @@ class EventedMetaclass(pydantic.main.ModelMetaclass):
         # in EventedModel.__setattr__
         cls.__property_setters__ = {}
         if allow_props:
+            for b in reversed(cls.__bases__):
+                if hasattr(b, "__property_setters__"):
+                    cls.__property_setters__.update(b.__property_setters__)
             for name, attr in namespace.items():
                 if isinstance(attr, property) and attr.fset is not None:
                     cls.__property_setters__[name] = attr
                     signals[name] = Signal(object)
+        else:
+            for b in cls.__bases__:
+                conf = getattr(b, "__config__", None)
+                if conf and getattr(conf, ALLOW_PROPERTY_SETTERS, False):
+                    raise ValueError(
+                        "Cannot set 'allow_property_setters' to 'False' when base "
+                        f"class {b} sets it to True"
+                    )
 
         cls.__field_dependents__ = _get_field_dependents(cls)
         cls.__signal_group__ = type(f"{name}SignalGroup", (SignalGroup,), signals)

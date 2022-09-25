@@ -5,6 +5,7 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
+from pydantic import PrivateAttr
 from typing_extensions import Protocol, runtime_checkable
 
 from psygnal import EventedModel, SignalGroup
@@ -492,8 +493,6 @@ def test_unrecognized_property_dependencies():
 
 
 def test_setattr_before_init():
-    from pydantic import PrivateAttr
-
     class M(EventedModel):
         _x: int = PrivateAttr()
 
@@ -507,3 +506,36 @@ def test_setattr_before_init():
 
     m = M(x=2)
     assert m.x == 2
+
+
+def test_setter_inheritance():
+    class M(EventedModel):
+        _x: int = PrivateAttr()
+
+        def __init__(self, x: int, **data) -> None:
+            self.x = x
+            super().__init__(**data)
+
+        @property
+        def x(self) -> int:
+            return self._x
+
+        @x.setter
+        def x(self, v: int) -> None:
+            self._x = v
+
+        class Config:
+            allow_property_setters = True
+
+    assert M(x=2).x == 2
+
+    class N(M):
+        ...
+
+    assert N(x=2).x == 2
+
+    with pytest.raises(ValueError, match="Cannot set 'allow_property_setters' to"):
+
+        class Bad(M):
+            class Config:
+                allow_property_setters = False
