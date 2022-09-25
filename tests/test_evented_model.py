@@ -489,3 +489,21 @@ def test_unrecognized_property_dependencies():
                 property_dependencies = {"y": ["b"]}
 
     assert "Unrecognized field dependency: 'b'" in str(e[0])
+
+
+def test_setattr_before_init():
+    from pydantic import PrivateAttr
+
+    class M(EventedModel):
+        _x: int = PrivateAttr()
+
+        def __init__(_model_self_, x: int, **data) -> None:
+            _model_self_._x = x
+            super().__init__(**data)
+
+        @property
+        def x(self) -> int:
+            return self._x
+
+    m = M(x=2)
+    assert m.x == 2
