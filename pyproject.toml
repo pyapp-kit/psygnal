@@ -9,7 +9,7 @@ name = "psygnal"
 description = "Pure python callback/event system modeled after Qt Signals"
 readme = "README.md"
 requires-python = ">=3.7"
-license = { file = "LICENSE" }
+license = { text = "BSD 3-Clause License" }
 authors = [{ email = "talley.lambert@gmail.com" }, { name = "Talley Lambert" }]
 classifiers = [
     "Development Status :: 3 - Alpha",

@@ -1,8 +1,17 @@
 # Changelog
 
-## [0.4.1](https://github.com/tlambert03/psygnal/tree/0.4.1) (2022-09-22)
+## [v0.4.2](https://github.com/tlambert03/psygnal/tree/v0.4.2) (2022-09-25)
 
-[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.4.0...0.4.1)
+[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.4.1...v0.4.2)
+
+**Fixed bugs:**
+
+- fix: fix inheritance of property setters [\#126](https://github.com/tlambert03/psygnal/pull/126) ([tlambert03](https://github.com/tlambert03))
+- fix: fix bug in setattr with private attrs [\#125](https://github.com/tlambert03/psygnal/pull/125) ([tlambert03](https://github.com/tlambert03))
+
+## [v0.4.1](https://github.com/tlambert03/psygnal/tree/v0.4.1) (2022-09-22)
+
+[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.4.0...v0.4.1)
 
 **Implemented enhancements:**
 
