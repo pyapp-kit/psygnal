@@ -1,7 +1,9 @@
+import operator
 import sys
 from typing import no_type_check
 from unittest.mock import Mock
 
+import numpy as np
 import pytest
 
 from psygnal import SignalGroup, evented
@@ -9,10 +11,10 @@ from psygnal import SignalGroup, evented
 
 @no_type_check
 def _check_events(cls):
-    obj = cls(bar=1, baz="2")
+    obj = cls(bar=1, baz="2", qux=np.zeros(3))
 
     assert isinstance(obj.events, SignalGroup)
-    assert set(obj.events.signals) == {"bar", "baz"}
+    assert set(obj.events.signals) == {"bar", "baz", "qux"}
 
     mock = Mock()
     obj.events.bar.connect(mock)
@@ -25,6 +27,12 @@ def _check_events(cls):
     obj.baz = "3"
     mock.assert_not_called()
 
+    mock.reset_mock()
+    obj.events.qux.connect(mock)
+    obj.qux = np.ones(3)
+    mock.assert_called_once()
+    assert np.array_equal(obj.qux, np.ones(3))
+
 
 DCLASS_KWARGS = []
 if sys.version_info >= (3, 10):
@@ -35,11 +43,12 @@ if sys.version_info >= (3, 10):
 def test_native_dataclass(kwargs: dict) -> None:
     from dataclasses import dataclass
 
-    @evented
+    @evented(equality_operators={"qux": operator.eq})  # just for test coverage
     @dataclass(**kwargs)
     class Foo:
         bar: int
         baz: str
+        qux: np.ndarray
 
     _check_events(Foo)
 
@@ -53,18 +62,24 @@ def test_attrs_dataclass(slots: bool) -> None:
     class Foo:
         bar: int
         baz: str
+        qux: np.ndarray
 
     _check_events(Foo)
+
+
+class Config:
+    arbitrary_types_allowed = True
 
 
 def test_pydantic_dataclass() -> None:
     from pydantic.dataclasses import dataclass
 
     @evented
-    @dataclass
+    @dataclass(config=Config)
     class Foo:
         bar: int
         baz: str
+        qux: np.ndarray
 
     _check_events(Foo)
 
@@ -76,5 +91,8 @@ def test_pydantic_base_model() -> None:
     class Foo(BaseModel):
         bar: int
         baz: str
+        qux: np.ndarray
+
+        Config = Config  # type: ignore
 
     _check_events(Foo)

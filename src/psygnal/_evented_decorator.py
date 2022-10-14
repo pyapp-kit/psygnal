@@ -9,6 +9,7 @@ from typing import (
     Any,
     Callable,
     Dict,
+    Iterable,
     Iterator,
     Optional,
     Tuple,
@@ -120,7 +121,7 @@ def __setattr_and_emit__(self: Any, name: str, value: Any) -> None:
     try:
         group = getattr(self, _PRIVATE_EVENTS_GROUP)
         signal_instance: SignalInstance = getattr(group, name)
-    except AttributeError:
+    except AttributeError:  # pragma: no cover
         super(type(self), self).__setattr__(name, value)
         return
 
@@ -156,7 +157,7 @@ def iter_fields(cls: Type) -> Iterator[Tuple[str, Type]]:
     This function recognizes dataclasses, attrs classes, and pydantic models.
     """
     if is_dataclass(cls):
-        if getattr(cls, _DATACLASS_PARAMS).frozen:
+        if getattr(cls, _DATACLASS_PARAMS).frozen:  # pragma: no cover
             raise TypeError("Frozen dataclasses cannot be made evented.")
 
         for d_field in fields(cls):
@@ -184,16 +185,16 @@ def _pick_equality_operator(type_: Type) -> EqOperator:
 
 @lru_cache(maxsize=None)
 def _build_dataclass_signal_group(
-    cls: Type, equality_operators: Optional[Dict[str, EqOperator]] = None
+    cls: Type, equality_operators: Optional[Iterable[Tuple[str, EqOperator]]] = None
 ) -> Type[SignalGroup]:
     """Build a SignalGroup with events for each field in a dataclass."""
-    equality_operators = equality_operators or {}
+    _equality_operators = dict(equality_operators) if equality_operators else {}
     signals = {}
     eq_map = _get_eq_operator_map(cls)
     for name, type_ in iter_fields(cls):
-        if name in equality_operators:
-            assert callable(equality_operators[name]), "EqOperator must be callable"
-            eq_map[name] = equality_operators[name]
+        if name in _equality_operators:
+            assert callable(_equality_operators[name]), "EqOperator must be callable"
+            eq_map[name] = _equality_operators[name]
         else:
             eq_map[name] = _pick_equality_operator(type_)
         signals[name] = Signal(type_)
@@ -262,7 +263,8 @@ def evented(
         original_init = cls.__init__
 
         def __evented_init__(self: Any, *args: Any, **kwargs: Any) -> None:
-            Grp = _build_dataclass_signal_group(cls, equality_operators)  # type: ignore
+            _eqop = tuple(equality_operators.items()) if equality_operators else None
+            Grp = _build_dataclass_signal_group(cls, _eqop)  # type: ignore
             setattr(self, _PRIVATE_EVENTS_GROUP, Grp())
             original_init(self, *args, **kwargs)
 
