@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.0](https://github.com/tlambert03/psygnal/tree/0.5.0) (2022-10-14)
+
+[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.4.2...0.5.0)
+
+**Implemented enhancements:**
+
+- feat: add warning for poor usage [\#132](https://github.com/tlambert03/psygnal/pull/132) ([tlambert03](https://github.com/tlambert03))
+- feat: add `@evented` decorator, turn any dataclass, attrs model, or pydantic model into evented [\#129](https://github.com/tlambert03/psygnal/pull/129) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- docs: update readme [\#131](https://github.com/tlambert03/psygnal/pull/131) ([tlambert03](https://github.com/tlambert03))
+- docs:  documentation for evented decorator [\#130](https://github.com/tlambert03/psygnal/pull/130) ([tlambert03](https://github.com/tlambert03))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.10.1 to 2.10.2 [\#127](https://github.com/tlambert03/psygnal/pull/127) ([dependabot[bot]](https://github.com/apps/dependabot))
+
 ## [v0.4.2](https://github.com/tlambert03/psygnal/tree/v0.4.2) (2022-09-25)
 
 [Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.4.1...v0.4.2)
