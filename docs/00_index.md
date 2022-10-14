@@ -40,8 +40,8 @@ def on_change(new_value: str):
 my_obj.value_changed.emit('hi')
 ```
 
-Please see the [Basic Usage](usage) guide for an overview on how to use psygnal,
-or the [API Reference](API) for details on a specific class or method.
+Please see the [Basic Usage](01_usage.md) guide for an overview on how to use psygnal,
+or the [API Reference](API/index.md) for details on a specific class or method.
 
 In addition to the `Signal` object, psygnal contains:
 
@@ -54,11 +54,13 @@ In addition to the `Signal` object, psygnal contains:
 ## Installation
 
 from pip:
+
 ```sh
 pip install psygnal
 ```
 
 from conda:
+
 ```sh
 conda install -c conda-forge psygnal
 ```
