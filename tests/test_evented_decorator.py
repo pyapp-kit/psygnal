@@ -1,5 +1,6 @@
 import operator
 import sys
+from dataclasses import dataclass
 from typing import no_type_check
 from unittest.mock import Mock
 
@@ -42,8 +43,6 @@ if sys.version_info >= (3, 10):
 
 @pytest.mark.parametrize("kwargs", DCLASS_KWARGS)
 def test_native_dataclass(kwargs: dict) -> None:
-    from dataclasses import dataclass
-
     @evented(equality_operators={"qux": operator.eq})  # just for test coverage
     @dataclass(**kwargs)
     class Foo:
@@ -97,3 +96,13 @@ def test_pydantic_base_model() -> None:
         Config = Config  # type: ignore
 
     _check_events(Foo, "my_events")
+
+
+def test_no_signals_warn():
+
+    with pytest.warns(UserWarning, match="No mutable fields found in class"):
+
+        @dataclass
+        @evented
+        class Foo:
+            bar: int
