@@ -3,8 +3,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from psygnal import SignalGroup
-from psygnal._evented_decorator import evented
+from psygnal import SignalGroup, evented
 
 
 @no_type_check
