@@ -2,6 +2,7 @@ import contextlib
 import inspect
 import operator
 import sys
+import warnings
 from dataclasses import fields, is_dataclass
 from functools import lru_cache
 from typing import (
@@ -277,9 +278,15 @@ def evented(
 
     def _decorate(cls: T) -> T:
         assert isinstance(cls, type), "evented can only be used on classes"
-        original_init = cls.__init__
-
         Grp = _build_dataclass_signal_group(cls, _eqop)  # type: ignore
+        if not Grp._signals_:
+            warnings.warn(
+                f"No mutable fields found in class {cls} no events will be emitted. "
+                "(Is this a dataclass, attrs, or pydantic model?)"
+            )
+            return cls
+
+        original_init = cls.__init__
 
         def __evented_init__(self: Any, *args: Any, **kwargs: Any) -> None:
             setattr(self, _PRIVATE_EVENTS_GROUP, Grp())
