@@ -183,7 +183,7 @@ def _pick_equality_operator(type_: Type) -> EqOperator:
 
 @lru_cache(maxsize=None)
 def _build_dataclass_signal_group(
-    cls: type, equality_operators: Optional[Dict[str, EqOperator]] = None
+    cls: Type, equality_operators: Optional[Dict[str, EqOperator]] = None
 ) -> Type[SignalGroup]:
     """Build a SignalGroup with events for each field in a dataclass."""
     equality_operators = equality_operators or {}

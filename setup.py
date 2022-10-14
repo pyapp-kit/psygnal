@@ -59,7 +59,7 @@ if (
         os.environ["CFLAGS"] = "-O3 " + os.environ.get("CFLAGS", "")
         ext_modules = cythonize(
             cython_modules,
-            exclude=["**/__init__.py"],
+            exclude=["**/__init__.py", "**/_evented_decorator.py"],
             nthreads=int(os.getenv("CYTHON_NTHREADS", 0)),
             language_level=3,
             compiler_directives=compiler_directives,
