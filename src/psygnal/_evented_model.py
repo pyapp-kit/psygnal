@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import operator
 import sys
 import warnings
 from contextlib import contextmanager
@@ -11,7 +10,6 @@ from typing import (
     ClassVar,
     Dict,
     Iterator,
-    Optional,
     Set,
     Type,
     Union,
@@ -22,12 +20,12 @@ from typing import (
 import pydantic.main
 from pydantic import BaseModel, PrivateAttr, utils
 
+from ._evented_decorator import _check_field_equality, _pick_equality_operator
 from ._group import SignalGroup
 from ._signal import Signal, SignalInstance
 
 if TYPE_CHECKING:
     import inspect
-    from types import ModuleType
 
     from pydantic import BaseConfig
     from pydantic.fields import ModelField
@@ -86,12 +84,6 @@ def no_class_attributes() -> Iterator[None]:  # pragma: no cover
         setattr(pydantic.main, "ClassAttribute", utils.ClassAttribute)
 
 
-def _pick_equality_operator(type_: Type) -> EqOperator:
-    import operator
-
-    return operator.eq
-
-
 class EventedMetaclass(pydantic.main.ModelMetaclass):
     """pydantic ModelMetaclass that preps "equality checking" operations.
 
@@ -118,10 +110,10 @@ class EventedMetaclass(pydantic.main.ModelMetaclass):
         signals = {}
         fields: Dict[str, ModelField] = cls.__fields__
         for n, f in fields.items():
-            # TODO:
             cls.__eq_operators__[n] = _pick_equality_operator(f.type_)
             if f.field_info.allow_mutation:
                 signals[n] = Signal(f.type_)
+
             # If a field type has a _json_encode method, add it to the json
             # encoders for this model.
             # NOTE: a _json_encode field must return an object that can be
@@ -344,7 +336,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         # if different we emit the event with new value
         after = getattr(self, name)
 
-        if not self._check_field_equality(name, after, before):
+        if not _check_field_equality(type(self), name, after, before):
             signal_instance: SignalInstance = getattr(self.events, name)
             signal_instance.emit(after)  # emit event
 
@@ -417,34 +409,9 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
                 return False  # pragma: no cover
             a = getattr(self, f_name)
             b = getattr(other, f_name)
-            if not self._check_field_equality(f_name, a, b):
+            if not _check_field_equality(type(self), f_name, a, b):
                 return False
         return True
-
-    def _check_field_equality(
-        self, field_name: str, a: Any, b: Any, fail: bool = False
-    ) -> bool:
-        are_equal = self.__eq_operators__.get(field_name, operator.eq)
-        try:
-            return bool(are_equal(a, b))
-        except Exception:
-            if fail:
-                raise  # pragma: no cover
-            try:
-                np: Optional[ModuleType] = __import__("numpy")
-            except ImportError:
-                np = None
-
-            if (
-                hasattr(a, "__array__")
-                and np is not None
-                and are_equal is not np.array_equal
-            ):
-                self.__eq_operators__[field_name] = np.array_equal
-                return self._check_field_equality(field_name, a, b, fail=False)
-            else:
-                self.__eq_operators__[field_name] = operator.is_
-                return self._check_field_equality(field_name, a, b, fail=True)
 
     @contextmanager
     def enums_as_values(self, as_values: bool = True) -> Iterator[None]:

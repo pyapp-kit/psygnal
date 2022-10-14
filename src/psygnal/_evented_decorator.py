@@ -55,8 +55,9 @@ def _check_field_equality(
 ) -> bool:
     """Test if two values are equal for a given field.
 
-    This function will use the `__eq_operators__` attribute of the class if
-    present, otherwise it will use the default equality operator for the type.
+    This function will look for a field-specific operator in the the `__eq_operators__`
+    attribute of the class if present, otherwise it will use the default equality
+    operator for the type.
 
     Parameters
     ----------
