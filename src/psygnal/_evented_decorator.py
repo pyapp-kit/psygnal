@@ -228,17 +228,19 @@ def evented(
     events_namespace: str = "events",
     equality_operators: Optional[Dict[str, EqOperator]] = None,
 ) -> Union[Callable[[T], T], T]:
-    """A decorator to add events to a dataclass (or attrs/pydantic model).
+    """A decorator to add events to a [dataclass][dataclasses.dataclass],
+    [attrs](https://www.attrs.org), or [pydantic](https://pydantic-docs.helpmanual.io)
+    model.
 
     Note that this decorator will modify `cls` *in place*, as well as return it.
 
     Parameters
     ----------
-    cls : type, optional
-        The class to decorate, by default None
-    events_namespace : str, optional
-        The name of the namespace to add the events to, by default "events"
-    equality_operators : Dict[str, Callable], optional
+    cls : type
+        The class to decorate.
+    events_namespace : str
+        The name of the namespace to add the events to, by default `"events"`
+    equality_operators : Optional[Dict[str, Callable]]
         A dictionary mapping field names to equality operators (a function that takes
         two values and returns `True` if they are equal). These will be used to
         determine if a field has changed when setting a new value.  By default, this
@@ -250,13 +252,27 @@ def evented(
     Returns
     -------
     type
-        The decorated class.
+        The decorated class, which gains a new SignalGroup instance at the
+        `events_namespace` attribute (by default, `events`).
 
     Raises
     ------
     TypeError
         If the class is frozen or is not a class.
-    """
+
+    Examples
+    --------
+    ```python
+    from psygnal import evented
+    from dataclasses import dataclass
+
+    @evented
+    @dataclass
+    class Person:
+        name: str
+        age: int = 0
+    ```
+    """  # noqa: D
     _eqop = tuple(equality_operators.items()) if equality_operators else None
 
     def _decorate(cls: T) -> T:

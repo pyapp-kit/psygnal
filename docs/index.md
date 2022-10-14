@@ -7,13 +7,11 @@ Psygnal (pronounced "signal") is a pure python implementation of
 !!! important
 
     This library does ***not*** require or use Qt in any way.
-    It simply implements a similar pattern of inter-object communication
-    with loose coupling.
+    It simply implements the [observer pattern](https://en.wikipedia.org/wiki/Observer_pattern): inter-object communication with loose coupling.
 
 **Performance** is a high priority, as signals are often emitted frequently,
 [benchmarks](https://www.talleylambert.com/psygnal/) are routinely measured.
 Code is compiled using [Cython](https://cython.org/).
-
 
 !!! tip
 

@@ -41,11 +41,14 @@ theme:
     - search.suggest
     # - toc.follow
     # - content.code.annotate
+    - content.tabs.link
 
 markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
 
 plugins:
   - search

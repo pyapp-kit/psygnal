@@ -1,0 +1,3 @@
+# Evented Decorator
+
+::: psygnal.evented

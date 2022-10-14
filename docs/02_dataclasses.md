@@ -33,7 +33,7 @@ a current value, and (preferably) a type.  The values could represent anything,
 such as a configuration of some sort, a set of parameters, or a set of data
 that is being processed.
 
-### in the standard library
+### ... in the standard library
 
 Python 3.7 introduced [the `dataclasses`
 module](https://docs.python.org/3/library/dataclasses.html), which provides a
@@ -58,42 +58,78 @@ print(john)  # prints: Person(name='John', age=30)
     [this realpython blog post](https://realpython.com/python-data-classes/) for
     an in-depth introduction.
 
-### in third-party libraries
+### ... in third-party libraries
 
 Prior to the addition of dataclasses in the standard library, third-party libraries
 were already implementing this pattern:
 
-- the [`attrs` library](https://www.attrs.org/en/stable/) provided [the `@define`
-  decorator](https://www.attrs.org/en/stable/overview.html)
+- the [`attrs` library](https://www.attrs.org/en/stable/) provides [the `@define`
+  decorator](https://www.attrs.org/en/stable/overview.html), which is similar to
+  the `@dataclass` decorator, but with a few additional features.
 - [pydantic](https://pydantic-docs.helpmanual.io/) provides a
   [`BaseModel` class](https://pydantic-docs.helpmanual.io/usage/models/),
-  a dataclass-like object that can additionally perform type validation.
+  a dataclass-like object that can additionally perform type validation and facilitates
+  serialization to and from JSON.
 
 All of these libraries are still in common use, and each has its own
 strengths and weaknesses (discussed in depth elsewhere).
 
 ## Evented dataclasses in Psygnal
 
-The `psygnal` library provides an `@evented` decorator that can be used to
-decorate any existing dataclass (standard library, `attrs`, or `pydantic`
+`psygnal` provides an [`@evented` decorator][psygnal.evented] that can be used
+to decorate any existing dataclass (standard library, `attrs`, or `pydantic`
 model). It adds a new [`SignalGroup`][psygnal.SignalGroup] property to the
-class, with a `Signal` instance for each field in the dataclass, and it will
-emit the signal whenever the field value is changed.
+class, with a [`SignalInstance`][psygnal.SignalInstance] for each field in the
+dataclass.  A Signal will be emitted whenever the field value is changed, with
+the new value as the first argument.
 
-!!! tip
-    by default, the `SignalGroup` instance is named `'events'`, but this can be
-    changed by passing a `events_namespace` argument to the `@evented` decorator)
+!!! example
+
+    === "dataclasses"
+
+        ```python
+        from psygnal import evented
+        from dataclasses import dataclass
+
+        @evented
+        @dataclass
+        class Person:
+            name: str
+            age: int = 0
+        ```
+
+    === "attrs"
+
+        ```python
+        from psygnal import evented
+        from attrs import define
+
+        @evented
+        @define
+        class Person:
+            name: str
+            age: int = 0
+        ```
+
+    === "pydantic"
+
+        ```python
+        from psygnal import evented
+        from pydantic import BaseModel
+
+        @evented
+        class Person(BaseModel):
+            name: str
+            age: int = 0
+        ```
+
+        *for a fully evented subclass of pydantic's `BaseModel`, see also
+        [`EventedModel`](./API/model.md)*
+
+using any of the above, you can now do:
 
 ```python
-from psygnal import evented
-from dataclasses import dataclass
-
-@evented
-@dataclass
-class Person:
-    name: str
-    age: int = 0
-
+# create an instance of the dataclass
 john = Person(name="John", age=30)
 
 # now we can connect a callback to any event on the `events` namespace
@@ -101,10 +137,17 @@ john = Person(name="John", age=30)
 def on_age_changed(age: int):
     print(f"John's age changed to {age}.")
 
+# change a value
 john.age = 31  # prints: John's age changed to 31.
 ```
 
-## Type annotations with evented dataclasses
+!!! tip
+    by default, the `SignalGroup` instance is named `'events'`, but this can be
+    changed by passing a `events_namespace` argument to the `@evented` decorator)
+
+see the API documentation for [`@evented`][psygnal.evented] for more details.
+
+## Type annotating evented dataclasses
 
 By default, type checkers and IDEs will not know about the signals that are
 dynamically added to the class by the `@evented` decorator.  If you'd like
