@@ -10,14 +10,15 @@ from psygnal import SignalGroup, evented
 
 
 @no_type_check
-def _check_events(cls):
+def _check_events(cls, events_ns="events"):
     obj = cls(bar=1, baz="2", qux=np.zeros(3))
 
-    assert isinstance(obj.events, SignalGroup)
-    assert set(obj.events.signals) == {"bar", "baz", "qux"}
+    events = getattr(obj, events_ns)
+    assert isinstance(events, SignalGroup)
+    assert set(events.signals) == {"bar", "baz", "qux"}
 
     mock = Mock()
-    obj.events.bar.connect(mock)
+    events.bar.connect(mock)
     assert obj.bar == 1
     obj.bar = 2
     assert obj.bar == 2
@@ -28,7 +29,7 @@ def _check_events(cls):
     mock.assert_not_called()
 
     mock.reset_mock()
-    obj.events.qux.connect(mock)
+    events.qux.connect(mock)
     obj.qux = np.ones(3)
     mock.assert_called_once()
     assert np.array_equal(obj.qux, np.ones(3))
@@ -87,7 +88,7 @@ def test_pydantic_dataclass() -> None:
 def test_pydantic_base_model() -> None:
     from pydantic import BaseModel
 
-    @evented
+    @evented(events_namespace="my_events")
     class Foo(BaseModel):
         bar: int
         baz: str
@@ -95,4 +96,4 @@ def test_pydantic_base_model() -> None:
 
         Config = Config  # type: ignore
 
-    _check_events(Foo)
+    _check_events(Foo, "my_events")
