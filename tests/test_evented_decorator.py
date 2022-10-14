@@ -1,3 +1,4 @@
+import sys
 from typing import no_type_check
 from unittest.mock import Mock
 
@@ -25,12 +26,17 @@ def _check_events(cls):
     mock.assert_not_called()
 
 
-@pytest.mark.parametrize("slots", [True, False])
-def test_native_dataclass(slots: bool) -> None:
+DCLASS_KWARGS = []
+if sys.version_info >= (3, 10):
+    DCLASS_KWARGS.extend([{"slots": True}, {"slots": False}])
+
+
+@pytest.mark.parametrize("kwargs", DCLASS_KWARGS)
+def test_native_dataclass(kwargs: dict) -> None:
     from dataclasses import dataclass
 
     @evented
-    @dataclass(slots=slots)  # type: ignore
+    @dataclass(**kwargs)
     class Foo:
         bar: int
         baz: str
