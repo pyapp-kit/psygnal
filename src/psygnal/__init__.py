@@ -15,17 +15,20 @@ __email__ = "talley.lambert@gmail.com"
 __all__ = [
     "__version__",
     "_compiled",
+    "debounced",
     "EmissionInfo",
     "EmitLoopError",
+    "evented",
     "EventedModel",
     "Signal",
     "SignalGroup",
     "SignalInstance",
     "throttled",
-    "debounced",
 ]
 import os
 from typing import TYPE_CHECKING, Any
+
+from ._evented_decorator import evented
 
 if TYPE_CHECKING:
     from types import ModuleType
