@@ -64,7 +64,7 @@ Prior to the addition of dataclasses in the standard library, third-party librar
 were already implementing this pattern:
 
 - the [`attrs` library](https://www.attrs.org/en/stable/) provided [the `@define`
-  decorator](<https://www.attrs.org/en/stable/overview.html>
+  decorator](https://www.attrs.org/en/stable/overview.html)
 - [pydantic](https://pydantic-docs.helpmanual.io/) provides a
   [`BaseModel` class](https://pydantic-docs.helpmanual.io/usage/models/),
   a dataclass-like object that can additionally perform type validation.
