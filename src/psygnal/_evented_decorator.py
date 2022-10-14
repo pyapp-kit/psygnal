@@ -257,14 +257,15 @@ def evented(
     TypeError
         If the class is frozen or is not a class.
     """
+    _eqop = tuple(equality_operators.items()) if equality_operators else None
 
     def _decorate(cls: T) -> T:
         assert isinstance(cls, type), "evented can only be used on classes"
         original_init = cls.__init__
 
+        Grp = _build_dataclass_signal_group(cls, _eqop)  # type: ignore
+
         def __evented_init__(self: Any, *args: Any, **kwargs: Any) -> None:
-            _eqop = tuple(equality_operators.items()) if equality_operators else None
-            Grp = _build_dataclass_signal_group(cls, _eqop)  # type: ignore
             setattr(self, _PRIVATE_EVENTS_GROUP, Grp())
             original_init(self, *args, **kwargs)
 
