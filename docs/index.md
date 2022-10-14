@@ -7,13 +7,11 @@ Psygnal (pronounced "signal") is a pure python implementation of
 !!! important
 
     This library does ***not*** require or use Qt in any way.
-    It simply implements a similar pattern of inter-object communication
-    with loose coupling.
+    It simply implements the [observer pattern](https://en.wikipedia.org/wiki/Observer_pattern): inter-object communication with loose coupling.
 
 **Performance** is a high priority, as signals are often emitted frequently,
 [benchmarks](https://www.talleylambert.com/psygnal/) are routinely measured.
 Code is compiled using [Cython](https://cython.org/).
-
 
 !!! tip
 
@@ -40,8 +38,8 @@ def on_change(new_value: str):
 my_obj.value_changed.emit('hi')
 ```
 
-Please see the [Basic Usage](usage) guide for an overview on how to use psygnal,
-or the [API Reference](API) for details on a specific class or method.
+Please see the [Basic Usage](01_usage.md) guide for an overview on how to use psygnal,
+or the [API Reference](API/index.md) for details on a specific class or method.
 
 In addition to the `Signal` object, psygnal contains:
 
@@ -54,11 +52,13 @@ In addition to the `Signal` object, psygnal contains:
 ## Installation
 
 from pip:
+
 ```sh
 pip install psygnal
 ```
 
 from conda:
+
 ```sh
 conda install -c conda-forge psygnal
 ```
