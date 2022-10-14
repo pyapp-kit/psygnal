@@ -19,13 +19,14 @@ from typing import (
     overload,
 )
 
-from pydantic import BaseModel
-
 from ._group import SignalGroup
 from ._signal import Signal, SignalInstance
 
 if TYPE_CHECKING:
     from typing import Literal, TypeGuard
+
+    from pydantic import BaseModel
+
 
 _DATACLASS_PARAMS = "__dataclass_params__"
 with contextlib.suppress(ImportError):
