@@ -11,7 +11,7 @@ from unittest.mock import MagicMock, Mock, call
 import pytest
 
 from psygnal import EmitLoopError, Signal, SignalInstance
-from psygnal._signal import _get_method_name, _normalize_slot
+from psygnal._signal import _get_method_name, _normalize_slot, _partial_weakref
 
 
 def stupid_decorator(fun):
@@ -786,3 +786,36 @@ def test_emit_loop_exceptions():
         emitter.one_int.emit(2)
     mock1.assert_called_once_with(2)
     mock1.assert_called_once_with(2)
+
+
+def test_partial_weakref():
+    """Test that a connected method doesn't hold strong ref."""
+
+    obj = MyObj()
+    cb = partial(obj.f_int_int, 1)
+    assert _partial_weakref(cb) == _partial_weakref(cb)
+
+
+@pytest.mark.parametrize(
+    "slot",
+    [
+        "f_no_arg",
+        "f_int_decorated_stupid",
+        "f_int_decorated_good",
+        "f_any_assigned",
+        "partial",
+    ],
+)
+def test_weakref_disconnect(slot):
+    """Test that a connected method doesn't hold strong ref."""
+    emitter = Emitter()
+    obj = MyObj()
+
+    assert len(emitter.one_int) == 0
+    cb = partial(obj.f_int_int, 1) if slot == "partial" else getattr(obj, slot)
+    emitter.one_int.connect(cb)
+    assert len(emitter.one_int) == 1
+    emitter.one_int.emit(1)
+    assert len(emitter.one_int) == 1
+    emitter.one_int.disconnect(cb)
+    assert len(emitter.one_int) == 0

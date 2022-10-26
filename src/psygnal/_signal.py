@@ -1242,16 +1242,26 @@ def _is_subclass(left: Type[Any], right: type) -> bool:
     return issubclass(left, right)
 
 
+_PARTIAL_CACHE: Dict[int, Tuple[weakref.ref, str, Callable]] = {}
+
+
 def _partial_weakref(slot_partial: PartialMethod) -> Tuple[weakref.ref, str, Callable]:
     """For partial methods, make the weakref point to the wrapped object."""
-    ref, name = _get_method_name(slot_partial.func)
-    args_ = slot_partial.args
-    kwargs_ = slot_partial.keywords
+    _id = id(slot_partial)
 
-    def wrap(*args: Any, **kwargs: Any) -> Any:
-        getattr(ref(), name)(*args_, *args, **kwargs_, **kwargs)
+    # if the exact same partial is used twice, we don't want to recreate a new
+    # wrap() function, because we want _partial_weakref(cb) == _partial_weakref(cb)
+    # to be True.  So we cache the result of the first call using the id of the partial
+    if _id not in _PARTIAL_CACHE:
+        ref, name = _get_method_name(slot_partial.func)
+        args_ = slot_partial.args
+        kwargs_ = slot_partial.keywords
 
-    return (ref, name, wrap)
+        def wrap(*args: Any, **kwargs: Any) -> Any:
+            getattr(ref(), name)(*args_, *args, **kwargs_, **kwargs)
+
+        _PARTIAL_CACHE[_id] = (ref, name, wrap)
+    return _PARTIAL_CACHE[_id]
 
 
 def _get_method_name(slot: MethodType) -> Tuple[weakref.ref, str]:
