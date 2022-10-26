@@ -1,14 +1,10 @@
 from __future__ import annotations
 
-from contextlib import suppress
-
-__all__ = ["Signal", "SignalInstance", "_compiled"]
-
 import inspect
 import threading
 import warnings
 import weakref
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from functools import lru_cache, partial, reduce
 from inspect import Parameter, Signature, isclass
 from types import MethodType
@@ -35,6 +31,7 @@ if TYPE_CHECKING:
     StoredSlot = Tuple[NormedCallback, int | None]
     ReducerFunc = Callable[[tuple, tuple], tuple]
 
+__all__ = ["Signal", "SignalInstance", "_compiled"]
 _NULL = object()
 
 
