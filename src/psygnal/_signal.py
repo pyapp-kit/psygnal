@@ -15,6 +15,7 @@ from typing import (
     Iterator,
     Literal,
     NoReturn,
+    Type,
     Union,
     cast,
     get_type_hints,
@@ -110,7 +111,7 @@ class Signal:
 
     def __init__(
         self,
-        *types: type[Any] | Signature,
+        *types: Type[Any] | Signature,
         description: str = "",
         name: str | None = None,
         check_nargs_on_connect: bool = True,
@@ -130,14 +131,14 @@ class Signal:
                     f" `Signature`.  These args were ignored: {types[1:]}"
                 )
         else:
-            self._signature = _build_signature(*cast("tuple[type[Any], ...]", types))
+            self._signature = _build_signature(*cast("tuple[Type[Any], ...]", types))
 
     @property
     def signature(self) -> Signature:
         """[Signature][inspect.Signature] supported by this Signal."""
         return self._signature
 
-    def __set_name__(self, owner: type[Any], name: str) -> None:
+    def __set_name__(self, owner: Type[Any], name: str) -> None:
         """Set name of signal when declared as a class attribute on `owner`."""
         if self._name is None:
             self._name = name
@@ -154,17 +155,17 @@ class Signal:
         return self.__getattribute__(name)
 
     @overload
-    def __get__(self, instance: None, owner: type[Any] | None = None) -> Signal:  # noqa
+    def __get__(self, instance: None, owner: Type[Any] | None = None) -> Signal:  # noqa
         ...  # pragma: no cover
 
     @overload
     def __get__(  # noqa
-        self, instance: Any, owner: type[Any] | None = None
+        self, instance: Any, owner: Type[Any] | None = None
     ) -> SignalInstance:
         ...  # pragma: no cover
 
     def __get__(
-        self, instance: Any, owner: type[Any] | None = None
+        self, instance: Any, owner: Type[Any] | None = None
     ) -> Signal | SignalInstance:
         """Get signal instance.
 
@@ -1104,7 +1105,7 @@ def _stub_sig(obj: Any) -> Signature:
     raise ValueError("unknown object")
 
 
-def _build_signature(*types: type[Any]) -> Signature:
+def _build_signature(*types: Type[Any]) -> Signature:
     params = [
         Parameter(name=f"p{i}", kind=Parameter.POSITIONAL_ONLY, annotation=t)
         for i, t in enumerate(types)
@@ -1230,7 +1231,7 @@ def _parameter_types_match(
     return True
 
 
-def _is_subclass(left: type[Any], right: type) -> bool:
+def _is_subclass(left: Type[Any], right: type) -> bool:
     """Variant of issubclass with support for unions."""
     if not isclass(left) and get_origin(left) is Union:
         return any(issubclass(i, right) for i in get_args(left))
