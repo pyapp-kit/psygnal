@@ -10,7 +10,7 @@
   "show_commit_url": "https://github.com/tlambert03/psygnal/commit/",
   "pythons": ["3.9"],
   "matrix": {
-    "pip+cython": ["3.0.0a10", null]
+    "pip+cython": ["3.0.0a11", null]
   },
   "env_dir": "/tmp/.asv/env",
   "results_dir": ".asv/results",

@@ -2,9 +2,19 @@ from __future__ import annotations
 
 from enum import Enum
 from itertools import chain
-from typing import Any, Dict, Iterable, Iterator, MutableSet, Set, Tuple, TypeVar, Union
-
-from typing_extensions import Final, Literal
+from typing import (
+    Any,
+    Dict,
+    Final,
+    Iterable,
+    Iterator,
+    Literal,
+    MutableSet,
+    Set,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 from psygnal import Signal, SignalGroup
 
@@ -304,7 +314,7 @@ class EventedOrderedSet(EventedSet, OrderedSet[_T]):
         super().__init__(iterable)
 
 
-def _reduce_events(a: Tuple, b: Tuple) -> Tuple[tuple, tuple]:
+def _reduce_events(a: tuple, b: tuple) -> tuple[tuple, tuple]:
     """Combine two events (a and b) each of which contain (added, removed)."""
     a0, a1 = a
     b0, b1 = b
