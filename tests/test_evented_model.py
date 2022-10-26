@@ -1,12 +1,10 @@
 import inspect
-import sys
-from typing import ClassVar, List, Sequence, Union
+from typing import ClassVar, List, Protocol, Sequence, Union, runtime_checkable
 from unittest.mock import Mock
 
 import numpy as np
 import pytest
 from pydantic import PrivateAttr
-from typing_extensions import Protocol, runtime_checkable
 
 from psygnal import EventedModel, SignalGroup
 
@@ -57,7 +55,6 @@ def test_evented_model():
     name_mock.assert_not_called()
 
 
-@pytest.mark.skipif(sys.version_info < (3, 8), reason="mock args were different")
 def test_evented_model_array_updates():
     """Test updating an evented pydantic model with an array."""
 
