@@ -27,7 +27,8 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Literal, get_args, get_origin
+from typing_extensions import get_args, get_origin
+from typing import Literal
 
 MethodRef = Tuple["weakref.ReferenceType[object]", str, Optional[Callable]]
 NormedCallback = Union[MethodRef, Callable]
@@ -1093,7 +1094,7 @@ def signature(obj: Any) -> inspect.Signature:
         raise e from e
 
 
-@lru_cache()
+@lru_cache
 def _stub_sig(obj: Any) -> Signature:
     import builtins
 
