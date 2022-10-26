@@ -3,7 +3,16 @@ from __future__ import annotations
 import sys
 import warnings
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, Iterator, cast, no_type_check
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    ClassVar,
+    Iterator,
+    Type,
+    cast,
+    no_type_check,
+)
 
 import pydantic.main
 from pydantic import BaseModel, PrivateAttr, utils
@@ -18,7 +27,7 @@ if TYPE_CHECKING:
     from pydantic import BaseConfig
     from pydantic.fields import ModelField
 
-    ConfigType = type[BaseConfig]
+    ConfigType = Type[BaseConfig]
     EqOperator = Callable[[Any, Any], bool]
 
 _NULL = object()
@@ -285,7 +294,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
     __field_dependents__: ClassVar[dict[str, set[str]]]
     __eq_operators__: ClassVar[dict[str, EqOperator]]
     __slots__ = {"__weakref__"}
-    __signal_group__: ClassVar[type[SignalGroup]]
+    __signal_group__: ClassVar[Type[SignalGroup]]
     # pydantic BaseModel configuration.  see:
     # https://pydantic-docs.helpmanual.io/usage/model_config/
 
