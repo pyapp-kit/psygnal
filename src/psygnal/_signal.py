@@ -750,6 +750,10 @@ class SignalInstance:
             idx = self._slot_index(slot)
             if idx != -1:
                 self._slots.pop(idx)
+                if isinstance(slot, PartialMethod):
+                    _PARTIAL_CACHE.pop(id(slot), None)
+                elif isinstance(slot, tuple) and callable(slot[2]):
+                    _prune_partial_cache()
             elif not missing_ok:
                 raise ValueError(f"slot is not connected: {slot}")
 
@@ -1262,6 +1266,13 @@ def _partial_weakref(slot_partial: PartialMethod) -> Tuple[weakref.ref, str, Cal
 
         _PARTIAL_CACHE[_id] = (ref, name, wrap)
     return _PARTIAL_CACHE[_id]
+
+
+def _prune_partial_cache() -> None:
+    """Remove any partial methods whose object has been garbage collected."""
+    for key, (ref, *_) in list(_PARTIAL_CACHE.items()):
+        if ref() is None:
+            del _PARTIAL_CACHE[key]
 
 
 def _get_method_name(slot: MethodType) -> Tuple[weakref.ref, str]:
