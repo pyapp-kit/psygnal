@@ -2,19 +2,9 @@ from __future__ import annotations
 
 from enum import Enum
 from itertools import chain
-from typing import (
-    Any,
-    Dict,
-    Final,
-    Iterable,
-    Iterator,
-    Literal,
-    MutableSet,
-    Set,
-    Tuple,
-    TypeVar,
-    Union,
-)
+from typing import Any, Dict, Iterable, Iterator, MutableSet, Set, Tuple, TypeVar, Union
+
+from typing_extensions import Final, Literal
 
 from psygnal import Signal, SignalGroup
 

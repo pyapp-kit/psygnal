@@ -13,7 +13,6 @@ from typing import (
     Any,
     Callable,
     Iterator,
-    Literal,
     NoReturn,
     Type,
     Union,
@@ -25,7 +24,7 @@ from typing import (
 from typing_extensions import get_args, get_origin
 
 if TYPE_CHECKING:
-    from typing import Tuple
+    from typing import Literal, Tuple
 
     MethodRef = Tuple[weakref.ReferenceType[object], str, Callable | None]
     NormedCallback = Union[MethodRef, Callable]
@@ -1089,7 +1088,7 @@ def signature(obj: Any) -> inspect.Signature:
         raise e from e
 
 
-@lru_cache
+@lru_cache(maxsize=None)
 def _stub_sig(obj: Any) -> Signature:
     import builtins
 
