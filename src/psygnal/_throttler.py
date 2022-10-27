@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from threading import Timer
-from typing import TYPE_CHECKING, Any, Callable, Literal, overload
+from typing import TYPE_CHECKING, Any, Callable, overload
 
 if TYPE_CHECKING:
+    from typing import Literal
+
     from typing_extensions import ParamSpec
 
     P = ParamSpec("P")
