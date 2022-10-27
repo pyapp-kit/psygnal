@@ -88,7 +88,7 @@ def test_emit_change():
     """emit change is overridden to also update the active value."""
     selection = Selection()
     selection._update_active = Mock()
-    selection._emit_change((None), (None))
+    selection._emit_change((None,), (None,))
     selection._update_active.assert_called_once()
 
 

@@ -1,12 +1,10 @@
-from contextlib import suppress
-
-__all__ = ["Signal", "SignalInstance", "_compiled"]
+from __future__ import annotations
 
 import inspect
 import threading
 import warnings
 import weakref
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from functools import lru_cache, partial, reduce
 from inspect import Parameter, Signature, isclass
 from types import MethodType
@@ -14,12 +12,9 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Iterator,
-    List,
+    Literal,
     NoReturn,
-    Optional,
-    Tuple,
     Type,
     Union,
     cast,
@@ -27,17 +22,22 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Literal, get_args, get_origin
+from typing_extensions import get_args, get_origin
 
-MethodRef = Tuple["weakref.ReferenceType[object]", str, Optional[Callable]]
-NormedCallback = Union[MethodRef, Callable]
-StoredSlot = Tuple[NormedCallback, Optional[int]]
-ReducerFunc = Callable[[tuple, tuple], tuple]
+if TYPE_CHECKING:
+    from typing import Tuple
+
+    MethodRef = Tuple[weakref.ReferenceType[object], str, Callable | None]
+    NormedCallback = Union[MethodRef, Callable]
+    StoredSlot = Tuple[NormedCallback, int | None]
+    ReducerFunc = Callable[[tuple, tuple], tuple]
+
+__all__ = ["Signal", "SignalInstance", "_compiled"]
 _NULL = object()
 
 
 class EmitLoopError(RuntimeError):
-    def __init__(self, slot: NormedCallback, args: Tuple, exc: BaseException) -> None:
+    def __init__(self, slot: NormedCallback, args: tuple, exc: BaseException) -> None:
         self.slot = slot
         self.args = args
         super().__init__(
@@ -107,13 +107,13 @@ class Signal:
     if TYPE_CHECKING:  # pragma: no cover
         _signature: Signature  # callback signature for this signal
 
-    _current_emitter: Optional["SignalInstance"] = None
+    _current_emitter: SignalInstance | None = None
 
     def __init__(
         self,
-        *types: Union[Type[Any], Signature],
+        *types: Type[Any] | Signature,
         description: str = "",
-        name: Optional[str] = None,
+        name: str | None = None,
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
     ) -> None:
@@ -131,7 +131,7 @@ class Signal:
                     f" `Signature`.  These args were ignored: {types[1:]}"
                 )
         else:
-            self._signature = _build_signature(*cast("Tuple[Type[Any], ...]", types))
+            self._signature = _build_signature(*cast("tuple[Type[Any], ...]", types))
 
     @property
     def signature(self) -> Signature:
@@ -155,20 +155,18 @@ class Signal:
         return self.__getattribute__(name)
 
     @overload
-    def __get__(  # noqa
-        self, instance: None, owner: Optional[Type[Any]] = None
-    ) -> "Signal":
+    def __get__(self, instance: None, owner: Type[Any] | None = None) -> Signal:  # noqa
         ...  # pragma: no cover
 
     @overload
     def __get__(  # noqa
-        self, instance: Any, owner: Optional[Type[Any]] = None
-    ) -> "SignalInstance":
+        self, instance: Any, owner: Type[Any] | None = None
+    ) -> SignalInstance:
         ...  # pragma: no cover
 
     def __get__(
-        self, instance: Any, owner: Optional[Type[Any]] = None
-    ) -> Union["Signal", "SignalInstance"]:
+        self, instance: Any, owner: Type[Any] | None = None
+    ) -> Signal | SignalInstance:
         """Get signal instance.
 
         This is called when accessing a Signal instance.  If accessed as an
@@ -210,7 +208,7 @@ class Signal:
 
     @classmethod
     @contextmanager
-    def _emitting(cls, emitter: "SignalInstance") -> Iterator[None]:
+    def _emitting(cls, emitter: SignalInstance) -> Iterator[None]:
         """Context that sets the sender on a receiver object while emitting a signal."""
         previous, cls._current_emitter = cls._current_emitter, emitter
         try:
@@ -219,7 +217,7 @@ class Signal:
             cls._current_emitter = previous
 
     @classmethod
-    def current_emitter(cls) -> Optional["SignalInstance"]:
+    def current_emitter(cls) -> SignalInstance | None:
         """Return currently emitting `SignalInstance`, if any.
 
         This will typically be used in a callback.
@@ -316,16 +314,16 @@ class SignalInstance:
 
     def __init__(
         self,
-        signature: Union[Signature, Tuple] = _empty_signature,
+        signature: Signature | tuple = _empty_signature,
         *,
         instance: Any = None,
-        name: Optional[str] = None,
+        name: str | None = None,
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
     ) -> None:
         self._name = name
         self._instance: Any = instance
-        self._args_queue: List[Any] = []  # filled when paused
+        self._args_queue: list[Any] = []  # filled when paused
 
         if isinstance(signature, (list, tuple)):
             signature = _build_signature(*signature)
@@ -338,7 +336,7 @@ class SignalInstance:
         self._signature = signature
         self._check_nargs_on_connect = check_nargs_on_connect
         self._check_types_on_connect = check_types_on_connect
-        self._slots: List[StoredSlot] = []
+        self._slots: list[StoredSlot] = []
         self._is_blocked: bool = False
         self._is_paused: bool = False
         self._lock = threading.RLock()
@@ -368,10 +366,10 @@ class SignalInstance:
     def connect(
         self,
         *,
-        check_nargs: Optional[bool] = ...,
-        check_types: Optional[bool] = ...,
-        unique: Union[bool, str] = ...,
-        max_args: Optional[int] = None,
+        check_nargs: bool | None = ...,
+        check_types: bool | None = ...,
+        unique: bool | str = ...,
+        max_args: int | None = None,
     ) -> Callable[[Callable], Callable]:
         ...  # pragma: no cover
 
@@ -380,22 +378,22 @@ class SignalInstance:
         self,
         slot: Callable,
         *,
-        check_nargs: Optional[bool] = ...,
-        check_types: Optional[bool] = ...,
-        unique: Union[bool, str] = ...,
-        max_args: Optional[int] = None,
+        check_nargs: bool | None = ...,
+        check_types: bool | None = ...,
+        unique: bool | str = ...,
+        max_args: int | None = None,
     ) -> Callable:
         ...  # pragma: no cover
 
     def connect(
         self,
-        slot: Optional[Callable] = None,
+        slot: Callable | None = None,
         *,
-        check_nargs: Optional[bool] = None,
-        check_types: Optional[bool] = None,
-        unique: Union[bool, str] = False,
-        max_args: Optional[int] = None,
-    ) -> Union[Callable[[Callable], Callable], Callable]:
+        check_nargs: bool | None = None,
+        check_types: bool | None = None,
+        unique: bool | str = False,
+        max_args: int | None = None,
+    ) -> Callable[[Callable], Callable] | Callable:
         """Connect a callback (`slot`) to this signal.
 
         `slot` is compatible if:
@@ -453,7 +451,7 @@ class SignalInstance:
         if check_types is None:
             check_types = self._check_types_on_connect
 
-        def _wrapper(slot: Callable, max_args: Optional[int] = max_args) -> Callable:
+        def _wrapper(slot: Callable, max_args: int | None = max_args) -> Callable:
             if not callable(slot):
                 raise TypeError(f"Cannot connect to non-callable object: {slot}")
 
@@ -482,9 +480,9 @@ class SignalInstance:
 
     def connect_setattr(
         self,
-        obj: Union[weakref.ref, object],
+        obj: weakref.ref | object,
         attr: str,
-        maxargs: Optional[int] = None,
+        maxargs: int | None = None,
     ) -> MethodRef:
         """Bind an object attribute to the emitted value of this signal.
 
@@ -580,9 +578,9 @@ class SignalInstance:
 
     def connect_setitem(
         self,
-        obj: Union[weakref.ref, object],
+        obj: weakref.ref | object,
         key: str,
-        maxargs: Optional[int] = None,
+        maxargs: int | None = None,
     ) -> MethodRef:
         """Bind a container item (such as a dict key) to emitted value of this signal.
 
@@ -684,7 +682,7 @@ class SignalInstance:
 
     def _check_nargs(
         self, slot: Callable, spec: Signature
-    ) -> Tuple[Optional[Signature], Optional[int]]:
+    ) -> tuple[Signature | None, int | None]:
         """Make sure slot is compatible with signature.
 
         Also returns the maximum number of arguments that we can pass to the slot
@@ -723,7 +721,7 @@ class SignalInstance:
             return next((i for i, s in enumerate(self._slots) if s[0] == normed), -1)
 
     def disconnect(
-        self, slot: Optional[NormedCallback] = None, missing_ok: bool = True
+        self, slot: NormedCallback | None = None, missing_ok: bool = True
     ) -> None:
         """Disconnect slot from signal.
 
@@ -782,7 +780,7 @@ class SignalInstance:
         check_nargs: bool = False,
         check_types: bool = False,
         asynchronous: Literal[True],
-    ) -> Optional["EmitThread"]:
+    ) -> EmitThread | None:
         # will return `None` if emitter is blocked
         ...  # pragma: no cover
 
@@ -792,7 +790,7 @@ class SignalInstance:
         check_nargs: bool = False,
         check_types: bool = False,
         asynchronous: bool = False,
-    ) -> Optional["EmitThread"]:
+    ) -> EmitThread | None:
         """Emit this signal with arguments `args`.
 
         NOTE:
@@ -870,7 +868,7 @@ class SignalInstance:
         check_nargs: bool = False,
         check_types: bool = False,
         asynchronous: Literal[True],
-    ) -> Optional["EmitThread"]:
+    ) -> EmitThread | None:
         # will return `None` if emitter is blocked
         ...  # pragma: no cover
 
@@ -880,7 +878,7 @@ class SignalInstance:
         check_nargs: bool = False,
         check_types: bool = False,
         asynchronous: bool = False,
-    ) -> Optional["EmitThread"]:
+    ) -> EmitThread | None:
         """Alias for `emit()`."""
         return self.emit(  # type: ignore
             *args,
@@ -889,8 +887,8 @@ class SignalInstance:
             asynchronous=asynchronous,
         )
 
-    def _run_emit_loop(self, args: Tuple[Any, ...]) -> None:
-        rem: List[NormedCallback] = []
+    def _run_emit_loop(self, args: tuple[Any, ...]) -> None:
+        rem: list[NormedCallback] = []
         # allow receiver to query sender with Signal.current_emitter()
         with self._lock:
             with Signal._emitting(self):
@@ -968,9 +966,7 @@ class SignalInstance:
         """
         self._is_paused = True
 
-    def resume(
-        self, reducer: Optional[ReducerFunc] = None, initial: Any = _NULL
-    ) -> None:
+    def resume(self, reducer: ReducerFunc | None = None, initial: Any = _NULL) -> None:
         """Resume (unpause) this signal, emitting everything in the queue.
 
         Parameters
@@ -1017,7 +1013,7 @@ class SignalInstance:
 
     @contextmanager
     def paused(
-        self, reducer: Optional[ReducerFunc] = None, initial: Any = _NULL
+        self, reducer: ReducerFunc | None = None, initial: Any = _NULL
     ) -> Iterator[None]:
         """Context manager to temporarly pause this signal.
 
@@ -1058,7 +1054,7 @@ class SignalInstance:
 class EmitThread(threading.Thread):
     """A thread to emit a signal asynchronously."""
 
-    def __init__(self, signal_instance: SignalInstance, args: Tuple[Any, ...]) -> None:
+    def __init__(self, signal_instance: SignalInstance, args: tuple[Any, ...]) -> None:
         super().__init__(name=signal_instance.name)
         self._signal_instance = signal_instance
         self.args = args
@@ -1084,7 +1080,7 @@ class PartialMethod(metaclass=PartialMethodMeta):
 
     func: MethodType
     args: tuple
-    keywords: Dict[str, Any]
+    keywords: dict[str, Any]
 
 
 def signature(obj: Any) -> inspect.Signature:
@@ -1097,7 +1093,7 @@ def signature(obj: Any) -> inspect.Signature:
         raise e from e
 
 
-@lru_cache()
+@lru_cache
 def _stub_sig(obj: Any) -> Signature:
     import builtins
 
@@ -1121,7 +1117,7 @@ def _build_signature(*types: Type[Any]) -> Signature:
     return Signature(params)
 
 
-def _normalize_slot(slot: Union[Callable, NormedCallback]) -> NormedCallback:
+def _normalize_slot(slot: Callable | NormedCallback) -> NormedCallback:
     if isinstance(slot, MethodType):
         return _get_method_name(slot) + (None,)
     if isinstance(slot, PartialMethod):
@@ -1142,7 +1138,7 @@ def _normalize_slot(slot: Union[Callable, NormedCallback]) -> NormedCallback:
 # g: kind=VAR_KEYWORD,           default=Parameter.empty    # N optional kwargs
 
 
-def _get_signature_possibly_qt(slot: Callable) -> Union[Signature, str]:
+def _get_signature_possibly_qt(slot: Callable) -> Signature | str:
     # checking qt has to come first, since the signature of the emit method
     # of a Qt SignalInstance is just <Signature (*args: typing.Any) -> None>
     # https://bugreports.qt.io/browse/PYSIDE-1713
@@ -1151,8 +1147,8 @@ def _get_signature_possibly_qt(slot: Callable) -> Union[Signature, str]:
 
 
 def _acceptable_posarg_range(
-    sig: Union[Signature, str], forbid_required_kwarg: bool = True
-) -> Tuple[int, Optional[int]]:
+    sig: Signature | str, forbid_required_kwarg: bool = True
+) -> tuple[int, int | None]:
     """Return tuple of (min, max) accepted positional arguments.
 
     Parameters
@@ -1201,7 +1197,7 @@ def _acceptable_posarg_range(
 
 
 def _parameter_types_match(
-    function: Callable, spec: Signature, func_sig: Optional[Signature] = None
+    function: Callable, spec: Signature, func_sig: Signature | None = None
 ) -> bool:
     """Return True if types in `function` signature match those in `spec`.
 
@@ -1246,10 +1242,10 @@ def _is_subclass(left: Type[Any], right: type) -> bool:
     return issubclass(left, right)
 
 
-_PARTIAL_CACHE: Dict[int, Tuple[weakref.ref, str, Callable]] = {}
+_PARTIAL_CACHE: dict[int, tuple[weakref.ref, str, Callable]] = {}
 
 
-def _partial_weakref(slot_partial: PartialMethod) -> Tuple[weakref.ref, str, Callable]:
+def _partial_weakref(slot_partial: PartialMethod) -> tuple[weakref.ref, str, Callable]:
     """For partial methods, make the weakref point to the wrapped object."""
     _id = id(slot_partial)
 
@@ -1275,7 +1271,7 @@ def _prune_partial_cache() -> None:
             del _PARTIAL_CACHE[key]
 
 
-def _get_method_name(slot: MethodType) -> Tuple[weakref.ref, str]:
+def _get_method_name(slot: MethodType) -> tuple[weakref.ref, str]:
     obj = slot.__self__
     # some decorators will alter method.__name__, so that obj.method
     # will not be equal to getattr(obj, obj.method.__name__).
@@ -1297,7 +1293,7 @@ def _get_method_name(slot: MethodType) -> Tuple[weakref.ref, str]:
     return weakref.ref(obj), slot.__name__
 
 
-def _guess_qtsignal_signature(obj: Any) -> Optional[str]:
+def _guess_qtsignal_signature(obj: Any) -> str | None:
     """Return string signature if `obj` is a SignalInstance or Qt emit method.
 
     This is a bit of a hack, but we found no better way:
@@ -1325,7 +1321,7 @@ def _guess_qtsignal_signature(obj: Any) -> Optional[str]:
 _CRAZY_ARGS = (1,) * 255
 
 
-def _ridiculously_call_emit(emitter: Any) -> Optional[str]:
+def _ridiculously_call_emit(emitter: Any) -> str | None:
     """Call SignalInstance emit() to get the signature from err message."""
     try:
         emitter(*_CRAZY_ARGS)

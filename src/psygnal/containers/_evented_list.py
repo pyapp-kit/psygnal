@@ -23,17 +23,7 @@ cover this in test_evented_list.py)
 """
 from __future__ import annotations  # pragma: no cover
 
-from typing import (
-    Any,
-    Iterable,
-    List,
-    MutableSequence,
-    Tuple,
-    TypeVar,
-    Union,
-    cast,
-    overload,
-)
+from typing import Any, Iterable, MutableSequence, TypeVar, Union, cast, overload
 
 from .._group import EmissionInfo, SignalGroup
 from .._signal import Signal, SignalInstance
@@ -117,7 +107,7 @@ class EventedList(MutableSequence[_T]):
         child_events: bool = False,
     ):
         super().__init__()
-        self._data: List[_T] = []
+        self._data: list[_T] = []
         self._hashable = hashable
         self._child_events = child_events
         self.events = ListEvents()
@@ -184,7 +174,7 @@ class EventedList(MutableSequence[_T]):
             item = parent._data.pop(index)
             self.events.removed.emit(index, item)
 
-    def _delitem_indices(self, key: Index) -> Iterable[Tuple[EventedList[_T], int]]:
+    def _delitem_indices(self, key: Index) -> Iterable[tuple[EventedList[_T], int]]:
         # returning (self, int) allows subclasses to pass nested members
         if isinstance(key, int):
             yield (self, key if key >= 0 else key + len(self))
@@ -227,7 +217,7 @@ class EventedList(MutableSequence[_T]):
         self.extend(other)
         return self
 
-    def __radd__(self, other: List) -> List:
+    def __radd__(self, other: list) -> list:
         """Reflected add (other + self).  Cast self to list."""
         return other + list(self)
 
@@ -333,7 +323,7 @@ class EventedList(MutableSequence[_T]):
 
     def _move_plan(
         self, sources: Iterable[Index], dest_index: int
-    ) -> Iterable[Tuple[int, int]]:
+    ) -> Iterable[tuple[int, int]]:
         """Yield prepared indices for a multi-move.
 
         Given a set of `sources` from anywhere in the list,
@@ -355,7 +345,7 @@ class EventedList(MutableSequence[_T]):
         if isinstance(dest_index, slice):
             raise TypeError("Destination index may not be a slice")  # pragma: no cover
 
-        to_move: List[int] = []
+        to_move: list[int] = []
         for idx in sources:
             if isinstance(idx, slice):
                 to_move.extend(list(range(*idx.indices(len(self)))))
@@ -372,7 +362,7 @@ class EventedList(MutableSequence[_T]):
             dest_index += len(self) + 1
 
         d_inc = 0
-        popped: List[int] = []
+        popped: list[int] = []
         for i, src in enumerate(to_move):
             if src != dest_index:
                 # we need to decrement the src_i by 1 for each time we have

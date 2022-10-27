@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from threading import Timer
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union, overload
+from typing import TYPE_CHECKING, Any, Callable, Literal, overload
 
 if TYPE_CHECKING:
-    from typing_extensions import Literal, ParamSpec
+    from typing_extensions import ParamSpec
 
     P = ParamSpec("P")
 
@@ -146,10 +146,10 @@ def throttled(
 
 
 def throttled(
-    func: Optional[Callable[P, Any]] = None,
+    func: Callable[P, Any] | None = None,
     timeout: int = 100,
     leading: bool = True,
-) -> Union[Callable[P, None], Callable[[Callable[P, Any]], Callable[P, None]]]:
+) -> Callable[P, None] | Callable[[Callable[P, Any]], Callable[P, None]]:
     """Create a throttled function that invokes func at most once per timeout.
 
     The throttled function comes with a `cancel` method to cancel delayed func
@@ -217,10 +217,10 @@ def debounced(
 
 
 def debounced(
-    func: Optional[Callable[P, Any]] = None,
+    func: Callable[P, Any] | None = None,
     timeout: int = 100,
     leading: bool = False,
-) -> Union[Callable[P, None], Callable[[Callable[P, Any]], Callable[P, None]]]:
+) -> Callable[P, None] | Callable[[Callable[P, Any]], Callable[P, None]]:
     """Create a debounced function that delays invoking `func`.
 
     `func` will not be invoked until `timeout` ms have elapsed since the last time
