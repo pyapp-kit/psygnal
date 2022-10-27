@@ -1,6 +1,6 @@
 # https://peps.python.org/pep-0517/
 [build-system]
-requires = ["setuptools>=45", "wheel", "Cython==3.0a10", "setuptools-scm>=6.2"]
+requires = ["setuptools>=45", "wheel", "Cython==3.0.0a11", "setuptools-scm>=6.2"]
 build-backend = "setuptools.build_meta"
 
 # https://peps.python.org/pep-0621/
@@ -8,7 +8,7 @@ build-backend = "setuptools.build_meta"
 name = "psygnal"
 description = "Pure python callback/event system modeled after Qt Signals"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 license = { text = "BSD 3-Clause License" }
 authors = [{ email = "talley.lambert@gmail.com" }, { name = "Talley Lambert" }]
 classifiers = [
@@ -16,22 +16,19 @@ classifiers = [
     "License :: OSI Approved :: BSD License",
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Typing :: Typed",
 ]
 dynamic = ["version"]
-dependencies = [
-    "typing-extensions",
-    "importlib_metadata ; python_version < '3.8'",
-]
+dependencies = ["typing-extensions"]
 
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 [project.optional-dependencies]
-build = ["Cython==3.0a10;sys_platform != 'win32'"]
+build = ["Cython==3.0.0a11;sys_platform != 'win32'"]
 dev = [
     "black",
     "cruft",
@@ -69,7 +66,7 @@ docs = [
 proxy = ["wrapt"]
 pydantic = ["pydantic"]
 test = [
-    "Cython==3.0a10",
+    "Cython==3.0.0a11",
     "dask",
     "numpy",
     "pydantic",
@@ -94,7 +91,7 @@ documentation = "https://psygnal.readthedocs.io"
 [tool.setuptools]
 include-package-data = true
 package-data = { "psygnal" = ["py.typed"] }
-package-dir = {"" = "src"}
+package-dir = { "" = "src" }
 packages = { find = { where = ["src"], exclude = ["tests", "benchmarks"] } }
 zip-safe = false
 
@@ -115,7 +112,7 @@ src_paths = ["src/psygnal", "tests"]
 exclude = "docs,.eggs,examples,_version.py"
 max-line-length = 88
 ignore = "E203"
-min-python-version = "3.7.0"
+min-python-version = "3.8.0"
 docstring-convention = "all" # use numpy convention, while allowing D417
 extend-ignore = """
  E203  # whitespace before ':'

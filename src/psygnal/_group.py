@@ -7,10 +7,15 @@ tuple, which contains `.signal`: the SignalInstance doing the emitting, and `.ar
 the args that were emitted.
 
 """
-from contextlib import contextmanager
-from typing import Any, Callable, Dict, Iterable, Iterator, Optional, Tuple, Union
+from __future__ import annotations
 
-from psygnal._signal import NormedCallback, Signal, SignalInstance
+from contextlib import contextmanager
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator
+
+from psygnal._signal import Signal, SignalInstance
+
+if TYPE_CHECKING:
+    from psygnal._signal import NormedCallback
 
 __all__ = ["EmissionInfo", "SignalGroup"]
 
@@ -26,9 +31,9 @@ class EmissionInfo(tuple):
     """
 
     signal: SignalInstance
-    args: Tuple[Any, ...]
+    args: tuple[Any, ...]
 
-    def __new__(cls, signal: SignalInstance, args: Tuple[Any, ...]) -> "EmissionInfo":
+    def __new__(cls, signal: SignalInstance, args: tuple[Any, ...]) -> EmissionInfo:
         """Create new object."""
         obj = tuple.__new__(cls, (signal, args))
         obj.signal = signal
@@ -41,7 +46,7 @@ class EmissionInfo(tuple):
 
 
 class _SignalGroupMeta(type):
-    _signals_: Dict[str, Signal]
+    _signals_: dict[str, Signal]
     _uniform: bool = False
 
     def __new__(
@@ -51,7 +56,7 @@ class _SignalGroupMeta(type):
         namespace: dict,
         strict: bool = False,
         **kwargs: Any,
-    ) -> "_SignalGroupMeta":
+    ) -> _SignalGroupMeta:
         cls: _SignalGroupMeta = type.__new__(mcls, name, bases, namespace)
         cls._signals_ = {k: v for k, v in namespace.items() if isinstance(v, Signal)}
         _sigs = {
@@ -64,10 +69,6 @@ class _SignalGroupMeta(type):
                 "All Signals in a strict SignalGroup must have the same signature"
             )
         return cls
-
-
-InfoSlot = Callable[[EmissionInfo], None]
-OptionalInfoSlot = Union[InfoSlot, Callable[[], None]]
 
 
 class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
@@ -113,18 +114,18 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
 
     __slots__ = ("_instance", "_name", "_is_blocked", "_is_paused", "_sig_was_blocked")
 
-    def __init__(self, instance: Any = None, name: Optional[str] = None) -> None:
+    def __init__(self, instance: Any = None, name: str | None = None) -> None:
         super().__init__(
             signature=(EmissionInfo,),
             instance=instance,
             name=name or self.__class__.__name__,
         )
-        self._sig_was_blocked: Dict[str, bool] = {}
+        self._sig_was_blocked: dict[str, bool] = {}
         for _, sig in self.signals.items():
             sig.connect(self._slot_relay, check_nargs=False, check_types=False)
 
     @property
-    def signals(self) -> Dict[str, SignalInstance]:
+    def signals(self) -> dict[str, SignalInstance]:
         """Return {name -> SignalInstance} map of all signal instances in this group."""
         return {n: getattr(self, n) for n in type(self)._signals_}
 
@@ -141,13 +142,13 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
 
     def connect_direct(
         self,
-        slot: Optional[Callable] = None,
+        slot: Callable | None = None,
         *,
-        check_nargs: Optional[bool] = None,
-        check_types: Optional[bool] = None,
-        unique: Union[bool, str] = False,
-        max_args: Optional[int] = None,
-    ) -> Union[Callable[[Callable], Callable], Callable]:
+        check_nargs: bool | None = None,
+        check_types: bool | None = None,
+        unique: bool | str = False,
+        max_args: int | None = None,
+    ) -> Callable[[Callable], Callable] | Callable:
         """Connect `slot` to be called whenever *any* Signal in this group is emitted.
 
         Params are the same as {meth}`~psygnal.SignalInstance.connect`.  It's probably
@@ -195,7 +196,7 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
 
         return _inner if slot is None else _inner(slot)
 
-    def block(self, exclude: Iterable[Union[str, SignalInstance]] = ()) -> None:
+    def block(self, exclude: Iterable[str | SignalInstance] = ()) -> None:
         """Block this signal and all emitters from emitting."""
         super().block()
         for k, v in self.signals.items():
@@ -212,9 +213,7 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
                 v.unblock()
 
     @contextmanager
-    def blocked(
-        self, exclude: Iterable[Union[str, SignalInstance]] = ()
-    ) -> Iterator[None]:
+    def blocked(self, exclude: Iterable[str | SignalInstance] = ()) -> Iterator[None]:
         """Provide context manager to temporarly block all emitters in this group.
 
         Parameters
@@ -230,7 +229,7 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
             self.unblock()
 
     def disconnect(
-        self, slot: Optional[NormedCallback] = None, missing_ok: bool = True
+        self, slot: NormedCallback | None = None, missing_ok: bool = True
     ) -> None:
         """Disconnect slot from all signals.
 
@@ -257,7 +256,7 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
         name = f" {self.name!r}" if self.name else ""
         instance = f" on {self.instance!r}" if self.instance else ""
         nsignals = len(self.signals)
-        signals = f"{nsignals} signal" + "s" if nsignals > 1 else ""
+        signals = f"{nsignals} signals" if nsignals > 1 else ""
         return f"<SignalGroup{name} with {signals}{instance}>"
 
 
