@@ -1,8 +1,21 @@
 # Changelog
 
-## [0.5.0](https://github.com/tlambert03/psygnal/tree/0.5.0) (2022-10-14)
+## [v0.6.0](https://github.com/tlambert03/psygnal/tree/v0.6.0) (2022-10-28)
 
-[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.4.2...0.5.0)
+[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.5.0...v0.6.0)
+
+**Implemented enhancements:**
+
+- build: drop py3.7 add py3.11 [\#135](https://github.com/tlambert03/psygnal/pull/135) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- build: support 3.7 again [\#136](https://github.com/tlambert03/psygnal/pull/136) ([tlambert03](https://github.com/tlambert03))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.10.2 to 2.11.1 [\#133](https://github.com/tlambert03/psygnal/pull/133) ([dependabot[bot]](https://github.com/apps/dependabot))
+
+## [v0.5.0](https://github.com/tlambert03/psygnal/tree/v0.5.0) (2022-10-14)
+
+[Full Changelog](https://github.com/tlambert03/psygnal/compare/v0.4.2...v0.5.0)
 
 **Implemented enhancements:**
 
