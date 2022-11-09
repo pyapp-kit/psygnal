@@ -1,4 +1,5 @@
 import gc
+import sys
 import time
 import weakref
 from contextlib import suppress
@@ -11,7 +12,7 @@ from unittest.mock import MagicMock, Mock, call
 import pytest
 
 from psygnal import EmitLoopError, Signal, SignalInstance
-from psygnal._signal import _get_method_name, _normalize_slot
+from psygnal._signal import _get_method_name, _normalize_slot, _partial_weakref
 
 
 def stupid_decorator(fun):
@@ -786,3 +787,51 @@ def test_emit_loop_exceptions():
         emitter.one_int.emit(2)
     mock1.assert_called_once_with(2)
     mock1.assert_called_once_with(2)
+
+
+def test_partial_weakref():
+    """Test that a connected method doesn't hold strong ref."""
+
+    obj = MyObj()
+    cb = partial(obj.f_int_int, 1)
+    assert _partial_weakref(cb) == _partial_weakref(cb)
+
+
+@pytest.mark.parametrize(
+    "slot",
+    [
+        "f_no_arg",
+        "f_int_decorated_stupid",
+        "f_int_decorated_good",
+        "f_any_assigned",
+        "partial",
+        pytest.param(
+            "partial",
+            marks=pytest.mark.xfail(
+                sys.version_info < (3, 8), reason="no idea why this fails on 3.7"
+            ),
+        ),
+    ],
+)
+def test_weakref_disconnect(slot):
+    """Test that a connected method doesn't hold strong ref."""
+    from psygnal._signal import _PARTIAL_CACHE, _prune_partial_cache
+
+    emitter = Emitter()
+    obj = MyObj()
+
+    _prune_partial_cache()
+    assert not _PARTIAL_CACHE
+
+    assert len(emitter.one_int) == 0
+    cb = partial(obj.f_int_int, 1) if slot == "partial" else getattr(obj, slot)
+    cb_id = id(cb)
+    assert cb_id not in _PARTIAL_CACHE
+    emitter.one_int.connect(cb)
+    assert (cb_id in _PARTIAL_CACHE) == (slot == "partial")
+    assert len(emitter.one_int) == 1
+    emitter.one_int.emit(1)
+    assert len(emitter.one_int) == 1
+    emitter.one_int.disconnect(cb)
+    assert len(emitter.one_int) == 0
+    assert cb_id not in _PARTIAL_CACHE
