@@ -1,13 +1,13 @@
 {
   "version": 1,
   "project": "psygnal",
-  "project_url": "https://github.com/tlambert03/psygnal",
+  "project_url": "https://github.com/pyapp-kit/psygnal",
   "repo": ".",
   "branches": ["main"],
   "dvcs": "git",
   "environment_type": "conda",
   "install_timeout": 600,
-  "show_commit_url": "https://github.com/tlambert03/psygnal/commit/",
+  "show_commit_url": "https://github.com/pyapp-kit/psygnal/commit/",
   "pythons": ["3.10"],
   "matrix": {
     "pip+cython": ["3.0.0a11", null]
