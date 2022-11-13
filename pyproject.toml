@@ -87,8 +87,8 @@ test = [
 testqt = ["PyQt5", "pytest-qt", "qtpy"]
 
 [project.urls]
-homepage = "https://github.com/tlambert03/psygnal"
-repository = "https://github.com/tlambert03/psygnal"
+homepage = "https://github.com/pyapp-kit/psygnal"
+repository = "https://github.com/pyapp-kit/psygnal"
 documentation = "https://psygnal.readthedocs.io"
 
 # Entry points

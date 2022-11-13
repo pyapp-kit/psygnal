@@ -1,12 +1,12 @@
 site_name: psygnal
-site_url: https://github.com/tlambert03/psygnal
+site_url: https://github.com/pyapp-kit/psygnal
 site_author: Talley Lambert
 site_description: >-
   Pure python callback/event system modeled after Qt Signals
 
 # Repository
-repo_name: tlambert03/psygnal
-repo_url: https://github.com/tlambert03/psygnal
+repo_name: pyapp-kit/psygnal
+repo_url: https://github.com/pyapp-kit/psygnal
 
 # Copyright
 copyright: Copyright &copy; 2021 - 2022 Talley Lambert
