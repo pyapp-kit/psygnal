@@ -721,8 +721,9 @@ def test_connect_setitem():
     assert my_obj._dict == {"x": 5}
 
     obj = object()
-    with pytest.raises(TypeError, match="does not support __setitem__"):
-        t.sig.connect_setitem(obj, "x")
+    with pytest.warns(RuntimeWarning):
+        with pytest.raises(TypeError, match="does not support __setitem__"):
+            t.sig.connect_setitem(obj, "x")
 
     with pytest.raises(ValueError):
         t.sig.disconnect_setitem(obj, "x", missing_ok=False)
