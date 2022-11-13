@@ -31,6 +31,11 @@ jobs:
         python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
 
     steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.11.0
+        with:
+          access_token: ${{ github.token }}
+
       - uses: actions/checkout@v3
       - uses: tlambert03/setup-qt-libs@v1
 
@@ -98,6 +103,11 @@ jobs:
         platform: [macos-latest, windows-latest]
 
     steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.11.0
+        with:
+          access_token: ${{ github.token }}
+
       - uses: actions/checkout@v3
 
       - name: Set up Python ${{ matrix.python-version }}
