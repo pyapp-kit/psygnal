@@ -1,6 +1,28 @@
 # Changelog
 
-## [v0.6.0](https://github.com/pyapp-kit/psygnal/tree/v0.6.0) (2022-10-28)
+## [0.6.1](https://github.com/pyapp-kit/psygnal/tree/0.6.1) (2022-11-13)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.6.0.post0...0.6.1)
+
+**Fixed bugs:**
+
+- fix: fix failed weakref in connect\_setattr [\#142](https://github.com/pyapp-kit/psygnal/pull/142) ([tlambert03](https://github.com/tlambert03))
+- fix: fix disconnection of partials [\#134](https://github.com/pyapp-kit/psygnal/pull/134) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- chore: rename org to pyapp-kit [\#141](https://github.com/pyapp-kit/psygnal/pull/141) ([tlambert03](https://github.com/tlambert03))
+
+## [v0.6.0.post0](https://github.com/pyapp-kit/psygnal/tree/v0.6.0.post0) (2022-11-09)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.6.0...v0.6.0.post0)
+
+**Merged pull requests:**
+
+- build: unskip cibuildwheel py311 [\#140](https://github.com/pyapp-kit/psygnal/pull/140) ([tlambert03](https://github.com/tlambert03))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.11.1 to 2.11.2 [\#138](https://github.com/pyapp-kit/psygnal/pull/138) ([dependabot[bot]](https://github.com/apps/dependabot))
+
+## [v0.6.0](https://github.com/pyapp-kit/psygnal/tree/v0.6.0) (2022-10-29)
 
 [Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.5.0...v0.6.0)
 
@@ -10,6 +32,7 @@
 
 **Merged pull requests:**
 
+- chore: changelog v0.6.0 [\#137](https://github.com/pyapp-kit/psygnal/pull/137) ([tlambert03](https://github.com/tlambert03))
 - build: support 3.7 again [\#136](https://github.com/pyapp-kit/psygnal/pull/136) ([tlambert03](https://github.com/tlambert03))
 - ci\(dependabot\): bump pypa/cibuildwheel from 2.10.2 to 2.11.1 [\#133](https://github.com/pyapp-kit/psygnal/pull/133) ([dependabot[bot]](https://github.com/apps/dependabot))
 
