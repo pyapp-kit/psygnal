@@ -528,7 +528,17 @@ class SignalInstance:
         >>> t.sig.emit(5)
         >>> assert my_obj.x == 5
         """
-        ref = obj if isinstance(obj, weakref.ref) else weakref.ref(obj)
+        try:
+            ref = obj if isinstance(obj, weakref.ref) else weakref.ref(obj)
+        except TypeError:
+            import warnings
+
+            warnings.warn(
+                f"Could not create weakref to `{obj}`. Call `disconnect_setattr` "
+                "manually upon object deletion to avoid memory leaks.",
+                RuntimeWarning,
+            )
+            ref = lambda: obj  # type: ignore [assignment] # noqa: E731
         if not hasattr(ref(), attr):
             raise AttributeError(f"Object {ref()} has no attribute {attr!r}")
 
