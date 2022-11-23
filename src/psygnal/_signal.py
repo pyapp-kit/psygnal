@@ -304,20 +304,6 @@ class SignalInstance:
         of types.
     """
 
-    __slots__ = (
-        "_signature",
-        "_instance",
-        "_name",
-        "_slots",
-        "_is_blocked",
-        "_is_paused",
-        "_args_queue",
-        "_lock",
-        "_check_nargs_on_connect",
-        "_check_types_on_connect",
-        "__weakref__",
-    )
-
     def __init__(
         self,
         signature: Signature | tuple = _empty_signature,

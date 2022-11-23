@@ -10,7 +10,16 @@ the args that were emitted.
 from __future__ import annotations
 
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Iterator
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    ClassVar,
+    Iterable,
+    Iterator,
+    Mapping,
+    NamedTuple,
+)
 
 from psygnal._signal import Signal, SignalInstance
 
@@ -21,7 +30,7 @@ __all__ = ["EmissionInfo", "SignalGroup"]
 
 
 # this is a variant of a NamedTuple that works with Cython<3.0a7
-class EmissionInfo(tuple):
+class EmissionInfo(NamedTuple):
     """Tuple containing information about an emission event.
 
     Attributes
@@ -32,17 +41,6 @@ class EmissionInfo(tuple):
 
     signal: SignalInstance
     args: tuple[Any, ...]
-
-    def __new__(cls, signal: SignalInstance, args: tuple[Any, ...]) -> EmissionInfo:
-        """Create new object."""
-        obj = tuple.__new__(cls, (signal, args))
-        obj.signal = signal
-        obj.args = args
-        return obj
-
-    def __repr__(self) -> str:  # pragma: no cover
-        """Return repr(self)."""
-        return f"EmissionInfo(signal={self.signal}, args={self.args})"
 
 
 class SignalGroup(SignalInstance):
@@ -86,13 +84,16 @@ class SignalGroup(SignalInstance):
     ...     sig1 = Signal(str)  # not the same signature
     """
 
-    __slots__ = ("_instance", "_name", "_is_blocked", "_is_paused", "_sig_was_blocked")
-    _signals_: dict[str, Signal]
-    _uniform: bool = False
+    _signals_: ClassVar[Mapping[str, Signal]]
+    _uniform: ClassVar[bool] = False
 
     def __init_subclass__(cls, strict: bool = False) -> None:
         """Finds all Signal instances on the class and add them to `cls._signals_`."""
-        cls._signals_ = {k: v for k, v in vars(cls).items() if isinstance(v, Signal)}
+        cls._signals_ = {}
+        for k in dir(cls):
+            v = getattr(cls, k)
+            if isinstance(v, Signal):
+                cls._signals_[k] = v
         _sigs = {
             tuple(p.annotation for p in s.signature.parameters.values())
             for s in cls._signals_.values()
