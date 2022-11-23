@@ -8,7 +8,7 @@ the args that were emitted.
 
 """
 from __future__ import annotations
-from mypy_extensions import mypyc_attr
+
 from contextlib import contextmanager
 from typing import (
     TYPE_CHECKING,
@@ -21,6 +21,7 @@ from typing import (
     NamedTuple,
 )
 
+from mypy_extensions import mypyc_attr
 from psygnal._signal import Signal, SignalInstance
 
 if TYPE_CHECKING:
@@ -87,6 +88,9 @@ class SignalGroup(SignalInstance):
 
     _signals_: ClassVar[Mapping[str, Signal]]
     _uniform: ClassVar[bool] = False
+
+    def __len__(self) -> int:
+        return len(self._slots)
 
     def __init_subclass__(cls, strict: bool = False) -> None:
         """Finds all Signal instances on the class and add them to `cls._signals_`."""
@@ -251,28 +255,3 @@ class SignalGroup(SignalInstance):
         nsignals = len(self.signals)
         signals = f"{nsignals} signals" if nsignals > 1 else ""
         return f"<SignalGroup{name} with {signals}{instance}>"
-
-
-_doc = SignalGroup.connect.__doc__.split("Parameters")[-1]  # type: ignore
-
-
-SignalGroup.connect.__doc__ = (
-    """
-        Connect `slot` to be called whenever *any* Signal in this group is emitted.
-
-        Note that unlike a slot/callback connected to `SignalInstance.connect`, a slot
-        connected to `SignalGroup.connect` does *not* receive the direct arguments that
-        were emitted by a given `SignalInstance` in the group. Instead, the
-        slot/callback will receive an `EmissionInfo` named tuple, which contains
-        `.signal`: the SignalInstance doing the emitting, `.args`: the args that were
-        emitted.
-
-        This method may be used as a decorator.
-
-            @group.connect
-            def my_function(): ...
-
-        Parameters
-""".strip()
-    + _doc
-)

@@ -126,7 +126,6 @@ def test_decorator():
     with pytest.raises(EmitLoopError) as e:
         emitter.one_int.emit(1)
     assert e.value.slot is boom
-    assert e.value.__cause__ is err
 
 
 def test_misc():
@@ -257,7 +256,6 @@ def test_basic_signal_with_sender_receiver():
     ref, name, *_ = e.value.slot
     assert ref() == receiver
     assert name == "assert_not_sender"
-    assert isinstance(e.value.__cause__, AssertionError)
 
 
 def test_basic_signal_with_sender_nonreceiver():
@@ -287,15 +285,6 @@ def test_signal_instance():
     signal.connect(mock)
     signal.emit()
     mock.assert_called_once_with()
-
-
-def test_signal_instance_error():
-    """without a class"""
-    signal = Signal()
-    mock = MagicMock()
-    with pytest.raises(AttributeError) as e:
-        signal.connect(mock)
-    assert "Signal() class attribute" in str(e)
 
 
 @pytest.mark.parametrize(
