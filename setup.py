@@ -2,7 +2,7 @@ import os
 import sys
 from distutils.command import build_ext
 
-import setuptools
+from setuptools import setup
 
 if os.name == "nt":
 
@@ -65,7 +65,15 @@ if (
             compiler_directives=compiler_directives,
         )
 
-setuptools.setup(
+setup(
     ext_modules=ext_modules,
     package_dir={"": "src"},  # needed for CI
+    # these two are defined in pyproject.toml
+    # but added here for the sake of github:
+    # See: https://github.com/github/feedback/discussions/6456
+    name="psygnal",
+    install_requires=[
+        "typing-extensions",
+        "importlib_metadata ; python_version < '3.8'",
+    ],
 )
