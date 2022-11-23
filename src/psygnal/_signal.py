@@ -26,6 +26,15 @@ from typing_extensions import get_args, get_origin
 if TYPE_CHECKING:
     from typing import Literal, Tuple
 
+    from typing_extensions import Protocol, TypeGuard
+
+    class PartialMethod(Protocol):
+        """Bound method wrapped in partial: `partial(MyClass().some_method, y=1)`."""
+
+        func: MethodType
+        args: tuple
+        keywords: dict[str, Any]
+
     MethodRef = Tuple[weakref.ReferenceType[object], str, Callable | None]
     NormedCallback = Union[MethodRef, Callable]
     StoredSlot = Tuple[NormedCallback, int | None]
@@ -761,7 +770,7 @@ class SignalInstance:
             idx = self._slot_index(slot)
             if idx != -1:
                 self._slots.pop(idx)
-                if isinstance(slot, PartialMethod):
+                if _is_partial_method(slot):
                     _PARTIAL_CACHE.pop(id(slot), None)
                 elif isinstance(slot, tuple) and callable(slot[2]):
                     _prune_partial_cache()
@@ -1083,17 +1092,9 @@ class EmitThread(threading.Thread):
 # #############################################################################
 
 
-class PartialMethodMeta(type):
-    def __instancecheck__(cls, inst: object) -> bool:
-        return isinstance(inst, partial) and isinstance(inst.func, MethodType)
-
-
-class PartialMethod(metaclass=PartialMethodMeta):
-    """Bound method wrapped in partial: `partial(MyClass().some_method, y=1)`."""
-
-    func: MethodType
-    args: tuple
-    keywords: dict[str, Any]
+def _is_partial_method(obj: object) -> TypeGuard[PartialMethod]:
+    """Return `True` of `obj` is a `functools.partial` wrapping a bound method."""
+    return isinstance(obj, partial) and isinstance(obj.func, MethodType)
 
 
 def signature(obj: Any) -> inspect.Signature:
@@ -1133,7 +1134,7 @@ def _build_signature(*types: Type[Any]) -> Signature:
 def _normalize_slot(slot: Callable | NormedCallback) -> NormedCallback:
     if isinstance(slot, MethodType):
         return _get_method_name(slot) + (None,)
-    if isinstance(slot, PartialMethod):
+    if _is_partial_method(slot):
         return _partial_weakref(slot)
     if isinstance(slot, tuple) and not isinstance(slot[0], weakref.ref):
         return (weakref.ref(slot[0]), slot[1], slot[2])
