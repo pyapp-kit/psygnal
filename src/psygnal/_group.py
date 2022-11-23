@@ -45,33 +45,7 @@ class EmissionInfo(tuple):
         return f"EmissionInfo(signal={self.signal}, args={self.args})"
 
 
-class _SignalGroupMeta(type):
-    _signals_: dict[str, Signal]
-    _uniform: bool = False
-
-    def __new__(
-        mcls: type,
-        name: str,
-        bases: tuple,
-        namespace: dict,
-        strict: bool = False,
-        **kwargs: Any,
-    ) -> _SignalGroupMeta:
-        cls: _SignalGroupMeta = type.__new__(mcls, name, bases, namespace)
-        cls._signals_ = {k: v for k, v in namespace.items() if isinstance(v, Signal)}
-        _sigs = {
-            tuple(p.annotation for p in s.signature.parameters.values())
-            for s in cls._signals_.values()
-        }
-        cls._uniform = len(_sigs) == 1
-        if strict and not cls._uniform:
-            raise TypeError(
-                "All Signals in a strict SignalGroup must have the same signature"
-            )
-        return cls
-
-
-class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
+class SignalGroup(SignalInstance):
     """`SignalGroup` that enables connecting to all `SignalInstances`.
 
     Parameters
@@ -113,6 +87,23 @@ class SignalGroup(SignalInstance, metaclass=_SignalGroupMeta):
     """
 
     __slots__ = ("_instance", "_name", "_is_blocked", "_is_paused", "_sig_was_blocked")
+    _signals_: dict[str, Signal]
+    _uniform: bool = False
+
+    def __init_subclass__(cls, strict: bool = False) -> None:
+        """Finds all Signal instances on the class and add them to `cls._signals_`."""
+        cls._signals_ = {k: v for k, v in vars(cls).items() if isinstance(v, Signal)}
+        _sigs = {
+            tuple(p.annotation for p in s.signature.parameters.values())
+            for s in cls._signals_.values()
+        }
+        cls._uniform = len(_sigs) == 1
+        if strict and not cls._uniform:
+            raise TypeError(
+                "All Signals in a strict SignalGroup must have the same signature"
+            )
+
+        return super().__init_subclass__()
 
     def __init__(self, instance: Any = None, name: str | None = None) -> None:
         super().__init__(
