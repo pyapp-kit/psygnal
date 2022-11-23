@@ -43,4 +43,5 @@ repos:
       - id: mypy
         exclude: tests
         additional_dependencies:
-          - "types-attrs"
+          - types-attrs
+          - pydantic
