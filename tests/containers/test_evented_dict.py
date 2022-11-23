@@ -1,7 +1,6 @@
 from unittest.mock import Mock
 
 import pytest
-
 from psygnal.containers._evented_dict import EventedDict
 
 

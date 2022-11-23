@@ -1,7 +1,6 @@
 from unittest.mock import Mock, call
 
 import pytest
-
 from psygnal.containers import EventedOrderedSet, EventedSet, OrderedSet
 
 

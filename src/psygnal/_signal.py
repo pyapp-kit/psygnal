@@ -154,13 +154,11 @@ class Signal:
         return self.__getattribute__(name)
 
     @overload
-    def __get__(self, instance: None, owner: Type[Any] | None = None) -> Signal:  # noqa
+    def __get__(self, instance: None, owner: Type[Any] | None = None) -> Signal:
         ...  # pragma: no cover
 
     @overload
-    def __get__(  # noqa
-        self, instance: Any, owner: Type[Any] | None = None
-    ) -> SignalInstance:
+    def __get__(self, instance: Any, owner: Type[Any] | None = None) -> SignalInstance:
         ...  # pragma: no cover
 
     def __get__(
@@ -797,7 +795,7 @@ class SignalInstance:
         # will return `None` if emitter is blocked
         ...  # pragma: no cover
 
-    def emit(
+    def emit(  # noqa: D417
         self,
         *args: Any,
         check_nargs: bool = False,
@@ -806,8 +804,9 @@ class SignalInstance:
     ) -> EmitThread | None:
         """Emit this signal with arguments `args`.
 
-        NOTE:
-        `check_args` and `check_types` both add overhead when calling emit.
+        !!! note
+
+            `check_args` and `check_types` both add overhead when calling emit.
 
         Parameters
         ----------

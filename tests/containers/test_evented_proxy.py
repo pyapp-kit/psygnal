@@ -1,7 +1,6 @@
 from unittest.mock import Mock, call
 
 import numpy as np
-
 from psygnal import SignalGroup
 from psygnal.containers import (
     EventedCallableObjectProxy,
@@ -65,23 +64,23 @@ def test_evented_proxy_ref():
     assert not _evented_proxy._OBJ_CACHE
 
 
-def test_in_place_proxies():
+def test_in_place_proxies():  # noqa: C901
     # fmt: off
     class T:
         x = 0
-        def __iadd__(self, other): return self  # noqa
-        def __isub__(self, other): return self  # noqa
-        def __imul__(self, other): return self  # noqa
-        def __imatmul__(self, other): return self  # noqa
-        def __itruediv__(self, other): return self  # noqa
-        def __ifloordiv__(self, other): return self  # noqa
-        def __imod__(self, other): return self  # noqa
-        def __ipow__(self, other): return self  # noqa
-        def __ilshift__(self, other): return self  # noqa
-        def __irshift__(self, other): return self  # noqa
-        def __iand__(self, other): return self  # noqa
-        def __ixor__(self, other): return self  # noqa
-        def __ior__(self, other): return self  # noqa
+        def __iadd__(self, other): return self
+        def __isub__(self, other): return self
+        def __imul__(self, other): return self
+        def __imatmul__(self, other): return self
+        def __itruediv__(self, other): return self
+        def __ifloordiv__(self, other): return self
+        def __imod__(self, other): return self
+        def __ipow__(self, other): return self
+        def __ilshift__(self, other): return self
+        def __irshift__(self, other): return self
+        def __iand__(self, other): return self
+        def __ixor__(self, other): return self
+        def __ior__(self, other): return self
     # fmt: on
 
     t = EventedObjectProxy(T())

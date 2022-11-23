@@ -2,7 +2,6 @@ import sys
 import time
 
 import pytest
-
 from psygnal import Signal
 
 pytest.importorskip("pytest_benchmark")
