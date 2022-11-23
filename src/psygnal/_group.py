@@ -8,7 +8,7 @@ the args that were emitted.
 
 """
 from __future__ import annotations
-
+from mypy_extensions import mypyc_attr
 from contextlib import contextmanager
 from typing import (
     TYPE_CHECKING,
@@ -43,6 +43,7 @@ class EmissionInfo(NamedTuple):
     args: tuple[Any, ...]
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class SignalGroup(SignalInstance):
     """`SignalGroup` that enables connecting to all `SignalInstances`.
 

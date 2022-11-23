@@ -1053,7 +1053,21 @@ class SignalInstance:
 
     def __getstate__(self) -> dict:
         """Return dict of current state, for pickle."""
-        d = {slot: getattr(self, slot) for slot in self.__slots__}
+        __slots__ = (
+            "_signature",
+            "_instance",
+            "_name",
+            "_slots",
+            "_is_blocked",
+            "_is_paused",
+            "_args_queue",
+            "_lock",
+            "_check_nargs_on_connect",
+            "_check_types_on_connect",
+            "__weakref__",
+        )
+
+        d = {slot: getattr(self, slot) for slot in __slots__}
         d.pop("_lock", None)
         return d
 
@@ -1330,12 +1344,5 @@ def _ridiculously_call_emit(emitter: Any) -> str | None:
     return None  # pragma: no cover
 
 
-try:
-    import cython
-except ImportError:  # pragma: no cover
-    _compiled: bool = False
-else:  # pragma: no cover
-    try:
-        _compiled = cython.compiled
-    except AttributeError:
-        _compiled = False
+_compiled: bool = True
+
