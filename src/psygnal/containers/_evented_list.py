@@ -354,7 +354,7 @@ class EventedList(MutableSequence[_T]):
             else:
                 raise TypeError(
                     "Can only move integer or slice indices"
-                )  # pragma: no cover # noqa
+                )  # pragma: no cover
 
         to_move = list(dict.fromkeys(to_move))
 

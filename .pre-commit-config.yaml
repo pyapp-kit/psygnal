@@ -1,7 +1,7 @@
 ci:
   autoupdate_schedule: monthly
-  autofix_commit_msg: "style: [pre-commit.ci] auto fixes [...]"
-  autoupdate_commit_msg: "ci: [pre-commit.ci] autoupdate"
+  autofix_commit_msg: "style(pre-commit.ci): auto fixes [...]"
+  autoupdate_commit_msg: "ci(pre-commit.ci): autoupdate"
 
 default_install_hook_types: [pre-commit, commit-msg]
 
@@ -21,48 +21,27 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
 
-  - repo: https://github.com/asottile/setup-cfg-fmt
-    rev: v2.2.0
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.0.134
     hooks:
-      - id: setup-cfg-fmt
-
-  - repo: https://github.com/PyCQA/autoflake
-    rev: v1.7.7
-    hooks:
-      - id: autoflake
-        args: ["--in-place", "--remove-all-unused-imports"]
-
-  - repo: https://github.com/PyCQA/isort
-    rev: 5.10.1
-    hooks:
-      - id: isort
-
-  - repo: https://github.com/asottile/pyupgrade
-    rev: v3.2.0
-    hooks:
-      - id: pyupgrade
-        args: [--py37-plus, --keep-runtime-typing]
+      - id: ruff
+        args: [--fix]
 
   - repo: https://github.com/psf/black
     rev: 22.10.0
     hooks:
       - id: black
 
-  - repo: https://github.com/PyCQA/flake8
-    rev: 5.0.4
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.10.1
     hooks:
-      - id: flake8
-        additional_dependencies:
-          - flake8-typing-imports
-          - flake8-type-checking
-          - git+https://github.com/tlambert03/flake8-pyprojecttoml.git@main
-          - flake8-docstrings
-          - flake8-bugbear
+      - id: validate-pyproject
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v0.982
+    rev: v0.991
     hooks:
       - id: mypy
         exclude: tests
         additional_dependencies:
-          - "types-attrs"
+          - types-attrs
+          - pydantic

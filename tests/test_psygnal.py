@@ -10,7 +10,6 @@ from typing import Optional
 from unittest.mock import MagicMock, Mock, call
 
 import pytest
-
 from psygnal import EmitLoopError, Signal, SignalInstance
 from psygnal._signal import _get_method_name, _normalize_slot, _partial_weakref
 

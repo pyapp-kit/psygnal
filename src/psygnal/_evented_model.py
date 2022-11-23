@@ -76,12 +76,12 @@ def no_class_attributes() -> Iterator[None]:  # pragma: no cover
     def _return2(x: str, y: inspect.Signature) -> inspect.Signature:
         return y
 
-    setattr(pydantic.main, "ClassAttribute", _return2)
+    pydantic.main.ClassAttribute = _return2  # type: ignore [attr-defined]
     try:
         yield
     finally:
         # undo our monkey patch
-        setattr(pydantic.main, "ClassAttribute", utils.ClassAttribute)
+        pydantic.main.ClassAttribute = utils.ClassAttribute  # type: ignore
 
 
 class EventedMetaclass(pydantic.main.ModelMetaclass):
@@ -99,7 +99,7 @@ class EventedMetaclass(pydantic.main.ModelMetaclass):
     """
 
     @no_type_check
-    def __new__(
+    def __new__(  # noqa: C901
         mcs: type, name: str, bases: tuple, namespace: dict, **kwargs: Any
     ) -> EventedMetaclass:
         """Create new EventedModel class."""
@@ -153,7 +153,7 @@ class EventedMetaclass(pydantic.main.ModelMetaclass):
         return cls
 
 
-def _get_field_dependents(cls: EventedModel) -> Dict[str, Set[str]]:
+def _get_field_dependents(cls: EventedModel) -> Dict[str, Set[str]]:  # noqa: C901
     """Return mapping of field name -> dependent set of property names.
 
     Dependencies may be declared in the Model Config to emit an event
@@ -301,7 +301,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
     # pydantic BaseModel configuration.  see:
     # https://pydantic-docs.helpmanual.io/usage/model_config/
 
-    class Config:  # noqa
+    class Config:
         # this seems to be necessary for the _json_encoders trick to work
         json_encoders = {"____": None}
 

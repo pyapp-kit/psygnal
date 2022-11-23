@@ -1,7 +1,6 @@
 from unittest.mock import Mock, call
 
 import pytest
-
 from psygnal import EmissionInfo, Signal, SignalGroup
 
 

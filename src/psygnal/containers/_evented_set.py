@@ -4,9 +4,8 @@ from enum import Enum
 from itertools import chain
 from typing import Any, Dict, Iterable, Iterator, MutableSet, Set, Tuple, TypeVar, Union
 
-from typing_extensions import Final, Literal
-
 from psygnal import Signal, SignalGroup
+from typing_extensions import Final, Literal
 
 _T = TypeVar("_T")
 _Cls = TypeVar("_Cls", bound="_BaseMutableSet")

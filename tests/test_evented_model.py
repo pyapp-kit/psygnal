@@ -5,10 +5,9 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
+from psygnal import EventedModel, SignalGroup
 from pydantic import PrivateAttr
 from typing_extensions import Protocol, runtime_checkable
-
-from psygnal import EventedModel, SignalGroup
 
 
 def test_creating_empty_evented_model():
