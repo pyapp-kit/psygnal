@@ -181,12 +181,11 @@ skip = ["tests"]
 [tool.check-manifest]
 ignore = [
     ".cruft.json",
-    ".flake8",
+    ".ruff_cache/**/*",
     ".github_changelog_generator",
     ".pre-commit-config.yaml",
     "tests/**/*",
     "typesafety/*",
-    "tox.ini",
     ".devcontainer/*",
     ".readthedocs.yaml",
     "Makefile",
