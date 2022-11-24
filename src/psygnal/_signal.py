@@ -12,9 +12,9 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    ClassVar,
     Iterator,
     NoReturn,
-    ClassVar,
     Type,
     Union,
     cast,
@@ -22,6 +22,7 @@ from typing import (
     overload,
 )
 
+from mypy_extensions import mypyc_attr
 from typing_extensions import Protocol, get_args, get_origin
 
 if TYPE_CHECKING:
@@ -225,6 +226,7 @@ class Signal:
 _empty_signature = Signature()
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class SignalInstance:
     """A signal instance (optionally) bound to an object.
 
