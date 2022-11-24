@@ -13,9 +13,6 @@
     "python -m pip install build",
     "python -m build --wheel -o {build_cache_dir} {build_dir}"
   ],
-  "matrix": {
-    "pip+cython": ["3.0.0a11", null]
-  },
   "env_dir": "/tmp/.asv/env",
   "results_dir": ".asv/results",
   "html_dir": ".asv/html"
