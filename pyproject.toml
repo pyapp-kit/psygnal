@@ -6,6 +6,8 @@ requires = [
     "setuptools-scm>=6.2",
     "mypy_extensions",
     "mypy",
+    "pydantic",
+    "types-attrs",
 ]
 build-backend = "setuptools.build_meta"
 
