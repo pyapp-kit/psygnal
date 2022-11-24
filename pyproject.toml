@@ -3,8 +3,9 @@
 requires = [
     "setuptools>=45",
     "wheel",
-    "Cython==3.0.0a11",
     "setuptools-scm>=6.2",
+    "mypy_extensions",
+    "mypy",
 ]
 build-backend = "setuptools.build_meta"
 

@@ -5,7 +5,7 @@ setup(
     ext_modules=mypycify(
         [
             "src/psygnal/_signal.py",
-            "src/psygnal/_group.py",
+            # "src/psygnal/_group.py",
         ]
     ),
     package_dir={"": "src"},  # needed for CI
