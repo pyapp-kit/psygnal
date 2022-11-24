@@ -64,7 +64,7 @@ def test_evented_proxy_ref():
     assert not _evented_proxy._OBJ_CACHE
 
 
-def test_in_place_proxies():  # noqa: C901
+def test_in_place_proxies():
     # fmt: off
     class T:
         x = 0
