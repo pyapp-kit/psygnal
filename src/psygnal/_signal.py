@@ -12,6 +12,9 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    ClassVar,
+    ContextManager,
+    Iterable,
     Iterator,
     NoReturn,
     Type,
@@ -21,19 +24,13 @@ from typing import (
     overload,
 )
 
-from typing_extensions import get_args, get_origin
+from mypy_extensions import mypyc_attr
+from typing_extensions import Protocol, get_args, get_origin
 
 if TYPE_CHECKING:
     from typing import Literal, Tuple
 
-    from typing_extensions import Protocol, TypeGuard
-
-    class PartialMethod(Protocol):
-        """Bound method wrapped in partial: `partial(MyClass().some_method, y=1)`."""
-
-        func: MethodType
-        args: tuple
-        keywords: dict[str, Any]
+    from typing_extensions import TypeGuard
 
     MethodRef = Tuple[weakref.ReferenceType[object], str, Callable | None]
     NormedCallback = Union[MethodRef, Callable]
@@ -44,10 +41,11 @@ __all__ = ["Signal", "SignalInstance", "_compiled"]
 _NULL = object()
 
 
-class EmitLoopError(RuntimeError):
+class EmitLoopError(Exception):
     def __init__(self, slot: NormedCallback, args: tuple, exc: BaseException) -> None:
         self.slot = slot
         self.args = args
+        self.__cause__ = exc
         super().__init__(
             f"calling {slot} with args={args!r} caused "
             f"{type(exc).__name__} in emit loop."
@@ -104,18 +102,9 @@ class Signal:
         `.connect(..., check_types=True)`. By default, False.
     """
 
-    __slots__ = (
-        "_name",
-        "_signature",
-        "description",
-        "_check_nargs_on_connect",
-        "_check_types_on_connect",
-    )
+    # _signature: Signature  # callback signature for this signal
 
-    if TYPE_CHECKING:  # pragma: no cover
-        _signature: Signature  # callback signature for this signal
-
-    _current_emitter: SignalInstance | None = None
+    _current_emitter: ClassVar[SignalInstance | None] = None
 
     def __init__(
         self,
@@ -150,17 +139,6 @@ class Signal:
         """Set name of signal when declared as a class attribute on `owner`."""
         if self._name is None:
             self._name = name
-
-    def __getattr__(self, name: str) -> Any:
-        """Get attribute. Provide useful error if trying to get `connect`."""
-        if name == "connect":
-            name = self.__class__.__name__
-            raise AttributeError(
-                f"{name!r} object has no attribute 'connect'. You can connect to the "
-                "signal on the *instance* of a class with a Signal() class attribute. "
-                "Or create a signal instance directly with SignalInstance."
-            )
-        return self.__getattribute__(name)
 
     @overload
     def __get__(self, instance: None, owner: Type[Any] | None = None) -> Signal:
@@ -251,6 +229,7 @@ class Signal:
 _empty_signature = Signature()
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class SignalInstance:
     """A signal instance (optionally) bound to an object.
 
@@ -303,20 +282,6 @@ class SignalInstance:
         If `signature` is neither an instance of `inspect.Signature`, or a `tuple`
         of types.
     """
-
-    __slots__ = (
-        "_signature",
-        "_instance",
-        "_name",
-        "_slots",
-        "_is_blocked",
-        "_is_paused",
-        "_args_queue",
-        "_lock",
-        "_check_nargs_on_connect",
-        "_check_types_on_connect",
-        "__weakref__",
-    )
 
     def __init__(
         self,
@@ -852,7 +817,7 @@ class SignalInstance:
                 ) from e
 
         if check_types and not _parameter_types_match(
-            lambda: None, self.signature, _build_signature(*(type(a) for a in args))
+            lambda: None, self.signature, _build_signature(*[type(a) for a in args])
         ):
             raise TypeError(
                 f"Types provided to '{self.name}.emit' "
@@ -951,8 +916,7 @@ class SignalInstance:
         """Unblock this signal, allowing it to emit."""
         self._is_blocked = False
 
-    @contextmanager
-    def blocked(self) -> Iterator[None]:
+    def blocked(self) -> ContextManager[None]:
         """Context manager to temporarily block this signal.
 
         Useful if you need to temporarily block all emission of a given signal,
@@ -973,11 +937,7 @@ class SignalInstance:
             obj.make_a_change()  # will NOT emit a changed signal.
         ```
         """
-        self.block()
-        try:
-            yield
-        finally:
-            self.unblock()
+        return _SignalBlocker(self)
 
     def pause(self) -> None:
         """Pause all emission and collect *args tuples from emit().
@@ -1067,9 +1027,43 @@ class SignalInstance:
 
     def __getstate__(self) -> dict:
         """Return dict of current state, for pickle."""
-        d = {slot: getattr(self, slot) for slot in self.__slots__}
+        __slots__ = (
+            "_signature",
+            "_instance",
+            "_name",
+            "_slots",
+            "_is_blocked",
+            "_is_paused",
+            "_args_queue",
+            "_lock",
+            "_check_nargs_on_connect",
+            "_check_types_on_connect",
+            "__weakref__",
+        )
+
+        d = {slot: getattr(self, slot) for slot in __slots__}
         d.pop("_lock", None)
         return d
+
+
+class _SignalBlocker:
+    def __init__(
+        self, signal: SignalInstance, exclude: Iterable[str | SignalInstance] = ()
+    ) -> None:
+        self._signal = signal
+        self._exclude = exclude
+
+    def __enter__(self) -> None:
+        from ._group import SignalGroup
+
+        if isinstance(self._signal, SignalGroup):
+            self._signal.block(exclude=self._exclude)
+        else:
+            self._signal.block()
+        return None
+
+    def __exit__(self, *args: Any) -> None:
+        self._signal.unblock()
 
 
 class EmitThread(threading.Thread):
@@ -1089,6 +1083,12 @@ class EmitThread(threading.Thread):
 
 # #############################################################################
 # #############################################################################
+class PartialMethod(Protocol):
+    """Bound method wrapped in partial: `partial(MyClass().some_method, y=1)`."""
+
+    func: MethodType
+    args: tuple
+    keywords: dict[str, Any]
 
 
 def _is_partial_method(obj: object) -> TypeGuard[PartialMethod]:
@@ -1106,9 +1106,23 @@ def signature(obj: Any) -> inspect.Signature:
         raise e from e
 
 
+_ANYSIG = Signature(
+    [
+        Parameter(name="args", kind=Parameter.VAR_POSITIONAL),
+        Parameter(name="kwargs", kind=Parameter.VAR_KEYWORD),
+    ]
+)
+
+
 @lru_cache(maxsize=None)
 def _stub_sig(obj: Any) -> Signature:
     import builtins
+
+    if (
+        type(getattr(obj, "__self__", None)) is SignalInstance
+        and getattr(obj, "__name__", None) == "emit"
+    ) or type(obj) is SignalInstance:
+        return _ANYSIG
 
     if obj is builtins.print:
         params = [
@@ -1231,7 +1245,7 @@ def _parameter_types_match(
     """
     fsig = func_sig or signature(function)
 
-    func_hints = None
+    func_hints: dict | None = None
     for f_param, spec_param in zip(fsig.parameters.values(), spec.parameters.values()):
         f_anno = f_param.annotation
         if f_anno is fsig.empty:
@@ -1344,12 +1358,10 @@ def _ridiculously_call_emit(emitter: Any) -> str | None:
     return None  # pragma: no cover
 
 
-try:
-    import cython
-except ImportError:  # pragma: no cover
-    _compiled: bool = False
-else:  # pragma: no cover
-    try:
-        _compiled = cython.compiled
-    except AttributeError:
-        _compiled = False
+_compiled: bool
+
+
+def __getattr__(name: str) -> Any:
+    if name == "_compiled":
+        return hasattr(Signal, "__mypyc_attrs__")
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

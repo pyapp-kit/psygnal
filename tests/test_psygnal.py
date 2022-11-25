@@ -289,15 +289,6 @@ def test_signal_instance():
     mock.assert_called_once_with()
 
 
-def test_signal_instance_error():
-    """without a class"""
-    signal = Signal()
-    mock = MagicMock()
-    with pytest.raises(AttributeError) as e:
-        signal.connect(mock)
-    assert "Signal() class attribute" in str(e)
-
-
 @pytest.mark.parametrize(
     "slot",
     [
