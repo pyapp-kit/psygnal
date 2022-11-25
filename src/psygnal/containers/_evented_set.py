@@ -1,22 +1,20 @@
 from __future__ import annotations
 
-from enum import Enum
 from itertools import chain
 from typing import Any, Dict, Iterable, Iterator, MutableSet, Set, Tuple, TypeVar, Union
 
 from psygnal import Signal, SignalGroup
-from typing_extensions import Final, Literal
+from typing_extensions import Final
 
 _T = TypeVar("_T")
 _Cls = TypeVar("_Cls", bound="_BaseMutableSet")
 
 
-class _BAIL(Enum):
-    BAIL = 0
+class BailType:
+    pass
 
 
-BAIL: Final = _BAIL.BAIL
-BailType = Literal[_BAIL.BAIL]  # note: this is a problem for mypyc
+BAIL: Final = BailType()
 
 
 class _BaseMutableSet(MutableSet[_T]):
@@ -32,7 +30,7 @@ class _BaseMutableSet(MutableSet[_T]):
         This has no effect if the element is already present.
         """
         _item = self._pre_add_hook(item)
-        if _item is not BAIL:
+        if not isinstance(_item, BailType):
             self._do_add(_item)
             self._post_add_hook(_item)
 
@@ -47,7 +45,7 @@ class _BaseMutableSet(MutableSet[_T]):
         If the element is not a member, do nothing.
         """
         _item = self._pre_discard_hook(item)
-        if _item is not BAIL:
+        if not isinstance(_item, BailType):
             self._do_discard(_item)
             self._post_discard_hook(_item)
 
