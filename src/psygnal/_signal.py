@@ -1143,7 +1143,9 @@ class _FunctionCaller(_SlotCaller):
         self._max_args = max_args
 
     def __call__(self, *args: Any) -> bool:
-        self._slot(*args[: self._max_args])
+        if self._max_args is not None:
+            args = args[: self._max_args]
+        self._slot(*args)
         return False
 
     def __eq__(self, other: object) -> bool:
@@ -1166,7 +1168,8 @@ class _SetattrCaller(_SlotCaller):
         obj = self._ref()
         if obj is None:
             return True
-        args = args[: self._max_args]
+        if self._max_args is not None:
+            args = args[: self._max_args]
         setattr(obj, self._attr, args[0] if len(args) == 1 else args)
         return False
 
@@ -1190,7 +1193,8 @@ class _SetitemCaller(_SlotCaller):
         obj = self._ref()
         if obj is None:
             return True
-        args = args[: self._max_args]
+        if self._max_args is not None:
+            args = args[: self._max_args]
         obj[self._key] = args[0] if len(args) == 1 else args
         return False
 
@@ -1214,7 +1218,9 @@ class _BoundMethodCaller(_SlotCaller):
         method = getattr(obj, self._method_name, None)
         if method is None:
             return True  # object has changed?
-        method(*args[: self._max_args])
+        if self._max_args is not None:
+            args = args[: self._max_args]
+        method(*args)
         return False
 
     def __eq__(self, other: object) -> bool:
