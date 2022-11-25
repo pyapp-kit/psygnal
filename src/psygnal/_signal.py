@@ -28,13 +28,13 @@ from mypy_extensions import mypyc_attr
 from typing_extensions import Protocol, get_args, get_origin
 
 if TYPE_CHECKING:
-    from typing import Literal, Tuple
+    from typing import Optional, Tuple
 
-    from typing_extensions import TypeGuard
+    from typing_extensions import Literal, TypeGuard
 
-    MethodRef = Tuple[weakref.ReferenceType[object], str, Callable | None]
+    MethodRef = Tuple[weakref.ReferenceType[object], str, Optional[Callable]]
     NormedCallback = Union[MethodRef, Callable]
-    StoredSlot = Tuple[NormedCallback, int | None]
+    StoredSlot = Tuple[NormedCallback, Optional[int]]
     ReducerFunc = Callable[[tuple, tuple], tuple]
 
 __all__ = ["Signal", "SignalInstance", "_compiled"]
