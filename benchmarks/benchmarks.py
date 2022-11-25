@@ -16,22 +16,14 @@ class E:
     changed = Signal(int)
 
 
-def brief_thing():
-    # simulate a brief thing
-    object()
-    object()
-    object()
-    object()
-
-
 class R:
     x: int = 0
 
     def method(self, x: int):
-        brief_thing()
+        list(range(2))  # simulate a brief thing
 
     def method2(self, x: int, y: int):
-        brief_thing()
+        list(range(2))  # simulate a brief thing
 
     @property
     def attr(self) -> int:
@@ -47,7 +39,7 @@ class R:
 
 
 def callback(x: int) -> None:
-    brief_thing()
+    list(range(2))  # simulate a brief thing
 
 
 class ConnectSuite:
@@ -81,7 +73,7 @@ class ConnectSuite:
 
 
 class EmitSuite:
-    params = [1, 10, 100]
+    params = [1, 10, 80]
 
     def setup(self, n: int) -> None:
         self.receiver = R()
