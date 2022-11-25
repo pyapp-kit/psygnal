@@ -32,7 +32,7 @@ class R:
         return
 
 
-def callback(x: int):
+def callback(x: int) -> None:
     pass
 
 
@@ -69,10 +69,10 @@ class ConnectSuite:
 class EmitSuite:
     params = [1, 10, 100]
 
-    def setup(self, n):
+    def setup(self, n: int) -> None:
         self.receiver = R()
 
-        self.emitter1 = E()
+        self.emitter1: E = E()
         for _ in range(n):
             self.emitter1.changed.connect(callback, unique=False)
 
@@ -91,14 +91,14 @@ class EmitSuite:
             self.emitter4.changed.connect(callback, unique=False)
             self.emitter4.changed.connect(self.receiver.method, unique=False)
 
-    def time_emit_to_function(self, n):
+    def time_emit_to_function(self, n: int) -> None:
         self.emitter1.changed.emit(1)
 
-    def time_emit_to_method(self, n):
+    def time_emit_to_method(self, n: int) -> None:
         self.emitter2.changed.emit(1)
 
-    def time_emit_to_attr(self, n):
+    def time_emit_to_attr(self, n: int) -> None:
         self.emitter3.changed.emit(1)
 
-    def time_emit_to_all(self, n):
+    def time_emit_to_all(self, n: int) -> None:
         self.emitter4.changed.emit(1)
