@@ -1,8 +1,32 @@
 """psygnal is a pure-python implementation of Qt-style signals & slots."""
-try:
-    from importlib.metadata import PackageNotFoundError, version
-except ImportError:
-    from importlib_metadata import PackageNotFoundError, version  # type: ignore
+import os
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    PackageNotFoundError = Exception
+
+    def version(package: str) -> str:
+        ...
+
+    from types import ModuleType
+
+    from . import _group, _signal
+    from ._evented_model import EventedModel
+
+    Signal = _signal.Signal
+    SignalInstance = _signal.SignalInstance
+    EmitLoopError = _signal.EmitLoopError
+    _compiled = _signal._compiled
+    SignalGroup = _group.SignalGroup
+    EmissionInfo = _group.EmissionInfo
+
+else:
+    # hiding this import from type checkers so mypyc can work on both 3.7 and later
+    try:
+        from importlib.metadata import PackageNotFoundError, version
+    except ImportError:
+        from importlib_metadata import PackageNotFoundError, version
+
 
 try:
     __version__ = version("psygnal")
@@ -25,23 +49,8 @@ __all__ = [
     "SignalInstance",
     "throttled",
 ]
-import os
-from typing import TYPE_CHECKING, Any
 
 from ._evented_decorator import evented
-
-if TYPE_CHECKING:
-    from types import ModuleType
-
-    from . import _group, _signal
-    from ._evented_model import EventedModel
-
-    Signal = _signal.Signal
-    SignalInstance = _signal.SignalInstance
-    EmitLoopError = _signal.EmitLoopError
-    _compiled = _signal._compiled
-    SignalGroup = _group.SignalGroup
-    EmissionInfo = _group.EmissionInfo
 
 
 if os.getenv("PSYGNAL_UNCOMPILED"):
