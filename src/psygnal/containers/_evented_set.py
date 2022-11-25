@@ -16,7 +16,7 @@ class _BAIL(Enum):
 
 
 BAIL: Final = _BAIL.BAIL
-BailType = Literal[_BAIL.BAIL]
+BailType = Literal[_BAIL.BAIL]  # note: this is a problem for mypyc
 
 
 class _BaseMutableSet(MutableSet[_T]):

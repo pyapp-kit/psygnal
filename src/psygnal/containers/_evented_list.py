@@ -155,14 +155,16 @@ class EventedList(MutableSequence[_T]):
         if value is old:
             return
 
+        # sourcery skip: hoist-similar-statement-from-if, hoist-statement-from-if
         if isinstance(key, slice):
             if not isinstance(value, Iterable):
                 raise TypeError("Can only assign an iterable to slice")
             value = [self._pre_insert(v) for v in value]  # before we mutate the list
+            self._data[key] = value
         else:
             value = self._pre_insert(cast("_T", value))
+            self._data[key] = value
 
-        self._data[key] = value  # type: ignore
         self.events.changed.emit(key, old, value)
 
     def __delitem__(self, key: Index) -> None:
