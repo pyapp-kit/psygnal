@@ -16,24 +16,38 @@ class E:
     changed = Signal(int)
 
 
+def brief_thing():
+    # simulate a brief thing
+    object()
+    object()
+    object()
+    object()
+
+
 class R:
+    x: int = 0
+
     def method(self, x: int):
-        ...
+        brief_thing()
 
     def method2(self, x: int, y: int):
-        ...
+        brief_thing()
 
     @property
-    def attr(self):
-        return
+    def attr(self) -> int:
+        return self.x
 
     @attr.setter
-    def attr(self, value):
-        return
+    def attr(self, value: int) -> None:
+        self.x = value
+
+    def __setitem__(self, name: str, value: int) -> None:
+        if name == "x":
+            self.x = value
 
 
 def callback(x: int) -> None:
-    pass
+    brief_thing()
 
 
 class ConnectSuite:
@@ -91,6 +105,17 @@ class EmitSuite:
             self.emitter4.changed.connect(callback, unique=False)
             self.emitter4.changed.connect(self.receiver.method, unique=False)
 
+        self.emitter5 = E()
+        if hasattr(self.emitter5.changed, "connect_setitem"):
+            for _ in range(n):
+                self.emitter5.changed.connect_setitem(self.receiver, "x")
+
+        self.emitter6 = E()
+        for _ in range(n):
+            self.emitter6.changed.connect(
+                partial(self.receiver.method2, y=1), unique=False
+            )
+
     def time_emit_to_function(self, n: int) -> None:
         self.emitter1.changed.emit(1)
 
@@ -102,3 +127,9 @@ class EmitSuite:
 
     def time_emit_to_all(self, n: int) -> None:
         self.emitter4.changed.emit(1)
+
+    def time_emit_to_item(self, n: int) -> None:
+        self.emitter5.changed.emit(1)
+
+    def time_emit_to_partial(self, n: int) -> None:
+        self.emitter6.changed.emit(1)
