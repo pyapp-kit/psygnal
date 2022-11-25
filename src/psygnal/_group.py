@@ -10,7 +10,6 @@ the args that were emitted.
 from __future__ import annotations
 
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
@@ -23,8 +22,6 @@ from typing import (
 from mypy_extensions import mypyc_attr
 from psygnal._signal import Signal, SignalInstance, _SignalBlocker
 
-if TYPE_CHECKING:
-    from psygnal._signal import NormedCallback
 
 __all__ = ["EmissionInfo", "SignalGroup"]
 
@@ -221,9 +218,7 @@ class SignalGroup(SignalInstance):
         """
         return _SignalBlocker(self, exclude=exclude)
 
-    def disconnect(
-        self, slot: NormedCallback | None = None, missing_ok: bool = True
-    ) -> None:
+    def disconnect(self, slot: Callable | None = None, missing_ok: bool = True) -> None:
         """Disconnect slot from all signals.
 
         Parameters
