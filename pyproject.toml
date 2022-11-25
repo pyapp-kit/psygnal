@@ -1,12 +1,7 @@
 # https://peps.python.org/pep-0517/
 [build-system]
-requires = [
-    "setuptools>=45",
-    "wheel",
-    "Cython==3.0.0a11",
-    "setuptools-scm>=6.2",
-]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling>=1.8.0", "hatch-vcs"]
+build-backend = "hatchling.build"
 
 # https://peps.python.org/pep-0621/
 [project]
@@ -38,7 +33,6 @@ dependencies = [
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 [project.optional-dependencies]
-build = ["Cython==3.0.0a11;sys_platform != 'win32'"]
 dev = [
     "black",
     "cruft",
@@ -90,19 +84,18 @@ documentation = "https://psygnal.readthedocs.io"
 # [project.entry-points."spam.magical"]
 # tomatoes = "spam:main_tomatoes"
 
-# https://setuptools.pypa.io/en/latest/userguide/pyproject_config.html
-[tool.setuptools]
-include-package-data = true
-package-data = { "psygnal" = ["py.typed"] }
-package-dir = { "" = "src" }
-packages = { find = { where = ["src"], exclude = ["tests", "benchmarks"] } }
-zip-safe = false
+[tool.hatch.version]
+source = "vcs"
 
-[tool.setuptools.exclude-package-data]
-"*" = ["*.c"]
+[tool.hatch.build.targets.wheel]
+only-include = ["src"]
+sources = ["src"]
 
-# https://github.com/pypa/setuptools_scm/#pyprojecttoml-usage
-[tool.setuptools_scm]
+[tool.hatch.build.targets.wheel.hooks.mypyc]
+# enable-by-default = false
+dependencies = ["hatch-mypyc>=0.13.0", "mypy>=0.991"]
+include = ["src/psygnal/_signal.py", "src/psygnal/_group.py"]
+
 
 # https://github.com/charliermarsh/ruff
 [tool.ruff]
@@ -210,7 +203,8 @@ build_command = "pip install build && python -m build"
 
 [tool.cibuildwheel]
 # Skip 32-bit builds & PyPy wheels on all platforms
-skip = ["*-win32", "pp*"]
+build = "cp3*-*"
+skip = ["*-manylinux_i686", "*-win32", "pp-*"]
 test-extras = ["test"]
 test-command = "pytest {project}/tests -v"
 test-skip = "*-musllinux* *-manylinux_i686"
