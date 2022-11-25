@@ -1145,10 +1145,7 @@ class _FunctionCaller(_SlotCaller):
     def __call__(self, args: tuple) -> bool:
         if self._max_args is not None:
             args = args[: self._max_args]
-        if args:
-            self._slot(*args)
-        else:
-            self._slot()
+        self._slot(*args)
         return False
 
     def __eq__(self, other: object) -> bool:
