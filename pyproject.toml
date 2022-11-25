@@ -93,7 +93,7 @@ sources = ["src"]
 
 [tool.hatch.build.targets.wheel.hooks.mypyc]
 # enable-by-default = false
-dependencies = ["hatch-mypyc>=0.13.0", "mypy>=0.991"]
+dependencies = ["hatch-mypyc>=0.13.0", "mypy>=0.991", "pydantic", "types-attrs"]
 include = ["src/psygnal/_signal.py", "src/psygnal/_group.py"]
 
 
