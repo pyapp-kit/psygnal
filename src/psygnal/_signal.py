@@ -1117,7 +1117,7 @@ def _build_signature(*types: Type[Any]) -> Signature:
 
 
 class _SlotCaller:
-    def __call__(self, args: tuple) -> bool:
+    def __call__(self, args: Tuple[object, ...]) -> bool:
         raise NotImplementedError()
 
     def __eq__(self, other: object) -> bool:
@@ -1142,7 +1142,7 @@ class _FunctionCaller(_SlotCaller):
         self._slot = slot
         self._max_args = max_args
 
-    def __call__(self, args: tuple) -> bool:
+    def __call__(self, args: Tuple[object, ...]) -> bool:
         if self._max_args is not None:
             args = args[: self._max_args]
         self._slot(*args)
@@ -1164,7 +1164,7 @@ class _SetattrCaller(_SlotCaller):
         self._attr = attr
         self._max_args = max_args
 
-    def __call__(self, args: tuple) -> bool:
+    def __call__(self, args: Tuple[object, ...]) -> bool:
         obj = self._ref()
         if obj is None:
             return True
@@ -1189,7 +1189,7 @@ class _SetitemCaller(_SlotCaller):
         self._key = key
         self._max_args = max_args
 
-    def __call__(self, args: tuple) -> bool:
+    def __call__(self, args: Tuple[object, ...]) -> bool:
         obj = self._ref()
         if obj is None:
             return True
@@ -1211,7 +1211,7 @@ class _BoundMethodCaller(_SlotCaller):
         self._ref, self._method_name = _get_method_name(slot)
         self._max_args = max_args
 
-    def __call__(self, args: tuple) -> bool:
+    def __call__(self, args: Tuple[object, ...]) -> bool:
         obj = self._ref()
         if obj is None:
             return True
@@ -1245,7 +1245,7 @@ class _PartialMethodCaller(_SlotCaller):
         self._partial_args = slot.args
         self._partial_kwargs = slot.keywords
 
-    def __call__(self, args: tuple) -> bool:
+    def __call__(self, args: Tuple[object, ...]) -> bool:
         obj = self._ref()
         if obj is None:
             return True
