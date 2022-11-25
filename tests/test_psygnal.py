@@ -10,7 +10,7 @@ from typing import Optional
 from unittest.mock import MagicMock, Mock, call
 
 import pytest
-from psygnal import EmitLoopError, Signal, SignalInstance
+from psygnal import EmitLoopError, Signal, SignalInstance, _compiled
 from psygnal._signal import _get_method_name, _normalize_slot, _partial_weakref
 
 
@@ -529,6 +529,7 @@ def test_unique_connections():
     assert len(e.one_int._slots) == 2
 
 
+@pytest.mark.skipif(_compiled, reason="passes, but segfaults on exit")
 def test_asynchronous_emit():
     e = Emitter()
     a = []
