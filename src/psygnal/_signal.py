@@ -42,12 +42,12 @@ _NULL = object()
 
 
 class EmitLoopError(Exception):
-    def __init__(self, slot: SlotCaller, args: tuple, exc: BaseException) -> None:
-        self.slot = getattr(slot, "slot", None)
+    def __init__(self, caller: _SlotCaller, args: tuple, exc: BaseException) -> None:
+        self.slot = getattr(caller, "slot", None)
         self.args = args
         self.__cause__ = exc
         super().__init__(
-            f"calling {slot} with args={args!r} caused "
+            f"calling {self.slot} with args={args!r} caused "
             f"{type(exc).__name__} in emit loop."
         )
 
@@ -307,7 +307,7 @@ class SignalInstance:
         self._signature = signature
         self._check_nargs_on_connect = check_nargs_on_connect
         self._check_types_on_connect = check_types_on_connect
-        self._slots: list[SlotCaller] = []
+        self._slots: list[_SlotCaller] = []
         self._is_blocked: bool = False
         self._is_paused: bool = False
         self._lock = threading.RLock()
@@ -864,16 +864,16 @@ class SignalInstance:
         )
 
     def _run_emit_loop(self, args: tuple[Any, ...]) -> None:
-        rem: list[SlotCaller] = []
+        rem: list[_SlotCaller] = []
         # allow receiver to query sender with Signal.current_emitter()
         with self._lock:
             with Signal._emitting(self):
-                for slot in self._slots:
+                for caller in self._slots:
                     try:
-                        if slot(*args):
-                            rem.append(slot)
+                        if caller(*args):
+                            rem.append(caller)
                     except Exception as e:
-                        raise EmitLoopError(slot=slot, args=args, exc=e) from e
+                        raise EmitLoopError(caller=caller, args=args, exc=e) from e
 
             for slot in rem:
                 self.disconnect(slot)
@@ -1116,19 +1116,17 @@ def _build_signature(*types: Type[Any]) -> Signature:
     return Signature(params)
 
 
-# def _normalize_slot(slot: Callable | NormedCallback) -> NormedCallback:
-#     if isinstance(slot, MethodType):
-#         return _get_method_name(slot) + (None,)
-#     if _is_partial_method(slot):
-#         return _partial_weakref(slot)
-#     if isinstance(slot, tuple) and not isinstance(slot[0], weakref.ref):
-#         return (weakref.ref(slot[0]), slot[1], slot[2])
-#     return slot
+class _SlotCaller:
+    def __call__(self, *args: Any) -> bool:
+        raise NotImplementedError()
 
-SlotCaller = Callable[..., bool]
+    def __eq__(self, other: object) -> bool:
+        raise NotImplementedError()
 
 
-def _slot_caller(slot: Callable, max_args: Optional[int] = None) -> SlotCaller:
+def _slot_caller(slot: Callable, max_args: Optional[int] = None) -> _SlotCaller:
+    if isinstance(slot, _SlotCaller):
+        return slot
     if isinstance(slot, MethodType):
         return _BoundMethodCaller(slot, max_args)
     if _is_partial_method(slot):
@@ -1136,21 +1134,10 @@ def _slot_caller(slot: Callable, max_args: Optional[int] = None) -> SlotCaller:
         if _id not in _PARTIAL_CACHE:
             _PARTIAL_CACHE[_id] = _PartialMethodCaller(slot, max_args)
         return _PARTIAL_CACHE[_id]
-    if isinstance(
-        slot,
-        (
-            _FunctionCaller,
-            _PartialMethodCaller,
-            _BoundMethodCaller,
-            _SetattrCaller,
-            _SetitemCaller,
-        ),
-    ):
-        return slot
     return _FunctionCaller(slot, max_args)
 
 
-class _FunctionCaller:
+class _FunctionCaller(_SlotCaller):
     def __init__(self, slot: Callable, max_args: Optional[int] = None) -> None:
         self._slot = slot
         self._max_args = max_args
@@ -1167,7 +1154,7 @@ class _FunctionCaller:
         return self._slot
 
 
-class _SetattrCaller:
+class _SetattrCaller(_SlotCaller):
     def __init__(
         self, ref: weakref.ReferenceType, attr: str, max_args: Optional[int] = None
     ) -> None:
@@ -1179,8 +1166,8 @@ class _SetattrCaller:
         obj = self._ref()
         if obj is None:
             return True
-        _args = args[: self._max_args]
-        setattr(obj, self._attr, args[0] if len(_args) == 1 else _args)
+        args = args[: self._max_args]
+        setattr(obj, self._attr, args[0] if len(args) == 1 else args)
         return False
 
     def __eq__(self, other: object) -> bool:
@@ -1191,7 +1178,7 @@ class _SetattrCaller:
         )
 
 
-class _SetitemCaller:
+class _SetitemCaller(_SlotCaller):
     def __init__(
         self, ref: weakref.ReferenceType, key: Any, max_args: Optional[int] = None
     ) -> None:
@@ -1203,8 +1190,8 @@ class _SetitemCaller:
         obj = self._ref()
         if obj is None:
             return True
-        _args = args[: self._max_args]
-        obj[self._key] = args[0] if len(_args) == 1 else _args
+        args = args[: self._max_args]
+        obj[self._key] = args[0] if len(args) == 1 else args
         return False
 
     def __eq__(self, other: object) -> bool:
@@ -1215,7 +1202,7 @@ class _SetitemCaller:
         )
 
 
-class _BoundMethodCaller:
+class _BoundMethodCaller(_SlotCaller):
     def __init__(self, slot: MethodType, max_args: Optional[int] = None) -> None:
         self._ref, self._method_name = _get_method_name(slot)
         self._max_args = max_args
@@ -1245,7 +1232,7 @@ class _BoundMethodCaller:
         return cast(MethodType, getattr(obj, self._method_name))
 
 
-class _PartialMethodCaller:
+class _PartialMethodCaller(_SlotCaller):
     def __init__(self, slot: PartialMethod, max_args: Optional[int] = None) -> None:
         self._ref, self._method_name = _get_method_name(slot.func)
         self._max_args = max_args
@@ -1256,8 +1243,10 @@ class _PartialMethodCaller:
         obj = self._ref()
         if obj is None:
             return True
+        if self._max_args is not None:
+            args = args[: self._max_args]
         method = getattr(obj, self._method_name)
-        method(*self._partial_args, *args[: self._max_args], **self._partial_kwargs)
+        method(*self._partial_args, *args, **self._partial_kwargs)
         return False
 
     def __eq__(self, other: object) -> bool:
