@@ -870,7 +870,7 @@ class SignalInstance:
             with Signal._emitting(self):
                 for caller in self._slots:
                     try:
-                        if caller.call(*args):
+                        if caller(args):
                             rem.append(caller)
                     except Exception as e:
                         raise EmitLoopError(caller=caller, args=args, exc=e) from e
@@ -1117,14 +1117,11 @@ def _build_signature(*types: Type[Any]) -> Signature:
 
 
 class _SlotCaller:
-    def call(self, *args: Any) -> bool:
+    def __call__(self, args: tuple) -> bool:
         raise NotImplementedError()
 
     def __eq__(self, other: object) -> bool:
         raise NotImplementedError()
-
-    def __call__(self) -> None:
-        return
 
 
 def _slot_caller(slot: Callable, max_args: Optional[int] = None) -> _SlotCaller:
@@ -1145,7 +1142,7 @@ class _FunctionCaller(_SlotCaller):
         self._slot = slot
         self._max_args = max_args
 
-    def call(self, *args: Any) -> bool:
+    def __call__(self, args: tuple) -> bool:
         if self._max_args is not None:
             args = args[: self._max_args]
         self._slot(*args)
@@ -1167,7 +1164,7 @@ class _SetattrCaller(_SlotCaller):
         self._attr = attr
         self._max_args = max_args
 
-    def call(self, *args: Any) -> bool:
+    def __call__(self, args: tuple) -> bool:
         obj = self._ref()
         if obj is None:
             return True
@@ -1192,7 +1189,7 @@ class _SetitemCaller(_SlotCaller):
         self._key = key
         self._max_args = max_args
 
-    def call(self, *args: Any) -> bool:
+    def __call__(self, args: tuple) -> bool:
         obj = self._ref()
         if obj is None:
             return True
@@ -1214,7 +1211,7 @@ class _BoundMethodCaller(_SlotCaller):
         self._ref, self._method_name = _get_method_name(slot)
         self._max_args = max_args
 
-    def call(self, *args: Any) -> bool:
+    def __call__(self, args: tuple) -> bool:
         obj = self._ref()
         if obj is None:
             return True
@@ -1248,7 +1245,7 @@ class _PartialMethodCaller(_SlotCaller):
         self._partial_args = slot.args
         self._partial_kwargs = slot.keywords
 
-    def call(self, *args: Any) -> bool:
+    def __call__(self, args: tuple) -> bool:
         obj = self._ref()
         if obj is None:
             return True
