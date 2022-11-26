@@ -73,7 +73,7 @@ class ConnectSuite:
 
 
 class EmitSuite:
-    params = [1, 10, 80]
+    params = [1, 10, 70]
 
     def setup(self, n: int) -> None:
         self.receiver = R()
