@@ -27,7 +27,7 @@ clean:
 # run benchmarks for all commits since v0.1.0
 benchmark-all:
 	pip install asv
-	asv run -j 4 --show-stderr --interleave-processes --skip-existing v0.1.0..HEAD
+	asv run -j 8 --show-stderr --interleave-processes --skip-existing v0.2.0..HEAD
 
 # compare HEAD against main
 benchmark-compare:
