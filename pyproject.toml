@@ -197,4 +197,5 @@ ignore = [
     "src/**/*.c",
     "codecov.yml",
     "CHANGELOG.md",
+    "setup.py",
 ]
