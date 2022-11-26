@@ -63,7 +63,6 @@ docs = [
 proxy = ["wrapt"]
 pydantic = ["pydantic"]
 test = [
-    "Cython==3.0.0a11",
     "dask",
     "numpy",
     "pydantic",
@@ -163,7 +162,7 @@ show_error_codes = true
 pretty = true
 
 [[tool.mypy.overrides]]
-module = ["numpy.*", "cython", "wrapt", "pydantic.*"]
+module = ["numpy.*", "wrapt", "pydantic.*"]
 ignore_errors = true
 
 [[tool.mypy.overrides]]

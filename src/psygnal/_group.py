@@ -26,7 +26,6 @@ from psygnal._signal import Signal, SignalInstance, _SignalBlocker
 __all__ = ["EmissionInfo", "SignalGroup"]
 
 
-# this is a variant of a NamedTuple that works with Cython<3.0a7
 class EmissionInfo(NamedTuple):
     """Tuple containing information about an emission event.
 
