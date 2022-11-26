@@ -97,9 +97,8 @@ dependencies = ["hatch-mypyc>=0.13.0", "mypy>=0.991", "pydantic", "types-attrs"]
 include = ["src/psygnal/_signal.py", "src/psygnal/_group.py"]
 
 [tool.cibuildwheel]
-build = "cp3*-*"
 # Skip 32-bit builds & PyPy wheels on all platforms
-skip = ["*_i686", "*-win32", "pp*"]
+skip = ["*-manylinux_i686", "*-musllinux_i686", "*-win32", "pp*"]
 test-extras = ["test"]
 test-command = "pytest {project}/tests -v"
 test-skip = "*-musllinux*"
