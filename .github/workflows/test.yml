@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    tags:
-      - "v*"
   pull_request: {}
   workflow_dispatch:
 
@@ -33,9 +31,9 @@ jobs:
         exclude:
           - platform: windows-latest
             python-version: "3.11"
-          - include:
-              - platform: ubuntu-latest
-                compile: true
+        include:
+          - platform: ubuntu-latest
+            compile: true
 
     steps:
       - name: Cancel Previous Runs
@@ -142,55 +140,3 @@ jobs:
         uses: GabrielBB/xvfb-action@v1
         with:
           run: python -m pytest magicgui/tests -v --color=yes
-
-  build:
-    name: Build wheels on ${{ matrix.os }}
-    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-20.04, windows-2019, macos-10.15]
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - uses: actions/setup-python@v4
-        name: Install Python
-        with:
-          python-version: "3.9"
-
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.11.2
-
-      - uses: actions/upload-artifact@v3
-        with:
-          path: ./wheelhouse/*.whl
-
-      - name: Build sdist
-        if: matrix.os == 'ubuntu-20.04'
-        run: pip install build && python -m build --sdist
-
-      - uses: actions/upload-artifact@v3
-        if: matrix.os == 'ubuntu-20.04'
-        with:
-          path: dist/*.tar.gz
-
-  upload_pypi:
-    needs: [build]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
-    steps:
-      - uses: actions/download-artifact@v3
-        with:
-          name: artifact
-          path: dist
-
-      - uses: pypa/gh-action-pypi-publish@v1.5.1
-        with:
-          user: __token__
-          password: ${{ secrets.pypi_token }}
-
-      - uses: softprops/action-gh-release@v1
-        with:
-          generate_release_notes: true
