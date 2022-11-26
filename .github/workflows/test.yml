@@ -64,7 +64,7 @@ jobs:
           HATCH_BUILD_HOOKS_ENABLE=1 python -m pip install -e .
           python -c "import sys, psygnal; sys.exit(0 if psygnal._compiled else 1)"
 
-      - name: test uncompiled
+      - name: test compiled
         if: matrix.compile
         uses: GabrielBB/xvfb-action@v1
         with:
