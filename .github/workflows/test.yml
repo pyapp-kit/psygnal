@@ -56,7 +56,10 @@ jobs:
 
       - uses: tlambert03/setup-qt-libs@v1.4
         if: matrix.backend != ''
-      - run: python -m pip install ${{ matrix.backend }}
+      - name: Install ${{ matrix.backend }}
+        run: |
+          python -m pip install -e .[testqt]
+          python -m pip install ${{ matrix.backend }}
         if: matrix.backend != ''
 
       - name: install
