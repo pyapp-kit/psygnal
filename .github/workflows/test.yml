@@ -19,7 +19,7 @@ jobs:
       - run: pip install check-manifest && check-manifest
 
   test-linux:
-    name: test py${{ matrix.python-version }} on ${{ matrix.platform }}
+    name: py${{ matrix.python-version }} on ${{ matrix.platform }}
     runs-on: ${{ matrix.platform }}
 
     strategy:
@@ -33,7 +33,16 @@ jobs:
         include:
           - platform: ubuntu-latest
             python-version: "3.10"
-            backend: ["PyQt5", "PySide2", "PyQt6", "PySide6"]
+            backend: "PyQt5"
+          - platform: ubuntu-latest
+            python-version: "3.10"
+            backend: "PyQt6"
+          - platform: ubuntu-latest
+            python-version: "3.10"
+            backend: "PySide2"
+          - platform: ubuntu-latest
+            python-version: "3.10"
+            backend: "PySide6"
 
     steps:
       - name: Cancel Previous Runs
