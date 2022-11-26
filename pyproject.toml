@@ -97,6 +97,18 @@ require-runtime-dependencies = true
 dependencies = ["hatch-mypyc>=0.13.0", "mypy>=0.991", "pydantic", "types-attrs"]
 include = ["src/psygnal/_signal.py", "src/psygnal/_group.py"]
 
+[tool.cibuildwheel]
+# Skip 32-bit builds & PyPy wheels on all platforms
+skip = ["*-manylinux_i686", "*-win32", "pp-*"]
+test-extras = ["test"]
+test-command = "pytest {project}/tests -v"
+test-skip = "*-musllinux*"
+
+[tool.cibuildwheel.environment]
+HATCH_BUILD_HOOKS_ENABLE = "1"
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "arm64"]
 
 # https://github.com/charliermarsh/ruff
 [tool.ruff]
@@ -192,20 +204,3 @@ ignore = [
     "codecov.yml",
     "CHANGELOG.md",
 ]
-
-[tool.cibuildwheel]
-# Skip 32-bit builds & PyPy wheels on all platforms
-build = "cp3*-*"
-skip = ["*-manylinux_i686", "*-win32", "pp-*"]
-test-extras = ["test"]
-test-command = "pytest {project}/tests -v"
-test-skip = "*-musllinux*"
-
-[tool.cibuildwheel.environment]
-HATCH_BUILD_HOOKS_ENABLE = "1"
-
-[tool.cibuildwheel.linux.environment]
-HATCH_BUILD_HOOKS_ENABLE = "1"
-
-[tool.cibuildwheel.macos]
-archs = ["x86_64", "arm64"]

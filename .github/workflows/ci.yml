@@ -33,6 +33,9 @@ jobs:
         exclude:
           - platform: windows-latest
             python-version: "3.11"
+          - include:
+              - platform: ubuntu-latest
+                compile: true
 
     steps:
       - name: Cancel Previous Runs
@@ -41,8 +44,6 @@ jobs:
           access_token: ${{ github.token }}
 
       - uses: actions/checkout@v3
-      - uses: tlambert03/setup-qt-libs@v1
-
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
@@ -51,39 +52,65 @@ jobs:
       - name: install
         run: |
           python -m pip install -U pip
-          pip install -e .[test,testqt]
-          python -c "import sys, psygnal; print('compiled:', psygnal._compiled); sys.exit(0 if psygnal._compiled else 1)"
-
-      - name: test
-        uses: GabrielBB/xvfb-action@v1
-        with:
-          run: pytest --color=yes --cov=psygnal --cov-report=xml --cov-report=term-missing
-
-      - name: remove compiled binaries
-        run: |
-          python -c "from pathlib import Path; [x.unlink() for x in Path('src/psygnal').rglob('*') if x.is_file() and not x.name.endswith('.py')]"
+          python -m pip install -e .[test]
           python -c "import sys, psygnal; print('compiled:', psygnal._compiled); sys.exit(1 if psygnal._compiled else 0)"
 
       - name: test uncompiled
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: pytest --color=yes --cov=psygnal --cov-report=xml --cov-append
+          run: pytest --color=yes --cov-report=xml
+
+      - name: compile and retest
+        if: matrix.compile
+        run: |
+          HATCH_BUILD_HOOKS_ENABLE=1 python -m pip install -e .
+          python -c "import sys, psygnal; print('compiled:', psygnal._compiled); sys.exit(1 if psygnal._compiled else 0)"
+
+      - name: test uncompiled
+        if: matrix.compile
+        uses: GabrielBB/xvfb-action@v1
+        with:
+          run: pytest --color=yes --cov-report=xml --cov-append
+
+      - uses: codecov/codecov-action@v3
+        with:
+          fail_ci_if_error: true
+          verbose: true
+
+  test-qt:
+    name: test qt compat
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: tlambert03/setup-qt-libs@v1.4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: install
+        run: |
+          python -m pip install -U pip
+          HATCH_BUILD_HOOKS_ENABLE=1 python -m pip install -e .[test,testqt]
+          python -c "import sys, psygnal; print('compiled:', psygnal._compiled); sys.exit(0 if psygnal._compiled else 1)"
+
+      - name: test PyQT5
+        if: matrix.compile
+        uses: GabrielBB/xvfb-action@v1
+        with:
+          run: pytest --color=yes --cov-report=xml tests/test_qt_compat.py
 
       - name: switch qt backend
         run: |
           pip uninstall PyQt5 PyQt5-qt5 PyQt5-sip -y
           pip install PySide2
 
-      - name: test uncompiled
+      - name: test PySide2
         uses: GabrielBB/xvfb-action@v1
         with:
-          run: pytest --color=yes --cov=psygnal --cov-report=xml --cov-append tests/test_qt_compat.py
+          run: pytest --color=yes --cov-report=xml --cov-append tests/test_qt_compat.py
 
-      - name: Coverage
-        uses: codecov/codecov-action@v3
-        with:
-          fail_ci_if_error: true
-          verbose: true
+      - uses: codecov/codecov-action@v3
 
 
   test-magicgui:
