@@ -4,6 +4,7 @@ import inspect
 import threading
 import warnings
 import weakref
+from abc import ABC, abstractmethod
 from contextlib import contextmanager, suppress
 from functools import lru_cache, partial, reduce
 from inspect import Parameter, Signature, isclass
@@ -32,9 +33,6 @@ if TYPE_CHECKING:
 
     from typing_extensions import Literal, TypeGuard
 
-    MethodRef = Tuple[weakref.ReferenceType[object], str, Optional[Callable]]
-    NormedCallback = Union[MethodRef, Callable]
-    StoredSlot = Tuple[NormedCallback, Optional[int]]
     ReducerFunc = Callable[[tuple, tuple], tuple]
 
 __all__ = ["Signal", "SignalInstance", "_compiled"]
@@ -42,10 +40,10 @@ _NULL = object()
 
 
 class EmitLoopError(Exception):
-    def __init__(self, caller: _SlotCaller, args: tuple, exc: BaseException) -> None:
-        self.slot = getattr(caller, "slot", None)
+    def __init__(self, slot: Callable, args: tuple, exc: BaseException) -> None:
+        self.slot = slot
         self.args = args
-        self.__cause__ = exc
+        self.__cause__ = exc  # mypyc doesn't set this, but uncompiled code would
         super().__init__(
             f"calling {self.slot} with args={args!r} caused "
             f"{type(exc).__name__} in emit loop."
@@ -307,7 +305,7 @@ class SignalInstance:
         self._signature = signature
         self._check_nargs_on_connect = check_nargs_on_connect
         self._check_types_on_connect = check_types_on_connect
-        self._slots: list[_SlotCaller] = []
+        self._slots: list[SlotCaller] = []
         self._is_blocked: bool = False
         self._is_paused: bool = False
         self._lock = threading.RLock()
@@ -444,7 +442,6 @@ class SignalInstance:
                         extra = f"- Slot types {slot_sig} do not match types in signal."
                         self._raise_connection_error(slot, extra)
 
-                # self._slots.append((_normalize_slot(slot), max_args))
                 self._slots.append(_slot_caller(slot, max_args))
             return slot
 
@@ -501,17 +498,8 @@ class SignalInstance:
         >>> t.sig.emit(5)
         >>> assert my_obj.x == 5
         """
-        try:
-            ref = obj if isinstance(obj, weakref.ref) else weakref.ref(obj)
-        except TypeError:  # pragma: no cover
-            import warnings
+        ref = _get_ref_or_warn(obj, meth="disconnect_setattr")
 
-            warnings.warn(
-                f"Could not create weakref to `{obj}`. Call `disconnect_setattr` "
-                "manually upon object deletion to avoid memory leaks.",
-                RuntimeWarning,
-            )
-            ref = lambda: obj  # type: ignore [assignment] # noqa: E731
         if not hasattr(ref(), attr):
             raise AttributeError(f"Object {ref()} has no attribute {attr!r}")
 
@@ -603,17 +591,7 @@ class SignalInstance:
         >>> t.sig.emit(5)
         >>> assert my_obj == {'x': 5}
         """
-        try:
-            ref = obj if isinstance(obj, weakref.ref) else weakref.ref(obj)
-        except TypeError:
-            import warnings
-
-            warnings.warn(
-                f"Could not create weakref to `{obj}`. Call `disconnect_setitem` "
-                "manually upon object deletion to avoid memory leaks.",
-                RuntimeWarning,
-            )
-            ref = lambda: obj  # type: ignore [assignment] # noqa: E731
+        ref = _get_ref_or_warn(obj, meth="disconnect_setitem")
 
         if not hasattr(ref(), "__setitem__"):
             raise TypeError(f"Object {ref()} does not support __setitem__")
@@ -864,16 +842,18 @@ class SignalInstance:
         )
 
     def _run_emit_loop(self, args: tuple[Any, ...]) -> None:
-        rem: list[_SlotCaller] = []
+        rem: list[SlotCaller] = []
         # allow receiver to query sender with Signal.current_emitter()
         with self._lock:
             with Signal._emitting(self):
                 for caller in self._slots:
                     try:
                         if caller(args):
+                            # if the slotcaller returns `True`, the object weakref is
+                            # dead and needs to be disconnected
                             rem.append(caller)
                     except Exception as e:
-                        raise EmitLoopError(caller=caller, args=args, exc=e) from e
+                        raise EmitLoopError(slot=caller.slot(), args=args, exc=e) from e
 
             for slot in rem:
                 self.disconnect(slot)
@@ -999,7 +979,7 @@ class SignalInstance:
 
     def __getstate__(self) -> dict:
         """Return dict of current state, for pickle."""
-        __slots__ = (
+        attrs = (
             "_signature",
             "_instance",
             "_name",
@@ -1013,12 +993,14 @@ class SignalInstance:
             "__weakref__",
         )
 
-        d = {slot: getattr(self, slot) for slot in __slots__}
+        d = {slot: getattr(self, slot) for slot in attrs}
         d.pop("_lock", None)
         return d
 
 
 class _SignalBlocker:
+    """Context manager to block and unblock a signal."""
+
     def __init__(
         self, signal: SignalInstance, exclude: Iterable[str | SignalInstance] = ()
     ) -> None:
@@ -1062,6 +1044,9 @@ class PartialMethod(Protocol):
     args: tuple
     keywords: dict[str, Any]
 
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        ...
+
 
 def _is_partial_method(obj: object) -> TypeGuard[PartialMethod]:
     """Return `True` of `obj` is a `functools.partial` wrapping a bound method."""
@@ -1088,14 +1073,18 @@ _ANYSIG = Signature(
 
 @lru_cache(maxsize=None)
 def _stub_sig(obj: Any) -> Signature:
+    """Called as a backup when inspect.signature fails."""
     import builtins
 
+    # this nonsense is here because it's hard to get the signature of mypyc-compiled
+    # objects, but we still want to be able to connect a signal instance.
     if (
         type(getattr(obj, "__self__", None)) is SignalInstance
         and getattr(obj, "__name__", None) == "emit"
     ) or type(obj) is SignalInstance:
         return _ANYSIG
 
+    # just a common case
     if obj is builtins.print:
         params = [
             Parameter(name="value", kind=Parameter.VAR_POSITIONAL),
@@ -1116,16 +1105,34 @@ def _build_signature(*types: Type[Any]) -> Signature:
     return Signature(params)
 
 
-class _SlotCaller:
+class SlotCaller(ABC):
+    """ABC for a "stored" slot.
+
+    A SlotCaller is responsible for actually calling a stored slot during the
+    `run_emit_loop`.  It is used to allow for different types of slots to be stored
+    in a `SignalInstance` (such as a function, a bound method, a partial to a bound
+    method), while still allowing them to be called in the same way.
+
+    The main reason is that some slot types need to derefence a weakref during
+    call time, while others don't.
+    """
+
+    @abstractmethod
     def __call__(self, args: Tuple[object, ...]) -> bool:
-        raise NotImplementedError()
+        """Call the slot, return True if the object ref is dead and needs cleaning."""
 
+    @abstractmethod
     def __eq__(self, other: object) -> bool:
-        raise NotImplementedError()
+        """Return True if `other` is equal to this SlotCaller."""
+
+    @abstractmethod
+    def slot(self) -> Callable:
+        """Reconstruct the original slot."""
 
 
-def _slot_caller(slot: Callable, max_args: Optional[int] = None) -> _SlotCaller:
-    if isinstance(slot, _SlotCaller):
+def _slot_caller(slot: Callable, max_args: Optional[int] = None) -> SlotCaller:
+    """Factory function to return a `SlotCaller` appropriate for the given slot."""
+    if isinstance(slot, SlotCaller):
         return slot
     if isinstance(slot, MethodType):
         return _BoundMethodCaller(slot, max_args)
@@ -1137,7 +1144,9 @@ def _slot_caller(slot: Callable, max_args: Optional[int] = None) -> _SlotCaller:
     return _FunctionCaller(slot, max_args)
 
 
-class _FunctionCaller(_SlotCaller):
+class _FunctionCaller(SlotCaller):
+    """Simple caller of a plain function."""
+
     def __init__(self, slot: Callable, max_args: Optional[int] = None) -> None:
         self._slot = slot
         self._max_args = max_args
@@ -1151,12 +1160,13 @@ class _FunctionCaller(_SlotCaller):
     def __eq__(self, other: object) -> bool:
         return isinstance(other, _FunctionCaller) and self._slot == other._slot
 
-    @property
     def slot(self) -> Callable:
         return self._slot
 
 
-class _SetattrCaller(_SlotCaller):
+class _SetattrCaller(SlotCaller):
+    """Caller to set an attribute on an object."""
+
     def __init__(
         self, ref: weakref.ReferenceType, attr: str, max_args: Optional[int] = None
     ) -> None:
@@ -1180,8 +1190,13 @@ class _SetattrCaller(_SlotCaller):
             and self._attr == other._attr
         )
 
+    def slot(self) -> Callable:
+        return partial(setattr, self._ref(), self._attr)
 
-class _SetitemCaller(_SlotCaller):
+
+class _SetitemCaller(SlotCaller):
+    """Caller to call __setitem__ on an object."""
+
     def __init__(
         self, ref: weakref.ReferenceType, key: Any, max_args: Optional[int] = None
     ) -> None:
@@ -1205,8 +1220,14 @@ class _SetitemCaller(_SlotCaller):
             and self._key == other._key
         )
 
+    def slot(self) -> Callable:
+        obj = self._ref()
+        return partial(obj.__setitem__, self._key)  # type: ignore
 
-class _BoundMethodCaller(_SlotCaller):
+
+class _BoundMethodCaller(SlotCaller):
+    """Caller of a (dereferenced) bound method."""
+
     def __init__(self, slot: MethodType, max_args: Optional[int] = None) -> None:
         self._ref, self._method_name = _get_method_name(slot)
         self._max_args = max_args
@@ -1230,7 +1251,6 @@ class _BoundMethodCaller(_SlotCaller):
             and self._method_name == other._method_name
         )
 
-    @property
     def slot(self) -> MethodType:
         obj = self._ref()
         if obj is None:
@@ -1238,7 +1258,9 @@ class _BoundMethodCaller(_SlotCaller):
         return cast(MethodType, getattr(obj, self._method_name))
 
 
-class _PartialMethodCaller(_SlotCaller):
+class _PartialMethodCaller(SlotCaller):
+    """Caller of a partial to a (dereferenced) bound method."""
+
     def __init__(self, slot: PartialMethod, max_args: Optional[int] = None) -> None:
         self._ref, self._method_name = _get_method_name(slot.func)
         self._max_args = max_args
@@ -1261,6 +1283,14 @@ class _PartialMethodCaller(_SlotCaller):
             and self._ref == other._ref
             and self._method_name == other._method_name
         )
+
+    def slot(self) -> PartialMethod:
+        obj = self._ref()
+        if obj is None:
+            raise RuntimeError("object has been deleted")
+        method = getattr(obj, self._method_name)
+        _partial = partial(method, *self._partial_args, **self._partial_kwargs)
+        return cast(PartialMethod, _partial)
 
 
 # def f(a, /, b, c=None, *d, f=None, **g): print(locals())
@@ -1446,6 +1476,20 @@ def _ridiculously_call_emit(emitter: Any) -> str | None:
         if "only accepts" in str(e):
             return str(e).split("only accepts")[0].strip()
     return None  # pragma: no cover
+
+
+def _get_ref_or_warn(obj: object, meth: str) -> weakref.ReferenceType:
+    try:
+        return obj if isinstance(obj, weakref.ref) else weakref.ref(obj)
+    except TypeError:  # pragma: no cover
+        import warnings
+
+        warnings.warn(
+            f"Could not create weakref to `{obj}`. Call `{meth}` "
+            "manually upon object deletion to avoid memory leaks.",
+            RuntimeWarning,
+        )
+        return lambda: obj  # type: ignore [return-value]
 
 
 _compiled: bool

@@ -125,6 +125,7 @@ def test_decorator():
         emitter.one_int.emit(1)
     assert e.value.slot is boom
     assert e.value.__cause__ is err
+    assert e.value.__context__ is err
 
 
 def test_misc():
@@ -253,6 +254,7 @@ def test_basic_signal_with_sender_receiver():
 
     assert e.value.slot == receiver.assert_not_sender
     assert isinstance(e.value.__cause__, AssertionError)
+    assert isinstance(e.value.__context__, AssertionError)
 
 
 def test_basic_signal_with_sender_nonreceiver():
