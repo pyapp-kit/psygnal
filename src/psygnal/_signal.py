@@ -4,7 +4,6 @@ import inspect
 import threading
 import warnings
 import weakref
-from abc import ABC, abstractmethod
 from contextlib import contextmanager, suppress
 from functools import lru_cache, partial, reduce
 from inspect import Parameter, Signature, isclass
@@ -1105,8 +1104,19 @@ def _build_signature(*types: Type[Any]) -> Signature:
     return Signature(params)
 
 
-class SlotCaller(ABC):
+class SlotCaller:
     """ABC for a "stored" slot.
+
+    !!! note
+
+        We're not using a real ABC here because PySide is doing some weird stuff
+        that causes mypyc to complain with:
+
+            src/psygnal/_signal.py:1108: in <module>
+                class SlotCaller(ABC):
+            E   TypeError: mypyc classes can't have a metaclass
+
+        ...but *only* when PySide2 is imported (not with PyQt5).
 
     A SlotCaller is responsible for actually calling a stored slot during the
     `run_emit_loop`.  It is used to allow for different types of slots to be stored
@@ -1117,17 +1127,17 @@ class SlotCaller(ABC):
     call time, while others don't.
     """
 
-    @abstractmethod
     def __call__(self, args: Tuple[object, ...]) -> bool:
         """Call the slot, return True if the object ref is dead and needs cleaning."""
+        raise NotImplementedError()
 
-    @abstractmethod
     def __eq__(self, other: object) -> bool:
         """Return True if `other` is equal to this SlotCaller."""
+        raise NotImplementedError()
 
-    @abstractmethod
     def slot(self) -> Callable:
         """Reconstruct the original slot."""
+        raise NotImplementedError()
 
 
 def _slot_caller(slot: Callable, max_args: Optional[int] = None) -> SlotCaller:

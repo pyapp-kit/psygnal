@@ -16,6 +16,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Set up latest Python
         uses: actions/setup-python@v4
@@ -60,6 +62,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Build wheels via cibuildwheel
         uses: pypa/cibuildwheel@v2.11.2
