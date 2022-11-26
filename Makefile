@@ -1,12 +1,7 @@
-.PHONY: build build-trace check clean benchmark-all benchmark-compare
+.PHONY: build check clean benchmark-all benchmark-compare
 
 build:
-	pip install -e .
-	rm -f `find src -type f -name '*.c' `
-
-build-trace:
-	python setup.py build_ext --force --inplace --define CYTHON_TRACE
-	rm -f `find src -type f -name '*.c' `
+	HATCH_BUILD_HOOKS_ENABLE=1 pip install -e .
 
 check:
 	pre-commit run --all-files

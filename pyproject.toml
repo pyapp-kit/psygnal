@@ -175,7 +175,11 @@ exclude_lines = [
     "if TYPE_CHECKING:",
     "@overload",
     "except ImportError",
+    "\\.\\.\\.",
+    "raise NotImplementedError()"
 ]
+[tool.coverage.run]
+source = ["src"]
 
 # https://github.com/mgedmin/check-manifest#configuration
 [tool.check-manifest]

@@ -4,12 +4,20 @@ import time
 from contextlib import suppress
 from functools import partial, wraps
 from inspect import Signature
-from typing import Optional
+from typing import Optional, Type
 from unittest.mock import MagicMock, Mock, call
 
 import pytest
 from psygnal import EmitLoopError, Signal, SignalInstance, _compiled
-from psygnal._signal import _BoundMethodCaller, _FunctionCaller, _get_method_name
+from psygnal._signal import (
+    SlotCaller,
+    _BoundMethodCaller,
+    _FunctionCaller,
+    _get_method_name,
+    _PartialMethodCaller,
+    _SetattrCaller,
+    _SetitemCaller,
+)
 
 
 def stupid_decorator(fun):
@@ -60,6 +68,10 @@ class MyObj:
     def f_int_decorated_good(self, a: int): ...
     f_any_assigned = lambda self, a: None  # noqa
 
+    x: int = 0
+    def __setitem__(self, key: str, value: int):
+        if key == "x":
+            self.x = value
 
 def f_no_arg(): ...
 def f_str_int_vararg(a: str, b: int, *c): ...
@@ -208,24 +220,41 @@ def test_disconnect():
     mock.assert_not_called()
 
 
-def test_slot_types():
+@pytest.mark.parametrize(
+    "type_", ["function", "lambda", "method", "partial_method", "setattr", "setitem"]
+)
+def test_slot_types(type_: str) -> None:
     emitter = Emitter()
-    assert len(emitter.one_int._slots) == 0
-    emitter.one_int.connect(lambda x: None)
-    assert len(emitter.one_int._slots) == 1
-
-    emitter.one_int.connect(f_int)
-    assert len(emitter.one_int._slots) == 2
-    # connecting same function twice is (currently) OK
-    emitter.one_int.connect(f_int)
-    assert len(emitter.one_int._slots) == 3
-    assert isinstance(emitter.one_int._slots[-1], _FunctionCaller)
-
-    # bound methods
+    signal = emitter.one_int
+    assert len(signal) == 0
     obj = MyObj()
-    emitter.one_int.connect(obj.f_int)
-    assert len(emitter.one_int._slots) == 4
-    assert isinstance(emitter.one_int._slots[-1], _BoundMethodCaller)
+    caller_type: Type[SlotCaller]
+
+    if type_ == "setattr":
+        signal.connect_setattr(obj, "x")
+        caller_type = _SetattrCaller
+    elif type_ == "setitem":
+        signal.connect_setitem(obj, "x")
+        caller_type = _SetitemCaller
+    elif type_ == "function":
+        signal.connect(f_int)
+        caller_type = _FunctionCaller
+    elif type_ == "lambda":
+        signal.connect(lambda x: None)
+        caller_type = _FunctionCaller
+    elif type_ == "method":
+        signal.connect(obj.f_int)
+        caller_type = _BoundMethodCaller
+    elif type_ == "partial_method":
+        signal.connect(partial(obj.f_int_int, 2))
+        caller_type = _PartialMethodCaller
+
+    assert len(signal) == 1
+
+    stored_slot = signal._slots[-1]
+    assert isinstance(stored_slot, caller_type)
+    assert callable(stored_slot.slot())
+    assert stored_slot == stored_slot
 
     with pytest.raises(TypeError):
         emitter.one_int.connect("not a callable")  # type: ignore
@@ -824,3 +853,14 @@ def test_weakref_disconnect(slot):
     emitter.one_int.disconnect(cb)
     assert len(emitter.one_int) == 0
     assert cb_id not in _PARTIAL_CACHE
+
+
+class T:
+    sig = Signal(
+        str,
+        int,
+        name="test",
+        check_nargs_on_connect=False,
+        check_types_on_connect=True,
+        description="test signal",
+    )

@@ -700,10 +700,9 @@ class SignalInstance:
             idx = self._slot_index(slot)
             if idx != -1:
                 self._slots.pop(idx)
-                if _is_partial_method(slot):
-                    _PARTIAL_CACHE.pop(id(slot), None)
-                elif isinstance(slot, tuple) and callable(slot[2]):
-                    _prune_partial_cache()
+                _PARTIAL_CACHE.pop(id(slot), None)
+                if isinstance(slot, _PartialMethodCaller):
+                    _PARTIAL_CACHE.pop(slot._slot_id, None)
             elif not missing_ok:
                 raise ValueError(f"slot is not connected: {slot}")
 
@@ -1081,7 +1080,9 @@ def _stub_sig(obj: Any) -> Signature:
         type(getattr(obj, "__self__", None)) is SignalInstance
         and getattr(obj, "__name__", None) == "emit"
     ) or type(obj) is SignalInstance:
-        return _ANYSIG
+        # we won't reach this in testing because
+        # Compiled functions don't trigger profiling and tracing hooks
+        return _ANYSIG  # pragma: no cover
 
     # just a common case
     if obj is builtins.print:
@@ -1264,7 +1265,7 @@ class _BoundMethodCaller(SlotCaller):
     def slot(self) -> MethodType:
         obj = self._ref()
         if obj is None:
-            raise RuntimeError("object has been deleted")
+            raise RuntimeError("object has been deleted")  # pragma: no cover
         return cast(MethodType, getattr(obj, self._method_name))
 
 
@@ -1276,6 +1277,7 @@ class _PartialMethodCaller(SlotCaller):
         self._max_args = max_args
         self._partial_args = slot.args
         self._partial_kwargs = slot.keywords
+        self._slot_id = id(slot)
 
     def __call__(self, args: Tuple[object, ...]) -> bool:
         obj = self._ref()
@@ -1297,7 +1299,7 @@ class _PartialMethodCaller(SlotCaller):
     def slot(self) -> PartialMethod:
         obj = self._ref()
         if obj is None:
-            raise RuntimeError("object has been deleted")
+            raise RuntimeError("object has been deleted")  # pragma: no cover
         method = getattr(obj, self._method_name)
         _partial = partial(method, *self._partial_args, **self._partial_kwargs)
         return cast(PartialMethod, _partial)
