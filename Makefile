@@ -1,12 +1,7 @@
-.PHONY: build build-trace check clean benchmark-all benchmark-compare
+.PHONY: build check clean benchmark-all benchmark-compare
 
 build:
-	pip install -e .
-	rm -f `find src -type f -name '*.c' `
-
-build-trace:
-	python setup.py build_ext --force --inplace --define CYTHON_TRACE
-	rm -f `find src -type f -name '*.c' `
+	HATCH_BUILD_HOOKS_ENABLE=1 pip install -e .
 
 check:
 	pre-commit run --all-files
@@ -27,13 +22,12 @@ clean:
 	rm -rf wheelhouse
 	rm -f `find src -type f -name '*.c' `
 	rm -f `find src -type f -name '*.so' `
-	python setup.py clean
 	rm -rf coverage.xml
 
 # run benchmarks for all commits since v0.1.0
 benchmark-all:
 	pip install asv
-	asv run -j 4 --show-stderr --interleave-processes --skip-existing v0.1.0..HEAD
+	asv run -j 8 --show-stderr --interleave-processes --skip-existing v0.2.0..HEAD
 
 # compare HEAD against main
 benchmark-compare:

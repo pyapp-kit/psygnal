@@ -76,7 +76,7 @@ def no_class_attributes() -> Iterator[None]:  # pragma: no cover
     def _return2(x: str, y: inspect.Signature) -> inspect.Signature:
         return y
 
-    pydantic.main.ClassAttribute = _return2  # type: ignore [attr-defined]
+    pydantic.main.ClassAttribute = _return2  # type: ignore
     try:
         yield
     finally:

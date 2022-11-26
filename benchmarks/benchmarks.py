@@ -17,23 +17,29 @@ class E:
 
 
 class R:
+    x: int = 0
+
     def method(self, x: int):
-        ...
+        list(range(2))  # simulate a brief thing
 
     def method2(self, x: int, y: int):
-        ...
+        list(range(2))  # simulate a brief thing
 
     @property
-    def attr(self):
-        return
+    def attr(self) -> int:
+        return self.x
 
     @attr.setter
-    def attr(self, value):
-        return
+    def attr(self, value: int) -> None:
+        self.x = value
+
+    def __setitem__(self, name: str, value: int) -> None:
+        if name == "x":
+            self.x = value
 
 
-def callback(x: int):
-    pass
+def callback(x: int) -> None:
+    list(range(2))  # simulate a brief thing
 
 
 class ConnectSuite:
@@ -67,12 +73,12 @@ class ConnectSuite:
 
 
 class EmitSuite:
-    params = [1, 10, 100]
+    params = [1, 10, 70]
 
-    def setup(self, n):
+    def setup(self, n: int) -> None:
         self.receiver = R()
 
-        self.emitter1 = E()
+        self.emitter1: E = E()
         for _ in range(n):
             self.emitter1.changed.connect(callback, unique=False)
 
@@ -91,14 +97,31 @@ class EmitSuite:
             self.emitter4.changed.connect(callback, unique=False)
             self.emitter4.changed.connect(self.receiver.method, unique=False)
 
-    def time_emit_to_function(self, n):
+        self.emitter5 = E()
+        if hasattr(self.emitter5.changed, "connect_setitem"):
+            for _ in range(n):
+                self.emitter5.changed.connect_setitem(self.receiver, "x")
+
+        self.emitter6 = E()
+        for _ in range(n):
+            self.emitter6.changed.connect(
+                partial(self.receiver.method2, y=1), unique=False
+            )
+
+    def time_emit_to_function(self, n: int) -> None:
         self.emitter1.changed.emit(1)
 
-    def time_emit_to_method(self, n):
+    def time_emit_to_method(self, n: int) -> None:
         self.emitter2.changed.emit(1)
 
-    def time_emit_to_attr(self, n):
+    def time_emit_to_attr(self, n: int) -> None:
         self.emitter3.changed.emit(1)
 
-    def time_emit_to_all(self, n):
+    def time_emit_to_all(self, n: int) -> None:
         self.emitter4.changed.emit(1)
+
+    def time_emit_to_item(self, n: int) -> None:
+        self.emitter5.changed.emit(1)
+
+    def time_emit_to_partial(self, n: int) -> None:
+        self.emitter6.changed.emit(1)

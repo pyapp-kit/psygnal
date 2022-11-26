@@ -1,17 +1,23 @@
 import gc
 import sys
 import time
-import weakref
 from contextlib import suppress
 from functools import partial, wraps
 from inspect import Signature
-from types import FunctionType
-from typing import Optional
+from typing import Optional, Type
 from unittest.mock import MagicMock, Mock, call
 
 import pytest
-from psygnal import EmitLoopError, Signal, SignalInstance
-from psygnal._signal import _get_method_name, _normalize_slot, _partial_weakref
+from psygnal import EmitLoopError, Signal, SignalInstance, _compiled
+from psygnal._signal import (
+    SlotCaller,
+    _BoundMethodCaller,
+    _FunctionCaller,
+    _get_method_name,
+    _PartialMethodCaller,
+    _SetattrCaller,
+    _SetitemCaller,
+)
 
 
 def stupid_decorator(fun):
@@ -62,6 +68,10 @@ class MyObj:
     def f_int_decorated_good(self, a: int): ...
     f_any_assigned = lambda self, a: None  # noqa
 
+    x: int = 0
+    def __setitem__(self, key: str, value: int):
+        if key == "x":
+            self.x = value
 
 def f_no_arg(): ...
 def f_str_int_vararg(a: str, b: int, *c): ...
@@ -127,6 +137,7 @@ def test_decorator():
         emitter.one_int.emit(1)
     assert e.value.slot is boom
     assert e.value.__cause__ is err
+    assert e.value.__context__ is err
 
 
 def test_misc():
@@ -209,25 +220,41 @@ def test_disconnect():
     mock.assert_not_called()
 
 
-def test_slot_types():
+@pytest.mark.parametrize(
+    "type_", ["function", "lambda", "method", "partial_method", "setattr", "setitem"]
+)
+def test_slot_types(type_: str) -> None:
     emitter = Emitter()
-    assert len(emitter.one_int._slots) == 0
-    emitter.one_int.connect(lambda x: None)
-    assert len(emitter.one_int._slots) == 1
-
-    emitter.one_int.connect(f_int)
-    assert len(emitter.one_int._slots) == 2
-    # connecting same function twice is (currently) OK
-    emitter.one_int.connect(f_int)
-    assert len(emitter.one_int._slots) == 3
-    assert isinstance(emitter.one_int._slots[-1][0], FunctionType)
-
-    # bound methods
+    signal = emitter.one_int
+    assert len(signal) == 0
     obj = MyObj()
-    emitter.one_int.connect(obj.f_int)
-    assert len(emitter.one_int._slots) == 4
-    assert isinstance(emitter.one_int._slots[-1][0], tuple)
-    assert isinstance(emitter.one_int._slots[-1][0][0], weakref.ref)
+    caller_type: Type[SlotCaller]
+
+    if type_ == "setattr":
+        signal.connect_setattr(obj, "x")
+        caller_type = _SetattrCaller
+    elif type_ == "setitem":
+        signal.connect_setitem(obj, "x")
+        caller_type = _SetitemCaller
+    elif type_ == "function":
+        signal.connect(f_int)
+        caller_type = _FunctionCaller
+    elif type_ == "lambda":
+        signal.connect(lambda x: None)
+        caller_type = _FunctionCaller
+    elif type_ == "method":
+        signal.connect(obj.f_int)
+        caller_type = _BoundMethodCaller
+    elif type_ == "partial_method":
+        signal.connect(partial(obj.f_int_int, 2))
+        caller_type = _PartialMethodCaller
+
+    assert len(signal) == 1
+
+    stored_slot = signal._slots[-1]
+    assert isinstance(stored_slot, caller_type)
+    assert callable(stored_slot.slot())
+    assert stored_slot == stored_slot
 
     with pytest.raises(TypeError):
         emitter.one_int.connect("not a callable")  # type: ignore
@@ -254,10 +281,9 @@ def test_basic_signal_with_sender_receiver():
     with pytest.raises(EmitLoopError) as e:
         emitter.one_int.emit(1)
 
-    ref, name, *_ = e.value.slot
-    assert ref() == receiver
-    assert name == "assert_not_sender"
+    assert e.value.slot == receiver.assert_not_sender
     assert isinstance(e.value.__cause__, AssertionError)
+    assert isinstance(e.value.__context__, AssertionError)
 
 
 def test_basic_signal_with_sender_nonreceiver():
@@ -287,15 +313,6 @@ def test_signal_instance():
     signal.connect(mock)
     signal.emit()
     mock.assert_called_once_with()
-
-
-def test_signal_instance_error():
-    """without a class"""
-    signal = Signal()
-    mock = MagicMock()
-    with pytest.raises(AttributeError) as e:
-        signal.connect(mock)
-    assert "Signal() class attribute" in str(e)
 
 
 @pytest.mark.parametrize(
@@ -367,15 +384,15 @@ def test_group_weakref(slot):
     assert len(emitter) == 0  # it's been cleaned up
 
 
-def test_norm_slot():
-    r = MyObj()
-    normed1 = _normalize_slot(r.f_any)
-    normed2 = _normalize_slot(normed1)
-    normed3 = _normalize_slot((r, "f_any", None))
-    normed4 = _normalize_slot((weakref.ref(r), "f_any", None))
-    assert normed1 == (weakref.ref(r), "f_any", None)
-    assert normed1 == normed2 == normed3 == normed4
-    assert _normalize_slot(f_any) == f_any
+# def test_norm_slot():
+#     r = MyObj()
+#     normed1 = _normalize_slot(r.f_any)
+#     normed2 = _normalize_slot(normed1)
+#     normed3 = _normalize_slot((r, "f_any", None))
+#     normed4 = _normalize_slot((weakref.ref(r), "f_any", None))
+#     assert normed1 == (weakref.ref(r), "f_any", None)
+#     assert normed1 == normed2 == normed3 == normed4
+#     assert _normalize_slot(f_any) == f_any
 
 
 ALL = {n for n, f in locals().items() if callable(f) and n.startswith("f_")}
@@ -538,6 +555,7 @@ def test_unique_connections():
     assert len(e.one_int._slots) == 2
 
 
+@pytest.mark.skipif(_compiled, reason="passes, but segfaults on exit")
 def test_asynchronous_emit():
     e = Emitter()
     a = []
@@ -789,12 +807,12 @@ def test_emit_loop_exceptions():
     mock1.assert_called_once_with(2)
 
 
-def test_partial_weakref():
-    """Test that a connected method doesn't hold strong ref."""
+# def test_partial_weakref():
+#     """Test that a connected method doesn't hold strong ref."""
 
-    obj = MyObj()
-    cb = partial(obj.f_int_int, 1)
-    assert _partial_weakref(cb) == _partial_weakref(cb)
+#     obj = MyObj()
+#     cb = partial(obj.f_int_int, 1)
+#     assert _partial_weakref(cb) == _partial_weakref(cb)
 
 
 @pytest.mark.parametrize(
@@ -835,3 +853,14 @@ def test_weakref_disconnect(slot):
     emitter.one_int.disconnect(cb)
     assert len(emitter.one_int) == 0
     assert cb_id not in _PARTIAL_CACHE
+
+
+class T:
+    sig = Signal(
+        str,
+        int,
+        name="test",
+        check_nargs_on_connect=False,
+        check_types_on_connect=True,
+        description="test signal",
+    )

@@ -11,12 +11,13 @@ Psygnal (pronounced "signal") is a pure python implementation of
 
 **Performance** is a high priority, as signals are often emitted frequently,
 [benchmarks](https://www.talleylambert.com/psygnal/) are routinely measured.
-Code is compiled using [Cython](https://cython.org/).
+Code is compiled using [mypyc](https://mypyc.readthedocs.io/en/latest/index.html).
 
 !!! tip
 
-    To run psygnal *without* using the compiled cython code, set an
-    `PSYGNAL_UNCOMPILED` environment variable to `1`
+    To run psygnal *without* using the compiled code, set an
+    `PSYGNAL_UNCOMPILED` environment variable to `1`.
+    (You can also just delete the `.so` files in the `psygnal` folder).
 
 ## Quickstart
 
