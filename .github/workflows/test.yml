@@ -97,7 +97,7 @@ jobs:
           python -m pip install ${{ matrix.backend }}
           python -c "import sys, psygnal; sys.exit(0 if psygnal._compiled else 1)"
 
-      - name: test PyQT5
+      - name: test
         uses: GabrielBB/xvfb-action@v1
         with:
           run: pytest --color=yes --cov-report=xml tests/test_qt_compat.py
