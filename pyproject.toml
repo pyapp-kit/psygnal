@@ -86,6 +86,9 @@ documentation = "https://psygnal.readthedocs.io"
 [tool.hatch.version]
 source = "vcs"
 
+[tool.hatch.build.targets.sdist]
+include = ["src", "tests", "CHANGELOG.md"]
+
 [tool.hatch.build.targets.wheel]
 only-include = ["src"]
 sources = ["src"]
