@@ -107,8 +107,6 @@ test-skip = "*-musllinux*"
 [tool.cibuildwheel.environment]
 HATCH_BUILD_HOOKS_ENABLE = "1"
 
-[tool.cibuildwheel.macos]
-archs = ["x86_64", "arm64"]
 
 # https://github.com/charliermarsh/ruff
 [tool.ruff]
@@ -179,10 +177,6 @@ exclude_lines = [
     "@overload",
     "except ImportError",
 ]
-
-# https://github.com/cruft/cruft
-[tool.cruft]
-skip = ["tests"]
 
 # https://github.com/mgedmin/check-manifest#configuration
 [tool.check-manifest]

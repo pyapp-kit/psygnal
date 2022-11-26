@@ -51,7 +51,7 @@ jobs:
         run: |
           python -m pip install -U pip
           python -m pip install -e .[test]
-          python -c "import sys, psygnal; print('compiled:', psygnal._compiled); sys.exit(1 if psygnal._compiled else 0)"
+          python -c "import sys, psygnal; sys.exit(1 if psygnal._compiled else 0)"
 
       - name: test uncompiled
         uses: GabrielBB/xvfb-action@v1
@@ -62,7 +62,7 @@ jobs:
         if: matrix.compile
         run: |
           HATCH_BUILD_HOOKS_ENABLE=1 python -m pip install -e .
-          python -c "import sys, psygnal; print('compiled:', psygnal._compiled); sys.exit(1 if psygnal._compiled else 0)"
+          python -c "import sys, psygnal; sys.exit(0 if psygnal._compiled else 1)"
 
       - name: test uncompiled
         if: matrix.compile
