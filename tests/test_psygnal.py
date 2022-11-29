@@ -202,6 +202,22 @@ def test_basic_signal_blocked():
     mock.assert_not_called()
 
 
+def test_nested_signal_blocked():
+    """unblock signal on exit of the last context"""
+    emitter = Emitter()
+    mock = MagicMock()
+
+    emitter.one_int.connect(mock)
+
+    mock.reset_mock()
+    with emitter.one_int.blocked():
+        with emitter.one_int.blocked():
+            emitter.one_int.emit(1)
+        emitter.one_int.emit(2)
+    emitter.one_int.emit(3)
+    mock.assert_called_once_with(3)
+
+
 def test_disconnect():
     emitter = Emitter()
     mock = MagicMock()
@@ -645,6 +661,20 @@ def test_resume_with_initial():
         emitter.one_int.emit(2)
         emitter.one_int.emit(3)
     mock.assert_called_once_with(26)
+
+
+def test_nested_pause():
+    emitter = Emitter()
+    mock = MagicMock()
+    emitter.one_int.connect(mock)
+    with emitter.one_int.paused():
+        emitter.one_int.emit(1)
+        emitter.one_int.emit(2)
+        with emitter.one_int.paused():
+            emitter.one_int.emit(3)
+            emitter.one_int.emit(4)
+        emitter.one_int.emit(5)
+    mock.assert_has_calls([call(i) for i in (1, 2, 3, 4, 5)])
 
 
 def test_signals_on_unhashables():

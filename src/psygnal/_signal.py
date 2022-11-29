@@ -969,11 +969,13 @@ class SignalInstance:
         ...     t.sig.emit(3)
         >>> # results in obj.signal.emit({1, 2, 3})
         """
+        was_paused = self._is_paused
         self.pause()
         try:
             yield
         finally:
-            self.resume(reducer, initial)
+            if not was_paused:
+                self.resume(reducer, initial)
 
     def __getstate__(self) -> dict:
         """Return dict of current state, for pickle."""
@@ -1004,6 +1006,7 @@ class _SignalBlocker:
     ) -> None:
         self._signal = signal
         self._exclude = exclude
+        self._was_blocked = signal._is_blocked
 
     def __enter__(self) -> None:
         from ._group import SignalGroup
@@ -1015,7 +1018,8 @@ class _SignalBlocker:
         return None
 
     def __exit__(self, *args: Any) -> None:
-        self._signal.unblock()
+        if not self._was_blocked:
+            self._signal.unblock()
 
 
 class EmitThread(threading.Thread):
