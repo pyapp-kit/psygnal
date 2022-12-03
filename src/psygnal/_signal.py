@@ -858,8 +858,12 @@ class SignalInstance:
 
         return None
 
-    def block(self) -> None:
-        """Block this signal from emitting."""
+    def block(self, exclude: Iterable[str | SignalInstance] = ()) -> None:
+        """Block this signal from emitting.
+
+        NOTE: the `exclude` argument is only for SignalGroup subclass, but we
+        have to include it here to make mypyc happy.
+        """
         self._is_blocked = True
 
     def unblock(self) -> None:
@@ -1006,13 +1010,7 @@ class _SignalBlocker:
         self._exclude = exclude
 
     def __enter__(self) -> None:
-        from ._group import SignalGroup
-
-        if isinstance(self._signal, SignalGroup):
-            self._signal.block(exclude=self._exclude)
-        else:
-            self._signal.block()
-        return None
+        self._signal.block(exclude=self._exclude)
 
     def __exit__(self, *args: Any) -> None:
         self._signal.unblock()

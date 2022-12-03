@@ -92,7 +92,7 @@ sources = ["src"]
 enable-by-default = false
 require-runtime-dependencies = true
 dependencies = ["hatch-mypyc>=0.13.0", "mypy>=0.991", "pydantic", "types-attrs"]
-include = ["src/psygnal/_signal.py", "src/psygnal/_group.py"]
+include = ["src/psygnal/_signal.py"]
 
 [tool.cibuildwheel]
 # Skip 32-bit builds & PyPy wheels on all platforms
