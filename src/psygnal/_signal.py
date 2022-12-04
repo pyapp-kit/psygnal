@@ -280,6 +280,9 @@ class SignalInstance:
         of types.
     """
 
+    _is_blocked: bool = False
+    _is_paused: bool = False
+
     def __init__(
         self,
         signature: Signature | tuple = _empty_signature,
@@ -858,8 +861,12 @@ class SignalInstance:
 
         return None
 
-    def block(self) -> None:
-        """Block this signal from emitting."""
+    def block(self, exclude: Iterable[str | SignalInstance] = ()) -> None:
+        """Block this signal from emitting.
+
+        NOTE: the `exclude` argument is only for SignalGroup subclass, but we
+        have to include it here to make mypyc happy.
+        """
         self._is_blocked = True
 
     def unblock(self) -> None:
@@ -942,10 +949,9 @@ class SignalInstance:
                 self._run_emit_loop(args)
         self._args_queue.clear()
 
-    @contextmanager
     def paused(
         self, reducer: ReducerFunc | None = None, initial: Any = _NULL
-    ) -> Iterator[None]:
+    ) -> ContextManager[None]:
         """Context manager to temporarly pause this signal.
 
         Parameters
@@ -969,11 +975,7 @@ class SignalInstance:
         ...     t.sig.emit(3)
         >>> # results in obj.signal.emit({1, 2, 3})
         """
-        self.pause()
-        try:
-            yield
-        finally:
-            self.resume(reducer, initial)
+        return _SignalPauser(self, reducer, initial)
 
     def __getstate__(self) -> dict:
         """Return dict of current state, for pickle."""
@@ -1004,18 +1006,33 @@ class _SignalBlocker:
     ) -> None:
         self._signal = signal
         self._exclude = exclude
+        self._was_blocked = signal._is_blocked
 
     def __enter__(self) -> None:
-        from ._group import SignalGroup
-
-        if isinstance(self._signal, SignalGroup):
-            self._signal.block(exclude=self._exclude)
-        else:
-            self._signal.block()
-        return None
+        self._signal.block(exclude=self._exclude)
 
     def __exit__(self, *args: Any) -> None:
-        self._signal.unblock()
+        if not self._was_blocked:
+            self._signal.unblock()
+
+
+class _SignalPauser:
+    """Context manager to pause and resume a signal."""
+
+    def __init__(
+        self, signal: SignalInstance, reducer: ReducerFunc | None, initial: Any
+    ) -> None:
+        self._was_paused = signal._is_paused
+        self._signal = signal
+        self._reducer = reducer
+        self._initial = initial
+
+    def __enter__(self) -> None:
+        self._signal.pause()
+
+    def __exit__(self, *args: Any) -> None:
+        if not self._was_paused:
+            self._signal.resume(self._reducer, self._initial)
 
 
 class EmitThread(threading.Thread):
