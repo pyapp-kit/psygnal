@@ -178,7 +178,7 @@ def _get_field_dependents(cls: "EventedModel") -> Dict[str, Set[str]]:  # noqa: 
             class Config:
                 property_dependencies={'c': ['a', 'b']}
     """
-    deps: dict[str, set[str]] = {}
+    deps: Dict[str, Set[str]] = {}
 
     cfg_deps = getattr(cls.__config__, PROPERTY_DEPENDENCIES, {})  # sourcery skip
     if cfg_deps:
