@@ -1,3 +1,6 @@
+# this module is sensitive to runtime type checking.
+# carefuly with __future__.annotations
+
 import sys
 import warnings
 from contextlib import contextmanager
