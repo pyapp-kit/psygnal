@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import sys
 import warnings
 from contextlib import contextmanager
@@ -8,8 +6,11 @@ from typing import (
     Any,
     Callable,
     ClassVar,
+    Dict,
     Iterator,
+    Set,
     Type,
+    Union,
     cast,
     no_type_check,
 )
@@ -98,7 +99,7 @@ class EventedMetaclass(pydantic.main.ModelMetaclass):
     @no_type_check
     def __new__(  # noqa: C901
         mcs: type, name: str, bases: tuple, namespace: dict, **kwargs: Any
-    ) -> EventedMetaclass:
+    ) -> "EventedMetaclass":
         """Create new EventedModel class."""
         with no_class_attributes():
             cls = super().__new__(mcs, name, bases, namespace, **kwargs)
@@ -150,7 +151,7 @@ class EventedMetaclass(pydantic.main.ModelMetaclass):
         return cls
 
 
-def _get_field_dependents(cls: EventedModel) -> dict[str, set[str]]:  # noqa: C901
+def _get_field_dependents(cls: "EventedModel") -> Dict[str, Set[str]]:  # noqa: C901
     """Return mapping of field name -> dependent set of property names.
 
     Dependencies may be declared in the Model Config to emit an event
@@ -288,13 +289,13 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
     _events: SignalGroup = PrivateAttr()
 
     # mapping of name -> property obj for methods that are property setters
-    __property_setters__: ClassVar[dict[str, property]]
+    __property_setters__: ClassVar[Dict[str, property]]
     # mapping of field name -> dependent set of property names
     # when field is changed, an event for dependent properties will be emitted.
-    __field_dependents__: ClassVar[dict[str, set[str]]]
-    __eq_operators__: ClassVar[dict[str, EqOperator]]
+    __field_dependents__: ClassVar[Dict[str, Set[str]]]
+    __eq_operators__: ClassVar[Dict[str, "EqOperator"]]
     __slots__ = {"__weakref__"}
-    __signal_group__: ClassVar[type[SignalGroup]]
+    __signal_group__: ClassVar[Type[SignalGroup]]
     # pydantic BaseModel configuration.  see:
     # https://pydantic-docs.helpmanual.io/usage/model_config/
 
@@ -362,7 +363,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
             ):
                 setattr(self, name, value)
 
-    def update(self, values: EventedModel | dict, recurse: bool = True) -> None:
+    def update(self, values: Union["EventedModel", dict], recurse: bool = True) -> None:
         """Update a model in place.
 
         Parameters
@@ -431,7 +432,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
                 delattr(self.Config, "use_enum_values")
 
 
-def _get_defaults(obj: BaseModel) -> dict[str, Any]:
+def _get_defaults(obj: BaseModel) -> Dict[str, Any]:
     """Get possibly nested default values for a Model object."""
     dflt = {}
     for k, v in obj.__fields__.items():
