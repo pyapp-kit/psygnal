@@ -22,7 +22,6 @@ from typing import (
 from mypy_extensions import mypyc_attr
 from psygnal._signal import Signal, SignalInstance, _SignalBlocker
 
-
 __all__ = ["EmissionInfo", "SignalGroup"]
 
 

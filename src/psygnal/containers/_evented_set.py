@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from itertools import chain
-from typing import Any, Dict, Iterable, Iterator, MutableSet, Set, Tuple, TypeVar, Union
+from typing import Any, Iterable, Iterator, MutableSet, TypeVar
 
 from psygnal import Signal, SignalGroup
 from typing_extensions import Final
@@ -18,7 +18,7 @@ BAIL: Final = BailType()
 
 
 class _BaseMutableSet(MutableSet[_T]):
-    _data: Set[_T]  # pragma: no cover
+    _data: set[_T]  # pragma: no cover
 
     def __init__(self, iterable: Iterable[_T] = ()):
         self._data = set()
@@ -67,13 +67,13 @@ class _BaseMutableSet(MutableSet[_T]):
 
     # --------
 
-    def _pre_add_hook(self, item: _T) -> Union[_T, BailType]:
+    def _pre_add_hook(self, item: _T) -> _T | BailType:
         return item  # pragma: no cover
 
     def _post_add_hook(self, item: _T) -> None:
         ...  # pragma: no cover
 
-    def _pre_discard_hook(self, item: _T) -> Union[_T, BailType]:
+    def _pre_discard_hook(self, item: _T) -> _T | BailType:
         return item  # pragma: no cover
 
     def _post_discard_hook(self, item: _T) -> None:
@@ -161,7 +161,7 @@ class _BaseMutableSet(MutableSet[_T]):
 class OrderedSet(_BaseMutableSet[_T]):
     """A set that preserves insertion order, uses dict behind the scenes."""
 
-    _data: Dict[_T, None]  # type: ignore  # pragma: no cover
+    _data: dict[_T, None]  # type: ignore  # pragma: no cover
 
     def __init__(self, iterable: Iterable[_T] = ()):
         self._data = {}
@@ -261,19 +261,19 @@ class EventedSet(_BaseMutableSet[_T]):
         with self.events.items_changed.paused(_reduce_events, ((), ())):
             super().symmetric_difference_update(__s)
 
-    def _pre_add_hook(self, item: _T) -> Union[_T, BailType]:
+    def _pre_add_hook(self, item: _T) -> _T | BailType:
         return BAIL if item in self else item
 
     def _post_add_hook(self, item: _T) -> None:
         self._emit_change((item,), ())
 
-    def _pre_discard_hook(self, item: _T) -> Union[_T, BailType]:
+    def _pre_discard_hook(self, item: _T) -> _T | BailType:
         return BAIL if item not in self else item
 
     def _post_discard_hook(self, item: _T) -> None:
         self._emit_change((), (item,))
 
-    def _emit_change(self, added: Tuple[_T, ...], removed: Tuple[_T, ...]) -> None:
+    def _emit_change(self, added: tuple[_T, ...], removed: tuple[_T, ...]) -> None:
         """Emit a change event."""
         self.events.items_changed.emit(added, removed)
 
