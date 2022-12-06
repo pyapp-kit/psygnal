@@ -74,7 +74,7 @@ def no_class_attributes() -> Iterator[None]:  # pragma: no cover
 
     # monkey patch the pydantic ClassAttribute object
     # the second argument to ClassAttribute is the inspect.Signature object
-    def _return2(x: str, y: inspect.Signature) -> inspect.Signature:
+    def _return2(x: str, y: "inspect.Signature") -> "inspect.Signature":
         return y
 
     pydantic.main.ClassAttribute = _return2  # type: ignore
@@ -109,7 +109,7 @@ class EventedMetaclass(pydantic.main.ModelMetaclass):
 
         cls.__eq_operators__ = {}
         signals = {}
-        fields: dict[str, ModelField] = cls.__fields__
+        fields: Dict[str, "ModelField"] = cls.__fields__
         for n, f in fields.items():
             cls.__eq_operators__[n] = _pick_equality_operator(f.type_)
             if f.field_info.allow_mutation:
