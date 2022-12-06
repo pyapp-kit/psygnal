@@ -17,7 +17,6 @@ from typing import (
     Iterable,
     Iterator,
     NoReturn,
-    Type,
     Union,
     cast,
     get_type_hints,
@@ -124,7 +123,7 @@ class Signal:
                     f" `Signature`.  These args were ignored: {types[1:]}"
                 )
         else:
-            self._signature = _build_signature(*cast("tuple[Type[Any], ...]", types))
+            self._signature = _build_signature(*cast("tuple[type[Any], ...]", types))
 
     @property
     def signature(self) -> Signature:
