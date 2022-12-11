@@ -182,7 +182,10 @@ def _get_field_dependents(cls: "EventedModel") -> Dict[str, Set[str]]:  # noqa: 
 
     cfg_deps = getattr(cls.__config__, PROPERTY_DEPENDENCIES, {})  # sourcery skip
     if cfg_deps:
-        assert isinstance(cfg_deps, dict), "Config.property_dependencies must be a dict"
+        if not isinstance(cfg_deps, dict):
+            raise TypeError(
+                f"Config.property_dependencies must be a dict, got: {cfg_deps!r}"
+            )
         for prop, fields in cfg_deps.items():
             if prop not in cls.__property_setters__:
                 raise ValueError(
