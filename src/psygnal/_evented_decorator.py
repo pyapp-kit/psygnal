@@ -193,7 +193,7 @@ def _build_dataclass_signal_group(
     eq_map = _get_eq_operator_map(cls)
     for name, type_ in iter_fields(cls):
         if name in _equality_operators:
-            if not callable(_equality_operators[name]):
+            if not callable(_equality_operators[name]):  # pragma: no cover
                 raise TypeError("EqOperator must be callable")
             eq_map[name] = _equality_operators[name]
         else:
@@ -277,7 +277,7 @@ def evented(
     _eqop = tuple(equality_operators.items()) if equality_operators else None
 
     def _decorate(cls: T) -> T:
-        if not isinstance(cls, type):
+        if not isinstance(cls, type):  # pragma: no cover
             raise TypeError("evented can only be used on classes")
         Grp = _build_dataclass_signal_group(cls, _eqop)  # type: ignore
         if not Grp._signals_:

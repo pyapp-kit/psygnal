@@ -189,7 +189,7 @@ def _get_field_dependents(cls: "EventedModel") -> Dict[str, Set[str]]:
 
     cfg_deps = getattr(cls.__config__, PROPERTY_DEPENDENCIES, {})  # sourcery skip
     if cfg_deps:
-        if not isinstance(cfg_deps, dict):
+        if not isinstance(cfg_deps, dict):  # pragma: no cover
             raise TypeError(
                 f"Config property_dependencies must be a dict, not {cfg_deps!r}"
             )

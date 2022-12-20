@@ -1364,7 +1364,7 @@ def _acceptable_posarg_range(
         `forbid_required_kwarg` is `True`.
     """
     if isinstance(sig, str):
-        if "(" not in sig:
+        if "(" not in sig:  # pragma: no cover
             raise ValueError(f"Unrecognized string signature format: {sig!r}")
         inner = sig.split("(", 1)[1].split(")", 1)[0]
         minargs = maxargs = inner.count(",") + 1 if inner else 0
