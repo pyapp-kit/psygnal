@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Container, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Container, TypeVar
 
-from .._signal import Signal
+from psygnal._signal import Signal
+
 from ._evented_set import BailType, EventedOrderedSet, SetEvents
 
 if TYPE_CHECKING:
-    from typing import Iterable, Optional, Tuple
+    from typing import Iterable
 
 _T = TypeVar("_T")
 _S = TypeVar("_S")
@@ -73,20 +74,20 @@ class Selection(EventedOrderedSet[_T]):
 
     events: SelectionEvents  # pragma: no cover
 
-    def __init__(self, data: Iterable[_T] = (), parent: Optional[Container] = None):
-        self._active: Optional[_T] = None
-        self._current_: Optional[_T] = None
-        self._parent: Optional[Container] = parent
+    def __init__(self, data: Iterable[_T] = (), parent: Container | None = None):
+        self._active: _T | None = None
+        self._current_: _T | None = None
+        self._parent: Container | None = parent
         super().__init__(iterable=data)
         self._update_active()
 
     @property
-    def _current(self) -> Optional[_T]:  # pragma: no cover
+    def _current(self) -> _T | None:  # pragma: no cover
         """Get current item."""
         return self._current_
 
     @_current.setter
-    def _current(self, value: Optional[_T]) -> None:  # pragma: no cover
+    def _current(self, value: _T | None) -> None:  # pragma: no cover
         """Set current item."""
         if value == self._current_:
             return
@@ -94,12 +95,12 @@ class Selection(EventedOrderedSet[_T]):
         self.events._current.emit(value)
 
     @property
-    def active(self) -> Optional[_T]:  # pragma: no cover
+    def active(self) -> _T | None:  # pragma: no cover
         """Return the currently active item or None."""
         return self._active
 
     @active.setter
-    def active(self, value: Optional[_T]) -> None:  # pragma: no cover
+    def active(self, value: _T | None) -> None:  # pragma: no cover
         """Set the active item.
 
         This makes `value` the only selected item, and makes it current.
@@ -147,12 +148,12 @@ class Selection(EventedOrderedSet[_T]):
         """Override SetEvents with SelectionEvents."""
         return SelectionEvents()
 
-    def _emit_change(self, added: Tuple[_T, ...], removed: Tuple[_T, ...]) -> None:
+    def _emit_change(self, added: tuple[_T, ...], removed: tuple[_T, ...]) -> None:
         """Emit a change event."""
         super()._emit_change(added, removed)
         self._update_active()
 
-    def _pre_add_hook(self, item: _T) -> Union[_T, BailType]:
+    def _pre_add_hook(self, item: _T) -> _T | BailType:
         if self._parent is not None and item not in self._parent:
             raise ValueError(
                 "Cannot select an item that is not in the parent container."
