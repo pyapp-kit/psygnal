@@ -80,7 +80,7 @@ def no_class_attributes() -> Iterator[None]:  # pragma: no cover
 
     # monkey patch the pydantic ClassAttribute object
     # the second argument to ClassAttribute is the inspect.Signature object
-    def _return2(x: str, y: 'Signature') -> 'Signature':
+    def _return2(x: str, y: "Signature") -> "Signature":
         return y
 
     pydantic.main.ClassAttribute = _return2  # type: ignore
