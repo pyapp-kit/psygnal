@@ -14,7 +14,8 @@ from typing import (
     Union,
 )
 
-from .. import Signal, SignalGroup
+from psygnal._group import SignalGroup
+from psygnal._signal import Signal
 
 _K = TypeVar("_K")
 _V = TypeVar("_V")
