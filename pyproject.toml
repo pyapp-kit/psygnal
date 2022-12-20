@@ -109,6 +109,7 @@ HATCH_BUILD_HOOKS_ENABLE = "1"
 [tool.ruff]
 line-length = 88
 target-version = "py38"
+src = ["src", "tests"]
 extend-select = [
     "E",    # style errors
     "F",    # flakes

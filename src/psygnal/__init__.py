@@ -52,7 +52,6 @@ __all__ = [
 
 from ._evented_decorator import evented
 
-
 if os.getenv("PSYGNAL_UNCOMPILED"):
 
     def _import_purepy_mod(name: str) -> "ModuleType":

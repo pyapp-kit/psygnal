@@ -1,6 +1,7 @@
 from unittest.mock import Mock, call
 
 import numpy as np
+
 from psygnal import SignalGroup
 from psygnal.containers import (
     EventedCallableObjectProxy,

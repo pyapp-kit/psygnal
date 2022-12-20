@@ -107,7 +107,7 @@ class EventedMetaclass(pydantic.main.ModelMetaclass):
     """
 
     @no_type_check
-    def __new__(  # noqa: C901
+    def __new__(
         mcs: type, name: str, bases: tuple, namespace: dict, **kwargs: Any
     ) -> "EventedMetaclass":
         """Create new EventedModel class."""
@@ -161,7 +161,7 @@ class EventedMetaclass(pydantic.main.ModelMetaclass):
         return cls
 
 
-def _get_field_dependents(cls: "EventedModel") -> Dict[str, Set[str]]:  # noqa: C901
+def _get_field_dependents(cls: "EventedModel") -> Dict[str, Set[str]]:
     """Return mapping of field name -> dependent set of property names.
 
     Dependencies may be declared in the Model Config to emit an event
