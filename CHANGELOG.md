@@ -1,8 +1,30 @@
 # Changelog
 
-## [0.6.1](https://github.com/pyapp-kit/psygnal/tree/0.6.1) (2022-11-13)
+## [0.7.0](https://github.com/pyapp-kit/psygnal/tree/0.7.0) (2022-12-20)
 
-[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.6.0.post0...0.6.1)
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.6.1...0.7.0)
+
+**Implemented enhancements:**
+
+- build:  use mypyc instead of cython, move to hatch [\#149](https://github.com/pyapp-kit/psygnal/pull/149) ([tlambert03](https://github.com/tlambert03))
+
+**Fixed bugs:**
+
+- fix: add dataclass\_transform to maintain IDE typing support for EventedModel.\_\_init\_\_ [\#154](https://github.com/pyapp-kit/psygnal/pull/154) ([tlambert03](https://github.com/tlambert03))
+- Don't unblock/resume within nested contexts [\#150](https://github.com/pyapp-kit/psygnal/pull/150) ([hanjinliu](https://github.com/hanjinliu))
+
+**Merged pull requests:**
+
+- ci\(pre-commit.ci\): autoupdate [\#155](https://github.com/pyapp-kit/psygnal/pull/155) ([tlambert03](https://github.com/tlambert03))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.11.2 to 2.11.3 [\#153](https://github.com/pyapp-kit/psygnal/pull/153) ([dependabot[bot]](https://github.com/apps/dependabot))
+- style: use ruff instead of flake8, isort, pyupgrade, autoflake, etc... [\#146](https://github.com/pyapp-kit/psygnal/pull/146) ([tlambert03](https://github.com/tlambert03))
+- chore: add deps to setup.py [\#145](https://github.com/pyapp-kit/psygnal/pull/145) ([tlambert03](https://github.com/tlambert03))
+- refactor: remove PartialMethodMeta for TypeGuard func [\#144](https://github.com/pyapp-kit/psygnal/pull/144) ([tlambert03](https://github.com/tlambert03))
+- refactor: don't use metaclass for signal group [\#143](https://github.com/pyapp-kit/psygnal/pull/143) ([tlambert03](https://github.com/tlambert03))
+
+## [v0.6.1](https://github.com/pyapp-kit/psygnal/tree/v0.6.1) (2022-11-13)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.6.0.post0...v0.6.1)
 
 **Fixed bugs:**
 
