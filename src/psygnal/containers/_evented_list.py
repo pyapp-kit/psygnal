@@ -25,9 +25,9 @@ from __future__ import annotations  # pragma: no cover
 
 from typing import Any, Iterable, MutableSequence, TypeVar, Union, cast, overload
 
-from psygnal._group import EmissionInfo, SignalGroup
-from psygnal._signal import Signal, SignalInstance
-from psygnal.utils import iter_signal_instances
+from .._group import EmissionInfo, SignalGroup
+from .._signal import Signal, SignalInstance
+from ..utils import iter_signal_instances
 
 _T = TypeVar("_T")
 Index = Union[int, slice]
@@ -136,7 +136,7 @@ class EventedList(MutableSequence[_T]):
     def __getitem__(self, key: slice) -> EventedList[_T]:
         ...
 
-    def __getitem__(self, key: Index) -> _T | EventedList[_T]:
+    def __getitem__(self, key: Index) -> Union[_T, EventedList[_T]]:
         """Return self[key]."""
         result = self._data[key]
         return self.__newlike__(result) if isinstance(result, list) else result
@@ -149,7 +149,7 @@ class EventedList(MutableSequence[_T]):
     def __setitem__(self, key: slice, value: Iterable[_T]) -> None:
         ...
 
-    def __setitem__(self, key: Index, value: _T | Iterable[_T]) -> None:
+    def __setitem__(self, key: Index, value: Union[_T, Iterable[_T]]) -> None:
         """Set self[key] to value."""
         old = self._data[key]
         if value is old:

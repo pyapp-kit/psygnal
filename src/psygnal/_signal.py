@@ -28,6 +28,7 @@ from mypy_extensions import mypyc_attr
 from typing_extensions import Protocol, get_args, get_origin
 
 if TYPE_CHECKING:
+    from typing import Optional, Tuple
 
     from typing_extensions import Literal, TypeGuard
 
@@ -104,7 +105,7 @@ class Signal:
 
     def __init__(
         self,
-        *types: type[Any] | Signature,
+        *types: Type[Any] | Signature,
         description: str = "",
         name: str | None = None,
         check_nargs_on_connect: bool = True,
@@ -131,21 +132,21 @@ class Signal:
         """[Signature][inspect.Signature] supported by this Signal."""
         return self._signature
 
-    def __set_name__(self, owner: type[Any], name: str) -> None:
+    def __set_name__(self, owner: Type[Any], name: str) -> None:
         """Set name of signal when declared as a class attribute on `owner`."""
         if self._name is None:
             self._name = name
 
     @overload
-    def __get__(self, instance: None, owner: type[Any] | None = None) -> Signal:
+    def __get__(self, instance: None, owner: Type[Any] | None = None) -> Signal:
         ...  # pragma: no cover
 
     @overload
-    def __get__(self, instance: Any, owner: type[Any] | None = None) -> SignalInstance:
+    def __get__(self, instance: Any, owner: Type[Any] | None = None) -> SignalInstance:
         ...  # pragma: no cover
 
     def __get__(
-        self, instance: Any, owner: type[Any] | None = None
+        self, instance: Any, owner: Type[Any] | None = None
     ) -> Signal | SignalInstance:
         """Get signal instance.
 
@@ -737,7 +738,7 @@ class SignalInstance:
         # will return `None` if emitter is blocked
         ...  # pragma: no cover
 
-    def emit(
+    def emit(  # noqa: D417
         self,
         *args: Any,
         check_nargs: bool = False,
@@ -1113,7 +1114,7 @@ def _stub_sig(obj: Any) -> Signature:
     raise ValueError("unknown object")
 
 
-def _build_signature(*types: type[Any]) -> Signature:
+def _build_signature(*types: Type[Any]) -> Signature:
     params = [
         Parameter(name=f"p{i}", kind=Parameter.POSITIONAL_ONLY, annotation=t)
         for i, t in enumerate(types)
@@ -1144,7 +1145,7 @@ class SlotCaller:
     call time, while others don't.
     """
 
-    def __call__(self, args: tuple[object, ...]) -> bool:
+    def __call__(self, args: Tuple[object, ...]) -> bool:
         """Call the slot, return True if the object ref is dead and needs cleaning."""
         raise NotImplementedError()
 
@@ -1157,7 +1158,7 @@ class SlotCaller:
         raise NotImplementedError()
 
 
-def _slot_caller(slot: Callable, max_args: int | None = None) -> SlotCaller:
+def _slot_caller(slot: Callable, max_args: Optional[int] = None) -> SlotCaller:
     """Factory function to return a `SlotCaller` appropriate for the given slot."""
     if isinstance(slot, SlotCaller):
         return slot
@@ -1174,11 +1175,11 @@ def _slot_caller(slot: Callable, max_args: int | None = None) -> SlotCaller:
 class _FunctionCaller(SlotCaller):
     """Simple caller of a plain function."""
 
-    def __init__(self, slot: Callable, max_args: int | None = None) -> None:
+    def __init__(self, slot: Callable, max_args: Optional[int] = None) -> None:
         self._slot = slot
         self._max_args = max_args
 
-    def __call__(self, args: tuple[object, ...]) -> bool:
+    def __call__(self, args: Tuple[object, ...]) -> bool:
         if self._max_args is not None:
             args = args[: self._max_args]
         self._slot(*args)
@@ -1195,13 +1196,13 @@ class _SetattrCaller(SlotCaller):
     """Caller to set an attribute on an object."""
 
     def __init__(
-        self, ref: weakref.ReferenceType, attr: str, max_args: int | None = None
+        self, ref: weakref.ReferenceType, attr: str, max_args: Optional[int] = None
     ) -> None:
         self._ref = ref
         self._attr = attr
         self._max_args = max_args
 
-    def __call__(self, args: tuple[object, ...]) -> bool:
+    def __call__(self, args: Tuple[object, ...]) -> bool:
         obj = self._ref()
         if obj is None:
             return True
@@ -1225,13 +1226,13 @@ class _SetitemCaller(SlotCaller):
     """Caller to call __setitem__ on an object."""
 
     def __init__(
-        self, ref: weakref.ReferenceType, key: Any, max_args: int | None = None
+        self, ref: weakref.ReferenceType, key: Any, max_args: Optional[int] = None
     ) -> None:
         self._ref = ref
         self._key = key
         self._max_args = max_args
 
-    def __call__(self, args: tuple[object, ...]) -> bool:
+    def __call__(self, args: Tuple[object, ...]) -> bool:
         obj = self._ref()
         if obj is None:
             return True
@@ -1255,11 +1256,11 @@ class _SetitemCaller(SlotCaller):
 class _BoundMethodCaller(SlotCaller):
     """Caller of a (dereferenced) bound method."""
 
-    def __init__(self, slot: MethodType, max_args: int | None = None) -> None:
+    def __init__(self, slot: MethodType, max_args: Optional[int] = None) -> None:
         self._ref, self._method_name = _get_method_name(slot)
         self._max_args = max_args
 
-    def __call__(self, args: tuple[object, ...]) -> bool:
+    def __call__(self, args: Tuple[object, ...]) -> bool:
         obj = self._ref()
         if obj is None:
             return True
@@ -1288,14 +1289,14 @@ class _BoundMethodCaller(SlotCaller):
 class _PartialMethodCaller(SlotCaller):
     """Caller of a partial to a (dereferenced) bound method."""
 
-    def __init__(self, slot: PartialMethod, max_args: int | None = None) -> None:
+    def __init__(self, slot: PartialMethod, max_args: Optional[int] = None) -> None:
         self._ref, self._method_name = _get_method_name(slot.func)
         self._max_args = max_args
         self._partial_args = slot.args
         self._partial_kwargs = slot.keywords
         self._slot_id = id(slot)
 
-    def __call__(self, args: tuple[object, ...]) -> bool:
+    def __call__(self, args: Tuple[object, ...]) -> bool:
         obj = self._ref()
         if obj is None:
             return True
@@ -1364,8 +1365,7 @@ def _acceptable_posarg_range(
         `forbid_required_kwarg` is `True`.
     """
     if isinstance(sig, str):
-        if "(" not in sig:
-            raise ValueError(f"Unrecognized string signature format: {sig!r}")
+        assert "(" in sig, f"Unrecognized string signature format: {sig}"
         inner = sig.split("(", 1)[1].split(")", 1)[0]
         minargs = maxargs = inner.count(",") + 1 if inner else 0
         return minargs, maxargs
@@ -1430,7 +1430,7 @@ def _parameter_types_match(
     return True
 
 
-def _is_subclass(left: type[Any], right: type) -> bool:
+def _is_subclass(left: Type[Any], right: type) -> bool:
     """Variant of issubclass with support for unions."""
     if not isclass(left) and get_origin(left) is Union:
         return any(issubclass(i, right) for i in get_args(left))
