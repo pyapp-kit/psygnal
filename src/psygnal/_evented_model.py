@@ -116,7 +116,7 @@ class EventedMetaclass(pydantic.main.ModelMetaclass):
 
         cls.__eq_operators__ = {}
         signals = {}
-        fields: Dict[str, 'ModelField'] = cls.__fields__
+        fields: Dict[str, "ModelField"] = cls.__fields__
         for n, f in fields.items():
             cls.__eq_operators__[n] = _pick_equality_operator(f.type_)
             if f.field_info.allow_mutation:
@@ -315,7 +315,11 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
 
     def __init__(_model_self_, **data: Any) -> None:
         super().__init__(**data)
-        _model_self_._events = _model_self_.__signal_group__(_model_self_)
+        Group = _model_self_.__signal_group__
+        # the type error is "cannot assign to a class variable" ...
+        # but if we don't use `ClassVar`, then the `dataclass_transform` decorator
+        # will add _events: SignalGroup to the __init__ signature, for *all* user models
+        _model_self_._events = Group(_model_self_)  # type: ignore [misc]
 
     def _super_setattr_(self, name: str, value: Any) -> None:
         # pydantic will raise a ValueError if extra fields are not allowed
