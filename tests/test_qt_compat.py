@@ -1,5 +1,6 @@
 """qtbot should work for testing!"""
 import pytest
+
 from psygnal import Signal
 from psygnal._signal import _guess_qtsignal_signature
 

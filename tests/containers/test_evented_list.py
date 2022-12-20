@@ -4,6 +4,7 @@ from unittest.mock import Mock, call
 
 import numpy as np
 import pytest
+
 from psygnal import EmissionInfo, Signal, SignalGroup
 from psygnal.containers import EventedList
 
