@@ -1,6 +1,7 @@
 from unittest.mock import Mock
 
 import pytest
+
 from psygnal.containers import SelectableEventedList
 
 

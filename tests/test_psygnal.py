@@ -8,6 +8,7 @@ from typing import Optional, Type
 from unittest.mock import MagicMock, Mock, call
 
 import pytest
+
 from psygnal import EmitLoopError, Signal, SignalInstance, _compiled
 from psygnal._signal import (
     SlotCaller,
