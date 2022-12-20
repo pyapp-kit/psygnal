@@ -8,8 +8,11 @@ from typing import (
     Any,
     Callable,
     ClassVar,
+    Dict,
     Iterator,
+    Set,
     Type,
+    Union,
     cast,
     no_type_check,
 )
@@ -116,7 +119,7 @@ class EventedMetaclass(pydantic.main.ModelMetaclass):
 
         cls.__eq_operators__ = {}
         signals = {}
-        fields: dict[str, ModelField] = cls.__fields__
+        fields: Dict[str, ModelField] = cls.__fields__
         for n, f in fields.items():
             cls.__eq_operators__[n] = _pick_equality_operator(f.type_)
             if f.field_info.allow_mutation:
@@ -161,7 +164,7 @@ class EventedMetaclass(pydantic.main.ModelMetaclass):
         return cls
 
 
-def _get_field_dependents(cls: EventedModel) -> dict[str, set[str]]:  # noqa: C901
+def _get_field_dependents(cls: EventedModel) -> Dict[str, Set[str]]:  # noqa: C901
     """Return mapping of field name -> dependent set of property names.
 
     Dependencies may be declared in the Model Config to emit an event
@@ -185,7 +188,7 @@ def _get_field_dependents(cls: EventedModel) -> dict[str, set[str]]:  # noqa: C9
             class Config:
                 property_dependencies={'c': ['a', 'b']}
     """
-    deps: dict[str, set[str]] = {}
+    deps: Dict[str, Set[str]] = {}
 
     cfg_deps = getattr(cls.__config__, PROPERTY_DEPENDENCIES, {})  # sourcery skip
     if cfg_deps:
@@ -299,13 +302,13 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
     _events: SignalGroup = PrivateAttr()
 
     # mapping of name -> property obj for methods that are property setters
-    __property_setters__: ClassVar[dict[str, property]]
+    __property_setters__: ClassVar[Dict[str, property]]
     # mapping of field name -> dependent set of property names
     # when field is changed, an event for dependent properties will be emitted.
-    __field_dependents__: ClassVar[dict[str, set[str]]]
-    __eq_operators__: ClassVar[dict[str, EqOperator]]
+    __field_dependents__: ClassVar[Dict[str, Set[str]]]
+    __eq_operators__: ClassVar[Dict[str, EqOperator]]
     __slots__ = {"__weakref__"}
-    __signal_group__: ClassVar[type[SignalGroup]]
+    __signal_group__: ClassVar[Type[SignalGroup]]
     # pydantic BaseModel configuration.  see:
     # https://pydantic-docs.helpmanual.io/usage/model_config/
 
@@ -373,7 +376,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
             ):
                 setattr(self, name, value)
 
-    def update(self, values: EventedModel | dict, recurse: bool = True) -> None:
+    def update(self, values: Union[EventedModel, dict], recurse: bool = True) -> None:
         """Update a model in place.
 
         Parameters
@@ -442,7 +445,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
                 delattr(self.Config, "use_enum_values")
 
 
-def _get_defaults(obj: BaseModel) -> dict[str, Any]:
+def _get_defaults(obj: BaseModel) -> Dict[str, Any]:
     """Get possibly nested default values for a Model object."""
     dflt = {}
     for k, v in obj.__fields__.items():
