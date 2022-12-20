@@ -24,7 +24,7 @@ from ._group import SignalGroup
 from ._signal import Signal, SignalInstance
 
 if TYPE_CHECKING:
-    import inspect
+    from inspect import Signature
 
     from pydantic.fields import ModelField
     from typing_extensions import dataclass_transform
@@ -80,7 +80,7 @@ def no_class_attributes() -> Iterator[None]:  # pragma: no cover
 
     # monkey patch the pydantic ClassAttribute object
     # the second argument to ClassAttribute is the inspect.Signature object
-    def _return2(x: str, y: inspect.Signature) -> inspect.Signature:
+    def _return2(x: str, y: 'Signature') -> 'Signature':
         return y
 
     pydantic.main.ClassAttribute = _return2  # type: ignore
