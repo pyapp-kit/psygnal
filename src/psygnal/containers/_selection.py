@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Container, TypeVar
 
-from .._signal import Signal
+from psygnal._signal import Signal
+
 from ._evented_set import BailType, EventedOrderedSet, SetEvents
 
 if TYPE_CHECKING:

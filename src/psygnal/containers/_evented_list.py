@@ -25,9 +25,9 @@ from __future__ import annotations  # pragma: no cover
 
 from typing import Any, Iterable, MutableSequence, TypeVar, Union, cast, overload
 
-from .._group import EmissionInfo, SignalGroup
-from .._signal import Signal, SignalInstance
-from ..utils import iter_signal_instances
+from psygnal._group import EmissionInfo, SignalGroup
+from psygnal._signal import Signal, SignalInstance
+from psygnal.utils import iter_signal_instances
 
 _T = TypeVar("_T")
 Index = Union[int, slice]
