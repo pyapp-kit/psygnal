@@ -143,10 +143,10 @@ class EventedMetaclass(pydantic.main.ModelMetaclass):
             for b in reversed(cls.__bases__):
                 if hasattr(b, "__property_setters__"):
                     cls.__property_setters__.update(b.__property_setters__)
-            for name, attr in namespace.items():
+            for key, attr in namespace.items():
                 if isinstance(attr, property) and attr.fset is not None:
-                    cls.__property_setters__[name] = attr
-                    signals[name] = Signal(object)
+                    cls.__property_setters__[key] = attr
+                    signals[key] = Signal(object)
         else:
             for b in cls.__bases__:
                 conf = getattr(b, "__config__", None)
