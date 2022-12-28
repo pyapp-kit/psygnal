@@ -66,7 +66,7 @@ jobs:
           fetch-depth: 0
 
       - name: Build wheels via cibuildwheel
-        uses: pypa/cibuildwheel@v2.11.3
+        uses: pypa/cibuildwheel@v2.11.4
         env:
           CIBW_ARCHS_MACOS: "${{ matrix.macos_arch }}"
           ARCHFLAGS: "-arch ${{ matrix.macos_arch }}"
