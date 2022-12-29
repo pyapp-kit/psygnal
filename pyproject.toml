@@ -1,6 +1,6 @@
 # https://peps.python.org/pep-0517/
 [build-system]
-requires = ["hatch@git+https://github.com/pypa/hatch.git", "hatch-vcs"]
+requires = ["hatch@git+https://github.com/pypa/hatch.git"]
 build-backend = "hatchling.build"
 
 # https://peps.python.org/pep-0621/
@@ -23,7 +23,8 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Typing :: Typed",
 ]
-dynamic = ["version"]
+version = '0.1.2'
+# dynamic = ["version"]
 dependencies = [
     "typing-extensions",
     "mypy_extensions",
@@ -78,8 +79,8 @@ homepage = "https://github.com/pyapp-kit/psygnal"
 repository = "https://github.com/pyapp-kit/psygnal"
 documentation = "https://psygnal.readthedocs.io"
 
-[tool.hatch.version]
-source = "vcs"
+# [tool.hatch.version]
+# source = "vcs"
 
 [tool.hatch.build.targets.sdist]
 include = ["src", "tests", "CHANGELOG.md"]
