@@ -1,6 +1,6 @@
 # https://peps.python.org/pep-0517/
 [build-system]
-requires = ["hatchling>=1.8.0", "hatch-vcs"]
+requires = ["hatch@git+https://github.com/pypa/hatch.git", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 # https://peps.python.org/pep-0621/
