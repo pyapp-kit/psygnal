@@ -70,6 +70,7 @@ jobs:
         env:
           CIBW_ARCHS_MACOS: "${{ matrix.macos_arch }}"
           ARCHFLAGS: "-arch ${{ matrix.macos_arch }}"
+          CIBW_BUILD_VERBOSITY: 2
 
       - name: Upload wheels as workflow artifacts
         uses: actions/upload-artifact@v3

@@ -1,6 +1,6 @@
 # https://peps.python.org/pep-0517/
 [build-system]
-requires = ["hatch@git+https://github.com/pypa/hatch.git"]
+requires = ["hatchling @ git+https://github.com/pypa/hatch.git#subdirectory=backend"]
 build-backend = "hatchling.build"
 
 # https://peps.python.org/pep-0621/
