@@ -99,7 +99,6 @@ def test_pydantic_base_model() -> None:
 
 
 def test_no_signals_warn():
-
     with pytest.warns(UserWarning, match="No mutable fields found in class"):
 
         @dataclass

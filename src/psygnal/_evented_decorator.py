@@ -25,8 +25,10 @@ from ._group import SignalGroup
 from ._signal import Signal, SignalInstance
 
 if TYPE_CHECKING:
+    from typing import Literal
+
     from pydantic import BaseModel
-    from typing_extensions import Literal, TypeGuard
+    from typing_extensions import TypeGuard
 
 
 _DATACLASS_PARAMS = "__dataclass_params__"

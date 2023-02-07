@@ -105,7 +105,7 @@ class EventedObjectProxy(ObjectProxy, Generic[T]):
         return repr(self.__wrapped__)
 
     def __dir__(self) -> List[str]:
-        return dir(self.__wrapped__) + ["events"]
+        return [*dir(self.__wrapped__), "events"]
 
     def __iadd__(self, other: Any) -> T:
         self.events.in_place("add", other)

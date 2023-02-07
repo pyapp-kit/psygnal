@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 from itertools import chain
-from typing import Any, Iterable, Iterator, MutableSet, TypeVar
-
-from typing_extensions import Final
+from typing import Any, Final, Iterable, Iterator, MutableSet, TypeVar
 
 from psygnal import Signal, SignalGroup
 

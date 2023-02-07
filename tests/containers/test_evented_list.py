@@ -304,6 +304,7 @@ def test_move_multiple_mimics_slice_reorder():
 
 def test_child_events():
     """Test that evented lists bubble child events."""
+
     # create a random object that emits events
     class E:
         test = Signal(str)
@@ -332,6 +333,7 @@ def test_child_events():
 
 def test_child_events_groups():
     """Test that evented lists bubble child events."""
+
     # create a random object that emits events
     class Group(SignalGroup):
         test = Signal(str)

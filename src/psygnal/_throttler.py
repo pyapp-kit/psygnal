@@ -4,7 +4,9 @@ from threading import Timer
 from typing import TYPE_CHECKING, Any, Callable, overload
 
 if TYPE_CHECKING:
-    from typing_extensions import Literal, ParamSpec
+    from typing import Literal
+
+    from typing_extensions import ParamSpec
 
     P = ParamSpec("P")
 
@@ -75,7 +77,6 @@ class Throttler(_ThrottlerBase):
         interval: int = 100,
         policy: EmissionPolicy = "leading",
     ) -> None:
-
         super().__init__(func, interval, policy)
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:
