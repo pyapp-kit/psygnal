@@ -166,3 +166,18 @@ def test_group_disconnect_all_slots():
 
     mock1.assert_not_called()
     mock2.assert_not_called()
+
+
+def test_weakref():
+    """Make sure that the group doesn't keep a strong reference to the instance."""
+    import gc
+
+    class T:
+        ...
+
+    obj = T()
+    group = MyGroup(obj)
+    assert group.instance is obj
+    del obj
+    gc.collect()
+    assert group.instance is None

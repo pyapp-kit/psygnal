@@ -290,7 +290,12 @@ class SignalInstance:
         check_types_on_connect: bool = False,
     ) -> None:
         self._name = name
-        self._instance: Any = instance
+        try:
+            self._instance: Any = weakref.ref(instance)
+        except TypeError:
+            # fall back to strong reference if instance is not weak-referenceable
+            self._instance = lambda: instance
+
         self._args_queue: list[Any] = []  # filled when paused
 
         if isinstance(signature, (list, tuple)):
@@ -317,7 +322,7 @@ class SignalInstance:
     @property
     def instance(self) -> Any:
         """Object that emits this `SignalInstance`."""
-        return self._instance
+        return self._instance()
 
     @property
     def name(self) -> str:
