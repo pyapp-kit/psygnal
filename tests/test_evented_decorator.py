@@ -8,15 +8,23 @@ import numpy as np
 import pytest
 
 from psygnal import SignalGroup, evented
-from psygnal._evented_decorator import _SignalGroupDescriptor
+from psygnal._evented_decorator import (
+    _SignalGroupDescriptor,
+    get_evented_signal_group,
+    is_evented,
+)
 
 
 @no_type_check
 def _check_events(cls, events_ns="events"):
     obj = cls(bar=1, baz="2", qux=np.zeros(3))
-
+    assert is_evented(obj)
+    assert is_evented(cls)
     assert isinstance(getattr(cls, events_ns), _SignalGroupDescriptor)
+    assert get_evented_signal_group(cls) is None
+
     events = getattr(obj, events_ns)
+    assert get_evented_signal_group(obj) is events
     assert isinstance(events, SignalGroup)
     assert set(events.signals) == {"bar", "baz", "qux"}
 
