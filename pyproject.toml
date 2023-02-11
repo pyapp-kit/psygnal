@@ -70,6 +70,7 @@ test = [
     "pytest-mypy-plugins",
     "pytest>=6.0",
     "wrapt",
+    "msgspec",
 ]
 testqt = ["pytest-qt", "qtpy"]
 
