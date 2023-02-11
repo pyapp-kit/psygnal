@@ -90,6 +90,7 @@ only-include = ["src"]
 sources = ["src"]
 
 [tool.hatch.build.targets.wheel.hooks.mypyc]
+mypy-args = ["--ignore-missing-imports"]
 enable-by-default = false
 require-runtime-dependencies = true
 dependencies = [
@@ -99,7 +100,11 @@ dependencies = [
     "types-attrs",
     "msgspec ; python_version >= '3.8'",
 ]
-include = ["src/psygnal/_signal.py", "src/psygnal/_group.py"]
+include = [
+    "src/psygnal/_signal.py",
+    "src/psygnal/_group.py",
+    "src/psygnal/_evented_decorator.py",
+]
 
 [tool.cibuildwheel]
 # Skip 32-bit builds & PyPy wheels on all platforms
@@ -168,12 +173,12 @@ show_error_codes = true
 pretty = true
 
 [[tool.mypy.overrides]]
-# msgspec is only available on Python 3.8+ ... so we need to ignore it
-module = ["numpy.*", "wrapt", "pydantic.*", "msgspec.*"]
+module = ["numpy.*", "wrapt", "pydantic.*"]
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = ["wrapt"]
+# msgspec is only available on Python 3.8+ ... so we need to ignore it
+module = ["wrapt", "msgspec"]
 ignore_missing_imports = true
 
 # https://coverage.readthedocs.io/en/6.4/config.html
