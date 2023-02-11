@@ -23,6 +23,7 @@ def _check_events(cls, events_ns="events"):
     assert isinstance(getattr(cls, events_ns), _SignalGroupDescriptor)
     assert get_evented_signal_group(cls) is None
 
+    assert isinstance(getattr(cls, events_ns), _SignalGroupDescriptor)
     events = getattr(obj, events_ns)
     assert get_evented_signal_group(obj) is events
     assert isinstance(events, SignalGroup)
