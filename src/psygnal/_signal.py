@@ -290,11 +290,14 @@ class SignalInstance:
         check_types_on_connect: bool = False,
     ) -> None:
         self._name = name
-        try:
-            self._instance: Any = weakref.ref(instance)
-        except TypeError:
-            # fall back to strong reference if instance is not weak-referenceable
-            self._instance = lambda: instance
+        if instance is None:
+            self._instance: Callable = lambda: None
+        else:
+            try:
+                self._instance = weakref.ref(instance)
+            except TypeError:
+                # fall back to strong reference if instance is not weak-referenceable
+                self._instance = lambda: instance
 
         self._args_queue: list[Any] = []  # filled when paused
 
