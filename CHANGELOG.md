@@ -1,8 +1,26 @@
 # Changelog
 
-## [0.7.0](https://github.com/pyapp-kit/psygnal/tree/0.7.0) (2022-12-20)
+## [0.7.1](https://github.com/pyapp-kit/psygnal/tree/0.7.1) (2023-02-11)
 
-[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.6.1...0.7.0)
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.7.0...0.7.1)
+
+**Implemented enhancements:**
+
+- feat: add `is_evented` and `get_evented_namespace` [\#166](https://github.com/pyapp-kit/psygnal/pull/166) ([tlambert03](https://github.com/tlambert03))
+- feat: add support for msgspec Struct classes to evented decorator [\#165](https://github.com/pyapp-kit/psygnal/pull/165) ([tlambert03](https://github.com/tlambert03))
+
+**Fixed bugs:**
+
+- fix: fix clobbering of SignalGroup name in EventedModel [\#158](https://github.com/pyapp-kit/psygnal/pull/158) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.11.4 to 2.12.0 [\#164](https://github.com/pyapp-kit/psygnal/pull/164) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.11.3 to 2.11.4 [\#159](https://github.com/pyapp-kit/psygnal/pull/159) ([dependabot[bot]](https://github.com/apps/dependabot))
+
+## [v0.7.0](https://github.com/pyapp-kit/psygnal/tree/v0.7.0) (2022-12-20)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.6.1...v0.7.0)
 
 **Implemented enhancements:**
 
