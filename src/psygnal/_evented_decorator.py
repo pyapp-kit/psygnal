@@ -1,8 +1,8 @@
 import contextlib
-import inspect
 import operator
 import sys
 import warnings
+import weakref
 from dataclasses import fields, is_dataclass
 from functools import lru_cache
 from typing import (
@@ -25,6 +25,7 @@ from ._group import SignalGroup
 from ._signal import Signal, SignalInstance
 
 if TYPE_CHECKING:
+    import msgspec
     from pydantic import BaseModel
     from typing_extensions import Literal, TypeGuard
 
@@ -38,7 +39,6 @@ T = TypeVar("T", bound=Type)
 EqOperator = Callable[[Any, Any], bool]
 _EQ_OPERATORS: Dict[Type, Dict[str, EqOperator]] = {}
 _EQ_OPERATOR_NAME = "__eq_operators__"
-_PRIVATE_EVENTS_GROUP = "_psygnal_group"
 _NULL = object()
 
 
@@ -110,35 +110,6 @@ def _check_field_equality(
             return _check_field_equality(cls, name, before, after, _fail=True)
 
 
-def __setattr_and_emit__(self: Any, name: str, value: Any) -> None:
-    """New __setattr__ method that emits events when fields change."""
-    if name == _PRIVATE_EVENTS_GROUP:
-        # we're in our custom init.  just add the events group
-        object.__setattr__(self, name, value)
-        return
-
-    # ensure we have a signal instance, before worrying about events at all.
-    try:
-        group = getattr(self, _PRIVATE_EVENTS_GROUP)
-        signal_instance: SignalInstance = getattr(group, name)
-    except AttributeError:  # pragma: no cover
-        super(type(self), self).__setattr__(name, value)
-        return
-
-    # grab current value
-    before = getattr(self, name, _NULL)
-
-    # set value using original setter
-    super(type(self), self).__setattr__(name, value)
-
-    # if different we emit the event with new value
-    after = getattr(self, name)
-
-    # finally, emit the event if the value changed
-    if not _check_field_equality(type(self), name, before, after):
-        signal_instance.emit(after)
-
-
 def is_attrs_class(cls: Type) -> bool:
     """Return True if the class is an attrs class."""
     attr = sys.modules.get("attr", None)
@@ -149,6 +120,12 @@ def is_pydantic_model(cls: Type) -> "TypeGuard[BaseModel]":
     """Return True if the class is a pydantic BaseModel."""
     pydantic = sys.modules.get("pydantic", None)
     return pydantic is not None and issubclass(cls, pydantic.BaseModel)
+
+
+def is_msgspec_struct(cls: Type) -> "TypeGuard[msgspec.Struct]":
+    """Return True if the class is a `msgspec.Struct`."""
+    msgspec = sys.modules.get("msgspec", None)
+    return msgspec is not None and issubclass(cls, msgspec.Struct)
 
 
 def iter_fields(cls: Type) -> Iterator[Tuple[str, Type]]:
@@ -163,16 +140,21 @@ def iter_fields(cls: Type) -> Iterator[Tuple[str, Type]]:
         for d_field in fields(cls):
             yield d_field.name, d_field.type
 
-    if is_attrs_class(cls):
+    elif is_attrs_class(cls):
         import attr
 
         for a_field in attr.fields(cls):
             yield a_field.name, cast("type", a_field.type)
 
-    if is_pydantic_model(cls):
+    elif is_pydantic_model(cls):
         for p_field in cls.__fields__.values():
             if p_field.field_info.allow_mutation:
                 yield p_field.name, p_field.outer_type_
+
+    elif is_msgspec_struct(cls):
+        for m_field in cls.__struct_fields__:
+            type_ = cls.__annotations__.get(m_field, None)
+            yield m_field, type_
 
 
 def _pick_equality_operator(type_: Type) -> EqOperator:
@@ -287,51 +269,61 @@ def evented(
             )
             return cls
 
-        original_init = cls.__init__
+        def __setattr_and_emit__(self: Any, name: str, value: Any) -> None:
+            """New __setattr__ method that emits events when fields change."""
+            # ensure we have a signal instance, before worrying about events at all.
+            try:
+                group = getattr(self, events_namespace)
+                signal_instance: SignalInstance = getattr(group, name)
+            except AttributeError:  # pragma: no cover
+                super(type(self), self).__setattr__(name, value)
+                return
 
-        def __evented_init__(self: Any, *args: Any, **kwargs: Any) -> None:
-            setattr(self, _PRIVATE_EVENTS_GROUP, Grp())
-            original_init(self, *args, **kwargs)
+            # grab current value
+            before = getattr(self, name, _NULL)
+
+            # set value using original setter
+            super(type(self), self).__setattr__(name, value)
+
+            # if different we emit the event with new value
+            after = getattr(self, name)
+
+            # finally, emit the event if the value changed
+            if not _check_field_equality(type(self), name, before, after):
+                signal_instance.emit(after)
 
         cls.__setattr__ = __setattr_and_emit__  # type: ignore
-        cls.__init__ = __evented_init__
-        cls.__init__.__doc__ = original_init.__doc__
+        setattr(cls, events_namespace, _SignalGroupDescriptor(Grp, events_namespace))
 
-        if not hasattr(cls, "__signature__"):
-            cls.__signature__ = inspect.signature(original_init)
-
-        # expose the events as a property `events` by default, or as specified
-        events_prop = property(lambda s: getattr(s, _PRIVATE_EVENTS_GROUP))
-        setattr(cls, events_namespace, events_prop)
-
-        return _add_slots(cls) if "__slots__" in cls.__dict__ else cls
+        return cls
 
     return _decorate(cls) if cls is not None else _decorate
 
 
-def _add_slots(cls: T) -> T:
-    """Add __slots__ to support evented dataclasses with __slots__."""
-    # Need to create a new class, since we can't set __slots__
-    #  after a class has been created.
+class _SignalGroupDescriptor:
+    """Lazily create signal groups when attribute is accessed.
 
-    # Make sure __slots__ isn't already set.
-    cls_dict = dict(cls.__dict__)
+    This helps this pattern work even on objects with slots, and where you cannot
+    override __init__ (like msgspec.)
+    """
 
-    __slots__ = {_PRIVATE_EVENTS_GROUP}
-    if "__slots__" in cls.__dict__:
-        for s in cls.__dict__["__slots__"]:
-            __slots__.add(s)
-            cls_dict.pop(s, None)
+    _instance_map: dict[int, SignalGroup] = {}
 
-    # Create a new dict for our new class.
-    cls_dict["__slots__"] = tuple(__slots__)
-    # Remove __dict__ itself.
-    cls_dict.pop("__dict__", None)
+    def __init__(self, group_cls: Type[SignalGroup], name: str):
+        self._name = name
+        self._signal_group = group_cls
 
-    # And finally create the class.
-    qualname = getattr(cls, "__qualname__", None)
-    cls = type(cls)(cls.__name__, cls.__bases__, cls_dict)  # type: ignore
-    if qualname is not None:
-        cls.__qualname__ = qualname
+    def __get__(
+        self, instance: object, owner: type
+    ) -> "_SignalGroupDescriptor | SignalGroup":
+        if instance is None:
+            return self
 
-    return cls
+        obj_id = id(instance)
+        with contextlib.suppress(TypeError):
+            weakref.finalize(  # type: ignore
+                instance, self._instance_map.pop, obj_id, None
+            )
+        if obj_id not in self._instance_map:
+            self._instance_map[obj_id] = self._signal_group(instance)
+        return self._instance_map[obj_id]

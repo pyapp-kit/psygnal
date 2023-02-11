@@ -84,6 +84,18 @@ def test_pydantic_dataclass() -> None:
     _check_events(Foo)
 
 
+def test_msgspec_struct() -> None:
+    import msgspec
+
+    @evented
+    class Foo(msgspec.Struct):
+        bar: int
+        baz: str
+        qux: np.ndarray
+
+    _check_events(Foo)
+
+
 def test_pydantic_base_model() -> None:
     from pydantic import BaseModel
 
@@ -106,3 +118,18 @@ def test_no_signals_warn():
         @evented
         class Foo:
             bar: int
+
+
+@evented
+@dataclass
+class FooPicklable:
+    bar: int
+
+
+def test_pickle() -> None:
+    """Make sure that evented classes are still picklable."""
+    import pickle
+
+    obj = FooPicklable(1)
+    obj2 = pickle.loads(pickle.dumps(obj))
+    assert obj2.bar == 1
