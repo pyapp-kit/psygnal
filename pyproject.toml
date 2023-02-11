@@ -71,6 +71,7 @@ test = [
     "pytest>=6.0",
     "wrapt",
     "msgspec",
+    "msgspec ; python_version >= '3.8'",
 ]
 testqt = ["pytest-qt", "qtpy"]
 

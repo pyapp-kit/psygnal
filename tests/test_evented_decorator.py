@@ -85,7 +85,7 @@ def test_pydantic_dataclass() -> None:
 
 
 def test_msgspec_struct() -> None:
-    import msgspec
+    msgspec = pytest.importorskip("msgspec")
 
     @evented
     class Foo(msgspec.Struct):
