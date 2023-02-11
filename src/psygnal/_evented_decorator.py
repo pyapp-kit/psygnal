@@ -313,9 +313,17 @@ class _SignalGroupDescriptor:
         self._name = name
         self._signal_group = group_cls
 
+    @overload
+    def __get__(self, instance: None, owner: type) -> "_SignalGroupDescriptor":
+        ...
+
+    @overload
+    def __get__(self, instance: object, owner: type) -> SignalGroup:
+        ...
+
     def __get__(
         self, instance: object, owner: type
-    ) -> "_SignalGroupDescriptor | SignalGroup":
+    ) -> "SignalGroup | _SignalGroupDescriptor":
         if instance is None:
             return self
 
