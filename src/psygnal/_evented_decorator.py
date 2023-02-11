@@ -310,7 +310,7 @@ def is_evented(obj: object) -> bool:
     return hasattr(obj, PSYGNAL_GROUP_NAME)
 
 
-def get_evented_namespace(obj: object) -> str | None:
+def get_evented_namespace(obj: object) -> Optional[str]:
     """Return the name of the evented SignalGroup for an object.
 
     Note: if you get the returned name as an attribute of the object, it will be a
