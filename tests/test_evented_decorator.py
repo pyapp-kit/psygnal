@@ -7,12 +7,8 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 
-from psygnal import SignalGroup, evented
-from psygnal._evented_decorator import (
-    _SignalGroupDescriptor,
-    get_evented_namespace,
-    is_evented,
-)
+from psygnal import SignalGroup, evented, get_evented_namespace, is_evented
+from psygnal._evented_decorator import _SignalGroupDescriptor
 
 
 @no_type_check
