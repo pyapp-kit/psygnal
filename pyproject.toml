@@ -92,7 +92,7 @@ sources = ["src"]
 [tool.hatch.build.targets.wheel.hooks.mypyc]
 enable-by-default = false
 require-runtime-dependencies = true
-dependencies = ["hatch-mypyc>=0.13.0", "mypy>=0.991", "pydantic", "types-attrs"]
+dependencies = ["hatch-mypyc>=0.13.0", "mypy>=0.991", "pydantic", "types-attrs", "msgspec ; python_version >= '3.8'"]
 include = ["src/psygnal/_signal.py", "src/psygnal/_group.py"]
 
 [tool.cibuildwheel]
@@ -166,7 +166,7 @@ module = ["numpy.*", "wrapt", "pydantic.*"]
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-module = "wrapt"
+module = ["wrapt", "msgspec"]  # msgspec ignore is only for py3.7
 ignore_missing_imports = true
 
 # https://coverage.readthedocs.io/en/6.4/config.html
