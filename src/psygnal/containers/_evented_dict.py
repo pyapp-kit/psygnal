@@ -43,7 +43,6 @@ class TypedMutableMapping(MutableMapping[_K, _V]):
         basetype: TypeOrSequenceOfTypes = (),
         **kwargs: _V,
     ):
-
         self._dict: Dict[_K, _V] = {}
         self._basetypes: Tuple[Type[_V], ...] = (
             tuple(basetype) if isinstance(basetype, Sequence) else (basetype,)
