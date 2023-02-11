@@ -28,7 +28,6 @@ from mypy_extensions import mypyc_attr
 from typing_extensions import Protocol, get_args, get_origin
 
 if TYPE_CHECKING:
-
     from typing_extensions import Literal, TypeGuard
 
     ReducerFunc = Callable[[tuple, tuple], tuple]
@@ -110,7 +109,6 @@ class Signal:
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
     ) -> None:
-
         self._name = name
         self.description = description
         self._check_nargs_on_connect = check_nargs_on_connect

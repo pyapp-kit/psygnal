@@ -110,7 +110,7 @@ HATCH_BUILD_HOOKS_ENABLE = "1"
 # https://github.com/charliermarsh/ruff
 [tool.ruff]
 line-length = 88
-target-version = "py38"
+target-version = "py37"
 src = ["src", "tests"]
 extend-select = [
     "E",    # style errors
@@ -132,6 +132,7 @@ extend-ignore = [
     "D203", # 1 blank line required before class docstring
     "D212", # Multi-line docstring summary should start at the first line
     "D213", # Multi-line docstring summary should start at the second line
+    "D401", # First line should be in imperative mood
     "D413", # Missing blank line after last section
     "D416", # Section name should end with a colon
 ]

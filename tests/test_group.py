@@ -16,7 +16,6 @@ class MyStrictGroup(SignalGroup, strict=True):
 
 
 def test_signal_group():
-
     assert not MyGroup.is_uniform()
     group = MyGroup()
     assert not group.is_uniform()
@@ -46,7 +45,6 @@ def test_uniform_group():
 
 @pytest.mark.parametrize("direct", [True, False])
 def test_signal_group_connect(direct: bool):
-
     mock = Mock()
     group = MyGroup()
     if direct:

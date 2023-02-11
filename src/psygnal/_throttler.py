@@ -75,7 +75,6 @@ class Throttler(_ThrottlerBase):
         interval: int = 100,
         policy: EmissionPolicy = "leading",
     ) -> None:
-
         super().__init__(func, interval, policy)
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:

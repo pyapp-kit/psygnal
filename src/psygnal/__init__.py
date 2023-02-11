@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     PackageNotFoundError = Exception
 
     def version(package: str) -> str:
-        ...
+        """Return version."""
 
     from types import ModuleType
 
