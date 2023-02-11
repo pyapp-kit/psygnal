@@ -8,12 +8,14 @@ import numpy as np
 import pytest
 
 from psygnal import SignalGroup, evented
+from psygnal._evented_decorator import _SignalGroupDescriptor
 
 
 @no_type_check
 def _check_events(cls, events_ns="events"):
     obj = cls(bar=1, baz="2", qux=np.zeros(3))
 
+    assert isinstance(getattr(cls, events_ns), _SignalGroupDescriptor)
     events = getattr(obj, events_ns)
     assert isinstance(events, SignalGroup)
     assert set(events.signals) == {"bar", "baz", "qux"}
@@ -84,6 +86,18 @@ def test_pydantic_dataclass() -> None:
     _check_events(Foo)
 
 
+def test_msgspec_struct() -> None:
+    msgspec = pytest.importorskip("msgspec")
+
+    @evented
+    class Foo(msgspec.Struct):
+        bar: int
+        baz: str
+        qux: np.ndarray
+
+    _check_events(Foo)
+
+
 def test_pydantic_base_model() -> None:
     from pydantic import BaseModel
 
@@ -105,3 +119,18 @@ def test_no_signals_warn():
         @evented
         class Foo:
             bar: int
+
+
+@evented
+@dataclass
+class FooPicklable:
+    bar: int
+
+
+def test_pickle() -> None:
+    """Make sure that evented classes are still picklable."""
+    import pickle
+
+    obj = FooPicklable(1)
+    obj2 = pickle.loads(pickle.dumps(obj))
+    assert obj2.bar == 1
