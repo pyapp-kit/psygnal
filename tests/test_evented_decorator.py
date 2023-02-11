@@ -7,15 +7,18 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 
-from psygnal import SignalGroup, evented
+from psygnal import SignalGroup, evented, get_evented_namespace, is_evented
 from psygnal._evented_decorator import _SignalGroupDescriptor
 
 
 @no_type_check
 def _check_events(cls, events_ns="events"):
     obj = cls(bar=1, baz="2", qux=np.zeros(3))
-
+    assert is_evented(obj)
+    assert is_evented(cls)
+    assert get_evented_namespace(cls) == events_ns
     assert isinstance(getattr(cls, events_ns), _SignalGroupDescriptor)
+
     events = getattr(obj, events_ns)
     assert isinstance(events, SignalGroup)
     assert set(events.signals) == {"bar", "baz", "qux"}
@@ -134,3 +137,13 @@ def test_pickle() -> None:
     obj = FooPicklable(1)
     obj2 = pickle.loads(pickle.dumps(obj))
     assert obj2.bar == 1
+
+
+def test_get_namespace():
+    @evented(events_namespace="my_events")
+    @dataclass
+    class Foo:
+        x: int
+
+    assert get_evented_namespace(Foo) == "my_events"
+    assert is_evented(Foo)

@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
     from typing_extensions import Literal, TypeGuard
 
-
+__all__ = ["evented", "is_evented", "get_evented_namespace"]
 _DATACLASS_PARAMS = "__dataclass_params__"
 with contextlib.suppress(ImportError):
     from dataclasses import _DATACLASS_PARAMS  # type: ignore
@@ -39,6 +39,7 @@ T = TypeVar("T", bound=Type)
 EqOperator = Callable[[Any, Any], bool]
 _EQ_OPERATORS: Dict[Type, Dict[str, EqOperator]] = {}
 _EQ_OPERATOR_NAME = "__eq_operators__"
+PSYGNAL_GROUP_NAME = "__psygnal_group__"
 _NULL = object()
 
 
@@ -275,10 +276,8 @@ def evented(
         def __setattr_and_emit__(self: Any, name: str, value: Any) -> None:
             """New __setattr__ method that emits events when fields change."""
             # ensure we have a signal instance, before worrying about events at all.
-            try:
-                group = getattr(self, events_namespace)
-                signal_instance: SignalInstance = getattr(group, name)
-            except AttributeError:  # pragma: no cover
+            group = getattr(self, events_namespace, None)
+            if group is None or not hasattr(group, name):  # pragma: no cover
                 super(type(self), self).__setattr__(name, value)
                 return
 
@@ -293,14 +292,44 @@ def evented(
 
             # finally, emit the event if the value changed
             if not _check_field_equality(type(self), name, before, after):
+                signal_instance = cast("SignalInstance", getattr(group, name))
                 signal_instance.emit(after)
 
         cls.__setattr__ = __setattr_and_emit__  # type: ignore
         setattr(cls, events_namespace, _SignalGroupDescriptor(Grp, events_namespace))
+        # store the user's events_namespace on the class, so we can find it later
+        setattr(cls, PSYGNAL_GROUP_NAME, events_namespace)
 
         return cls
 
     return _decorate(cls) if cls is not None else _decorate
+
+
+def is_evented(obj: object) -> bool:
+    """Return `True` if the object or its class has been decorated with evented."""
+    return hasattr(obj, PSYGNAL_GROUP_NAME)
+
+
+def get_evented_namespace(obj: object) -> Optional[str]:
+    """Return the name of the evented SignalGroup for an object.
+
+    Note: if you get the returned name as an attribute of the object, it will be a
+    SignalGroup instance only if `obj` is an *instance* of an evented class.
+    If `obj` is the evented class itself, it will be a `_SignalGroupDescriptor`.
+
+    Examples
+    --------
+    ```python
+    from psygnal import evented, get_evented_namespace, is_evented
+
+    @evented(events_namespace="my_events")
+    class Foo:
+        ...
+
+    assert get_evented_namespace(Foo) == "my_events"
+    assert is_evented(Foo)
+    """
+    return getattr(obj, PSYGNAL_GROUP_NAME, None)
 
 
 class _SignalGroupDescriptor:
@@ -310,6 +339,7 @@ class _SignalGroupDescriptor:
     override __init__ (like msgspec.)
     """
 
+    # cache instances here in case the object isn't modifiable
     _instance_map: Dict[int, SignalGroup] = {}
 
     def __init__(self, group_cls: Type[SignalGroup], name: str):
@@ -331,10 +361,10 @@ class _SignalGroupDescriptor:
             return self
 
         obj_id = id(instance)
-        with contextlib.suppress(TypeError):
-            weakref.finalize(  # type: ignore
-                instance, self._instance_map.pop, obj_id, None
-            )
         if obj_id not in self._instance_map:
             self._instance_map[obj_id] = self._signal_group(instance)
+            with contextlib.suppress(TypeError):
+                weakref.finalize(  # type: ignore
+                    instance, self._instance_map.pop, obj_id, None
+                )
         return self._instance_map[obj_id]
