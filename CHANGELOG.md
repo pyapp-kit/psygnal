@@ -1,8 +1,16 @@
 # Changelog
 
-## [0.7.1](https://github.com/pyapp-kit/psygnal/tree/0.7.1) (2023-02-11)
+## [0.7.2](https://github.com/pyapp-kit/psygnal/tree/0.7.2) (2023-02-11)
 
-[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.7.0...0.7.1)
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.7.1...0.7.2)
+
+**Fixed bugs:**
+
+- fix: use weakref when instance is passed to SignalGroup [\#167](https://github.com/pyapp-kit/psygnal/pull/167) ([tlambert03](https://github.com/tlambert03))
+
+## [v0.7.1](https://github.com/pyapp-kit/psygnal/tree/v0.7.1) (2023-02-11)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.7.0...v0.7.1)
 
 **Implemented enhancements:**
 
