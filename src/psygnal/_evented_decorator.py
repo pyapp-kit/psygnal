@@ -131,7 +131,8 @@ def is_msgspec_struct(cls: Type) -> "TypeGuard[msgspec.Struct]":
 def iter_fields(cls: Type) -> Iterator[Tuple[str, Type]]:
     """Iterate over all mutable fields in the class, including inherited fields.
 
-    This function recognizes dataclasses, attrs classes, and pydantic models.
+    This function recognizes dataclasses, attrs classes, msgspec Structs, and pydantic
+    models.
     """
     if is_dataclass(cls):
         if getattr(cls, _DATACLASS_PARAMS).frozen:  # pragma: no cover
@@ -211,9 +212,11 @@ def evented(
     events_namespace: str = "events",
     equality_operators: Optional[Dict[str, EqOperator]] = None,
 ) -> Union[Callable[[T], T], T]:
-    """A decorator to add events to a [dataclass][dataclasses.dataclass],
-    [attrs](https://www.attrs.org), or [pydantic](https://pydantic-docs.helpmanual.io)
-    model.
+    """A decorator to add events to a dataclass.
+
+    Supports [dataclass][dataclasses.dataclass], [attrs](https://www.attrs.org),
+    [msgspec](https://jcristharif.com/msgspec/) and
+    [pydantic](https://pydantic-docs.helpmanual.io) models.
 
     Note that this decorator will modify `cls` *in place*, as well as return it.
 
@@ -255,7 +258,7 @@ def evented(
         name: str
         age: int = 0
     ```
-    """  # noqa: D
+    """
     _eqop = tuple(equality_operators.items()) if equality_operators else None
 
     def _decorate(cls: T) -> T:
@@ -265,7 +268,7 @@ def evented(
         if not Grp._signals_:
             warnings.warn(
                 f"No mutable fields found in class {cls} no events will be emitted. "
-                "(Is this a dataclass, attrs, or pydantic model?)"
+                "(Is this a dataclass, attrs, msgspec, or pydantic model?)"
             )
             return cls
 

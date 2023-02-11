@@ -60,8 +60,8 @@ print(john)  # prints: Person(name='John', age=30)
 
 ### ... in third-party libraries
 
-Prior to the addition of dataclasses in the standard library, third-party libraries
-were already implementing this pattern:
+There are multiple hird-party libraries that also implement this pattern, or
+something similar:
 
 - the [`attrs` library](https://www.attrs.org/en/stable/) provides [the `@define`
   decorator](https://www.attrs.org/en/stable/overview.html), which is similar to
@@ -70,6 +70,8 @@ were already implementing this pattern:
   [`BaseModel` class](https://pydantic-docs.helpmanual.io/usage/models/),
   a dataclass-like object that can additionally perform type validation and facilitates
   serialization to and from JSON.
+- [msgspec](https://jcristharif.com/msgspec/) provides a
+  [`Struct` class](https://jcristharif.com/msgspec/structs.html)
 
 All of these libraries are still in common use, and each has its own
 strengths and weaknesses (discussed in depth elsewhere).
@@ -77,11 +79,11 @@ strengths and weaknesses (discussed in depth elsewhere).
 ## Evented dataclasses in Psygnal
 
 `psygnal` provides an [`@evented` decorator][psygnal.evented] that can be used
-to decorate any existing dataclass (standard library, `attrs`, or `pydantic`
-model). It adds a new [`SignalGroup`][psygnal.SignalGroup] property to the
-class, with a [`SignalInstance`][psygnal.SignalInstance] for each field in the
-dataclass.  A Signal will be emitted whenever the field value is changed, with
-the new value as the first argument.
+to decorate any existing dataclass (standard library, `attrs`, `msgspec`, or
+`pydantic` model). It adds a new [`SignalGroup`][psygnal.SignalGroup] property
+to the class, with a [`SignalInstance`][psygnal.SignalInstance] for each field
+in the dataclass.  A Signal will be emitted whenever the field value is changed,
+with the new value as the first argument.
 
 !!! example
 
@@ -107,6 +109,18 @@ the new value as the first argument.
         @evented
         @define
         class Person:
+            name: str
+            age: int = 0
+        ```
+
+    === "msgspec"
+
+        ```python
+        from psygnal import evented
+        import msgspec
+
+        @evented
+        class Person(msgspec.Struct):
             name: str
             age: int = 0
         ```
