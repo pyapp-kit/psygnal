@@ -307,7 +307,7 @@ class _SignalGroupDescriptor:
     override __init__ (like msgspec.)
     """
 
-    _instance_map: dict[int, SignalGroup] = {}
+    _instance_map: Dict[int, SignalGroup] = {}
 
     def __init__(self, group_cls: Type[SignalGroup], name: str):
         self._name = name
