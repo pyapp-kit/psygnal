@@ -4,9 +4,7 @@ from threading import Timer
 from typing import TYPE_CHECKING, Any, Callable, overload
 
 if TYPE_CHECKING:
-    from typing import Literal
-
-    from typing_extensions import ParamSpec
+    from typing_extensions import Literal, ParamSpec
 
     P = ParamSpec("P")
 

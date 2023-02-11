@@ -108,7 +108,7 @@ HATCH_BUILD_HOOKS_ENABLE = "1"
 # https://github.com/charliermarsh/ruff
 [tool.ruff]
 line-length = 88
-target-version = "py38"
+target-version = "py37"
 src = ["src", "tests"]
 extend-select = [
     "E",    # style errors

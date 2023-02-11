@@ -1,11 +1,12 @@
 import inspect
 import sys
-from typing import ClassVar, List, Protocol, Sequence, Union, runtime_checkable
+from typing import ClassVar, List, Sequence, Union, runtime_checkable
 from unittest.mock import Mock
 
 import numpy as np
 import pytest
 from pydantic import PrivateAttr
+from typing_extensions import Protocol
 
 from psygnal import EventedModel, SignalGroup
 
