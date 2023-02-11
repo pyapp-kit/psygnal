@@ -1,4 +1,8 @@
-"""psygnal is a pure-python implementation of Qt-style signals & slots."""
+"""Psygnal implements the observer pattern for Python.
+
+It emulates the signal/slot pattern from Qt, but it does not require Qt.
+"""
+
 import os
 from typing import TYPE_CHECKING, Any
 
@@ -35,7 +39,6 @@ except PackageNotFoundError:  # pragma: no cover
 __author__ = "Talley Lambert"
 __email__ = "talley.lambert@gmail.com"
 
-
 __all__ = [
     "__version__",
     "_compiled",
@@ -43,6 +46,8 @@ __all__ = [
     "EmissionInfo",
     "EmitLoopError",
     "evented",
+    "is_evented",
+    "get_evented_namespace",
     "EventedModel",
     "Signal",
     "SignalGroup",
@@ -50,7 +55,7 @@ __all__ = [
     "throttled",
 ]
 
-from ._evented_decorator import evented
+from ._evented_decorator import evented, get_evented_namespace, is_evented
 
 if os.getenv("PSYGNAL_UNCOMPILED"):
 

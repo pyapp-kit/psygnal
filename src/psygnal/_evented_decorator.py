@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
     from typing_extensions import Literal, TypeGuard
 
-__all__ = ["evented"]
+__all__ = ["evented", "is_evented", "get_evented_namespace"]
 _DATACLASS_PARAMS = "__dataclass_params__"
 with contextlib.suppress(ImportError):
     from dataclasses import _DATACLASS_PARAMS  # type: ignore
@@ -310,11 +310,26 @@ def is_evented(obj: object) -> bool:
     return hasattr(obj, PSYGNAL_GROUP_NAME)
 
 
-def get_evented_signal_group(obj: object) -> SignalGroup | None:
-    """Return the name of the evented group for a class."""
-    if not isinstance(obj, type) and is_evented(obj):
-        return getattr(obj, getattr(obj, PSYGNAL_GROUP_NAME), None)
-    return None
+def get_evented_namespace(obj: object) -> str | None:
+    """Return the name of the evented SignalGroup for an object.
+
+    Note: if you get the returned name as an attribute of the object, it will be a
+    SignalGroup instance only if `obj` is an *instance* of an evented class.
+    If `obj` is the evented class itself, it will be a `_SignalGroupDescriptor`.
+
+    Examples
+    --------
+    ```python
+    from psygnal import evented, get_evented_namespace, is_evented
+
+    @evented(events_namespace="my_events")
+    class Foo:
+        ...
+
+    assert get_evented_namespace(Foo) == "my_events"
+    assert is_evented(Foo)
+    """
+    return getattr(obj, PSYGNAL_GROUP_NAME, None)
 
 
 class _SignalGroupDescriptor:
