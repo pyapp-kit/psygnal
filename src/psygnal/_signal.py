@@ -707,9 +707,8 @@ class SignalInstance:
             idx = self._slot_index(slot)
             if idx != -1:
                 self._slots.pop(idx)
-                _PARTIAL_CACHE.pop(id(slot), None)
-                if isinstance(slot, _PartialMethodCaller):
-                    _PARTIAL_CACHE.pop(slot._slot_id, None)
+                # if isinstance(slot, _PartialMethodCaller):
+                #     _PARTIAL_CACHE.pop(slot._method_ref, None)
             elif not missing_ok:
                 raise ValueError(f"slot is not connected: {slot}")
 
@@ -1169,13 +1168,7 @@ def _slot_caller(slot: Callable, max_args: int | None = None) -> SlotCaller:
     if isinstance(slot, MethodType):
         return _BoundMethodCaller(slot, max_args)
     if _is_partial_method(slot):
-        _id = id(slot)
-        if _id not in _PARTIAL_CACHE:
-            print("connecting", slot, "at", _id)
-            _PARTIAL_CACHE[_id] = _PartialMethodCaller(slot, max_args)
-        else:
-            breakpoint()
-        return _PARTIAL_CACHE[_id]
+        return _PartialMethodCaller(slot, max_args)
     return _FunctionCaller(slot, max_args)
 
 
@@ -1289,6 +1282,9 @@ class _BoundMethodCaller(SlotCaller):
         return method
 
 
+# _PARTIAL_CACHE: dict[weakref.WeakMethod, _PartialMethodCaller] = {}
+
+
 class _PartialMethodCaller(SlotCaller):
     """Caller of a partial to a (dereferenced) bound method."""
 
@@ -1297,7 +1293,6 @@ class _PartialMethodCaller(SlotCaller):
         self._max_args = max_args
         self._partial_args = slot.args
         self._partial_kwargs = slot.keywords
-        self._slot_id = id(slot)
 
     def __call__(self, args: tuple[object, ...]) -> bool:
         method = self._method_ref()
@@ -1438,16 +1433,6 @@ def _is_subclass(left: type[Any], right: type) -> bool:
     if not isclass(left) and get_origin(left) is Union:
         return any(issubclass(i, right) for i in get_args(left))
     return issubclass(left, right)
-
-
-_PARTIAL_CACHE: dict[int, _PartialMethodCaller] = {}
-
-
-def _prune_partial_cache() -> None:
-    """Remove any partial methods whose object has been garbage collected."""
-    for key, caller in list(_PARTIAL_CACHE.items()):
-        if caller._method_ref() is None:
-            del _PARTIAL_CACHE[key]
 
 
 def _guess_qtsignal_signature(obj: Any) -> str | None:

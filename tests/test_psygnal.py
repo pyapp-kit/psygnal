@@ -856,26 +856,19 @@ def test_emit_loop_exceptions():
 )
 def test_weakref_disconnect(slot):
     """Test that a connected method doesn't hold strong ref."""
-    from psygnal._signal import _PARTIAL_CACHE, _prune_partial_cache
 
     emitter = Emitter()
     obj = MyObj()
 
-    _prune_partial_cache()
-    assert not _PARTIAL_CACHE
-
     assert len(emitter.one_int) == 0
     cb = partial(obj.f_int_int, 1) if slot == "partial" else getattr(obj, slot)
-    cb_id = id(cb)
-    assert cb_id not in _PARTIAL_CACHE
+
     emitter.one_int.connect(cb)
-    assert (cb_id in _PARTIAL_CACHE) == (slot == "partial")
     assert len(emitter.one_int) == 1
     emitter.one_int.emit(1)
     assert len(emitter.one_int) == 1
     emitter.one_int.disconnect(cb)
     assert len(emitter.one_int) == 0
-    assert cb_id not in _PARTIAL_CACHE
 
 
 class T:

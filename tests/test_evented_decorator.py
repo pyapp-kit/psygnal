@@ -158,7 +158,6 @@ def test_get_namespace():
 def test_nesting():
     from psygnal._evented_decorator import connect_child_events
 
-
     @evented
     @dataclass
     class Foo:
@@ -182,14 +181,10 @@ def test_nesting():
     baz = Baz()
     mock = Mock()
     baz.events.connect(mock)
-    from rich import print
-    print("-------")
-    baz.bar.foo.x = 3
+
+    baz.bar.foo.x = 3  # trigger nested event
+
     inner_inner_info = EmissionInfo(baz.bar.foo.events.x, (3,), None)
-    inner_info = EmissionInfo(baz.bar.foo.events, (inner_inner_info,), 'foo')
-    expect = EmissionInfo(baz.bar.events, (inner_info,), 'bar')
-    breakpoint()
-    mock.assert_called_with(expect)
-
-
-    real = mock.call_args_list[0].args[0]
+    inner_info = EmissionInfo(baz.bar.foo.events, (inner_inner_info,), "foo")
+    expected = EmissionInfo(baz.bar.events, (inner_info,), "bar")
+    mock.assert_called_with(expected)
