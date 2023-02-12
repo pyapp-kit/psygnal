@@ -972,4 +972,5 @@ def test_slot_caller_equality():
     _assert_equality()
     del t2
     gc.collect()
+    assert t2_ref() is None
     _assert_equality()
