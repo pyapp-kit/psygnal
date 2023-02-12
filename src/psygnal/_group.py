@@ -33,7 +33,12 @@ class EmissionInfo(NamedTuple):
     Attributes
     ----------
     signal : SignalInstance
+        The SignalInstance that emitted
     args: tuple
+        The args that were emitted
+    attr_name: str | None
+        If the `SignalInstance` was a `SignalGroup` attribute on another object, this
+        will be the name of that attribute.  Otherwise, it will be `None`.
     """
 
     signal: SignalInstance

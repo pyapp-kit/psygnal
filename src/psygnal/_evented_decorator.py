@@ -370,21 +370,46 @@ class _SignalGroupDescriptor:
         return self._instance_map[obj_id]
 
 
+def _find_signal_group(obj: object, default_name: str = "events") -> SignalGroup | None:
+    # look for default "events" name as well
+    maybe_group = getattr(obj, get_evented_namespace(obj) or default_name, None)
+    return maybe_group if isinstance(maybe_group, SignalGroup) else None
+
+
 def connect_child_events(
     obj: object, recurse: bool = False, _group: SignalGroup | None = None
 ) -> None:
+    """Connect events from evented children to a parent SignalGroup.
+
+    `obj` must be an evented dataclass-style object.
+
+    This is useful when you have a tree of objects, and you want to connect all
+    events from the children to the parent.
+
+    Parameters
+    ----------
+    obj : object
+        The object to connect events from.  If it is not evented, this function will
+        do nothing.
+    recurse : bool, optional
+        If `True`, will also connect events from all evented children of `obj`, by
+        default `False`.
+    _group : SignalGroup, optional
+        The SignalGroup to connect to.  If not provided, will be found by calling
+        `get_evented_namespace(obj)`, by default None.  (This is used internally
+        during recursion.)
+    """
     if _group is None:
-        events_ns = get_evented_namespace(obj)
-        if events_ns is None:
+        # sourcery skip: hoist-if-from-if
+        _group = _find_signal_group(obj)
+        if _group is None:
             return
-        _group = cast("SignalGroup", getattr(obj, events_ns))
 
     for attr_name, attr_type in iter_fields(type(obj)):
         if is_evented(attr_type):
             child = getattr(obj, attr_name)
-            events_name2 = get_evented_namespace(child)
-            if events_name2:
-                child_group = cast("SignalGroup", getattr(child, events_name2))
+            child_group = _find_signal_group(child)
+            if child_group is not None:
                 child_group.connect(partial(_group._slot_relay, attr_name=attr_name))
                 if recurse:
                     connect_child_events(child, recurse=True, _group=child_group)

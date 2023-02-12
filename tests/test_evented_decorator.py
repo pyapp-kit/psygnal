@@ -155,7 +155,7 @@ def test_get_namespace():
     assert is_evented(Foo)
 
 
-def test_nesting():
+def test_nesting() -> None:
     from psygnal._evented_decorator import connect_child_events
 
     @evented
@@ -184,7 +184,19 @@ def test_nesting():
 
     baz.bar.foo.x = 3  # trigger nested event
 
+    # what we expect
     inner_inner_info = EmissionInfo(baz.bar.foo.events.x, (3,), None)
     inner_info = EmissionInfo(baz.bar.foo.events, (inner_inner_info,), "foo")
     expected = EmissionInfo(baz.bar.events, (inner_info,), "bar")
     mock.assert_called_with(expected)
+
+    # should be moved to lib somewhere
+    def _full_path(info: EmissionInfo) -> list[str]:
+        path = []
+        while info.attr_name and info.args:
+            path.append(info.attr_name)
+            info = info.args[0]
+        path.append(info.signal.name)
+        return path
+
+    assert _full_path(mock.call_args[0][0]) == ["bar", "foo", "x"]
