@@ -6,6 +6,7 @@ from functools import partial, wraps
 from inspect import Signature
 from typing import Optional, Type
 from unittest.mock import MagicMock, Mock, call
+from weakref import ref
 
 import pytest
 
