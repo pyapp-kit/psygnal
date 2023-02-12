@@ -1278,13 +1278,14 @@ class _BoundMethodCaller(SlotCaller):
         self._max_args = max_args
 
     def __call__(self, args: tuple[object, ...]) -> bool:
-        try:
-            method = self.slot()
-        except RuntimeError:
+        obj = self._obj_ref()
+        func = self._func_ref()
+        if obj is None or func is None:
             return True
+
         if self._max_args is not None:
             args = args[: self._max_args]
-        method(*args)
+        func(obj, *args)
         return False
 
     def __eq__(self, other: object) -> bool:
@@ -1295,6 +1296,11 @@ class _BoundMethodCaller(SlotCaller):
         )
 
     def _method(self) -> MethodType | None:
+        """Reconstruct the original method.
+
+        Note: this isn't used above in __call__ because it's a bit slower
+        """
+        # sourcery skip: assign-if-exp, reintroduce-else
         obj = self._obj_ref()
         func = self._func_ref()
         if obj is None or func is None:
@@ -1302,11 +1308,11 @@ class _BoundMethodCaller(SlotCaller):
         return self._method_type(func, obj)
 
     def slot(self) -> MethodType:
-        obj = self._obj_ref()
-        func = self._func_ref()
-        if obj is None or func is None:
+        """Return original method or raise RuntimeError if it has been deleted."""
+        method = self._method()
+        if method is None:
             raise RuntimeError("object has been deleted")  # pragma: no cover
-        return self._method_type(func, obj)
+        return method
 
 
 class _PartialMethodCaller(_BoundMethodCaller):
@@ -1319,12 +1325,14 @@ class _PartialMethodCaller(_BoundMethodCaller):
         self._slot_id = id(slot)
 
     def __call__(self, args: tuple[object, ...]) -> bool:
-        method = self._method()
-        if method is None:
+        obj = self._obj_ref()
+        func = self._func_ref()
+        if obj is None or func is None:
             return True
+
         if self._max_args is not None:
             args = args[: self._max_args]
-        method(*self._partial_args, *args, **self._partial_kwargs)
+        func(obj, *self._partial_args, *args, **self._partial_kwargs)
         return False
 
     def __eq__(self, other: object) -> bool:
