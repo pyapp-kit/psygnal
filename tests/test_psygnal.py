@@ -6,6 +6,7 @@ from functools import partial, wraps
 from inspect import Signature
 from typing import Optional, Type
 from unittest.mock import MagicMock, Mock, call
+from weakref import ref
 
 import pytest
 
@@ -871,12 +872,102 @@ def test_weakref_disconnect(slot):
     assert len(emitter.one_int) == 0
 
 
-class T:
-    sig = Signal(
-        str,
-        int,
-        name="test",
-        check_nargs_on_connect=False,
-        check_types_on_connect=True,
-        description="test signal",
+def test_multiple_bound_methods():
+    """Make sure weakref pruning works when multiple bound methods are connected."""
+    e = Emitter()
+    obj1 = MyObj()
+    obj2 = MyObj()
+    obj3 = MyObj()
+
+    p1 = partial(obj1.f_int_int, 3)
+    p2 = partial(obj2.f_int_int, 3)
+    p3 = partial(obj3.f_int_int, 3)
+
+    e.one_int.connect(obj1.f_int)
+    e.one_int.connect(obj2.f_int)
+    e.one_int.connect(obj3.f_int)
+    e.one_int.connect(obj3.f_any)
+    e.one_int.connect(obj2.f_any)
+    e.one_int.connect(obj1.f_any)
+    e.one_int.connect(p1)
+    e.one_int.connect(p2)
+    e.one_int.connect(p3)
+
+    assert [s._method() for s in e.one_int._slots] == [
+        obj1.f_int,
+        obj2.f_int,
+        obj3.f_int,
+        obj3.f_any,
+        obj2.f_any,
+        obj1.f_any,
+        obj1.f_int_int,
+        obj2.f_int_int,
+        obj3.f_int_int,
+    ]
+
+    e.one_int.disconnect(obj2.f_any)
+    assert [s._method() for s in e.one_int._slots] == [
+        obj1.f_int,
+        obj2.f_int,
+        obj3.f_int,
+        obj3.f_any,
+        obj1.f_any,
+        obj1.f_int_int,
+        obj2.f_int_int,
+        obj3.f_int_int,
+    ]
+
+    del p2, obj2
+    gc.collect()
+    e.one_int.disconnect(p3)
+    e.one_int.emit(1)
+    assert [s._method() for s in e.one_int._slots] == (
+        [obj1.f_int, obj3.f_int, obj3.f_any, obj1.f_any, obj1.f_int_int]
     )
+
+    del p1, obj1
+    gc.collect()
+    e.one_int.emit(1)
+    assert [s._method() for s in e.one_int._slots] == [
+        obj3.f_int,
+        obj3.f_any,
+    ]
+
+    del p3, obj3
+    gc.collect()
+    e.one_int.emit(1)
+    assert not e.one_int._slots
+
+
+def test_slot_caller_equality():
+    """Slot callers should be equal only if they represent the same bound-method."""
+
+    class T:
+        def x(self):
+            ...
+
+    t1 = T()
+    t2 = T()
+    t1_ref = ref(t1)
+    t2_ref = ref(t2)
+
+    bmt1_a = _BoundMethodCaller(t1.x)
+    bmt1_b = _BoundMethodCaller(t1.x)
+    bmt2_a = _BoundMethodCaller(t2.x)
+    bmt2_b = _BoundMethodCaller(t2.x)
+
+    def _assert_equality():
+        assert bmt1_a == bmt1_b
+        assert bmt2_a == bmt2_b
+        assert bmt1_a != bmt2_a
+        assert bmt1_b != bmt2_b
+
+    _assert_equality()
+    del t1
+    gc.collect()
+    assert t1_ref() is None
+    _assert_equality()
+    del t2
+    gc.collect()
+    assert t2_ref() is None
+    _assert_equality()

@@ -679,6 +679,8 @@ class SignalInstance:
         """Get index of `slot` in `self._slots`.  Return -1 if not connected."""
         with self._lock:
             normed = _slot_caller(slot)
+            # NOTE:
+            # the == method here relies on the __eq__ method of each SlotCaller subclass
             return next((i for i, s in enumerate(self._slots) if s == normed), -1)
 
     def disconnect(self, slot: Callable | None = None, missing_ok: bool = True) -> None:
@@ -1257,13 +1259,24 @@ class _BoundMethodCaller(SlotCaller):
     """Caller of a (dereferenced) bound method."""
 
     def __init__(self, slot: MethodType, max_args: int | None = None) -> None:
-        self._method_ref = weakref.WeakMethod(slot)
+        try:
+            obj = slot.__self__
+            func = slot.__func__
+        except AttributeError:  # pragma: no cover
+            raise TypeError(
+                f"argument should be a bound method, not {type(slot)}"
+            ) from None
+
+        self._func_ref = weakref.ref(func)
+        self._obj_ref = weakref.ref(obj)
+        self._method_type = type(slot)
         self._max_args = max_args
 
     def __call__(self, args: tuple[object, ...]) -> bool:
-        method = self._method_ref()
-        if method is None:
-            return True  # object has changed?
+        try:
+            method = self.slot()
+        except RuntimeError:
+            return True
         if self._max_args is not None:
             args = args[: self._max_args]
         method(*args)
@@ -1272,47 +1285,47 @@ class _BoundMethodCaller(SlotCaller):
     def __eq__(self, other: object) -> bool:
         return (
             isinstance(other, _BoundMethodCaller)
-            and self._method_ref == other._method_ref
+            and self._obj_ref == other._obj_ref
+            and self._func_ref == other._func_ref
         )
 
+    def _method(self) -> MethodType | None:
+        obj = self._obj_ref()
+        func = self._func_ref()
+        if obj is None or func is None:
+            return None
+        return self._method_type(func, obj)
+
     def slot(self) -> MethodType:
-        method = self._method_ref()
-        if method is None:
+        obj = self._obj_ref()
+        func = self._func_ref()
+        if obj is None or func is None:
             raise RuntimeError("object has been deleted")  # pragma: no cover
-        return method
+        return self._method_type(func, obj)
 
 
-# _PARTIAL_CACHE: dict[weakref.WeakMethod, _PartialMethodCaller] = {}
-
-
-class _PartialMethodCaller(SlotCaller):
+class _PartialMethodCaller(_BoundMethodCaller):
     """Caller of a partial to a (dereferenced) bound method."""
 
     def __init__(self, slot: PartialMethod, max_args: int | None = None) -> None:
-        self._method_ref = weakref.WeakMethod(slot.func)
-        self._max_args = max_args
+        super().__init__(slot.func, max_args)
         self._partial_args = slot.args
         self._partial_kwargs = slot.keywords
 
     def __call__(self, args: tuple[object, ...]) -> bool:
-        method = self._method_ref()
+        method = self._method()
         if method is None:
             return True
-
         if self._max_args is not None:
             args = args[: self._max_args]
-
         method(*self._partial_args, *args, **self._partial_kwargs)
         return False
 
     def __eq__(self, other: object) -> bool:
-        return (
-            isinstance(other, _PartialMethodCaller)
-            and self._method_ref == other._method_ref
-        )
+        return isinstance(other, _PartialMethodCaller) and super().__eq__(other)
 
-    def slot(self) -> PartialMethod:
-        method = self._method_ref()
+    def slot(self) -> PartialMethod:  # type: ignore
+        method = self._method()
         if method is None:
             raise RuntimeError("object has been deleted")  # pragma: no cover
         _partial = partial(method, *self._partial_args, **self._partial_kwargs)
