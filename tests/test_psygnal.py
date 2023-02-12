@@ -14,7 +14,6 @@ from psygnal._signal import (
     SlotCaller,
     _BoundMethodCaller,
     _FunctionCaller,
-    _get_method_name,
     _PartialMethodCaller,
     _SetattrCaller,
     _SetitemCaller,
@@ -703,13 +702,6 @@ def test_debug_import(monkeypatch):
     import psygnal
 
     assert not psygnal._compiled
-
-
-def test_get_method_name():
-    obj = MyObj()
-    assert _get_method_name(obj.f_int_decorated_stupid)[1] == "f_int_decorated_stupid"
-    assert _get_method_name(obj.f_int_decorated_good)[1] == "f_int_decorated_good"
-    assert _get_method_name(obj.f_any_assigned)[1] == "f_any_assigned"
 
 
 def test_property_connect():
