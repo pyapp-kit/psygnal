@@ -954,6 +954,9 @@ def test_slot_caller_equality():
 
     t1 = T()
     t2 = T()
+    t1_ref = ref(t1) 
+    t2_ref = ref(t2)
+    
 
     bmt1_a = _BoundMethodCaller(t1.x)
     bmt1_b = _BoundMethodCaller(t1.x)
