@@ -943,3 +943,33 @@ def test_multiple_bound_methods():
     gc.collect()
     e.one_int.emit(1)
     assert not e.one_int._slots
+
+
+def test_slot_caller_equality():
+    """Slot callers should be equal only if they represent the same bound-method."""
+
+    class T:
+        def x(self):
+            ...
+
+    t1 = T()
+    t2 = T()
+
+    bmt1_a = _BoundMethodCaller(t1.x)
+    bmt1_b = _BoundMethodCaller(t1.x)
+    bmt2_a = _BoundMethodCaller(t2.x)
+    bmt2_b = _BoundMethodCaller(t2.x)
+
+    def _assert_equality():
+        assert bmt1_a == bmt1_b
+        assert bmt2_a == bmt2_b
+        assert bmt1_a != bmt2_a
+        assert bmt1_b != bmt2_b
+
+    _assert_equality()
+    del t1
+    gc.collect()
+    _assert_equality()
+    del t2
+    gc.collect()
+    _assert_equality()

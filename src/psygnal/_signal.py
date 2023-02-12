@@ -1265,6 +1265,7 @@ class _BoundMethodCaller(SlotCaller):
 
     def __init__(self, slot: MethodType, max_args: int | None = None) -> None:
         self._method_ref = weakref.WeakMethod(slot)
+        self._obj_ref = weakref.ref(slot.__self__)  # needed for equality check
         self._max_args = max_args
 
     def __call__(self, args: tuple[object, ...]) -> bool:
@@ -1279,7 +1280,8 @@ class _BoundMethodCaller(SlotCaller):
     def __eq__(self, other: object) -> bool:
         return (
             isinstance(other, _BoundMethodCaller)
-            and self._method_ref == other._method_ref
+            and self._method_ref() == other._method_ref()
+            and self._obj_ref == other._obj_ref
         )
 
     def slot(self) -> MethodType:
@@ -1294,6 +1296,7 @@ class _PartialMethodCaller(SlotCaller):
 
     def __init__(self, slot: PartialMethod, max_args: int | None = None) -> None:
         self._method_ref = weakref.WeakMethod(slot.func)
+        self._obj_ref = weakref.ref(slot.func.__self__)  # needed for equality check
         self._max_args = max_args
         self._partial_args = slot.args
         self._partial_kwargs = slot.keywords
@@ -1313,7 +1316,8 @@ class _PartialMethodCaller(SlotCaller):
     def __eq__(self, other: object) -> bool:
         return (
             isinstance(other, _PartialMethodCaller)
-            and self._method_ref == other._method_ref
+            and self._method_ref() == other._method_ref()
+            and self._obj_ref == other._obj_ref
         )
 
     def slot(self) -> PartialMethod:
