@@ -1267,7 +1267,7 @@ class _BoundMethodCaller(SlotCaller):
         try:
             obj = slot.__self__
             func = slot.__func__
-        except AttributeError:
+        except AttributeError:  # pragma: no cover
             raise TypeError(
                 f"argument should be a bound method, not {type(slot)}"
             ) from None
