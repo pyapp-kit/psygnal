@@ -344,7 +344,7 @@ class SignalInstance:
         *,
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
-        unique: bool | str = ...,
+        unique: bool | Literal["raise"] = ...,
         max_args: int | None = None,
     ) -> Callable[[Callable], Callable]:
         ...  # pragma: no cover
@@ -356,7 +356,7 @@ class SignalInstance:
         *,
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
-        unique: bool | str = ...,
+        unique: bool | Literal["raise"] = ...,
         max_args: int | None = None,
     ) -> Callable:
         ...  # pragma: no cover
@@ -367,7 +367,7 @@ class SignalInstance:
         *,
         check_nargs: bool | None = None,
         check_types: bool | None = None,
-        unique: bool | str = False,
+        unique: bool | Literal["raise"] = False,
         max_args: int | None = None,
     ) -> Callable[[Callable], Callable] | Callable:
         """Connect a callback (`slot`) to this signal.
@@ -448,7 +448,6 @@ class SignalInstance:
                     if not _parameter_types_match(slot, self.signature, slot_sig):
                         extra = f"- Slot types {slot_sig} do not match types in signal."
                         self._raise_connection_error(slot, extra)
-
                 self._slots.append(_slot_caller(slot, max_args))
             return slot
 
@@ -1172,7 +1171,11 @@ def _slot_caller(slot: Callable, max_args: int | None = None) -> SlotCaller:
     if _is_partial_method(slot):
         _id = id(slot)
         if _id not in _PARTIAL_CACHE:
+            print("connecting", slot, "at", _id)
             _PARTIAL_CACHE[_id] = _PartialMethodCaller(slot, max_args)
+        else:
+            breakpoint()
+            x=1
         return _PARTIAL_CACHE[_id]
     return _FunctionCaller(slot, max_args)
 

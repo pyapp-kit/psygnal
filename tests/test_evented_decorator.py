@@ -1,13 +1,19 @@
 import operator
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import no_type_check
 from unittest.mock import Mock
 
 import numpy as np
 import pytest
 
-from psygnal import SignalGroup, evented, get_evented_namespace, is_evented
+from psygnal import (
+    EmissionInfo,
+    SignalGroup,
+    evented,
+    get_evented_namespace,
+    is_evented,
+)
 from psygnal._evented_decorator import _SignalGroupDescriptor
 
 
@@ -147,3 +153,43 @@ def test_get_namespace():
 
     assert get_evented_namespace(Foo) == "my_events"
     assert is_evented(Foo)
+
+
+def test_nesting():
+    from psygnal._evented_decorator import connect_child_events
+
+
+    @evented
+    @dataclass
+    class Foo:
+        x: int = 1
+
+    @evented
+    @dataclass
+    class Bar:
+        y: int = 2
+        foo: Foo = field(default_factory=Foo)
+
+    @evented
+    @dataclass
+    class Baz:
+        z: int = 3
+        bar: Bar = field(default_factory=Bar)
+
+        def __post_init__(self) -> None:
+            connect_child_events(self, recurse=True)
+
+    baz = Baz()
+    mock = Mock()
+    baz.events.connect(mock)
+    from rich import print
+    print("-------")
+    baz.bar.foo.x = 3
+    inner_inner_info = EmissionInfo(baz.bar.foo.events.x, (3,), None)
+    inner_info = EmissionInfo(baz.bar.foo.events, (inner_inner_info,), 'foo')
+    expect = EmissionInfo(baz.bar.events, (inner_info,), 'bar')
+    breakpoint()
+    mock.assert_called_with(expect)
+
+
+    real = mock.call_args_list[0].args[0]

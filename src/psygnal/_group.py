@@ -37,6 +37,7 @@ class EmissionInfo(NamedTuple):
 
     signal: SignalInstance
     args: tuple[Any, ...]
+    attr_name: str | None = None
 
 
 @mypyc_attr(allow_interpreted_subclasses=True)
@@ -126,10 +127,15 @@ class SignalGroup(SignalInstance):
         """Return true if all signals in the group have the same signature."""
         return cls._uniform
 
-    def _slot_relay(self, *args: Any) -> None:
+    def _slot_relay(self, *args: Any, attr_name: str | None= None) -> None:
+        """Called whenever any signal in this group is emitted.
+        
+        This is connected in __init__ and serves the purpose of relaying the emission
+        to all slots connected to this SignalGroup.
+        """
         emitter = Signal.current_emitter()
         if emitter:
-            info = EmissionInfo(emitter, args)
+            info = EmissionInfo(emitter, args, attr_name)
             self._run_emit_loop((info,))
 
     def connect_direct(
@@ -241,9 +247,19 @@ class SignalGroup(SignalInstance):
     def __repr__(self) -> str:
         """Return repr(self)."""
         name = f" {self.name!r}" if self.name else ""
-        instance = f" on {self.instance!r}" if self.instance else ""
+        try:
+            # repr(self.instance) can fail if the instance is being created.
+            instance = f" on {self.instance!r}" if self.instance else ""
+        except AttributeError:
+            instance = ""
+
         nsignals = len(self.signals)
-        signals = f"{nsignals} signals" if nsignals > 1 else ""
+        if nsignals > 0:
+            signals = f"{nsignals} signal"
+            if nsignals > 1:
+                signals += "s"
+        else:
+            signals = "no signals"
         return f"<SignalGroup{name} with {signals}{instance}>"
 
 

@@ -4,7 +4,7 @@ import sys
 import warnings
 import weakref
 from dataclasses import fields, is_dataclass
-from functools import lru_cache
+from functools import lru_cache, partial
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -344,7 +344,7 @@ class _SignalGroupDescriptor:
 
     def __init__(self, group_cls: Type[SignalGroup], name: str):
         self._name = name
-        self._signal_group = group_cls
+        self._group_cls = group_cls
 
     @overload
     def __get__(self, instance: None, owner: type) -> "_SignalGroupDescriptor":
@@ -362,9 +362,29 @@ class _SignalGroupDescriptor:
 
         obj_id = id(instance)
         if obj_id not in self._instance_map:
-            self._instance_map[obj_id] = self._signal_group(instance)
+            self._instance_map[obj_id] = self._group_cls(instance)
             with contextlib.suppress(TypeError):
                 weakref.finalize(  # type: ignore
                     instance, self._instance_map.pop, obj_id, None
                 )
         return self._instance_map[obj_id]
+
+
+def connect_child_events(
+    obj: object, recurse: bool = False, _group: SignalGroup | None = None
+) -> None:
+    if _group is None:
+        events_ns = get_evented_namespace(obj)
+        if events_ns is None:
+            return
+        _group = cast("SignalGroup", getattr(obj, events_ns))
+
+    for attr_name, attr_type in iter_fields(type(obj)):
+        if is_evented(attr_type):
+            child = getattr(obj, attr_name)
+            events_name2 = get_evented_namespace(child)
+            if events_name2:
+                child_group = cast("SignalGroup", getattr(child, events_name2))
+                child_group.connect(partial(_group._slot_relay, attr_name=attr_name))
+                if recurse:
+                    connect_child_events(child, recurse=True, _group=child_group)
