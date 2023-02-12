@@ -15,6 +15,7 @@ from typing import (
     ClassVar,
     ContextManager,
     Iterable,
+    Literal,
     Mapping,
     NamedTuple,
 )
@@ -127,9 +128,9 @@ class SignalGroup(SignalInstance):
         """Return true if all signals in the group have the same signature."""
         return cls._uniform
 
-    def _slot_relay(self, *args: Any, attr_name: str | None= None) -> None:
+    def _slot_relay(self, *args: Any, attr_name: str | None = None) -> None:
         """Called whenever any signal in this group is emitted.
-        
+
         This is connected in __init__ and serves the purpose of relaying the emission
         to all slots connected to this SignalGroup.
         """
@@ -144,7 +145,7 @@ class SignalGroup(SignalInstance):
         *,
         check_nargs: bool | None = None,
         check_types: bool | None = None,
-        unique: bool | str = False,
+        unique: bool | Literal["raise"] = False,
         max_args: int | None = None,
     ) -> Callable[[Callable], Callable] | Callable:
         """Connect `slot` to be called whenever *any* Signal in this group is emitted.
