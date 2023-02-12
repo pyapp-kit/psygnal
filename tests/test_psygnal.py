@@ -900,7 +900,7 @@ def test_multiple_bound_methods():
     e.one_int.connect(p2)
     e.one_int.connect(p3)
 
-    assert [s._method_ref() for s in e.one_int._slots] == [
+    assert [s._method() for s in e.one_int._slots] == [
         obj1.f_int,
         obj2.f_int,
         obj3.f_int,
@@ -913,7 +913,7 @@ def test_multiple_bound_methods():
     ]
 
     e.one_int.disconnect(obj2.f_any)
-    assert [s._method_ref() for s in e.one_int._slots] == [
+    assert [s._method() for s in e.one_int._slots] == [
         obj1.f_int,
         obj2.f_int,
         obj3.f_int,
@@ -928,14 +928,14 @@ def test_multiple_bound_methods():
     gc.collect()
     e.one_int.disconnect(p3)
     e.one_int.emit(1)
-    assert [s._method_ref() for s in e.one_int._slots] == (
+    assert [s._method() for s in e.one_int._slots] == (
         [obj1.f_int, obj3.f_int, obj3.f_any, obj1.f_any, obj1.f_int_int]
     )
 
     del p1, obj1
     gc.collect()
     e.one_int.emit(1)
-    assert [s._method_ref() for s in e.one_int._slots] == [
+    assert [s._method() for s in e.one_int._slots] == [
         obj3.f_int,
         obj3.f_any,
     ]
