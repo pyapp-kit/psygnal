@@ -680,6 +680,8 @@ class SignalInstance:
         """Get index of `slot` in `self._slots`.  Return -1 if not connected."""
         with self._lock:
             normed = _slot_caller(slot)
+            # NOTE:
+            # the == method here relies on the __eq__ method of each SlotCaller subclass
             return next((i for i, s in enumerate(self._slots) if s == normed), -1)
 
     def disconnect(self, slot: Callable | None = None, missing_ok: bool = True) -> None:
@@ -1268,7 +1270,7 @@ class _BoundMethodCaller(SlotCaller):
     def __call__(self, args: tuple[object, ...]) -> bool:
         method = self._method_ref()
         if method is None:
-            return True  # object has changed?
+            return True  # object has been deleted
         if self._max_args is not None:
             args = args[: self._max_args]
         method(*args)
@@ -1300,7 +1302,7 @@ class _PartialMethodCaller(SlotCaller):
     def __call__(self, args: tuple[object, ...]) -> bool:
         method = self._method_ref()
         if method is None:
-            return True
+            return True  # object has been deleted
 
         if self._max_args is not None:
             args = args[: self._max_args]
