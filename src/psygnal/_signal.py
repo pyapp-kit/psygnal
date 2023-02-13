@@ -680,6 +680,8 @@ class SignalInstance:
         """Get index of `slot` in `self._slots`.  Return -1 if not connected."""
         with self._lock:
             normed = _slot_caller(slot)
+            # NOTE:
+            # the == method here relies on the __eq__ method of each SlotCaller subclass
             return next((i for i, s in enumerate(self._slots) if s == normed), -1)
 
     def disconnect(self, slot: Callable | None = None, missing_ok: bool = True) -> None:
@@ -1262,67 +1264,84 @@ class _BoundMethodCaller(SlotCaller):
     """Caller of a (dereferenced) bound method."""
 
     def __init__(self, slot: MethodType, max_args: int | None = None) -> None:
-        self._ref, self._method_name = _get_method_name(slot)
+        try:
+            obj = slot.__self__
+            func = slot.__func__
+        except AttributeError:  # pragma: no cover
+            raise TypeError(
+                f"argument should be a bound method, not {type(slot)}"
+            ) from None
+
+        self._func_ref = weakref.ref(func)
+        self._obj_ref = weakref.ref(obj)
+        self._method_type = type(slot)
         self._max_args = max_args
 
     def __call__(self, args: tuple[object, ...]) -> bool:
-        obj = self._ref()
-        if obj is None:
+        obj = self._obj_ref()
+        func = self._func_ref()
+        if obj is None or func is None:
             return True
-        method = getattr(obj, self._method_name, None)
-        if method is None:
-            return True  # object has changed?
+
         if self._max_args is not None:
             args = args[: self._max_args]
-        method(*args)
+        func(obj, *args)
         return False
 
     def __eq__(self, other: object) -> bool:
         return (
             isinstance(other, _BoundMethodCaller)
-            and self._ref == other._ref
-            and self._method_name == other._method_name
+            and self._obj_ref == other._obj_ref
+            and self._func_ref == other._func_ref
         )
 
+    def _method(self) -> MethodType | None:
+        """Reconstruct the original method.
+
+        Note: this isn't used above in __call__ because it's a bit slower
+        """
+        # sourcery skip: assign-if-exp, reintroduce-else
+        obj = self._obj_ref()
+        func = self._func_ref()
+        if obj is None or func is None:
+            return None
+        return self._method_type(func, obj)
+
     def slot(self) -> MethodType:
-        obj = self._ref()
-        if obj is None:
+        """Return original method or raise RuntimeError if it has been deleted."""
+        method = self._method()
+        if method is None:
             raise RuntimeError("object has been deleted")  # pragma: no cover
-        return cast(MethodType, getattr(obj, self._method_name))
+        return method
 
 
-class _PartialMethodCaller(SlotCaller):
+class _PartialMethodCaller(_BoundMethodCaller):
     """Caller of a partial to a (dereferenced) bound method."""
 
     def __init__(self, slot: PartialMethod, max_args: int | None = None) -> None:
-        self._ref, self._method_name = _get_method_name(slot.func)
-        self._max_args = max_args
+        super().__init__(slot.func, max_args)
         self._partial_args = slot.args
         self._partial_kwargs = slot.keywords
         self._slot_id = id(slot)
 
     def __call__(self, args: tuple[object, ...]) -> bool:
-        obj = self._ref()
-        if obj is None:
+        obj = self._obj_ref()
+        func = self._func_ref()
+        if obj is None or func is None:
             return True
+
         if self._max_args is not None:
             args = args[: self._max_args]
-        method = getattr(obj, self._method_name)
-        method(*self._partial_args, *args, **self._partial_kwargs)
+        func(obj, *self._partial_args, *args, **self._partial_kwargs)
         return False
 
     def __eq__(self, other: object) -> bool:
-        return (
-            isinstance(other, _PartialMethodCaller)
-            and self._ref == other._ref
-            and self._method_name == other._method_name
-        )
+        return isinstance(other, _PartialMethodCaller) and super().__eq__(other)
 
-    def slot(self) -> PartialMethod:
-        obj = self._ref()
-        if obj is None:
+    def slot(self) -> PartialMethod:  # type: ignore
+        method = self._method()
+        if method is None:
             raise RuntimeError("object has been deleted")  # pragma: no cover
-        method = getattr(obj, self._method_name)
         _partial = partial(method, *self._partial_args, **self._partial_kwargs)
         return cast(PartialMethod, _partial)
 
@@ -1449,30 +1468,8 @@ _PARTIAL_CACHE: dict[int, _PartialMethodCaller] = {}
 def _prune_partial_cache() -> None:
     """Remove any partial methods whose object has been garbage collected."""
     for key, caller in list(_PARTIAL_CACHE.items()):
-        if caller._ref() is None:
+        if caller._method() is None:
             del _PARTIAL_CACHE[key]
-
-
-def _get_method_name(slot: MethodType) -> tuple[weakref.ref, str]:
-    obj = slot.__self__
-    # some decorators will alter method.__name__, so that obj.method
-    # will not be equal to getattr(obj, obj.method.__name__).
-    # We check for that case here and find the proper name in the function's closures
-    if getattr(obj, slot.__name__, None) != slot:
-        for c in slot.__closure__ or ():
-            cname = getattr(c.cell_contents, "__name__", None)
-            if cname and getattr(obj, cname, None) == slot:
-                return weakref.ref(obj), cname
-        # slower, but catches cases like assigned functions
-        # that won't have function in closure
-        for name in reversed(dir(obj)):  # most dunder methods come first
-            if getattr(obj, name) == slot:
-                return weakref.ref(obj), name
-        # we don't know what to do here.
-        raise RuntimeError(  # pragma: no cover
-            f"Could not find method on {obj} corresponding to decorated function {slot}"
-        )
-    return weakref.ref(obj), slot.__name__
 
 
 def _guess_qtsignal_signature(obj: Any) -> str | None:
