@@ -19,7 +19,7 @@ CALLBACK_TYPES = [
     "setattr",
     "setitem",
     "real_func",
-    "builtin",
+    "print",
 ]
 
 # fmt: off
@@ -53,7 +53,7 @@ def _get_callback(callback_type: str, obj: Obj) -> Callable:
         "partial": partial(int_str, y="foo"),
         "partial_method": partial(obj.int_str, y="foo"),
         "real_func": real_func,
-        "builtin": print,
+        "print": print,
     }
     return callback_types[callback_type]
 
@@ -61,14 +61,12 @@ def _get_callback(callback_type: str, obj: Obj) -> Callable:
 # Creation suite ------------------------------------------
 
 
-@pytest.mark.benchmark
-def test_create_signal() -> None:
-    _ = Signal(int)
+def test_create_signal(benchmark: Callable) -> None:
+    benchmark(Signal, int)
 
 
-@pytest.mark.benchmark
-def test_create_signal_instance() -> None:
-    _ = SignalInstance(INT_SIG)
+def test_create_signal_instance(benchmark: Callable) -> None:
+    benchmark(SignalInstance, INT_SIG)
 
 
 # Connect suite ---------------------------------------------
