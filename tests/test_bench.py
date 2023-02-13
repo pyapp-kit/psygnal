@@ -1,48 +1,110 @@
 import sys
-import time
+from functools import partial
+from inspect import signature
+from typing import Callable
 
 import pytest
 
-from psygnal import Signal
+from psygnal import Signal, SignalInstance
 
-pytest.importorskip("pytest_benchmark")
-if all("--benchmark" not in x for x in sys.argv):
-    pytest.skip("use --benchmark-enable to run bench", allow_module_level=True)
-
-
-class ST:
-    changed = Signal(int)
+if all(x not in {"--codspeed", "--benchmark", "tests/test_bench.py"} for x in sys.argv):
+    pytest.skip("use --benchmark to run benchmark", allow_module_level=True)
 
 
-def make_superqt_class():
-    return ST()
+# fmt: off
+class Emitter:
+    one_int = Signal(int)
+    int_str = Signal(int, str)
 
 
-@pytest.mark.benchmark(group="create")
-def test_create_superqt_bench(benchmark):
-    benchmark(make_superqt_class)
+class Obj:
+    x: int = 0
+    def __setitem__(self, key: str, value: int) -> None:
+        self.x = value
+    def no_args(self) -> None: ...
+    def one_int(self, x: int) -> None: ...
+    def int_str(self, x: int, y: str) -> None: ...
+
+def no_args() -> None: ...
+def one_int(x: int) -> None: ...
+def int_str(x: int, y: str) -> None: ...
+def real_func() -> None: list(range(4))  # simulate a brief thing
+
+INT_SIG = signature(one_int)
+# fmt: on
 
 
-def callback():
-    time.sleep(0.01)
+@pytest.mark.benchmark
+def test_create_signal() -> None:
+    _ = Signal(int)
 
 
-@pytest.mark.benchmark(group="connect")
-def test_connect_superqt_bench(benchmark):
-    obj = make_superqt_class()
-    benchmark(obj.changed.connect, callback)
+@pytest.mark.benchmark
+def test_create_signal_instance() -> None:
+    _ = SignalInstance(INT_SIG)
 
 
-@pytest.mark.benchmark(group="connect")
-def test_connect_superqt_bench_typed(benchmark):
-    obj = make_superqt_class()
-    benchmark(obj.changed.connect, callback, check_types=True)
+@pytest.mark.benchmark
+def test_connect_function(benchmark: Callable) -> None:
+    emitter = Emitter()
+    benchmark(emitter.int_str.connect, int_str)
 
 
-@pytest.mark.benchmark(group="emit")
-@pytest.mark.parametrize("connections", range(0, 2**4, 2))
-def test_emit_superqt_bench(benchmark, connections):
-    obj = make_superqt_class()
-    for _ in range(connections):
-        obj.changed.connect(callback, unique=False)
-    benchmark(obj.changed.emit, 1)
+@pytest.mark.benchmark
+def test_connect_function_typed(benchmark: Callable) -> None:
+    emitter = Emitter()
+    benchmark(emitter.int_str.connect, int_str, check_types=True)
+
+
+@pytest.mark.benchmark
+def test_connect_method(benchmark: Callable) -> None:
+    emitter = Emitter()
+    obj = Obj()
+    benchmark(emitter.int_str.connect, obj.int_str)
+
+
+@pytest.mark.benchmark
+def test_connect_method_typed(benchmark: Callable) -> None:
+    emitter = Emitter()
+    obj = Obj()
+    benchmark(emitter.int_str.connect, obj.int_str, check_types=True)
+
+
+@pytest.mark.benchmark
+@pytest.mark.parametrize("n_connections", range(2, 2**6, 16))
+@pytest.mark.parametrize(
+    "callback_type",
+    [
+        "function",
+        "method",
+        "lambda",
+        "partial",
+        "partial_method",
+        "real_func",
+        "setattr",
+        "setitem",
+    ],
+)
+def test_emit_time(benchmark: Callable, n_connections: int, callback_type: str) -> None:
+    emitter = Emitter()
+    obj = Obj()
+    callback_types: dict[str, Callable] = {
+        "function": one_int,
+        "method": obj.one_int,
+        "lambda": lambda x: None,
+        "partial": partial(int_str, y="foo"),
+        "partial_method": partial(obj.int_str, y="foo"),
+        "real_func": real_func,
+    }
+    if callback_type == "setattr":
+        for _ in range(n_connections):
+            emitter.one_int.connect_setattr(obj, "x")
+    elif callback_type == "setitem":
+        for _ in range(n_connections):
+            emitter.one_int.connect_setitem(obj, "x")
+    else:
+        callback = callback_types[callback_type]
+        for _ in range(n_connections):
+            emitter.one_int.connect(callback, unique=False)
+
+    benchmark(emitter.one_int.emit, 1)
