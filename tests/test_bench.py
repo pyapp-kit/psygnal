@@ -10,6 +10,17 @@ from psygnal import Signal, SignalInstance
 if all(x not in {"--codspeed", "--benchmark", "tests/test_bench.py"} for x in sys.argv):
     pytest.skip("use --benchmark to run benchmark", allow_module_level=True)
 
+CALLBACK_TYPES = [
+    "function",
+    "method",
+    "lambda",
+    "partial",
+    "partial_method",
+    "setattr",
+    "setitem",
+    "real_func",
+    "builtin",
+]
 
 # fmt: off
 class Emitter:
@@ -34,6 +45,22 @@ INT_SIG = signature(one_int)
 # fmt: on
 
 
+def _get_callback(callback_type: str, obj: Obj) -> Callable:
+    callback_types: dict[str, Callable] = {
+        "function": one_int,
+        "method": obj.one_int,
+        "lambda": lambda x: None,
+        "partial": partial(int_str, y="foo"),
+        "partial_method": partial(obj.int_str, y="foo"),
+        "real_func": real_func,
+        "builtin": print,
+    }
+    return callback_types[callback_type]
+
+
+# Creation suite ------------------------------------------
+
+
 @pytest.mark.benchmark
 def test_create_signal() -> None:
     _ = Signal(int)
@@ -44,58 +71,39 @@ def test_create_signal_instance() -> None:
     _ = SignalInstance(INT_SIG)
 
 
-@pytest.mark.benchmark
-def test_connect_function(benchmark: Callable) -> None:
-    emitter = Emitter()
-    benchmark(emitter.int_str.connect, int_str)
+# Connect suite ---------------------------------------------
 
 
-@pytest.mark.benchmark
-def test_connect_function_typed(benchmark: Callable) -> None:
-    emitter = Emitter()
-    benchmark(emitter.int_str.connect, int_str, check_types=True)
-
-
-@pytest.mark.benchmark
-def test_connect_method(benchmark: Callable) -> None:
+@pytest.mark.parametrize("check_types", ["check_types", ""])
+@pytest.mark.parametrize("callback_type", CALLBACK_TYPES)
+def test_connect_time(
+    benchmark: Callable, callback_type: str, check_types: str
+) -> None:
     emitter = Emitter()
     obj = Obj()
-    benchmark(emitter.int_str.connect, obj.int_str)
+    kwargs = {}
+    if callback_type == "setattr":
+        func: Callable = emitter.one_int.connect_setattr
+        args: tuple = (obj, "x")
+    elif callback_type == "setitem":
+        func = emitter.one_int.connect_setitem
+        args = (obj, "x")
+    else:
+        func = emitter.one_int.connect
+        args = (_get_callback(callback_type, obj),)
+        kwargs = {"check_types": bool(check_types)}
+
+    benchmark(func, *args, **kwargs)
 
 
-@pytest.mark.benchmark
-def test_connect_method_typed(benchmark: Callable) -> None:
-    emitter = Emitter()
-    obj = Obj()
-    benchmark(emitter.int_str.connect, obj.int_str, check_types=True)
+# Emit suite ------------------------------------------------
 
 
-@pytest.mark.benchmark
 @pytest.mark.parametrize("n_connections", range(2, 2**6, 16))
-@pytest.mark.parametrize(
-    "callback_type",
-    [
-        "function",
-        "method",
-        "lambda",
-        "partial",
-        "partial_method",
-        "real_func",
-        "setattr",
-        "setitem",
-    ],
-)
+@pytest.mark.parametrize("callback_type", CALLBACK_TYPES)
 def test_emit_time(benchmark: Callable, n_connections: int, callback_type: str) -> None:
     emitter = Emitter()
     obj = Obj()
-    callback_types: dict[str, Callable] = {
-        "function": one_int,
-        "method": obj.one_int,
-        "lambda": lambda x: None,
-        "partial": partial(int_str, y="foo"),
-        "partial_method": partial(obj.int_str, y="foo"),
-        "real_func": real_func,
-    }
     if callback_type == "setattr":
         for _ in range(n_connections):
             emitter.one_int.connect_setattr(obj, "x")
@@ -103,7 +111,7 @@ def test_emit_time(benchmark: Callable, n_connections: int, callback_type: str) 
         for _ in range(n_connections):
             emitter.one_int.connect_setitem(obj, "x")
     else:
-        callback = callback_types[callback_type]
+        callback = _get_callback(callback_type, obj)
         for _ in range(n_connections):
             emitter.one_int.connect(callback, unique=False)
 

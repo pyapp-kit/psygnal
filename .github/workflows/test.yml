@@ -138,4 +138,4 @@ jobs:
       - name: Run benchmarks
         uses: CodSpeedHQ/action@v1
         with:
-          run: pytest --codspeed
+          run: pytest --codspeed -v --color=yes
