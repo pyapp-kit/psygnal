@@ -41,17 +41,17 @@ class weak_partial(Generic[_R]):
 
         self._callable = self._weak_caller(obj, _cb)
 
-    def _clip_args(self, args: tuple) -> tuple:
-        return args if self._max_args is None else args[: self._max_args]
-
     def cb(self, args: tuple[Any, ...]) -> None:
         """Faster version of __call__ for use in weakref callbacks."""
-        self._callable(*self._args, *self._clip_args(args), **self._kwds)
+        if self._max_args is not None:
+            args = args[: self._max_args]
+        self._callable(*self._args, *args, **self._kwds)
 
     def __call__(self, *args: Any, **kwargs: Any) -> _R:
-        return self._callable(
-            *self._args, *self._clip_args(args), **{**self._kwds, **kwargs}
-        )
+        if self._max_args is not None:
+            args = args[: self._max_args]
+
+        return self._callable(*self._args, *args, **{**self._kwds, **kwargs})
 
     def __eq__(self, other: object) -> bool:
         # sourcery skip: assign-if-exp, reintroduce-else
