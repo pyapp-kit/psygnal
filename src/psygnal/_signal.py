@@ -27,7 +27,7 @@ from typing import (
 from mypy_extensions import mypyc_attr
 from typing_extensions import Protocol, get_args, get_origin
 
-from psygnal._weak_callable import weak_callable
+from psygnal._weak_partial import weak_partial
 
 if TYPE_CHECKING:
     from typing_extensions import Literal, TypeGuard
@@ -314,7 +314,7 @@ class SignalInstance:
         self._signature = signature
         self._check_nargs_on_connect = check_nargs_on_connect
         self._check_types_on_connect = check_types_on_connect
-        self._slots: list[weak_callable] = []
+        self._slots: list[weak_partial] = []
         self._is_blocked: bool = False
         self._is_paused: bool = False
         self._lock = threading.RLock()
@@ -452,7 +452,7 @@ class SignalInstance:
                         self._raise_connection_error(slot, extra)
 
                 self._slots.append(
-                    weak_callable(slot, max_args=max_args, callback=self._discard)
+                    weak_partial(slot, max_args=max_args, finalize=self._discard)
                 )
             return slot
 
@@ -463,7 +463,7 @@ class SignalInstance:
         obj: weakref.ref | object,
         attr: str,
         maxargs: int | None = 1,
-    ) -> weak_callable:
+    ) -> weak_partial:
         """Bind an object attribute to the emitted value of this signal.
 
         Equivalent to calling `self.connect(functools.partial(setattr, obj, attr))`,
@@ -515,14 +515,14 @@ class SignalInstance:
             raise AttributeError(f"Object {obj} has no attribute {attr!r}")
 
         with self._lock:
-            caller = weak_callable(
-                obj.__setattr__, attr, max_args=maxargs, callback=self._discard
+            caller = weak_partial(
+                obj.__setattr__, attr, max_args=maxargs, finalize=self._discard
             )
             self._slots.append(caller)
 
         return caller
 
-    def _discard(self, connected_slot: weak_callable) -> None:
+    def _discard(self, connected_slot: weak_partial) -> None:
         """Remove a connected slot from this signal, without raising an error."""
         with suppress(ValueError):
             self._slots.remove(connected_slot)
@@ -549,7 +549,7 @@ class SignalInstance:
             If `missing_ok` is `True` and no attribute setter is connected.
         """
         with self._lock:
-            caller = weak_callable(obj.__setattr__, attr, callback=self._discard)
+            caller = weak_partial(obj.__setattr__, attr, finalize=self._discard)
             self.disconnect(caller, missing_ok=missing_ok)
 
     def connect_setitem(
@@ -557,7 +557,7 @@ class SignalInstance:
         obj: weakref.ref | object,
         key: str,
         maxargs: int | None = None,
-    ) -> weak_callable:
+    ) -> weak_partial:
         """Bind a container item (such as a dict key) to emitted value of this signal.
 
         Equivalent to calling `self.connect(functools.partial(obj.__setitem__, attr))`,
@@ -606,8 +606,8 @@ class SignalInstance:
             raise TypeError(f"Object {obj} does not support __setitem__")
 
         with self._lock:
-            caller = weak_callable(
-                obj.__setitem__, key, max_args=maxargs, callback=self._discard
+            caller = weak_partial(
+                obj.__setitem__, key, max_args=maxargs, finalize=self._discard
             )
             self._slots.append(caller)
 
@@ -638,7 +638,7 @@ class SignalInstance:
             raise ValueError(f"Object {obj} does not support __setitem__")
 
         with self._lock:
-            caller = weak_callable(obj.__setitem__, key)
+            caller = weak_partial(obj.__setitem__, key)
             self.disconnect(caller, missing_ok=missing_ok)
 
     def _check_nargs(
@@ -675,11 +675,11 @@ class SignalInstance:
         msg += f"\n\nAccepted signature: {self.signature}"
         raise ValueError(msg)
 
-    def _slot_index(self, slot: Callable | weak_callable) -> int:
+    def _slot_index(self, slot: Callable | weak_partial) -> int:
         """Get index of `slot` in `self._slots`.  Return -1 if not connected."""
         with self._lock:
-            if not isinstance(slot, weak_callable):
-                slot = weak_callable(slot)
+            if not isinstance(slot, weak_partial):
+                slot = weak_partial(slot)
             # NOTE:
             # the == method here relies on the __eq__ method of each SlotCaller subclass
             return next((i for i, s in enumerate(self._slots) if s == slot), -1)
@@ -852,18 +852,11 @@ class SignalInstance:
             with Signal._emitting(self):
                 for caller in self._slots:
                     try:
-                        if caller(args):
-                            # if the slotcaller returns `True`, the object weakref is
-                            # dead and needs to be disconnected
-                            # rem.append(caller)
-                            pass
+                        caller.cb(args)
+                    except ReferenceError:
+                        pass
                     except Exception as e:
                         raise EmitLoopError(slot=caller.name, args=args, exc=e) from e
-
-            # for slot in rem:
-            #     self.disconnect(slot)
-
-        return None
 
     def block(self, exclude: Iterable[str | SignalInstance] = ()) -> None:
         """Block this signal from emitting.

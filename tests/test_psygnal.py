@@ -11,7 +11,7 @@ from weakref import ref
 import pytest
 
 from psygnal import EmitLoopError, Signal, SignalInstance, _compiled
-from psygnal._signal import weak_callable
+from psygnal._signal import weak_partial
 
 
 def stupid_decorator(fun):
@@ -256,7 +256,7 @@ def test_slot_types(type_: str) -> None:
     assert len(signal) == 1
 
     stored_slot = signal._slots[-1]
-    assert isinstance(stored_slot, weak_callable)
+    assert isinstance(stored_slot, weak_partial)
     assert callable(stored_slot)
     assert stored_slot == stored_slot
 
@@ -874,10 +874,10 @@ def test_slot_caller_equality():
     t1_ref = ref(t1)
     t2_ref = ref(t2)
 
-    bmt1_a = weak_callable(t1.x)
-    bmt1_b = weak_callable(t1.x)
-    bmt2_a = weak_callable(t2.x)
-    bmt2_b = weak_callable(t2.x)
+    bmt1_a = weak_partial(t1.x)
+    bmt1_b = weak_partial(t1.x)
+    bmt2_a = weak_partial(t2.x)
+    bmt2_b = weak_partial(t2.x)
 
     def _assert_equality():
         assert bmt1_a == bmt1_b
