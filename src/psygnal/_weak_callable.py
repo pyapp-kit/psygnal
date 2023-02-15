@@ -86,8 +86,9 @@ class weak_callable:
         elif isinstance(obj, types.FunctionType):
             # TODO...
             return obj  # strong ref for now
-
-        raise
+        elif callable(obj):
+            return weak_callable.try_proxy(obj, callback)  # type: ignore
+        raise TypeError(f"Cannot create weak_callable for {type(obj)} object")
 
     @staticmethod
     def try_proxy(
