@@ -15,7 +15,7 @@
   ],
   "matrix": {
     "env": {
-      "HATCH_BUILD_HOOKS_ENABLE": "1"
+      "HATCH_BUILD_HOOKS_ENABLE": ["1", null]
     }
   },
   "env_dir": "/tmp/.asv/env",
