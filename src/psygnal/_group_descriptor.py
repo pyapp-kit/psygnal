@@ -294,6 +294,13 @@ class SignalGroupDescriptor:
     warn_on_no_fields : bool, optional
         If `True` (the default), a warning will be emitted if no mutable dataclass-like
         fields are found on the object.
+    cache_on_instance : bool, optional
+        If `True` (the default), a newly-created SignalGroup instance will be cached on
+        the instance itself, so that subsequent accesses to the descriptor will return
+        the same SignalGroup instance.  This makes for slightly faster subsequent
+        access, but means that the owner instance will no longer be pickleable.  If
+        `False`, the SignalGroup instance will *still* be cached, but not on the
+        instance itself.
 
     Examples
     --------
@@ -320,11 +327,13 @@ class SignalGroupDescriptor:
         equality_operators: dict[str, EqOperator] | None = None,
         signal_group_class: type[SignalGroup] | None = None,
         warn_on_no_fields: bool = True,
+        cache_on_instance: bool = True,
     ):
         self._signal_group = signal_group_class
         self._name: str | None = None
         self._eqop = tuple(equality_operators.items()) if equality_operators else None
         self._warn_on_no_fields = warn_on_no_fields
+        self._cache_on_instance = cache_on_instance
 
     def __set_name__(self, owner: type, name: str) -> None:
         """Called when this descriptor is added to class `owner` as attribute `name`."""
@@ -374,7 +383,15 @@ class SignalGroupDescriptor:
                 # (setting attr just for the sake of mypy)
                 self._signal_group = self.build_signal_group(owner)
 
-            self._instance_map[obj_id] = self._signal_group(instance)
+            group = self._signal_group(instance)
+            # cache it
+            self._instance_map[obj_id] = group
+            # also *try* to set it on the instance as well, since it will skip all the
+            # __get__ logic in the future, but if it fails, no big deal.
+            if self._name and self._cache_on_instance:
+                with contextlib.suppress(Exception):
+                    setattr(instance, self._name, self._instance_map[obj_id])
+
             with contextlib.suppress(TypeError):
                 # mypy says too many attributes for weakref.finalize, but it's wrong.
                 weakref.finalize(  # type: ignore [call-arg]

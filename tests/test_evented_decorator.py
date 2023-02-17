@@ -7,8 +7,14 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 
-from psygnal import SignalGroup, evented, get_evented_namespace, is_evented
-from psygnal._group_descriptor import SignalGroupDescriptor, evented_setattr
+from psygnal import (
+    SignalGroup,
+    SignalGroupDescriptor,
+    evented,
+    get_evented_namespace,
+    is_evented,
+)
+from psygnal._group_descriptor import evented_setattr
 
 decorated_or_descriptor = pytest.mark.parametrize(
     "decorator", [True, False], ids=["decorator", "descriptor"]
@@ -205,10 +211,12 @@ def test_no_signals_warn() -> None:
     Foo3().events
 
 
-@evented
 @dataclass
 class FooPicklable:
     bar: int
+    events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor(
+        cache_on_instance=False
+    )
 
 
 def test_pickle() -> None:

@@ -31,6 +31,7 @@ def evented(
     events_namespace: str = "events",
     equality_operators: Optional[Dict[str, EqOperator]] = None,
     warn_on_no_fields: bool = ...,
+    cache_on_instance: bool = ...,
 ) -> T:
     ...
 
@@ -42,6 +43,7 @@ def evented(
     events_namespace: str = "events",
     equality_operators: Optional[Dict[str, EqOperator]] = None,
     warn_on_no_fields: bool = ...,
+    cache_on_instance: bool = ...,
 ) -> Callable[[T], T]:
     ...
 
@@ -52,6 +54,7 @@ def evented(
     events_namespace: str = "events",
     equality_operators: Optional[Dict[str, EqOperator]] = None,
     warn_on_no_fields: bool = True,
+    cache_on_instance: bool = True,
 ) -> Union[Callable[[T], T], T]:
     """A decorator to add events to a dataclass.
 
@@ -78,6 +81,13 @@ def evented(
     warn_on_no_fields : bool
         If `True` (the default), a warning will be emitted if no mutable dataclass-like
         fields are found on the object.
+    cache_on_instance : bool, optional
+        If `True` (the default), a newly-created SignalGroup instance will be cached on
+        the instance itself, so that subsequent accesses to the descriptor will return
+        the same SignalGroup instance.  This makes for slightly faster subsequent
+        access, but means that the owner instance will no longer be pickleable.  If
+        `False`, the SignalGroup instance will *still* be cached, but not on the
+        instance itself.
 
     Returns
     -------
@@ -109,7 +119,9 @@ def evented(
             raise TypeError("evented can only be used on classes")
 
         descriptor = SignalGroupDescriptor(
-            equality_operators=equality_operators, warn_on_no_fields=warn_on_no_fields
+            equality_operators=equality_operators,
+            warn_on_no_fields=warn_on_no_fields,
+            cache_on_instance=cache_on_instance,
         )
         # as a decorator, this will have already been called
         descriptor.__set_name__(cls, events_namespace)
