@@ -19,8 +19,8 @@ import pydantic.main
 from pydantic import BaseModel, PrivateAttr, utils
 from pydantic.fields import Field, FieldInfo
 
-from ._evented_decorator import _check_field_equality, _pick_equality_operator
 from ._group import SignalGroup
+from ._group_descriptor import _check_field_equality, _pick_equality_operator
 from ._signal import Signal, SignalInstance
 
 if TYPE_CHECKING:
