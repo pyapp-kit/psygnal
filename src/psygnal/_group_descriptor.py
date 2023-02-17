@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import contextlib
 import operator
 import sys
@@ -9,11 +11,8 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Dict,
     Iterable,
     Iterator,
-    Optional,
-    Tuple,
     Type,
     TypeVar,
     cast,
@@ -39,13 +38,13 @@ with contextlib.suppress(ImportError):
 T = TypeVar("T", bound=Type)
 
 EqOperator = Callable[[Any, Any], bool]
-_EQ_OPERATORS: Dict[Type, Dict[str, EqOperator]] = {}
+_EQ_OPERATORS: dict[type, dict[str, EqOperator]] = {}
 _EQ_OPERATOR_NAME = "__eq_operators__"
 PSYGNAL_GROUP_NAME = "_psygnal_group_"
 _NULL = object()
 
 
-def _get_eq_operator_map(cls: Type) -> Dict[str, EqOperator]:
+def _get_eq_operator_map(cls: type) -> dict[str, EqOperator]:
     """Return the map of field_name -> equality operator for the class."""
     # if the class has an __eq_operators__ attribute, we use it
     # otherwise use/create the entry for `cls` in the global _EQ_OPERATORS map
@@ -56,7 +55,7 @@ def _get_eq_operator_map(cls: Type) -> Dict[str, EqOperator]:
 
 
 def _check_field_equality(
-    cls: Type, name: str, before: Any, after: Any, _fail: bool = False
+    cls: type, name: str, before: Any, after: Any, _fail: bool = False
 ) -> bool:
     """Test if two values are equal for a given field.
 
@@ -113,25 +112,25 @@ def _check_field_equality(
             return _check_field_equality(cls, name, before, after, _fail=True)
 
 
-def is_attrs_class(cls: Type) -> bool:
+def is_attrs_class(cls: type) -> bool:
     """Return True if the class is an attrs class."""
     attr = sys.modules.get("attr", None)
     return attr.has(cls) if attr is not None else False  # type: ignore
 
 
-def is_pydantic_model(cls: Type) -> "TypeGuard[BaseModel]":
+def is_pydantic_model(cls: type) -> TypeGuard[BaseModel]:
     """Return True if the class is a pydantic BaseModel."""
     pydantic = sys.modules.get("pydantic", None)
     return pydantic is not None and issubclass(cls, pydantic.BaseModel)
 
 
-def is_msgspec_struct(cls: Type) -> "TypeGuard[msgspec.Struct]":
+def is_msgspec_struct(cls: type) -> TypeGuard[msgspec.Struct]:
     """Return True if the class is a `msgspec.Struct`."""
     msgspec = sys.modules.get("msgspec", None)
     return msgspec is not None and issubclass(cls, msgspec.Struct)
 
 
-def iter_fields(cls: Type) -> Iterator[Tuple[str, Type]]:
+def iter_fields(cls: type) -> Iterator[tuple[str, type]]:
     """Iterate over all mutable fields in the class, including inherited fields.
 
     This function recognizes dataclasses, attrs classes, msgspec Structs, and pydantic
@@ -161,7 +160,7 @@ def iter_fields(cls: Type) -> Iterator[Tuple[str, Type]]:
             yield m_field, type_
 
 
-def _pick_equality_operator(type_: Type) -> EqOperator:
+def _pick_equality_operator(type_: type) -> EqOperator:
     """Get the default equality operator for a given type."""
     np = sys.modules.get("numpy", None)
     if np is not None and hasattr(type_, "__array__"):
@@ -171,8 +170,8 @@ def _pick_equality_operator(type_: Type) -> EqOperator:
 
 @lru_cache(maxsize=None)
 def _build_dataclass_signal_group(
-    cls: Type, equality_operators: Optional[Iterable[Tuple[str, EqOperator]]] = None
-) -> Type[SignalGroup]:
+    cls: type, equality_operators: Iterable[tuple[str, EqOperator]] | None = None
+) -> type[SignalGroup]:
     """Build a SignalGroup with events for each field in a dataclass."""
     _equality_operators = dict(equality_operators) if equality_operators else {}
     signals = {}
@@ -194,7 +193,7 @@ def is_evented(obj: object) -> bool:
     return hasattr(obj, PSYGNAL_GROUP_NAME)
 
 
-def get_evented_namespace(obj: object) -> Optional[str]:
+def get_evented_namespace(obj: object) -> str | None:
     """Return the name of the evented SignalGroup for an object.
 
     Note: if you get the returned name as an attribute of the object, it will be a
@@ -319,9 +318,9 @@ class SignalGroupDescriptor:
     def __init__(
         self,
         *,
-        equality_operators: Optional[Dict[str, EqOperator]] = None,
+        equality_operators: dict[str, EqOperator] | None = None,
         name: str | None = None,
-        signal_group_class: Type[SignalGroup] | None = None,
+        signal_group_class: type[SignalGroup] | None = None,
         warn_on_no_fields: bool = True,
     ):
         self._name = name
@@ -349,10 +348,10 @@ class SignalGroupDescriptor:
 
     # map of id(obj) -> SignalGroup
     # cached here in case the object isn't modifiable
-    _instance_map: Dict[int, SignalGroup] = {}
+    _instance_map: dict[int, SignalGroup] = {}
 
     @overload
-    def __get__(self, instance: None, owner: type) -> "SignalGroupDescriptor":
+    def __get__(self, instance: None, owner: type) -> SignalGroupDescriptor:
         ...
 
     @overload
@@ -361,7 +360,7 @@ class SignalGroupDescriptor:
 
     def __get__(
         self, instance: object, owner: type
-    ) -> "SignalGroup | SignalGroupDescriptor":
+    ) -> SignalGroup | SignalGroupDescriptor:
         """Return a SignalGroup instance for `instance`."""
         if instance is None:
             return self
@@ -386,7 +385,7 @@ class SignalGroupDescriptor:
 
         return self._instance_map[obj_id]
 
-    def build_signal_group(self, owner: type) -> Type[SignalGroup]:
+    def build_signal_group(self, owner: type) -> type[SignalGroup]:
         """Build a SignalGroup for the given class and update this descriptor.
 
         Building of the SignalGroup is deferred until the first time it is accessed,
