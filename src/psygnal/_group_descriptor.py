@@ -36,6 +36,7 @@ with contextlib.suppress(ImportError):
     from dataclasses import _DATACLASS_PARAMS  # type: ignore
 
 T = TypeVar("T", bound=Type)
+S = TypeVar("S")
 
 EqOperator = Callable[[Any, Any], bool]
 _EQ_OPERATORS: dict[type, dict[str, EqOperator]] = {}
@@ -49,7 +50,7 @@ def _get_eq_operator_map(cls: type) -> dict[str, EqOperator]:
     # if the class has an __eq_operators__ attribute, we use it
     # otherwise use/create the entry for `cls` in the global _EQ_OPERATORS map
     if hasattr(cls, _EQ_OPERATOR_NAME):
-        return getattr(cls, _EQ_OPERATOR_NAME)  # type: ignore
+        return cast(dict, getattr(cls, _EQ_OPERATOR_NAME))
     else:
         return _EQ_OPERATORS.setdefault(cls, {})
 
@@ -115,7 +116,7 @@ def _check_field_equality(
 def is_attrs_class(cls: type) -> bool:
     """Return True if the class is an attrs class."""
     attr = sys.modules.get("attr", None)
-    return attr.has(cls) if attr is not None else False  # type: ignore
+    return attr.has(cls) if attr is not None else False  # type: ignore [no-any-return]
 
 
 def is_pydantic_model(cls: type) -> TypeGuard[BaseModel]:
@@ -164,7 +165,7 @@ def _pick_equality_operator(type_: type) -> EqOperator:
     """Get the default equality operator for a given type."""
     np = sys.modules.get("numpy", None)
     if np is not None and hasattr(type_, "__array__"):
-        return np.array_equal  # type: ignore
+        return np.array_equal  # type: ignore [no-any-return]
     return operator.eq
 
 
@@ -215,7 +216,9 @@ def get_evented_namespace(obj: object) -> str | None:
     return getattr(obj, PSYGNAL_GROUP_NAME, None)
 
 
-def evented_setattr(signal_group_name: str) -> Callable[[object, str, Any], None]:
+def evented_setattr(
+    owner: type[S], signal_group_name: str
+) -> Callable[[S, str, Any], None]:
     """Create a new __setattr__ method that emits events when fields change.
 
     `signal_group_name` must point to an attribute on the `self` object provided to
@@ -238,6 +241,8 @@ def evented_setattr(signal_group_name: str) -> Callable[[object, str, Any], None
 
     Parameters
     ----------
+    owner: type
+        The class that will have a new __setattr__ method.
     signal_group_name : str, optional
         The name of the attribute on `self` that holds the `SignalGroup` instance, by
         default "_psygnal_group_".
@@ -245,26 +250,24 @@ def evented_setattr(signal_group_name: str) -> Callable[[object, str, Any], None
 
     def __setattr_and_emit__(self: Any, _attr_name: str, _value: Any) -> None:
         """New __setattr__ method that emits events when fields change."""
-        cls = type(self)
-        _super_setattr = super(cls, self).__setattr__
-
         # ensure we have a signal instance, before worrying about events at all.
+
         sig_group = getattr(self, signal_group_name, None)
         if sig_group is None or not hasattr(sig_group, _attr_name):  # pragma: no cover
-            _super_setattr(_attr_name, _value)
+            super(owner, self).__setattr__(_attr_name, _value)
             return
 
         # grab current value
         before = getattr(self, _attr_name, _NULL)
 
         # set value using original setter
-        _super_setattr(_attr_name, _value)
+        super(owner, self).__setattr__(_attr_name, _value)
 
         # if different we emit the event with new value
         after = getattr(self, _attr_name)
 
         # finally, emit the event if the value changed
-        if not _check_field_equality(cls, _attr_name, before, after):
+        if not _check_field_equality(owner, _attr_name, before, after):
             signal_instance = cast("SignalInstance", getattr(sig_group, _attr_name))
             signal_instance.emit(after)
 
@@ -274,8 +277,8 @@ def evented_setattr(signal_group_name: str) -> Callable[[object, str, Any], None
 class SignalGroupDescriptor:
     """Lazily create a SignalGroup when attribute is accessed.
 
-    This helps this pattern work even on objects with slots, and where you cannot
-    override __init__ (like msgspec.)
+    This makes it possible to attach a SignalGroup to any dataclass-like, with
+    a signal for each field in the dataclass.
 
     Parameters
     ----------
@@ -312,7 +315,6 @@ class SignalGroupDescriptor:
     foo.events.bar.connect(print)
     foo.bar = 2  # prints 2
     ```
-
     """
 
     def __init__(
@@ -332,9 +334,9 @@ class SignalGroupDescriptor:
         """Called when this descriptor is added to class `owner` as attribute `name`."""
         self._name = name
 
-        # assign a new __setattr__ method to the class
         try:
-            owner.__setattr__ = evented_setattr(name)  # type: ignore [assignment]
+            # assign a new __setattr__ method to the class
+            owner.__setattr__ = evented_setattr(owner, name)  # type: ignore
         except Exception as e:  # pragma: no cover
             # not sure what might cause this ... but it will have consequences
             raise type(e)(

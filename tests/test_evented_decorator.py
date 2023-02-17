@@ -177,7 +177,7 @@ def test_msgspec_struct(decorator: bool) -> None:
             qux: np.ndarray
             events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
 
-        Foo.__setattr__ = evented_setattr("events")  # type: ignore [assignment]
+        Foo.__setattr__ = evented_setattr(Foo, "events")  # type: ignore [assignment]
 
     _check_events(Foo)
 
