@@ -84,8 +84,11 @@ class SignalGroup(SignalInstance):
     _signals_: ClassVar[Mapping[str, Signal]]
     _uniform: ClassVar[bool] = False
 
-    def __len__(self) -> int:
-        return len(self._slots)
+    # this is only here to indicate to mypy that all attributes are SignalInstances.
+    def __getattr__(self, name: str) -> SignalInstance:
+        raise AttributeError(
+            f"SignalGroup {type(self).__name__!r} has no attribute {name!r}"
+        )
 
     def __init_subclass__(cls, strict: bool = False) -> None:
         """Finds all Signal instances on the class and add them to `cls._signals_`."""
@@ -115,6 +118,9 @@ class SignalGroup(SignalInstance):
         self._sig_was_blocked: dict[str, bool] = {}
         for _, sig in self.signals.items():
             sig.connect(self._slot_relay, check_nargs=False, check_types=False)
+
+    def __len__(self) -> int:
+        return len(self._slots)
 
     @property
     def signals(self) -> dict[str, SignalInstance]:
