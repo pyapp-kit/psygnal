@@ -248,11 +248,11 @@ def evented_setattr(
         default "_psygnal_group_".
     """
 
-    def __setattr_and_emit__(self: Any, _attr_name: str, _value: Any) -> None:
+    def _setattr_and_emit_(self: Any, _attr_name: str, _value: Any) -> None:
         """New __setattr__ method that emits events when fields change."""
-        # ensure we have a signal instance, before worrying about events at all.
-
+        # get the signal group
         sig_group = getattr(self, signal_group_name, None)
+        # if we don't have a signal instance for this attribute, just set it.
         if sig_group is None or not hasattr(sig_group, _attr_name):  # pragma: no cover
             super(owner, self).__setattr__(_attr_name, _value)
             return
@@ -263,22 +263,22 @@ def evented_setattr(
         # set value using original setter
         super(owner, self).__setattr__(_attr_name, _value)
 
-        # if different we emit the event with new value
+        # check the new value and emit the event if different
         after = getattr(self, _attr_name)
-
-        # finally, emit the event if the value changed
         if not _check_field_equality(owner, _attr_name, before, after):
             signal_instance = cast("SignalInstance", getattr(sig_group, _attr_name))
             signal_instance.emit(after)
 
-    return __setattr_and_emit__
+    return _setattr_and_emit_
 
 
 class SignalGroupDescriptor:
     """Lazily create a SignalGroup when attribute is accessed.
 
-    This makes it possible to attach a SignalGroup to any dataclass-like, with
-    a signal for each field in the dataclass.
+    This descriptor is designed to be used as a class attribute on a dataclass-like
+    class (e.g. a dataclass, a `pydantic.BaseModel`, an attrs class, a `msgspec.Struct`)
+    On first access of the descriptor on an instance, it will create a `SignalGroup`
+    with a signal for each field in the dataclass.
 
     Parameters
     ----------
@@ -289,14 +289,11 @@ class SignalGroupDescriptor:
         field to determine whether to emit an event. If not provided, the default
         equality operator is `operator.eq`, except for numpy arrays, where
         `np.array_equal` is used.
-    name : str, optional
-        The name of the attribute on the class that will hold the SignalGroup instance,
-        by default None
     signal_group_class : Type[SignalGroup], optional
         A custom SignalGroup class to use, by default None
     warn_on_no_fields : bool, optional
-        If True, a warning will be emitted if no mutable dataclass-like fields are found
-        on the object, by default True.
+        If `True` (the default), a warning will be emitted if no mutable dataclass-like
+        fields are found on the object.
 
     Examples
     --------
@@ -321,12 +318,11 @@ class SignalGroupDescriptor:
         self,
         *,
         equality_operators: dict[str, EqOperator] | None = None,
-        name: str | None = None,
         signal_group_class: type[SignalGroup] | None = None,
         warn_on_no_fields: bool = True,
     ):
-        self._name = name
         self._signal_group = signal_group_class
+        self._name: str | None = None
         self._eqop = tuple(equality_operators.items()) if equality_operators else None
         self._warn_on_no_fields = warn_on_no_fields
 

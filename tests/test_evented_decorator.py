@@ -26,7 +26,6 @@ def _check_events(cls, events_ns="events"):
     events = getattr(obj, events_ns)
     assert isinstance(events, SignalGroup)
     assert set(events.signals) == {"bar", "baz", "qux"}
-    assert obj.__setattr__.__name__ == "__setattr_and_emit__"
 
     mock = Mock()
     events.bar.connect(mock)

@@ -30,6 +30,7 @@ def evented(
     *,
     events_namespace: str = "events",
     equality_operators: Optional[Dict[str, EqOperator]] = None,
+    warn_on_no_fields: bool = ...,
 ) -> T:
     ...
 
@@ -40,6 +41,7 @@ def evented(
     *,
     events_namespace: str = "events",
     equality_operators: Optional[Dict[str, EqOperator]] = None,
+    warn_on_no_fields: bool = ...,
 ) -> Callable[[T], T]:
     ...
 
@@ -49,6 +51,7 @@ def evented(
     *,
     events_namespace: str = "events",
     equality_operators: Optional[Dict[str, EqOperator]] = None,
+    warn_on_no_fields: bool = True,
 ) -> Union[Callable[[T], T], T]:
     """A decorator to add events to a dataclass.
 
@@ -72,6 +75,9 @@ def evented(
         arrays.  But you can provide your own if you want to customize how equality is
         checked. Alternatively, if the class has an `__eq_operators__` class attribute,
         it will be used.
+    warn_on_no_fields : bool
+        If `True` (the default), a warning will be emitted if no mutable dataclass-like
+        fields are found on the object.
 
     Returns
     -------
@@ -103,7 +109,7 @@ def evented(
             raise TypeError("evented can only be used on classes")
 
         descriptor = SignalGroupDescriptor(
-            name=events_namespace, equality_operators=equality_operators
+            equality_operators=equality_operators, warn_on_no_fields=warn_on_no_fields
         )
         # as a decorator, this will have already been called
         descriptor.__set_name__(cls, events_namespace)
