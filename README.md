@@ -7,6 +7,7 @@
 [![CI](https://github.com/pyapp-kit/psygnal/actions/workflows/test.yml/badge.svg)](https://github.com/pyapp-kit/psygnal/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/pyapp-kit/psygnal/branch/main/graph/badge.svg?token=qGnz9GXpEb)](https://codecov.io/gh/pyapp-kit/psygnal)
 [![Documentation Status](https://readthedocs.org/projects/psygnal/badge/?version=latest)](https://psygnal.readthedocs.io/en/latest/?badge=latest)
+[![Benchmarks](https://img.shields.io/badge/⏱-codspeed-%23FF7B53)](https://codspeed.io/pyapp-kit/psygnal)
 
 Psygnal (pronounced "signal") is a pure python implementation of
 [Qt-style Signals](https://doc.qt.io/qt-5/signalsandslots.html) with
