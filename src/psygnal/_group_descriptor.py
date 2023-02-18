@@ -113,6 +113,40 @@ def _check_field_equality(
             return _check_field_equality(cls, name, before, after, _fail=True)
 
 
+def _get_eq_op(owner: type, field_name: str) -> EqOperator:
+    eq_map = _get_eq_operator_map(owner)
+    are_equal = operator.eq
+
+    def eq_op(before: Any, after: Any, _fail: bool = False) -> bool:
+        nonlocal are_equal
+        try:
+            # may fail depending on the __eq__ method for the type
+            return bool(are_equal(after, before))
+        except Exception:
+            if _fail:
+                raise  # pragma: no cover
+
+            # if we fail, we try to pick a new equality operator
+            # if it's a numpy array, we use np.array_equal
+            # finally, fallback to operator.is_
+            np = sys.modules.get("numpy", None)
+            if (
+                hasattr(after, "__array__")
+                and np is not None
+                and are_equal is not np.array_equal
+            ):
+                are_equal = np.array_equal  # update the operator
+                eq_map[field_name] = np.array_equal  # update the map
+                return eq_op(before, after, _fail=False)
+            else:
+                are_equal = operator.is_  # update the operator
+                eq_map[field_name] = operator.is_  # update the map
+                return eq_op(before, after, _fail=True)
+
+    eq_map[field_name] = eq_op
+    return eq_op
+
+
 def is_attrs_class(cls: type) -> bool:
     """Return True if the class is an attrs class."""
     attr = sys.modules.get("attr", None)
@@ -174,18 +208,7 @@ def _build_dataclass_signal_group(
     cls: type, equality_operators: Iterable[tuple[str, EqOperator]] | None = None
 ) -> type[SignalGroup]:
     """Build a SignalGroup with events for each field in a dataclass."""
-    _equality_operators = dict(equality_operators) if equality_operators else {}
-    signals = {}
-    eq_map = _get_eq_operator_map(cls)
-    for name, type_ in iter_fields(cls):
-        if name in _equality_operators:
-            if not callable(_equality_operators[name]):  # pragma: no cover
-                raise TypeError("EqOperator must be callable")
-            eq_map[name] = _equality_operators[name]
-        else:
-            eq_map[name] = _pick_equality_operator(type_)
-        signals[name] = Signal(type_)
-
+    signals = {name: Signal(type_) for name, type_ in iter_fields(cls)}
     return type(f"{cls.__name__}SignalGroup", (SignalGroup,), signals)
 
 
@@ -217,7 +240,7 @@ def get_evented_namespace(obj: object) -> str | None:
 
 
 def evented_setattr(
-    owner: type[S], signal_group_name: str
+    owner: type[S], signal_group_name: str, field_names: Iterable[str] | None = None
 ) -> Callable[[S, str, Any], None]:
     """Create a new __setattr__ method that emits events when fields change.
 
@@ -246,14 +269,22 @@ def evented_setattr(
     signal_group_name : str, optional
         The name of the attribute on `self` that holds the `SignalGroup` instance, by
         default "_psygnal_group_".
+    field_names : Iterable[str], optional
+        The names of the fields that should be evented. If not provided, all mutable
+        fields will be evented.
     """
+    _fields = set(field_names) if field_names else set()
 
     def _setattr_and_emit_(self: Any, _attr_name: str, _value: Any) -> None:
         """New __setattr__ method that emits events when fields change."""
+        if _attr_name not in _fields:
+            super(owner, self).__setattr__(_attr_name, _value)
+            return
+
         # get the signal group
         sig_group = getattr(self, signal_group_name, None)
         # if we don't have a signal instance for this attribute, just set it.
-        if sig_group is None or not hasattr(sig_group, _attr_name):  # pragma: no cover
+        if sig_group is None:  # pragma: no cover
             super(owner, self).__setattr__(_attr_name, _value)
             return
 
@@ -265,10 +296,14 @@ def evented_setattr(
 
         # check the new value and emit the event if different
         after = getattr(self, _attr_name)
-        if not _check_field_equality(owner, _attr_name, before, after):
+
+        if (before is _NULL and after is not _NULL) or (
+            not _get_eq_op(owner, _attr_name)(before, after)
+        ):
             signal_instance = cast("SignalInstance", getattr(sig_group, _attr_name))
             signal_instance.emit(after)
 
+    _setattr_and_emit_._fields_ = _fields  # type: ignore [attr-defined]
     return _setattr_and_emit_
 
 
@@ -328,12 +363,14 @@ class SignalGroupDescriptor:
         signal_group_class: type[SignalGroup] | None = None,
         warn_on_no_fields: bool = True,
         cache_on_instance: bool = True,
+        field_names: Iterable[str] | None = None,
     ):
         self._signal_group = signal_group_class
         self._name: str | None = None
         self._eqop = tuple(equality_operators.items()) if equality_operators else None
         self._warn_on_no_fields = warn_on_no_fields
         self._cache_on_instance = cache_on_instance
+        self._field_names = set(field_names) if field_names else set()
 
     def __set_name__(self, owner: type, name: str) -> None:
         """Called when this descriptor is added to class `owner` as attribute `name`."""
@@ -409,6 +446,7 @@ class SignalGroupDescriptor:
         as a way to manually trigger the build process.
         """
         self._signal_group = _build_dataclass_signal_group(owner, self._eqop)
+        owner.__setattr__._fields_.update(self._signal_group._signals_)  # type: ignore
         if self._warn_on_no_fields and not self._signal_group._signals_:
             warnings.warn(
                 f"No mutable fields found on class {owner}: no events will be "
