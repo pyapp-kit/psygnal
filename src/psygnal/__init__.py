@@ -46,16 +46,18 @@ __all__ = [
     "EmissionInfo",
     "EmitLoopError",
     "evented",
-    "is_evented",
-    "get_evented_namespace",
     "EventedModel",
+    "get_evented_namespace",
+    "is_evented",
     "Signal",
     "SignalGroup",
+    "SignalGroupDescriptor",
     "SignalInstance",
     "throttled",
 ]
 
-from ._evented_decorator import evented, get_evented_namespace, is_evented
+from ._evented_decorator import evented
+from ._group_descriptor import SignalGroupDescriptor, get_evented_namespace, is_evented
 
 if os.getenv("PSYGNAL_UNCOMPILED"):
 

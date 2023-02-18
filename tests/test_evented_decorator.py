@@ -1,14 +1,24 @@
 import operator
 import sys
 from dataclasses import dataclass
-from typing import no_type_check
+from typing import TYPE_CHECKING, ClassVar, no_type_check
 from unittest.mock import Mock
 
 import numpy as np
 import pytest
 
-from psygnal import SignalGroup, evented, get_evented_namespace, is_evented
-from psygnal._evented_decorator import _SignalGroupDescriptor
+from psygnal import (
+    SignalGroup,
+    SignalGroupDescriptor,
+    evented,
+    get_evented_namespace,
+    is_evented,
+)
+from psygnal._group_descriptor import evented_setattr
+
+decorated_or_descriptor = pytest.mark.parametrize(
+    "decorator", [True, False], ids=["decorator", "descriptor"]
+)
 
 
 @no_type_check
@@ -17,7 +27,7 @@ def _check_events(cls, events_ns="events"):
     assert is_evented(obj)
     assert is_evented(cls)
     assert get_evented_namespace(cls) == events_ns
-    assert isinstance(getattr(cls, events_ns), _SignalGroupDescriptor)
+    assert isinstance(getattr(cls, events_ns), SignalGroupDescriptor)
 
     events = getattr(obj, events_ns)
     assert isinstance(events, SignalGroup)
@@ -46,28 +56,52 @@ if sys.version_info >= (3, 10):
     DCLASS_KWARGS.extend([{"slots": True}, {"slots": False}])
 
 
+@decorated_or_descriptor
 @pytest.mark.parametrize("kwargs", DCLASS_KWARGS)
-def test_native_dataclass(kwargs: dict) -> None:
-    @evented(equality_operators={"qux": operator.eq})  # just for test coverage
+def test_native_dataclass(decorator: bool, kwargs: dict) -> None:
     @dataclass(**kwargs)
-    class Foo:
+    class Base:
         bar: int
         baz: str
         qux: np.ndarray
+
+    if decorator:
+
+        @evented(equality_operators={"qux": operator.eq})  # just for test coverage
+        class Foo(Base):
+            ...
+
+    else:
+
+        class Foo(Base):  # type: ignore [no-redef]
+            events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor(
+                equality_operators={"qux": operator.eq}
+            )
 
     _check_events(Foo)
 
 
+@decorated_or_descriptor
 @pytest.mark.parametrize("slots", [True, False])
-def test_attrs_dataclass(slots: bool) -> None:
+def test_attrs_dataclass(decorator: bool, slots: bool) -> None:
     from attrs import define
 
-    @evented
-    @define(slots=slots)  # type: ignore
-    class Foo:
+    @define(slots=slots)  # type: ignore [misc]
+    class Base:
         bar: int
         baz: str
         qux: np.ndarray
+
+    if decorator:
+
+        @evented
+        class Foo(Base):
+            ...
+
+    else:
+
+        class Foo(Base):  # type: ignore [no-redef]
+            events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
 
     _check_events(Foo)
 
@@ -76,58 +110,113 @@ class Config:
     arbitrary_types_allowed = True
 
 
-def test_pydantic_dataclass() -> None:
+@decorated_or_descriptor
+def test_pydantic_dataclass(decorator: bool) -> None:
     from pydantic.dataclasses import dataclass
 
-    @evented
     @dataclass(config=Config)
-    class Foo:
+    class Base:
         bar: int
         baz: str
         qux: np.ndarray
 
+    if decorator:
+
+        @evented
+        class Foo(Base):
+            ...
+
+    else:
+
+        class Foo(Base):  # type: ignore [no-redef]
+            events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
+
     _check_events(Foo)
 
 
-def test_msgspec_struct() -> None:
-    msgspec = pytest.importorskip("msgspec")
-
-    @evented
-    class Foo(msgspec.Struct):
-        bar: int
-        baz: str
-        qux: np.ndarray
-
-    _check_events(Foo)
-
-
-def test_pydantic_base_model() -> None:
+@decorated_or_descriptor
+def test_pydantic_base_model(decorator: bool) -> None:
     from pydantic import BaseModel
 
-    @evented(events_namespace="my_events")
-    class Foo(BaseModel):
+    class Base(BaseModel):
         bar: int
         baz: str
         qux: np.ndarray
 
         Config = Config  # type: ignore
 
+    if decorator:
+
+        @evented(events_namespace="my_events")
+        class Foo(Base):
+            ...
+
+    else:
+
+        class Foo(Base):  # type: ignore [no-redef]
+            my_events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
+
     _check_events(Foo, "my_events")
 
 
-def test_no_signals_warn():
-    with pytest.warns(UserWarning, match="No mutable fields found in class"):
+@pytest.mark.parametrize("decorator", [True, False], ids=["decorator", "descriptor"])
+def test_msgspec_struct(decorator: bool) -> None:
+    if TYPE_CHECKING:
+        import msgspec
+    else:
+        msgspec = pytest.importorskip("msgspec")  # remove when py37 is dropped
 
-        @dataclass
+    if decorator:
+
+        @evented
+        class Foo(msgspec.Struct):
+            bar: int
+            baz: str
+            qux: np.ndarray
+
+    else:
+
+        class Foo(msgspec.Struct):  # type: ignore [no-redef]
+            bar: int
+            baz: str
+            qux: np.ndarray
+            events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
+
+        Foo.__setattr__ = evented_setattr(Foo, "events")  # type: ignore [assignment]
+
+    _check_events(Foo)
+
+
+def test_no_signals_warn() -> None:
+    with pytest.warns(UserWarning, match="No mutable fields found on class"):
+
         @evented
         class Foo:
-            bar: int
+            ...
+
+        Foo().events  # type: ignore
+
+    with pytest.warns(UserWarning, match="No mutable fields found on class"):
+
+        class Foo2:
+            events = SignalGroupDescriptor()
+
+        Foo2().events
+
+    @dataclass
+    class Foo3:
+        events = SignalGroupDescriptor(warn_on_no_fields=False)
+
+    # no warning
+    Foo3().events
 
 
-@evented
 @dataclass
 class FooPicklable:
     bar: int
+    events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor(
+        cache_on_instance=False
+    )
 
 
 def test_pickle() -> None:
@@ -139,7 +228,7 @@ def test_pickle() -> None:
     assert obj2.bar == 1
 
 
-def test_get_namespace():
+def test_get_namespace() -> None:
     @evented(events_namespace="my_events")
     @dataclass
     class Foo:
