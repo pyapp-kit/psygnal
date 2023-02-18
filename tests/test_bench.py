@@ -1,11 +1,12 @@
 import sys
+from dataclasses import dataclass
 from functools import partial
 from inspect import signature
 from typing import Callable
 
 import pytest
 
-from psygnal import Signal, SignalInstance
+from psygnal import Signal, SignalInstance, evented
 
 if all(x not in {"--codspeed", "--benchmark", "tests/test_bench.py"} for x in sys.argv):
     pytest.skip("use --benchmark to run benchmark", allow_module_level=True)
@@ -114,3 +115,29 @@ def test_emit_time(benchmark: Callable, n_connections: int, callback_type: str) 
             emitter.one_int.connect(callback, unique=False)
 
     benchmark(emitter.one_int.emit, 1)
+
+
+@pytest.mark.benchmark
+def test_evented_creation() -> None:
+    @evented
+    @dataclass
+    class Obj:
+        x: int = 0
+        y: str = "hi"
+        z: bool = False
+
+    _ = Obj().events  # type: ignore
+
+
+def test_evented_setattr(benchmark: Callable) -> None:
+    @evented
+    @dataclass
+    class Obj:
+        x: int = 0
+        y: str = "hi"
+        z: bool = False
+
+    obj = Obj()
+    _ = obj.events  # type: ignore
+
+    benchmark(setattr, obj, "x", 1)
