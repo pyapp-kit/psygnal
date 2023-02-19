@@ -746,11 +746,10 @@ def test_connect_setitem():
     assert my_obj._dict == {"x": 5}
 
     obj = object()
-    with pytest.warns(RuntimeWarning):
-        with pytest.raises(TypeError, match="does not support __setitem__"):
-            t.sig.connect_setitem(obj, "x")
+    with pytest.raises(TypeError, match="does not support __setitem__"):
+        t.sig.connect_setitem(obj, "x")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         t.sig.disconnect_setitem(obj, "x", missing_ok=False)
 
 
@@ -782,7 +781,7 @@ def test_signal_emit_as_slot():
     mock = Mock()
     a = A()
     b = B()
-    a.signal1.connect(b.signal2.emit)
+    a.signal1.connect(b.signal2)
     b.signal2.connect(mock)
     a.signal1.emit(1)
     mock.assert_called_once_with(1)

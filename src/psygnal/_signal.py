@@ -529,10 +529,10 @@ class SignalInstance:
         >>> t.sig.emit(5)
         >>> assert my_obj.x == 5
         """
-        ref = _get_ref_or_warn(obj, meth="disconnect_setattr")
-
-        if not hasattr(ref(), attr):
-            raise AttributeError(f"Object {ref()} has no attribute {attr!r}")
+        if isinstance(obj, weakref.ReferenceType):
+            obj = obj()
+        if not hasattr(obj, attr):
+            raise AttributeError(f"Object {obj} has no attribute {attr!r}")
 
         with self._lock:
             caller = _WeakSetattr(
@@ -614,9 +614,7 @@ class SignalInstance:
         >>> t.sig.emit(5)
         >>> assert my_obj == {'x': 5}
         """
-        _get_ref_or_warn(obj, meth="disconnect_setitem")  # remove me
-
-        if isinstance(obj, weakref.ref):
+        if isinstance(obj, weakref.ReferenceType):
             obj = obj()
         if not hasattr(obj, "__setitem__"):
             raise TypeError(f"Object {obj} does not support __setitem__")
@@ -651,7 +649,7 @@ class SignalInstance:
             If `missing_ok` is `True` and no item setter is connected.
         """
         if not hasattr(obj, "__setitem__"):
-            raise ValueError(f"Object {obj} does not support __setitem__")
+            raise TypeError(f"Object {obj} does not support __setitem__")
 
         # sourcery skip: merge-nested-ifs, use-next
         with self._lock:
