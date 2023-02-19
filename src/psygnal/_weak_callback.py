@@ -3,10 +3,11 @@ from __future__ import annotations
 import weakref
 from functools import partial
 from types import BuiltinMethodType, FunctionType, MethodType, MethodWrapperType
-from typing import Any, Callable, Protocol, SupportsIndex, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Protocol, TypeVar
 from warnings import warn
 
-from typing_extensions import Literal
+if TYPE_CHECKING:
+    from typing_extensions import Literal
 
 _T = TypeVar("_T")
 
@@ -16,20 +17,26 @@ class SupportsSetitem(Protocol):
         ...
 
 
-SupportsIndex
-
-
 class WeakCallback:
-    def __init__(
-        self,
-        obj: Any,
-        max_args: int | None = None,
-    ) -> None:
-        mod = getattr(obj, "__module__", None) or ""
-        name = getattr(obj, "__name__", None) or ""
-        self._key = f"{mod}:{name}@{hex(id(obj))}"
+    def __init__(self, obj: Any, max_args: int | None = None) -> None:
+        self._key = WeakCallback.object_key(obj)
         self._max_args = max_args
         self._alive = True
+
+    @staticmethod
+    def object_key(obj: Any) -> str:
+        if hasattr(obj, "__self__"):
+            owner_cls = type(obj.__self__)
+            type_name = getattr(owner_cls, "__name__", None) or ""
+            module = getattr(owner_cls, "__module__", None) or ""
+            method_name = getattr(obj, "__name__", None) or ""
+            obj_name = f"{type_name}.{method_name}"
+            obj_id = id(obj.__self__)
+        else:
+            module = getattr(obj, "__module__", None) or ""
+            obj_name = getattr(obj, "__name__", None) or ""
+            obj_id = id(obj)
+        return f"{module}:{obj_name}@{hex(obj_id)}"
 
     def cb(self, args: tuple[Any, ...]) -> None:
         raise NotImplementedError()
@@ -85,8 +92,6 @@ class _StrongFunction(WeakCallback):
     ) -> None:
         super().__init__(f, max_args)
         self._f = f
-        self._args = args
-        self._kwargs = kwargs or {}
         self._args = args
         self._kwargs = kwargs or {}
 
@@ -147,9 +152,9 @@ class _WeakMethod(WeakCallback):
         finalize: Callable | None = None,
     ) -> None:
         super().__init__(f.__self__, max_args)
-        self._args = args
         self._obj_ref = self._try_ref(f.__self__, finalize)
         self._func_ref = self._try_ref(f.__func__, finalize)
+        self._args = args
         self._kwargs = kwargs or {}
 
     def cb(self, args: tuple[Any, ...]) -> None:

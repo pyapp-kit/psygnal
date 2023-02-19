@@ -771,6 +771,8 @@ def test_repr_not_used():
     mock.assert_not_called()
 
 
+# b.signal2.emit will warn that compiled SignalInstances cannot be weakly referenced
+@pytest.mark.filterwarnings("ignore:failed to create weakref:UserWarning")
 def test_signal_emit_as_slot():
     class A:
         signal1 = Signal(int)
@@ -781,7 +783,7 @@ def test_signal_emit_as_slot():
     mock = Mock()
     a = A()
     b = B()
-    a.signal1.connect(b.signal2)
+    a.signal1.connect(b.signal2.emit)
     b.signal2.connect(mock)
     a.signal1.emit(1)
     mock.assert_called_once_with(1)

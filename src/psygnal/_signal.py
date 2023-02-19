@@ -1135,37 +1135,6 @@ def _build_signature(*types: type[Any]) -> Signature:
     return Signature(params)
 
 
-# class _PartialMethodCaller(_BoundMethodCaller):
-#     """Caller of a partial to a (dereferenced) bound method."""
-
-#     def __init__(self, slot: PartialMethod, max_args: int | None = None) -> None:
-#         super().__init__(slot.func, max_args)
-#         self._partial_args = slot.args
-#         self._partial_kwargs = slot.keywords
-#         self._slot_id = id(slot)
-
-#     def __call__(self, args: tuple[object, ...]) -> bool:
-#         obj = self._obj_ref()
-#         func = self._func_ref()
-#         if obj is None or func is None:
-#             return True
-
-#         if self._max_args is not None:
-#             args = args[: self._max_args]
-#         func(obj, *self._partial_args, *args, **self._partial_kwargs)
-#         return False
-
-#     def __eq__(self, other: object) -> bool:
-#         return isinstance(other, _PartialMethodCaller) and super().__eq__(other)
-
-#     def slot(self) -> PartialMethod:  # type: ignore
-#         method = self._method()
-#         if method is None:
-#             raise RuntimeError("object has been deleted")  # pragma: no cover
-#         _partial = partial(method, *self._partial_args, **self._partial_kwargs)
-#         return cast(PartialMethod, _partial)
-
-
 # def f(a, /, b, c=None, *d, f=None, **g): print(locals())
 #
 # a: kind=POSITIONAL_ONLY,       default=Parameter.empty    # 1 required posarg
