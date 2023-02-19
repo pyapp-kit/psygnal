@@ -27,7 +27,7 @@ from typing import (
 from mypy_extensions import mypyc_attr
 from typing_extensions import Protocol, get_args, get_origin
 
-from psygnal._weak_callback import WeakCallback
+from psygnal._weak_callback import WeakCallback, weak_callback
 
 if TYPE_CHECKING:
     from typing_extensions import Literal, TypeGuard
@@ -451,9 +451,7 @@ class SignalInstance:
                         extra = f"- Slot types {slot_sig} do not match types in signal."
                         self._raise_connection_error(slot, extra)
 
-                cb = WeakCallback.create(
-                    slot, max_args=max_args, finalize=self._try_discard
-                )
+                cb = weak_callback(slot, max_args=max_args, finalize=self._try_discard)
                 self._slots.append(cb)
             return slot
 
@@ -532,7 +530,7 @@ class SignalInstance:
             raise AttributeError(f"Object {ref()} has no attribute {attr!r}")
 
         with self._lock:
-            caller = WeakCallback.create(
+            caller = weak_callback(
                 setattr, obj, attr, max_args=maxargs, finalize=self._try_discard
             )
             self._slots.append(caller)
@@ -561,7 +559,7 @@ class SignalInstance:
         """
         # sourcery skip: merge-nested-ifs, use-next
         with self._lock:
-            self._try_discard(WeakCallback.create(setattr, obj, attr), missing_ok)
+            self._try_discard(weak_callback(setattr, obj, attr), missing_ok)
 
     def connect_setitem(
         self,
@@ -618,7 +616,7 @@ class SignalInstance:
 
         with self._lock:
             if hasattr(obj, "__setitem__"):
-                caller = WeakCallback.create(
+                caller = weak_callback(
                     obj.__setitem__, key, max_args=maxargs, finalize=self._try_discard
                 )
             else:
@@ -653,7 +651,7 @@ class SignalInstance:
 
         # sourcery skip: merge-nested-ifs, use-next
         with self._lock:
-            caller = WeakCallback.create(obj.__setitem__, key)
+            caller = weak_callback(obj.__setitem__, key)
             self._try_discard(caller, missing_ok)
 
     def _check_nargs(
@@ -693,7 +691,7 @@ class SignalInstance:
     def _slot_index(self, slot: Callable) -> int:
         """Get index of `slot` in `self._slots`.  Return -1 if not connected."""
         with self._lock:
-            normed = WeakCallback.create(slot)
+            normed = weak_callback(slot)
             # NOTE:
             # the == method here relies on the __eq__ method of each SlotCaller subclass
             return next((i for i, s in enumerate(self._slots) if s == normed), -1)

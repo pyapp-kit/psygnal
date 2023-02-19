@@ -2,13 +2,7 @@ from __future__ import annotations
 
 import weakref
 from functools import partial
-from types import (
-    BuiltinMethodType,
-    FunctionType,
-    LambdaType,
-    MethodType,
-    MethodWrapperType,
-)
+from types import BuiltinMethodType, FunctionType, MethodType, MethodWrapperType
 from typing import Any, Callable, Literal, TypeVar
 from warnings import warn
 
@@ -32,22 +26,9 @@ class WeakCallback:
 
     def __eq__(self, other: object) -> bool:
         # sourcery skip: swap-if-expression
-        if not isinstance(other, WeakCallback):
-            return NotImplemented
-        return self._key == other._key
-
-    @classmethod
-    def create(
-        cls,
-        obj: Callable,
-        *args: Any,
-        max_args: int | None = None,
-        finalize: Callable[[WeakCallback], Any] | None = None,
-        strong_ref: bool = True,
-    ) -> WeakCallback:
-        return weak_callable(
-            obj, *args, max_args=max_args, finalize=finalize, strong_func=strong_ref
-        )
+        if isinstance(other, WeakCallback):
+            return self._key == other._key
+        return NotImplemented
 
     def _try_ref(
         self,
@@ -230,7 +211,7 @@ class _WeakSetattr(WeakCallback):
         return self._obj_ref()
 
 
-def weak_callable(
+def weak_callback(
     cb: Callable,
     *args: Any,
     max_args: int | None = None,
@@ -240,7 +221,7 @@ def weak_callable(
     if isinstance(cb, WeakCallback):
         return cb
 
-    kwargs = {}
+    kwargs = None
     if isinstance(cb, partial):
         if max_args is not None:
             nargs = len(cb.args)
@@ -250,7 +231,7 @@ def weak_callable(
         kwargs = cb.keywords
         cb = cb.func
 
-    if isinstance(cb, (FunctionType, LambdaType)):
+    if isinstance(cb, FunctionType):
         return (
             _StrongFunction(cb, max_args, args, kwargs)
             if strong_func
@@ -266,7 +247,7 @@ def weak_callable(
             return _WeakSetattr(obj, attr, max_args=max_args, finalize=finalize)
         return _WeakBuiltin(cb, max_args, finalize)
 
-    if not callable(cb):
-        raise TypeError(f"unsupported type {type(cb)}")
+    if callable(cb):
+        return _WeakFunction(cb, max_args, args, kwargs, finalize)
 
-    return _WeakFunction(cb, max_args, args, kwargs, finalize)
+    raise TypeError(f"unsupported type {type(cb)}")
