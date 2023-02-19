@@ -60,6 +60,33 @@ def weak_callback(
         ReferenceError will be raised.  If 'warn' (default), a warning will be issued
         and a strong-reference will be used. If 'ignore' a strong-reference will be
         used (silently).
+
+    Returns
+    -------
+    WeakCallback
+        A WeakCallback subclass instance appropriate for the given callable.
+
+    Examples
+    --------
+    ```python
+        from psygnal._weak_callback import weak_callback
+
+    class T:
+        def greet(self, name):
+            print("hello,", name)
+
+    def _on_delete(weak_cb):
+        print("deleting!")
+
+    t = T()
+    weak_cb = weak_callback(t.greet, finalize=_on_delete)
+
+    weak_cb.cb(("world",))  # "hello, world"
+
+    del t  # "deleting!"
+
+    weak_cb.cb(("world",))  # ReferenceError
+    ```
     """
     if isinstance(cb, WeakCallback):
         return cb
@@ -126,22 +153,12 @@ class WeakCallback:
         self._alive = True
         self._on_ref_error = on_ref_error
 
-    @staticmethod
-    def object_key(obj: Any) -> str:
-        if hasattr(obj, "__self__"):
-            owner_cls = type(obj.__self__)
-            type_name = getattr(owner_cls, "__name__", None) or ""
-            module = getattr(owner_cls, "__module__", None) or ""
-            method_name = getattr(obj, "__name__", None) or ""
-            obj_name = f"{type_name}.{method_name}"
-            obj_id = id(obj.__self__)
-        else:
-            module = getattr(obj, "__module__", None) or ""
-            obj_name = getattr(obj, "__name__", None) or ""
-            obj_id = id(obj)
-        return f"{module}:{obj_name}@{hex(obj_id)}"
-
     def cb(self, args: tuple[Any, ...] = ()) -> None:
+        """Call the callback with `args`. Args will be spread when calling the func."""
+        raise NotImplementedError()
+
+    def dereference(self) -> object | None:
+        """Return the original object, or None if dead."""
         raise NotImplementedError()
 
     def __eq__(self, other: object) -> bool:
@@ -171,6 +188,21 @@ class WeakCallback:
                 return obj
 
             return _strong_ref
+
+    @staticmethod
+    def object_key(obj: Any) -> str:
+        if hasattr(obj, "__self__"):
+            owner_cls = type(obj.__self__)
+            type_name = getattr(owner_cls, "__name__", None) or ""
+            module = getattr(owner_cls, "__module__", None) or ""
+            method_name = getattr(obj, "__name__", None) or ""
+            obj_name = f"{type_name}.{method_name}"
+            obj_id = id(obj.__self__)
+        else:
+            module = getattr(obj, "__module__", None) or ""
+            obj_name = getattr(obj, "__name__", None) or ""
+            obj_id = id(obj)
+        return f"{module}:{obj_name}@{hex(obj_id)}"
 
 
 def _kill_and_finalize(
@@ -209,7 +241,7 @@ class _StrongFunction(WeakCallback):
         else:
             self._f(*self._args, *args[: self._max_args])
 
-    def ref(self) -> FunctionType:
+    def dereference(self) -> FunctionType:
         return self._f
 
 
@@ -242,7 +274,7 @@ class _WeakFunction(WeakCallback):
         else:
             f(*self._args, *args[: self._max_args])
 
-    def ref(self) -> Callable | None:
+    def dereference(self) -> Callable | None:
         return self._f()
 
 
@@ -277,7 +309,7 @@ class _WeakMethod(WeakCallback):
         else:
             func(obj, *self._args, *args[: self._max_args])
 
-    def ref(self) -> MethodType | None:
+    def dereference(self) -> MethodType | None:
         obj = self._obj_ref()
         func = self._func_ref()
         return None if obj is None or func is None else func.__get__(obj)
@@ -296,19 +328,16 @@ class _WeakBuiltin(WeakCallback):
         self._func_name = f.__name__
 
     def cb(self, args: tuple[Any, ...] = ()) -> None:
-        obj = self._obj_ref()
-        func = getattr(obj, self._func_name, None)
-        if obj is None or func is None:
+        func = getattr(self._obj_ref(), self._func_name, None)
+        if func is None:
             raise ReferenceError("weakly-referenced object no longer exists")
         if self._max_args is None:
             func(*args)
         else:
             func(*args[: self._max_args])
 
-    def ref(self) -> MethodWrapperType | BuiltinMethodType | None:
-        obj = self._obj_ref()
-        func = getattr(obj, self._func_name, None)
-        return None if obj is None or func is None else func.__get__(obj)
+    def dereference(self) -> MethodWrapperType | BuiltinMethodType | None:
+        return getattr(self._obj_ref(), self._func_name, None)
 
 
 class _WeakSetattr(WeakCallback):
@@ -334,7 +363,7 @@ class _WeakSetattr(WeakCallback):
             args = args[: self._max_args]
         setattr(obj, self._attr, args[0] if len(args) == 1 else args)
 
-    def ref(self) -> object | None:
+    def dereference(self) -> object | None:
         return self._obj_ref()
 
 
@@ -361,5 +390,5 @@ class _WeakSetitem(WeakCallback):
             args = args[: self._max_args]
         obj[self._key] = args[0] if len(args) == 1 else args
 
-    def ref(self) -> SupportsSetitem | None:
+    def dereference(self) -> SupportsSetitem | None:
         return self._obj_ref()
