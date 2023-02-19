@@ -3,8 +3,10 @@ from __future__ import annotations
 import weakref
 from functools import partial
 from types import BuiltinMethodType, FunctionType, MethodType, MethodWrapperType
-from typing import Any, Callable, Literal, Protocol, SupportsIndex, TypeVar
+from typing import Any, Callable, Protocol, SupportsIndex, TypeVar
 from warnings import warn
+
+from typing_extensions import Literal
 
 _T = TypeVar("_T")
 
