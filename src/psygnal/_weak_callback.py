@@ -3,8 +3,10 @@ from __future__ import annotations
 import weakref
 from functools import partial
 from types import BuiltinMethodType, FunctionType, MethodType, MethodWrapperType
-from typing import TYPE_CHECKING, Any, Callable, Protocol, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, TypeVar
 from warnings import warn
+
+from typing_extensions import Protocol
 
 if TYPE_CHECKING:
     from typing_extensions import Literal, TypeAlias
@@ -139,7 +141,7 @@ class WeakCallback:
             obj_id = id(obj)
         return f"{module}:{obj_name}@{hex(obj_id)}"
 
-    def cb(self, args: tuple[Any, ...]) -> None:
+    def cb(self, args: tuple[Any, ...] = ()) -> None:
         raise NotImplementedError()
 
     def __eq__(self, other: object) -> bool:
@@ -196,7 +198,7 @@ class _StrongFunction(WeakCallback):
         self._args = args
         self._kwargs = kwargs or {}
 
-    def cb(self, args: tuple[Any, ...]) -> None:
+    def cb(self, args: tuple[Any, ...] = ()) -> None:
         if self._max_args is None:
             if self._kwargs:
                 self._f(*self._args, *args, **self._kwargs)
@@ -226,7 +228,7 @@ class _WeakFunction(WeakCallback):
         self._args = args
         self._kwargs = kwargs or {}
 
-    def cb(self, args: tuple[Any, ...]) -> None:
+    def cb(self, args: tuple[Any, ...] = ()) -> None:
         f = self._f()
         if f is None:
             raise ReferenceError("weakly-referenced object no longer exists")
@@ -260,7 +262,7 @@ class _WeakMethod(WeakCallback):
         self._args = args
         self._kwargs = kwargs or {}
 
-    def cb(self, args: tuple[Any, ...]) -> None:
+    def cb(self, args: tuple[Any, ...] = ()) -> None:
         obj = self._obj_ref()
         func = self._func_ref()
         if obj is None or func is None:
@@ -293,7 +295,7 @@ class _WeakBuiltin(WeakCallback):
         self._obj_ref = self._try_ref(f.__self__, finalize)
         self._func_name = f.__name__
 
-    def cb(self, args: tuple[Any, ...]) -> None:
+    def cb(self, args: tuple[Any, ...] = ()) -> None:
         obj = self._obj_ref()
         func = getattr(obj, self._func_name, None)
         if obj is None or func is None:
@@ -324,7 +326,7 @@ class _WeakSetattr(WeakCallback):
         self._obj_ref = self._try_ref(obj, finalize)
         self._attr = attr
 
-    def cb(self, args: tuple[Any, ...]) -> None:
+    def cb(self, args: tuple[Any, ...] = ()) -> None:
         obj = self._obj_ref()
         if obj is None:
             raise ReferenceError("weakly-referenced object no longer exists")
@@ -351,7 +353,7 @@ class _WeakSetitem(WeakCallback):
         self._obj_ref = self._try_ref(obj, finalize)
         self._key = key
 
-    def cb(self, args: tuple[Any, ...]) -> None:
+    def cb(self, args: tuple[Any, ...] = ()) -> None:
         obj = self._obj_ref()
         if obj is None:
             raise ReferenceError("weakly-referenced object no longer exists")
