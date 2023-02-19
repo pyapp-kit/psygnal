@@ -7,9 +7,91 @@ from typing import TYPE_CHECKING, Any, Callable, Protocol, TypeVar
 from warnings import warn
 
 if TYPE_CHECKING:
-    from typing_extensions import Literal
+    from typing_extensions import Literal, TypeAlias
 
+    RefErrorChoice: TypeAlias = Literal["raise", "warn", "ignore"]
+
+__all__ = ["weak_callback", "WeakCallback"]
 _T = TypeVar("_T")
+
+
+def weak_callback(
+    cb: Callable,
+    *args: Any,
+    max_args: int | None = None,
+    finalize: Callable[[WeakCallback], Any] | None = None,
+    strong_func: bool = True,
+    on_ref_error: Literal["raise", "warn", "ignore"] = "warn",
+) -> WeakCallback:
+    """Create a weakly-referenced callback.
+
+    This function creates a weakly-referenced callback, with special considerations
+    for many known callable types (functions, lambdas, partials, bound methods,
+    partials on bound methods, builtin methods, etc.).
+
+    NOTE: For the sake of least-surprise, an exception is made for functions and,
+    lambdas, which are strongly-referenced by default.  See the `strong_func` parameter
+    for more details.
+
+    Parameters
+    ----------
+    cb : callable
+        The callable to be called.
+    *args
+        Additional positional arguments to be passed to the callback (similar
+        to functools.partial).
+    max_args : int, optional
+        The maximum number of positional arguments to pass to the callback.
+        If provided, additional arguments passed to WeakCallback.cb will be ignored.
+    finalize : callable, optional
+        A callable that will be called when the callback is garbage collected.
+        The callable will be passed the WeakCallback instance as its only argument.
+    strong_func : bool, optional
+        If True (default), a strong reference will be kept to the function `cb` if
+        it is a function or lambda.  If False, a weak reference will be kept.  The
+        reasoning for the is that functions and lambdas are so often defined *only*
+        to be passed to this function, and will likely be immediately garbage
+        collected.  If you would specifically like to *allow* the function to be
+        garbage collected, set this to False.
+    on_ref_error : {'raise', 'warn', 'ignore'}, optional
+        What to do if a weak reference cannot be created.  If 'raise', a
+        ReferenceError will be raised.  If 'warn' (default), a warning will be issued
+        and a strong-reference will be used. If 'ignore' a strong-reference will be
+        used (silently).
+    """
+    if isinstance(cb, WeakCallback):
+        return cb
+
+    kwargs = None
+    if isinstance(cb, partial):
+        if max_args is not None:
+            nargs = len(cb.args)
+            if nargs:
+                max_args += nargs
+        args = cb.args + args
+        kwargs = cb.keywords
+        cb = cb.func
+
+    if isinstance(cb, FunctionType):
+        return (
+            _StrongFunction(cb, max_args, args, kwargs)
+            if strong_func
+            else _WeakFunction(cb, max_args, args, kwargs, finalize, on_ref_error)
+        )
+
+    if isinstance(cb, MethodType):
+        return _WeakMethod(cb, max_args, args, kwargs, finalize, on_ref_error)
+
+    if isinstance(cb, (MethodWrapperType, BuiltinMethodType)):
+        if cb is setattr:
+            obj, attr, *_ = args
+            return _WeakSetattr(obj, attr, max_args, finalize, on_ref_error)
+        return _WeakBuiltin(cb, max_args, finalize, on_ref_error)
+
+    if callable(cb):
+        return _WeakFunction(cb, max_args, args, kwargs, finalize, on_ref_error)
+
+    raise TypeError(f"unsupported type {type(cb)}")
 
 
 class SupportsSetitem(Protocol):
@@ -18,6 +100,11 @@ class SupportsSetitem(Protocol):
 
 
 class WeakCallback:
+    """Base Class for weakly-referenced callbacks.
+
+    Do not instantiate this class directly, use the `weak_callback` function instead.
+    """
+
     def __new__(cls, *args: Any, **kwargs: Any) -> WeakCallback:
         if cls is WeakCallback:
             raise TypeError(
@@ -30,7 +117,7 @@ class WeakCallback:
         self,
         obj: Any,
         max_args: int | None = None,
-        on_ref_error: Literal["raise", "warn", "ignore"] = "warn",
+        on_ref_error: RefErrorChoice = "warn",
     ) -> None:
         self._key = WeakCallback.object_key(obj)
         self._max_args = max_args
@@ -65,15 +152,14 @@ class WeakCallback:
         self,
         obj: _T,
         finalize: Callable[[WeakCallback], Any] | None = None,
-        on_error: Literal["raise", "warn", "ignore"] = "warn",
     ) -> Callable[[], _T | None]:
         _cb = None if finalize is None else _kill_and_finalize(self, finalize)
         try:
             return weakref.ref(obj, _cb)
         except TypeError:
-            if on_error == "raise":
+            if self._on_ref_error == "raise":
                 raise
-            if on_error == "warn":
+            if self._on_ref_error == "warn":
                 # FIXME: special case (move me)
                 mod = getattr(obj, "__module__", None) or ""
                 if "QtCore" not in mod:
@@ -103,8 +189,9 @@ class _StrongFunction(WeakCallback):
         max_args: int | None = None,
         args: tuple[Any, ...] = (),
         kwargs: dict[str, Any] | None = None,
+        on_ref_error: RefErrorChoice = "warn",
     ) -> None:
-        super().__init__(f, max_args)
+        super().__init__(f, max_args, on_ref_error)
         self._f = f
         self._args = args
         self._kwargs = kwargs or {}
@@ -132,8 +219,9 @@ class _WeakFunction(WeakCallback):
         args: tuple[Any, ...] = (),
         kwargs: dict[str, Any] | None = None,
         finalize: Callable | None = None,
+        on_ref_error: RefErrorChoice = "warn",
     ) -> None:
-        super().__init__(f, max_args)
+        super().__init__(f, max_args, on_ref_error)
         self._f = self._try_ref(f, finalize)
         self._args = args
         self._kwargs = kwargs or {}
@@ -164,8 +252,9 @@ class _WeakMethod(WeakCallback):
         args: tuple[Any, ...] = (),
         kwargs: dict[str, Any] | None = None,
         finalize: Callable | None = None,
+        on_ref_error: RefErrorChoice = "warn",
     ) -> None:
-        super().__init__(f.__self__, max_args)
+        super().__init__(f.__self__, max_args, on_ref_error)
         self._obj_ref = self._try_ref(f.__self__, finalize)
         self._func_ref = self._try_ref(f.__func__, finalize)
         self._args = args
@@ -198,8 +287,9 @@ class _WeakBuiltin(WeakCallback):
         f: MethodWrapperType | BuiltinMethodType,
         max_args: int | None = None,
         finalize: Callable | None = None,
+        on_ref_error: RefErrorChoice = "warn",
     ) -> None:
-        super().__init__(f, max_args)
+        super().__init__(f, max_args, on_ref_error)
         self._obj_ref = self._try_ref(f.__self__, finalize)
         self._func_name = f.__name__
 
@@ -228,8 +318,9 @@ class _WeakSetattr(WeakCallback):
         attr: str,
         max_args: int | None = None,
         finalize: Callable | None = None,
+        on_ref_error: RefErrorChoice = "warn",
     ) -> None:
-        super().__init__(obj, max_args)
+        super().__init__(obj, max_args, on_ref_error)
         self._obj_ref = self._try_ref(obj, finalize)
         self._attr = attr
 
@@ -254,8 +345,9 @@ class _WeakSetitem(WeakCallback):
         key: Any,
         max_args: int | None = None,
         finalize: Callable | None = None,
+        on_ref_error: RefErrorChoice = "warn",
     ) -> None:
-        super().__init__(obj, max_args)
+        super().__init__(obj, max_args, on_ref_error)
         self._obj_ref = self._try_ref(obj, finalize)
         self._key = key
 
@@ -269,46 +361,3 @@ class _WeakSetitem(WeakCallback):
 
     def ref(self) -> SupportsSetitem | None:
         return self._obj_ref()
-
-
-def weak_callback(
-    cb: Callable,
-    *args: Any,
-    max_args: int | None = None,
-    finalize: Callable[[WeakCallback], Any] | None = None,
-    strong_func: bool = True,
-    on_ref_error: Literal["raise", "warn", "ignore"] = "warn",
-) -> WeakCallback:
-    if isinstance(cb, WeakCallback):
-        return cb
-
-    kwargs = None
-    if isinstance(cb, partial):
-        if max_args is not None:
-            nargs = len(cb.args)
-            if nargs:
-                max_args += nargs
-        args = cb.args + args
-        kwargs = cb.keywords
-        cb = cb.func
-
-    if isinstance(cb, FunctionType):
-        return (
-            _StrongFunction(cb, max_args, args, kwargs)
-            if strong_func
-            else _WeakFunction(cb, max_args, args, kwargs, finalize)
-        )
-
-    if isinstance(cb, MethodType):
-        return _WeakMethod(cb, max_args, args, kwargs, finalize)
-
-    if isinstance(cb, (MethodWrapperType, BuiltinMethodType)):
-        if cb is setattr:
-            obj, attr, *_ = args
-            return _WeakSetattr(obj, attr, max_args=max_args, finalize=finalize)
-        return _WeakBuiltin(cb, max_args, finalize)
-
-    if callable(cb):
-        return _WeakFunction(cb, max_args, args, kwargs, finalize)
-
-    raise TypeError(f"unsupported type {type(cb)}")
