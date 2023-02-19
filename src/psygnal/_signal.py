@@ -27,7 +27,12 @@ from typing import (
 from mypy_extensions import mypyc_attr
 from typing_extensions import Protocol, get_args, get_origin
 
-from psygnal._weak_callback import WeakCallback, weak_callback
+from psygnal._weak_callback import (
+    WeakCallback,
+    _WeakSetattr,
+    _WeakSetitem,
+    weak_callback,
+)
 
 if TYPE_CHECKING:
     from typing_extensions import Literal, TypeGuard
@@ -530,8 +535,8 @@ class SignalInstance:
             raise AttributeError(f"Object {ref()} has no attribute {attr!r}")
 
         with self._lock:
-            caller = weak_callback(
-                setattr, obj, attr, max_args=maxargs, finalize=self._try_discard
+            caller = _WeakSetattr(
+                obj, attr, max_args=maxargs, finalize=self._try_discard
             )
             self._slots.append(caller)
         return caller
@@ -559,7 +564,7 @@ class SignalInstance:
         """
         # sourcery skip: merge-nested-ifs, use-next
         with self._lock:
-            self._try_discard(weak_callback(setattr, obj, attr), missing_ok)
+            self._try_discard(_WeakSetattr(obj, attr), missing_ok)
 
     def connect_setitem(
         self,
@@ -613,14 +618,13 @@ class SignalInstance:
 
         if isinstance(obj, weakref.ref):
             obj = obj()
+        if not hasattr(obj, "__setitem__"):
+            raise TypeError(f"Object {obj} does not support __setitem__")
 
         with self._lock:
-            if hasattr(obj, "__setitem__"):
-                caller = weak_callback(
-                    obj.__setitem__, key, max_args=maxargs, finalize=self._try_discard
-                )
-            else:
-                raise TypeError(f"Object {obj} does not support __setitem__")
+            caller = _WeakSetitem(
+                obj, key, max_args=maxargs, finalize=self._try_discard  # type: ignore
+            )
             self._slots.append(caller)
 
         return caller
@@ -651,7 +655,7 @@ class SignalInstance:
 
         # sourcery skip: merge-nested-ifs, use-next
         with self._lock:
-            caller = weak_callback(obj.__setitem__, key)
+            caller = _WeakSetitem(obj, key)  # type: ignore
             self._try_discard(caller, missing_ok)
 
     def _check_nargs(

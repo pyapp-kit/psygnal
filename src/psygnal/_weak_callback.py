@@ -3,10 +3,18 @@ from __future__ import annotations
 import weakref
 from functools import partial
 from types import BuiltinMethodType, FunctionType, MethodType, MethodWrapperType
-from typing import Any, Callable, Literal, TypeVar
+from typing import Any, Callable, Literal, SupportsIndex, TypeVar
 from warnings import warn
 
 _T = TypeVar("_T")
+
+
+class SupportsSetitem:
+    def __setitem__(self, key: Any, value: Any) -> None:
+        ...
+
+
+SupportsIndex
 
 
 class WeakCallback:
@@ -148,9 +156,14 @@ class _WeakMethod(WeakCallback):
         if obj is None or func is None:
             raise ReferenceError("weakly-referenced object no longer exists")
         if self._max_args is None:
-            func(obj, *self._args, *args, **self._kwargs)
-        else:
+            if self._kwargs:
+                func(obj, *self._args, *args, **self._kwargs)
+            else:
+                func(obj, *self._args, *args)
+        elif self._kwargs:
             func(obj, *self._args, *args[: self._max_args], **self._kwargs)
+        else:
+            func(obj, *self._args, *args[: self._max_args])
 
     def ref(self) -> MethodType | None:
         obj = self._obj_ref()
@@ -208,6 +221,32 @@ class _WeakSetattr(WeakCallback):
         setattr(obj, self._attr, args[0] if len(args) == 1 else args)
 
     def ref(self) -> object | None:
+        return self._obj_ref()
+
+
+class _WeakSetitem(WeakCallback):
+    """Caller to set an attribute on an object."""
+
+    def __init__(
+        self,
+        obj: SupportsSetitem,
+        key: Any,
+        max_args: int | None = None,
+        finalize: Callable | None = None,
+    ) -> None:
+        super().__init__(obj, max_args)
+        self._obj_ref = self._try_ref(obj, finalize)
+        self._key = key
+
+    def cb(self, args: tuple[Any, ...]) -> None:
+        obj = self._obj_ref()
+        if obj is None:
+            raise ReferenceError("weakly-referenced object no longer exists")
+        if self._max_args is not None:
+            args = args[: self._max_args]
+        obj[self._key] = args[0] if len(args) == 1 else args
+
+    def ref(self) -> SupportsSetitem | None:
         return self._obj_ref()
 
 
