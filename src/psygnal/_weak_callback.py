@@ -18,7 +18,7 @@ _T = TypeVar("_T")
 
 
 def weak_callback(
-    cb: Callable,
+    cb: Callable | WeakCallback,
     *args: Any,
     max_args: int | None = None,
     finalize: Callable[[WeakCallback], Any] | None = None,
@@ -96,7 +96,7 @@ def weak_callback(
         if max_args is not None:
             nargs = len(cb.args)
             if nargs:
-                max_args += nargs
+                max_args -= nargs
         args = cb.args + args
         kwargs = cb.keywords
         cb = cb.func
@@ -120,7 +120,7 @@ def weak_callback(
     if callable(cb):
         return _WeakFunction(cb, max_args, args, kwargs, finalize, on_ref_error)
 
-    raise TypeError(f"unsupported type {type(cb)}")
+    raise TypeError(f"unsupported type {type(cb)}")  # pragma: no cover
 
 
 class SupportsSetitem(Protocol):
