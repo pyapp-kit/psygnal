@@ -16,8 +16,6 @@ _T = TypeVar("_T")
 
 
 class WeakCallback:
-    cb: Callable[[tuple[Any, ...]], None]
-
     def __init__(
         self,
         obj: Any,
@@ -28,12 +26,8 @@ class WeakCallback:
         self._key = f"{mod}:{name}@{hex(id(obj))}"
         self._max_args = max_args
         self._alive = True
-        self.cb = self._call if max_args is None else self._call_clipped
 
-    def _call(self, args: tuple[Any, ...]) -> None:
-        raise NotImplementedError()
-
-    def _call_clipped(self, args: tuple[Any, ...]) -> None:
+    def cb(self, args: tuple[Any, ...]) -> None:
         raise NotImplementedError()
 
     def __eq__(self, other: object) -> bool:
@@ -104,22 +98,17 @@ class _StrongFunction(WeakCallback):
         self._kwargs = kwargs or {}
         self._args = args
         self._kwargs = kwargs or {}
-        if max_args is None:
-            self.cb = self._call_kwargs if kwargs else self._call
+
+    def cb(self, args: tuple[Any, ...]) -> None:
+        if self._max_args is None:
+            if self._kwargs:
+                self._f(*self._args, *args, **self._kwargs)
+            else:
+                self._f(*self._args, *args)
+        elif self._kwargs:
+            self._f(*self._args, *args[: self._max_args], **self._kwargs)
         else:
-            self.cb = self._call_clipped_kwargs if kwargs else self._call_clipped
-
-    def _call(self, args: tuple[Any, ...]) -> None:
-        self._f(*self._args, *args)
-
-    def _call_clipped(self, args: tuple[Any, ...]) -> None:
-        self._f(*self._args, *args[: self._max_args])
-
-    def _call_kwargs(self, args: tuple[Any, ...]) -> None:
-        self._f(*self._args, *args, **self._kwargs)
-
-    def _call_clipped_kwargs(self, args: tuple[Any, ...]) -> None:
-        self._f(*self._args, *args[: self._max_args], **self._kwargs)
+            self._f(*self._args, *args[: self._max_args])
 
     def ref(self) -> FunctionType:
         return self._f
@@ -138,34 +127,20 @@ class _WeakFunction(WeakCallback):
         self._f = self._try_ref(f, finalize)
         self._args = args
         self._kwargs = kwargs or {}
-        if max_args is None:
-            self.cb = self._call_kwargs if kwargs else self._call
+
+    def cb(self, args: tuple[Any, ...]) -> None:
+        f = self._f()
+        if f is None:
+            raise ReferenceError("weakly-referenced object no longer exists")
+        if self._max_args is None:
+            if self._kwargs:
+                f(*self._args, *args, **self._kwargs)
+            else:
+                f(*self._args, *args)
+        elif self._kwargs:
+            f(*self._args, *args[: self._max_args], **self._kwargs)
         else:
-            self.cb = self._call_clipped_kwargs if kwargs else self._call_clipped
-
-    def _call(self, args: tuple[Any, ...]) -> None:
-        f = self._f()
-        if f is None:
-            raise ReferenceError("weakly-referenced object no longer exists")
-        f(*self._args, *args)
-
-    def _call_clipped(self, args: tuple[Any, ...]) -> None:
-        f = self._f()
-        if f is None:
-            raise ReferenceError("weakly-referenced object no longer exists")
-        f(*self._args, *args[: self._max_args])
-
-    def _call_kwargs(self, args: tuple[Any, ...]) -> None:
-        f = self._f()
-        if f is None:
-            raise ReferenceError("weakly-referenced object no longer exists")
-        f(*self._args, *args, **self._kwargs)
-
-    def _call_clipped_kwargs(self, args: tuple[Any, ...]) -> None:
-        f = self._f()
-        if f is None:
-            raise ReferenceError("weakly-referenced object no longer exists")
-        f(*self._args, *args[: self._max_args], **self._kwargs)
+            f(*self._args, *args[: self._max_args])
 
     def ref(self) -> Callable | None:
         return self._f()
@@ -185,38 +160,16 @@ class _WeakMethod(WeakCallback):
         self._obj_ref = self._try_ref(f.__self__, finalize)
         self._func_ref = self._try_ref(f.__func__, finalize)
         self._kwargs = kwargs or {}
-        if max_args is None:
-            self.cb = self._call_kwargs if kwargs else self._call
+
+    def cb(self, args: tuple[Any, ...]) -> None:
+        obj = self._obj_ref()
+        func = self._func_ref()
+        if obj is None or func is None:
+            raise ReferenceError("weakly-referenced object no longer exists")
+        if self._max_args is None:
+            func(obj, *self._args, *args, **self._kwargs)
         else:
-            self.cb = self._call_clipped_kwargs if kwargs else self._call_clipped
-
-    def _call(self, args: tuple[Any, ...]) -> None:
-        obj = self._obj_ref()
-        func = self._func_ref()
-        if obj is None or func is None:
-            raise ReferenceError("weakly-referenced object no longer exists")
-        func(obj, *self._args, *args)
-
-    def _call_clipped(self, args: tuple[Any, ...]) -> None:
-        obj = self._obj_ref()
-        func = self._func_ref()
-        if obj is None or func is None:
-            raise ReferenceError("weakly-referenced object no longer exists")
-        func(obj, *self._args, *args[: self._max_args])
-
-    def _call_kwargs(self, args: tuple[Any, ...]) -> None:
-        obj = self._obj_ref()
-        func = self._func_ref()
-        if obj is None or func is None:
-            raise ReferenceError("weakly-referenced object no longer exists")
-        func(obj, *self._args, *args, **self._kwargs)
-
-    def _call_clipped_kwargs(self, args: tuple[Any, ...]) -> None:
-        obj = self._obj_ref()
-        func = self._func_ref()
-        if obj is None or func is None:
-            raise ReferenceError("weakly-referenced object no longer exists")
-        func(obj, *self._args, *args[: self._max_args], **self._kwargs)
+            func(obj, *self._args, *args[: self._max_args], **self._kwargs)
 
     def ref(self) -> MethodType | None:
         obj = self._obj_ref()
@@ -235,19 +188,15 @@ class _WeakBuiltin(WeakCallback):
         self._obj_ref = self._try_ref(f.__self__, finalize)
         self._func_name = f.__name__
 
-    def _call(self, args: tuple[Any, ...]) -> None:
+    def cb(self, args: tuple[Any, ...]) -> None:
         obj = self._obj_ref()
         func = getattr(obj, self._func_name, None)
         if obj is None or func is None:
             raise ReferenceError("weakly-referenced object no longer exists")
-        func(*args)
-
-    def _call_clipped(self, args: tuple[Any, ...]) -> None:
-        obj = self._obj_ref()
-        func = getattr(obj, self._func_name, None)
-        if obj is None or func is None:
-            raise ReferenceError("weakly-referenced object no longer exists")
-        func(*args[: self._max_args])
+        if self._max_args is None:
+            func(*args)
+        else:
+            func(*args[: self._max_args])
 
     def ref(self) -> MethodWrapperType | BuiltinMethodType | None:
         obj = self._obj_ref()
@@ -269,13 +218,7 @@ class _WeakSetattr(WeakCallback):
         self._obj_ref = self._try_ref(obj, finalize)
         self._attr = attr
 
-    def _call(self, args: tuple[Any, ...]) -> None:
-        obj = self._obj_ref()
-        if obj is None:
-            raise ReferenceError("weakly-referenced object no longer exists")
-        setattr(obj, self._attr, args[0] if len(args) == 1 else args)
-
-    def _call_clipped(self, args: tuple[Any, ...]) -> None:
+    def cb(self, args: tuple[Any, ...]) -> None:
         obj = self._obj_ref()
         if obj is None:
             raise ReferenceError("weakly-referenced object no longer exists")
