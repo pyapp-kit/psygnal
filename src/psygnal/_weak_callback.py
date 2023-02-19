@@ -3,13 +3,13 @@ from __future__ import annotations
 import weakref
 from functools import partial
 from types import BuiltinMethodType, FunctionType, MethodType, MethodWrapperType
-from typing import Any, Callable, Literal, SupportsIndex, TypeVar
+from typing import Any, Callable, Literal, Protocol, SupportsIndex, TypeVar
 from warnings import warn
 
 _T = TypeVar("_T")
 
 
-class SupportsSetitem:
+class SupportsSetitem(Protocol):
     def __setitem__(self, key: Any, value: Any) -> None:
         ...
 

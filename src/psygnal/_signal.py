@@ -655,7 +655,7 @@ class SignalInstance:
 
         # sourcery skip: merge-nested-ifs, use-next
         with self._lock:
-            caller = _WeakSetitem(obj, key)  # type: ignore
+            caller = _WeakSetitem(obj, key)
             self._try_discard(caller, missing_ok)
 
     def _check_nargs(
