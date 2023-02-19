@@ -1,28 +1,42 @@
 """qtbot should work for testing!"""
+from typing import TYPE_CHECKING, Any, Callable
+
 import pytest
 
 from psygnal import Signal
 from psygnal._signal import _guess_qtsignal_signature
 
 pytest.importorskip("pytestqt")
+if TYPE_CHECKING:
+    from pytestqt.qtbot import QtBot
 
 
-def is_(*val):
-    def _inner(*other):
+def _equals(*val: Any) -> Callable[[tuple[Any, ...]], bool]:
+    def _inner(*other: Any) -> bool:
         return other == val
 
     return _inner
 
 
-def test_wait_signals(qtbot):
+def test_wait_signals(qtbot: "QtBot") -> None:
     class Emitter:
         sig1 = Signal()
         sig2 = Signal(int)
         sig3 = Signal(int, int)
 
     e = Emitter()
+
+    with qtbot.waitSignal(e.sig2, check_params_cb=_equals(1)):
+        e.sig2.emit(1)
+
+    with qtbot.waitSignal(e.sig3, check_params_cb=_equals(2, 3)):
+        e.sig3.emit(2, 3)
+
+    with qtbot.waitSignals([e.sig3], check_params_cbs=[_equals(2, 3)]):
+        e.sig3.emit(2, 3)
+
     signals = [e.sig1, e.sig2, e.sig3, e.sig1]
-    checks = [is_(), is_(1), is_(2, 3), is_()]
+    checks = [_equals(), _equals(1), _equals(2, 3), _equals()]
     with qtbot.waitSignals(signals, check_params_cbs=checks, order="strict"):
         e.sig1.emit()
         e.sig2.emit(1)
@@ -30,7 +44,7 @@ def test_wait_signals(qtbot):
         e.sig1.emit()
 
 
-def test_guess_signal_sig(qtbot):
+def test_guess_signal_sig(qtbot: "QtBot") -> None:
     from qtpy import QtCore
 
     class QtObject(QtCore.QObject):
@@ -47,7 +61,7 @@ def test_guess_signal_sig(qtbot):
     assert "qsig3(int,QString)" in _guess_qtsignal_signature(q_obj.qsig3.emit)
 
 
-def test_connect_qt_signal_instance(qtbot):
+def test_connect_qt_signal_instance(qtbot: "QtBot") -> None:
     from qtpy import QtCore
 
     class Emitter:
