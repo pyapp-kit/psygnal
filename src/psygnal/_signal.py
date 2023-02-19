@@ -1289,20 +1289,6 @@ def _ridiculously_call_emit(emitter: Any) -> str | None:
     return None  # pragma: no cover
 
 
-def _get_ref_or_warn(obj: object, meth: str) -> weakref.ReferenceType:
-    try:
-        return obj if isinstance(obj, weakref.ref) else weakref.ref(obj)
-    except TypeError:  # pragma: no cover
-        import warnings
-
-        warnings.warn(
-            f"Could not create weakref to `{obj}`. Call `{meth}` "
-            "manually upon object deletion to avoid memory leaks.",
-            RuntimeWarning,
-        )
-        return lambda: obj  # type: ignore [return-value]
-
-
 _compiled: bool
 
 

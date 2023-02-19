@@ -18,10 +18,24 @@ class SupportsSetitem(Protocol):
 
 
 class WeakCallback:
-    def __init__(self, obj: Any, max_args: int | None = None) -> None:
+    def __new__(cls, *args: Any, **kwargs: Any) -> WeakCallback:
+        if cls is WeakCallback:
+            raise TypeError(
+                "WeakCallback is not meant to be instantiated directly, use the "
+                "weak_callback() function instead"
+            )
+        return super().__new__(cls)
+
+    def __init__(
+        self,
+        obj: Any,
+        max_args: int | None = None,
+        on_ref_error: Literal["raise", "warn", "ignore"] = "warn",
+    ) -> None:
         self._key = WeakCallback.object_key(obj)
         self._max_args = max_args
         self._alive = True
+        self._on_ref_error = on_ref_error
 
     @staticmethod
     def object_key(obj: Any) -> str:
@@ -263,6 +277,7 @@ def weak_callback(
     max_args: int | None = None,
     finalize: Callable[[WeakCallback], Any] | None = None,
     strong_func: bool = True,
+    on_ref_error: Literal["raise", "warn", "ignore"] = "warn",
 ) -> WeakCallback:
     if isinstance(cb, WeakCallback):
         return cb
