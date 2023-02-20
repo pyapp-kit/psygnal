@@ -76,7 +76,9 @@ def is_frozen(obj: Any) -> bool:
     if getattr(cls.__setattr__, "__name__", None) == "_frozen_setattrs":
         return True
 
-    # if is_msgspec_struct(cls): ...
+    cfg = getattr(cls, "__struct_config__", None)
+    if cfg is not None:
+        return bool(getattr(cfg, "frozen", False))
 
     return False
 
