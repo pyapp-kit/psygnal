@@ -30,13 +30,16 @@ def test_slot_types(type_: str, capsys) -> None:
     class MyObj:
         def method(self, x: int) -> None:
             mock(x)
+            return x
 
         def __setitem__(self, key, value):
             mock(value)
+            return value
 
         def __setattr__(self, __name: str, __value) -> None:
             if __name == "x":
                 mock(__value)
+                return __value
 
     obj = MyObj()
 
@@ -48,10 +51,11 @@ def test_slot_types(type_: str, capsys) -> None:
 
         def obj(x: int) -> None:
             mock(x)
+            return x
 
         cb = weak_callback(obj, strong_func=(type_ == "function"), finalize=final_mock)
     elif type_ == "lambda":
-        cb = weak_callback(lambda x: mock(x), finalize=final_mock)
+        cb = weak_callback(lambda x: mock(x) and x, finalize=final_mock)
     elif type_ == "method":
         cb = weak_callback(obj.method, finalize=final_mock)
     elif type_ == "partial_method":
@@ -72,6 +76,12 @@ def test_slot_types(type_: str, capsys) -> None:
         return
 
     mock.assert_called_once_with(2)
+    mock.reset_mock()
+    result = cb(2)
+    if type_ not in ("setattr", "mock"):
+        assert result == 2
+    mock.assert_called_once_with(2)
+
     del obj
 
     if type_ not in ("function", "lambda", "mock"):
@@ -79,6 +89,8 @@ def test_slot_types(type_: str, capsys) -> None:
         assert cb.dereference() is None
         with pytest.raises(ReferenceError):
             cb.cb((2,))
+        with pytest.raises(ReferenceError):
+            cb(2)
     else:
         cb.cb((4,))
         mock.assert_called_with(4)

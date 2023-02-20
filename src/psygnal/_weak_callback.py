@@ -3,7 +3,7 @@ from __future__ import annotations
 import weakref
 from functools import partial
 from types import BuiltinMethodType, FunctionType, MethodType, MethodWrapperType
-from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, cast
 from warnings import warn
 
 from typing_extensions import Protocol
@@ -15,20 +15,17 @@ if TYPE_CHECKING:
 
 __all__ = ["weak_callback", "WeakCallback"]
 _T = TypeVar("_T")
-
-
-class Q:
-    __slots__ = ("__weakref__",)
+_R = TypeVar("_R")  # return type of cb
 
 
 def weak_callback(
-    cb: Callable | WeakCallback,
+    cb: Callable[..., _R] | WeakCallback[_R],
     *args: Any,
     max_args: int | None = None,
     finalize: Callable[[WeakCallback], Any] | None = None,
     strong_func: bool = True,
     on_ref_error: RefErrorChoice = "warn",
-) -> WeakCallback:
+) -> WeakCallback[_R]:
     """Create a weakly-referenced callback.
 
     This function creates a weakly-referenced callback, with special considerations
@@ -69,6 +66,9 @@ def weak_callback(
     -------
     WeakCallback
         A WeakCallback subclass instance appropriate for the given callable.
+        The fast way to "call" the callback is to use the `cb` method, passing a
+        single args tuple, it returns nothing.  A `__call__` method is also provided,
+        that can be used to call the original function as usual.
 
     Examples
     --------
@@ -142,10 +142,17 @@ class SupportsSetitem(Protocol):
         ...
 
 
-class WeakCallback:
+class WeakCallback(Generic[_R]):
     """Abstract Base Class for weakly-referenced callbacks.
 
     Do not instantiate this class directly, use the `weak_callback` function instead.
+    The main public-facing methods of all subclasses are:
+
+        cb(args: tuple[Any, ...] = ()) -> None: special fast callback method, args only.
+        dereference() -> Callable[..., _R] | None: return strong dereferenced callback.
+        __call__(*args: Any, **kwargs: Any) -> _R: call original callback
+        __eq__: compare two WeakCallback instances for equality
+        object_key: static method that returns a unique key for an object.
 
     NOTE: can't use ABC here because then mypyc and PySide2 don't play nice together.
     """
@@ -165,9 +172,17 @@ class WeakCallback:
         """Call the callback with `args`. Args will be spread when calling the func."""
         raise NotImplementedError()
 
-    def dereference(self) -> object | None:
+    def dereference(self) -> Callable[..., _R] | None:
         """Return the original object, or None if dead."""
         raise NotImplementedError()
+
+    def __call__(self, *args: Any, **kwds: Any) -> _R:
+        func = self.dereference()
+        if func is None:
+            raise ReferenceError("callback is dead")
+        if self._max_args is not None:
+            args = args[: self._max_args]
+        return func(*args, **kwds)
 
     def __eq__(self, other: object) -> bool:
         # sourcery skip: swap-if-expression
@@ -225,29 +240,25 @@ def _kill_and_finalize(
 
 
 class _StrongFunction(WeakCallback):
+    """Wrapper around a strong function reference."""
+
     def __init__(
         self,
-        f: Callable,
+        obj: Callable,
         max_args: int | None = None,
         args: tuple[Any, ...] = (),
         kwargs: dict[str, Any] | None = None,
         on_ref_error: RefErrorChoice = "warn",
     ) -> None:
-        super().__init__(f, max_args, on_ref_error)
-        self._f = f
+        super().__init__(obj, max_args, on_ref_error)
+        self._f = obj
         self._args = args
         self._kwargs = kwargs or {}
 
     def cb(self, args: tuple[Any, ...] = ()) -> None:
-        if self._max_args is None:
-            if self._kwargs:
-                self._f(*self._args, *args, **self._kwargs)
-            else:
-                self._f(*self._args, *args)
-        elif self._kwargs:
-            self._f(*self._args, *args[: self._max_args], **self._kwargs)
-        else:
-            self._f(*self._args, *args[: self._max_args])
+        if self._max_args is not None:
+            args = args[: self._max_args]
+        self._f(*self._args, *args, **self._kwargs)
 
     def dereference(self) -> Callable:
         if self._args or self._kwargs:
@@ -256,17 +267,19 @@ class _StrongFunction(WeakCallback):
 
 
 class _WeakFunction(WeakCallback):
+    """Wrapper around a weak function reference."""
+
     def __init__(
         self,
-        f: Callable,
+        obj: Callable,
         max_args: int | None = None,
         args: tuple[Any, ...] = (),
         kwargs: dict[str, Any] | None = None,
         finalize: Callable | None = None,
         on_ref_error: RefErrorChoice = "warn",
     ) -> None:
-        super().__init__(f, max_args, on_ref_error)
-        self._f = self._try_ref(f, finalize)
+        super().__init__(obj, max_args, on_ref_error)
+        self._f = self._try_ref(obj, finalize)
         self._args = args
         self._kwargs = kwargs or {}
 
@@ -274,15 +287,9 @@ class _WeakFunction(WeakCallback):
         f = self._f()
         if f is None:
             raise ReferenceError("weakly-referenced object no longer exists")
-        if self._max_args is None:
-            if self._kwargs:
-                f(*self._args, *args, **self._kwargs)
-            else:
-                f(*self._args, *args)
-        elif self._kwargs:
-            f(*self._args, *args[: self._max_args], **self._kwargs)
-        else:
-            f(*self._args, *args[: self._max_args])
+        if self._max_args is not None:
+            args = args[: self._max_args]
+        f(*self._args, *args, **self._kwargs)
 
     def dereference(self) -> Callable | None:
         f = self._f()
@@ -294,18 +301,28 @@ class _WeakFunction(WeakCallback):
 
 
 class _WeakMethod(WeakCallback):
+    """Wrapper around a method bound to a weakly-referenced object.
+
+    Bound methods have a `__self__` attribute that holds a strong reference to the
+    object they are bound to and a `__func__` attribute that holds a reference
+    to the function that implements the method (on the class level)
+
+    When `cb` is called here, it dereferences the two, and calls:
+    `obj.__func__(obj.__self__, *args, **kwargs)`
+    """
+
     def __init__(
         self,
-        f: MethodType,
+        obj: MethodType,
         max_args: int | None = None,
         args: tuple[Any, ...] = (),
         kwargs: dict[str, Any] | None = None,
         finalize: Callable | None = None,
         on_ref_error: RefErrorChoice = "warn",
     ) -> None:
-        super().__init__(f.__self__, max_args, on_ref_error)
-        self._obj_ref = self._try_ref(f.__self__, finalize)
-        self._func_ref = self._try_ref(f.__func__, finalize)
+        super().__init__(obj.__self__, max_args, on_ref_error)
+        self._obj_ref = self._try_ref(obj.__self__, finalize)
+        self._func_ref = self._try_ref(obj.__func__, finalize)
         self._args = args
         self._kwargs = kwargs or {}
 
@@ -314,15 +331,10 @@ class _WeakMethod(WeakCallback):
         func = self._func_ref()
         if obj is None or func is None:
             raise ReferenceError("weakly-referenced object no longer exists")
-        if self._max_args is None:
-            if self._kwargs:
-                func(obj, *self._args, *args, **self._kwargs)
-            else:
-                func(obj, *self._args, *args)
-        elif self._kwargs:
-            func(obj, *self._args, *args[: self._max_args], **self._kwargs)
-        else:
-            func(obj, *self._args, *args[: self._max_args])
+
+        if self._max_args is not None:
+            args = args[: self._max_args]
+        func(obj, *self._args, *args, **self._kwargs)
 
     def dereference(self) -> MethodType | partial | None:
         obj = self._obj_ref()
@@ -336,16 +348,26 @@ class _WeakMethod(WeakCallback):
 
 
 class _WeakBuiltin(WeakCallback):
+    """Wrapper around a c-based method on a weakly-referenced object.
+
+    Builtin/extension methods do have a `__self__` attribute (the object to which they
+    are bound), but don't have a __func__ attribute, so we need to store the name of the
+    method and look it up on the object when the callback is called.
+
+    When `cb` is called here, it dereferences the object, and calls:
+    `getattr(obj.__self__, obj.__name__)(*args, **kwargs)`
+    """
+
     def __init__(
         self,
-        f: MethodWrapperType | BuiltinMethodType,
+        obj: MethodWrapperType | BuiltinMethodType,
         max_args: int | None = None,
         finalize: Callable | None = None,
         on_ref_error: RefErrorChoice = "warn",
     ) -> None:
-        super().__init__(f, max_args, on_ref_error)
-        self._obj_ref = self._try_ref(f.__self__, finalize)
-        self._func_name = f.__name__
+        super().__init__(obj, max_args, on_ref_error)
+        self._obj_ref = self._try_ref(obj.__self__, finalize)
+        self._func_name = obj.__name__
 
     def cb(self, args: tuple[Any, ...] = ()) -> None:
         func = getattr(self._obj_ref(), self._func_name, None)
@@ -361,7 +383,7 @@ class _WeakBuiltin(WeakCallback):
 
 
 class _WeakSetattr(WeakCallback):
-    """Caller to set an attribute on an object."""
+    """Caller to set an attribute on a weakly-referenced object."""
 
     def __init__(
         self,
@@ -383,12 +405,13 @@ class _WeakSetattr(WeakCallback):
             args = args[: self._max_args]
         setattr(obj, self._attr, args[0] if len(args) == 1 else args)
 
-    def dereference(self) -> object | None:
-        return self._obj_ref()
+    def dereference(self) -> partial | None:
+        obj = self._obj_ref()
+        return None if obj is None else partial(setattr, obj, self._attr)
 
 
 class _WeakSetitem(WeakCallback):
-    """Caller to call __setitem__ on an object."""
+    """Caller to call __setitem__ on a weakly-referenced object."""
 
     def __init__(
         self,
@@ -410,5 +433,6 @@ class _WeakSetitem(WeakCallback):
             args = args[: self._max_args]
         obj[self._key] = args[0] if len(args) == 1 else args
 
-    def dereference(self) -> SupportsSetitem | None:
-        return self._obj_ref()
+    def dereference(self) -> partial | None:
+        obj = self._obj_ref()
+        return None if obj is None else partial(obj.__setitem__, self._key)
