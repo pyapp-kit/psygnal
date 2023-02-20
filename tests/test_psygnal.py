@@ -6,12 +6,11 @@ from functools import partial, wraps
 from inspect import Signature
 from typing import Optional
 from unittest.mock import MagicMock, Mock, call
-from weakref import ref
 
 import pytest
 
 from psygnal import EmitLoopError, Signal, SignalInstance, _compiled
-from psygnal._weak_callback import WeakCallback, weak_callback
+from psygnal._weak_callback import WeakCallback
 
 
 def stupid_decorator(fun):
@@ -853,37 +852,3 @@ def test_weakref_disconnect(slot):
     assert len(emitter.one_int) == 1
     emitter.one_int.disconnect(cb)
     assert len(emitter.one_int) == 0
-
-
-def test_slot_caller_equality():
-    """Slot callers should be equal only if they represent the same bound-method."""
-
-    class T:
-        def x(self):
-            ...
-
-    t1 = T()
-    t2 = T()
-    t1_ref = ref(t1)
-    t2_ref = ref(t2)
-
-    bmt1_a = weak_callback(t1.x)
-    bmt1_b = weak_callback(t1.x)
-    bmt2_a = weak_callback(t2.x)
-    bmt2_b = weak_callback(t2.x)
-
-    def _assert_equality():
-        assert bmt1_a == bmt1_b
-        assert bmt2_a == bmt2_b
-        assert bmt1_a != bmt2_a
-        assert bmt1_b != bmt2_b
-
-    _assert_equality()
-    del t1
-    gc.collect()
-    assert t1_ref() is None
-    _assert_equality()
-    del t2
-    gc.collect()
-    assert t2_ref() is None
-    _assert_equality()

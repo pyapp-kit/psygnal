@@ -1,5 +1,7 @@
+import gc
 from functools import partial
 from unittest.mock import Mock
+from weakref import ref
 
 import pytest
 
@@ -80,3 +82,72 @@ def test_slot_types(type_: str, capsys) -> None:
     else:
         cb.cb((4,))
         mock.assert_called_with(4)
+
+
+def test_weak_callable_equality() -> None:
+    """Slot callers should be equal only if they represent the same bound-method."""
+
+    class T:
+        def x(self):
+            ...
+
+    t1 = T()
+    t2 = T()
+    t1_ref = ref(t1)
+    t2_ref = ref(t2)
+
+    bmt1_a = weak_callback(t1.x)
+    bmt1_b = weak_callback(t1.x)
+    bmt2_a = weak_callback(t2.x)
+    bmt2_b = weak_callback(t2.x)
+
+    assert bmt1_a != "not a weak callback"
+
+    def _assert_equality() -> None:
+        assert bmt1_a == bmt1_b
+        assert bmt2_a == bmt2_b
+        assert bmt1_a != bmt2_a
+        assert bmt1_b != bmt2_b
+
+    _assert_equality()
+    del t1
+    gc.collect()
+    assert t1_ref() is None
+    _assert_equality()
+    del t2
+    gc.collect()
+    assert t2_ref() is None
+    _assert_equality()
+
+
+def test_nonreferencable() -> None:
+    class T:
+        __slots__ = ("x",)
+
+        def method(self) -> None:
+            ...
+
+    t = T()
+    with pytest.warns(UserWarning, match="failed to create weakref"):
+        cb = weak_callback(t.method)
+        assert cb.dereference() == t.method
+
+    with pytest.raises(TypeError):
+        weak_callback(t.method, on_ref_error="raise")
+
+    cb = weak_callback(t.method, on_ref_error="ignore")
+    assert cb.dereference() == t.method
+
+
+@pytest.mark.parametrize("strong", [True, False])
+def test_deref(strong: bool) -> None:
+    def func(x):
+        ...
+
+    p = partial(func, 1)
+    cb = weak_callback(p, strong_func=strong)
+    dp = cb.dereference()
+
+    assert dp.func is p.func
+    assert dp.args == p.args
+    assert dp.keywords == p.keywords

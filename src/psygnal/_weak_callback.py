@@ -3,7 +3,7 @@ from __future__ import annotations
 import weakref
 from functools import partial
 from types import BuiltinMethodType, FunctionType, MethodType, MethodWrapperType
-from typing import TYPE_CHECKING, Any, Callable, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, cast
 from warnings import warn
 
 from typing_extensions import Protocol
@@ -93,10 +93,6 @@ def weak_callback(
 
     kwargs = None
     if isinstance(cb, partial):
-        if max_args is not None:
-            nargs = len(cb.args)
-            if nargs:
-                max_args -= nargs
         args = cb.args + args
         kwargs = cb.keywords
         cb = cb.func
@@ -109,11 +105,25 @@ def weak_callback(
         )
 
     if isinstance(cb, MethodType):
+        if getattr(cb, "__name__", None) == "__setitem__":
+            try:
+                key = args[0]
+            except IndexError as e:  # pragma: no cover
+                raise TypeError(
+                    "WeakCallback.__setitem__ requires a key argument"
+                ) from e
+            obj = cast("SupportsSetitem", cb.__self__)
+            return _WeakSetitem(obj, key, max_args, finalize, on_ref_error)
         return _WeakMethod(cb, max_args, args, kwargs, finalize, on_ref_error)
 
     if isinstance(cb, (MethodWrapperType, BuiltinMethodType)):
         if cb is setattr:
-            obj, attr, *_ = args
+            try:
+                obj, attr = args[:2]
+            except IndexError as e:  # pragma: no cover
+                raise TypeError(
+                    "setattr requires two arguments, an object and an attribute name."
+                ) from e
             return _WeakSetattr(obj, attr, max_args, finalize, on_ref_error)
         return _WeakBuiltin(cb, max_args, finalize, on_ref_error)
 
@@ -129,18 +139,12 @@ class SupportsSetitem(Protocol):
 
 
 class WeakCallback:
-    """Base Class for weakly-referenced callbacks.
+    """Abstract Base Class for weakly-referenced callbacks.
 
     Do not instantiate this class directly, use the `weak_callback` function instead.
-    """
 
-    def __new__(cls, *args: Any, **kwargs: Any) -> WeakCallback:
-        if cls is WeakCallback:
-            raise TypeError(
-                "WeakCallback is not meant to be instantiated directly, use the "
-                "weak_callback() function instead"
-            )
-        return super().__new__(cls)
+    NOTE: can't use ABC here because then mypyc and PySide2 don't play nice together.
+    """
 
     def __init__(
         self,
@@ -219,7 +223,7 @@ def _kill_and_finalize(
 class _StrongFunction(WeakCallback):
     def __init__(
         self,
-        f: FunctionType,
+        f: Callable,
         max_args: int | None = None,
         args: tuple[Any, ...] = (),
         kwargs: dict[str, Any] | None = None,
@@ -241,7 +245,9 @@ class _StrongFunction(WeakCallback):
         else:
             self._f(*self._args, *args[: self._max_args])
 
-    def dereference(self) -> FunctionType:
+    def dereference(self) -> Callable:
+        if self._args or self._kwargs:
+            return partial(self._f, *self._args, **self._kwargs)
         return self._f
 
 
@@ -275,7 +281,12 @@ class _WeakFunction(WeakCallback):
             f(*self._args, *args[: self._max_args])
 
     def dereference(self) -> Callable | None:
-        return self._f()
+        f = self._f()
+        if f is None:
+            return None
+        if self._args or self._kwargs:
+            return partial(f, *self._args, **self._kwargs)
+        return f
 
 
 class _WeakMethod(WeakCallback):
@@ -309,10 +320,15 @@ class _WeakMethod(WeakCallback):
         else:
             func(obj, *self._args, *args[: self._max_args])
 
-    def dereference(self) -> MethodType | None:
+    def dereference(self) -> MethodType | partial | None:
         obj = self._obj_ref()
         func = self._func_ref()
-        return None if obj is None or func is None else func.__get__(obj)
+        if obj is None or func is None:
+            return None
+        method = func.__get__(obj)
+        if self._args or self._kwargs:
+            return partial(method, *self._args, **self._kwargs)
+        return method
 
 
 class _WeakBuiltin(WeakCallback):
@@ -368,7 +384,7 @@ class _WeakSetattr(WeakCallback):
 
 
 class _WeakSetitem(WeakCallback):
-    """Caller to set an attribute on an object."""
+    """Caller to call __setitem__ on an object."""
 
     def __init__(
         self,
