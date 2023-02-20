@@ -2,21 +2,22 @@
 
 from contextlib import contextmanager
 from functools import partial
-from typing import Any, Callable, Iterable, Iterator, Tuple
+from typing import Any, Callable, Iterable, Iterator
 
+from ._group import EmissionInfo
 from ._signal import SignalInstance
 
 __all__ = ["monitor_events", "iter_signal_instances"]
 
 
-def _default_event_monitor(signal_name: str, args: Tuple[Any, ...]) -> None:
-    print(f"{signal_name}.emit{args!r}")
+def _default_event_monitor(info: EmissionInfo) -> None:
+    print(f"{info.signal.name}.emit{info.args!r}")
 
 
 @contextmanager
 def monitor_events(
     obj: Any,
-    logger: Callable[[str, Tuple[Any, ...]], Any] = _default_event_monitor,
+    logger: Callable[[EmissionInfo], Any] = _default_event_monitor,
     include_private_attrs: bool = False,
 ) -> Iterator[None]:
     """Context manager to print or collect events emitted by SignalInstances on `obj`.
@@ -25,7 +26,7 @@ def monitor_events(
     ----------
     obj : object
         Any object that has an attribute that has a SignalInstance (or SignalGroup).
-    logger : Callable[[str, Tuple[Any, ...]], None], optional
+    logger : Callable[[EmissionInfo], None], optional
         A optional function to handle the logging of the event emission.  This function
         must take two positional args: a signal name string, and a tuple that contains
         the emitted arguments. The default logger simply prints the signal name and
@@ -37,8 +38,8 @@ def monitor_events(
     disconnectors = []
     for siginst in iter_signal_instances(obj, include_private_attrs):
 
-        def _report(*args: Any, signal_name: str = siginst.name) -> None:
-            logger(signal_name, args)
+        def _report(*args: Any, signal: SignalInstance = siginst) -> None:
+            logger(EmissionInfo(signal, args))
 
         siginst.connect(_report)
         disconnectors.append(partial(siginst.disconnect, _report))

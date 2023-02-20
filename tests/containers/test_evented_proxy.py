@@ -2,7 +2,7 @@ from unittest.mock import Mock, call
 
 import numpy as np
 
-from psygnal import SignalGroup
+from psygnal import EmissionInfo, SignalGroup
 from psygnal.containers import (
     EventedCallableObjectProxy,
     EventedObjectProxy,
@@ -42,11 +42,11 @@ def test_evented_proxy():
         del t[0]
 
     assert mock.call_args_list == [
-        call("attribute_set", ("x", 2)),
-        call("attribute_deleted", ("x",)),
-        call("attribute_set", ("y", "new")),
-        call("item_set", (0, 7)),
-        call("item_deleted", (0,)),
+        call(EmissionInfo(t.events.attribute_set, ("x", 2))),
+        call(EmissionInfo(t.events.attribute_deleted, ("x",))),
+        call(EmissionInfo(t.events.attribute_set, ("y", "new"))),
+        call(EmissionInfo(t.events.item_set, (0, 7))),
+        call(EmissionInfo(t.events.item_deleted, (0,))),
     ]
 
 
@@ -88,31 +88,31 @@ def test_in_place_proxies():
     mock = Mock()
     with monitor_events(t.events, mock):
         t += 1
-        mock.assert_called_with("in_place", ("add", 1))
+        mock.assert_called_with(EmissionInfo(t.events.in_place, ("add", 1)))
         t -= 2
-        mock.assert_called_with("in_place", ("sub", 2))
+        mock.assert_called_with(EmissionInfo(t.events.in_place, ("sub", 2)))
         t *= 3
-        mock.assert_called_with("in_place", ("mul", 3))
+        mock.assert_called_with(EmissionInfo(t.events.in_place, ("mul", 3)))
         t /= 4
-        mock.assert_called_with("in_place", ("truediv", 4))
+        mock.assert_called_with(EmissionInfo(t.events.in_place, ("truediv", 4)))
         t //= 5
-        mock.assert_called_with("in_place", ("floordiv", 5))
+        mock.assert_called_with(EmissionInfo(t.events.in_place, ("floordiv", 5)))
         t @= 6
-        mock.assert_called_with("in_place", ("matmul", 6))
+        mock.assert_called_with(EmissionInfo(t.events.in_place, ("matmul", 6)))
         t %= 7
-        mock.assert_called_with("in_place", ("mod", 7))
+        mock.assert_called_with(EmissionInfo(t.events.in_place, ("mod", 7)))
         t **= 8
-        mock.assert_called_with("in_place", ("pow", 8))
+        mock.assert_called_with(EmissionInfo(t.events.in_place, ("pow", 8)))
         t <<= 9
-        mock.assert_called_with("in_place", ("lshift", 9))
+        mock.assert_called_with(EmissionInfo(t.events.in_place, ("lshift", 9)))
         t >>= 10
-        mock.assert_called_with("in_place", ("rshift", 10))
+        mock.assert_called_with(EmissionInfo(t.events.in_place, ("rshift", 10)))
         t &= 11
-        mock.assert_called_with("in_place", ("and", 11))
+        mock.assert_called_with(EmissionInfo(t.events.in_place, ("and", 11)))
         t ^= 12
-        mock.assert_called_with("in_place", ("xor", 12))
+        mock.assert_called_with(EmissionInfo(t.events.in_place, ("xor", 12)))
         t |= 13
-        mock.assert_called_with("in_place", ("or", 13))
+        mock.assert_called_with(EmissionInfo(t.events.in_place, ("or", 13)))
 
 
 def test_numpy_proxy():
@@ -123,16 +123,16 @@ def test_numpy_proxy():
     mock = Mock()
     with monitor_events(t.events, mock):
         t[0] = 2
-        ((name, (key, value)), _) = tuple(mock.call_args)
-        assert name == "item_set"
+        signal, (key, value) = tuple(mock.call_args)[0][0]
+        assert signal.name == "item_set"
         assert key == 0
         assert np.array_equal(value, [2, 2, 2, 2])
         mock.reset_mock()
 
         t[2:] = np.arange(8).reshape(2, 4)
 
-        ((name, (key, value)), _) = tuple(mock.call_args)
-        assert name == "item_set"
+        signal, (key, value) = tuple(mock.call_args)[0][0]
+        assert signal.name == "item_set"
         assert key == slice(2, None, None)
         assert np.array_equal(value, [[0, 1, 2, 3], [4, 5, 6, 7]])
         mock.reset_mock()
@@ -146,9 +146,9 @@ def test_numpy_proxy():
         assert not t.any()
 
     assert mock.call_args_list == [
-        call("in_place", ("add", 1)),
-        call("in_place", ("sub", 1)),
-        call("in_place", ("mul", [0, 0, 0, 0])),
+        call(EmissionInfo(t.events.in_place, ("add", 1))),
+        call(EmissionInfo(t.events.in_place, ("sub", 1))),
+        call(EmissionInfo(t.events.in_place, ("mul", [0, 0, 0, 0]))),
     ]
 
 
