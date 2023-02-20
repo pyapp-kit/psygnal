@@ -52,10 +52,10 @@ def weak_callback(
     strong_func : bool, optional
         If True (default), a strong reference will be kept to the function `cb` if
         it is a function or lambda.  If False, a weak reference will be kept.  The
-        reasoning for the is that functions and lambdas are so often defined *only*
-        to be passed to this function, and will likely be immediately garbage
-        collected.  If you would specifically like to *allow* the function to be
-        garbage collected, set this to False.
+        reasoning for this is that functions and lambdas are very often defined *only*
+        to be passed to this function, and would likely be immediately garbage
+        collected if we weakly referenced them. If you would specifically like to
+        *allow* the function to be garbage collected, set this to False.
     on_ref_error : {'raise', 'warn', 'ignore'}, optional
         What to do if a weak reference cannot be created.  If 'raise', a
         ReferenceError will be raised.  If 'warn' (default), a warning will be issued
@@ -121,6 +121,11 @@ def weak_callback(
         return _WeakMethod(cb, max_args, args, kwargs, finalize, on_ref_error)
 
     if isinstance(cb, (MethodWrapperType, BuiltinMethodType)):
+        if kwargs:  # pragma: no cover
+            raise NotImplementedError(
+                "MethodWrapperTypes do not support keyword arguments"
+            )
+
         if cb is setattr:
             try:
                 obj, attr = args[:2]
@@ -129,17 +134,12 @@ def weak_callback(
                     "setattr requires two arguments, an object and an attribute name."
                 ) from e
             return _WeakSetattr(obj, attr, max_args, finalize, on_ref_error)
-        return _WeakBuiltin(cb, max_args, finalize, on_ref_error)
+        return _WeakBuiltin(cb, max_args, args, finalize, on_ref_error)
 
     if callable(cb):
         return _WeakFunction(cb, max_args, args, kwargs, finalize, on_ref_error)
 
     raise TypeError(f"unsupported type {type(cb)}")  # pragma: no cover
-
-
-class SupportsSetitem(Protocol):
-    def __setitem__(self, key: Any, value: Any) -> None:
-        ...
 
 
 class WeakCallback(Generic[_R]):
@@ -202,10 +202,7 @@ class WeakCallback(Generic[_R]):
             if self._on_ref_error == "raise":
                 raise
             if self._on_ref_error == "warn":
-                # FIXME: special case (move me)
-                mod = getattr(obj, "__module__", None) or ""
-                if "QtCore" not in mod:
-                    warn(f"failed to create weakref for {obj!r}, returning strong ref")
+                warn(f"failed to create weakref for {obj!r}, returning strong ref")
 
             def _strong_ref() -> _T:
                 return obj
@@ -214,17 +211,24 @@ class WeakCallback(Generic[_R]):
 
     @staticmethod
     def object_key(obj: Any) -> str:
+        """Return a unique key for an object.
+
+        This includes information about the object's type, module, and id. It has
+        considerations for bound methods (which would otherwise have a different id
+        for each instance).
+        """
         if hasattr(obj, "__self__"):
+            # bound method ... don't take the id of the bound method itself.
+            obj_id = id(obj.__self__)
             owner_cls = type(obj.__self__)
             type_name = getattr(owner_cls, "__name__", None) or ""
             module = getattr(owner_cls, "__module__", None) or ""
             method_name = getattr(obj, "__name__", None) or ""
             obj_name = f"{type_name}.{method_name}"
-            obj_id = id(obj.__self__)
         else:
+            obj_id = id(obj)
             module = getattr(obj, "__module__", None) or ""
             obj_name = getattr(obj, "__name__", None) or ""
-            obj_id = id(obj)
         return f"{module}:{obj_name}@{hex(obj_id)}"
 
 
@@ -362,21 +366,23 @@ class _WeakBuiltin(WeakCallback):
         self,
         obj: MethodWrapperType | BuiltinMethodType,
         max_args: int | None = None,
+        args: tuple[Any, ...] = (),
         finalize: Callable | None = None,
         on_ref_error: RefErrorChoice = "warn",
     ) -> None:
         super().__init__(obj, max_args, on_ref_error)
         self._obj_ref = self._try_ref(obj.__self__, finalize)
         self._func_name = obj.__name__
+        self._args = args
 
     def cb(self, args: tuple[Any, ...] = ()) -> None:
         func = getattr(self._obj_ref(), self._func_name, None)
         if func is None:
             raise ReferenceError("weakly-referenced object no longer exists")
         if self._max_args is None:
-            func(*args)
+            func(*self._args, *args)
         else:
-            func(*args[: self._max_args])
+            func(*self._args, *args[: self._max_args])
 
     def dereference(self) -> MethodWrapperType | BuiltinMethodType | None:
         return getattr(self._obj_ref(), self._func_name, None)
@@ -394,6 +400,7 @@ class _WeakSetattr(WeakCallback):
         on_ref_error: RefErrorChoice = "warn",
     ) -> None:
         super().__init__(obj, max_args, on_ref_error)
+        self._key += f".__setattr__({attr!r})"
         self._obj_ref = self._try_ref(obj, finalize)
         self._attr = attr
 
@@ -410,6 +417,11 @@ class _WeakSetattr(WeakCallback):
         return None if obj is None else partial(setattr, obj, self._attr)
 
 
+class SupportsSetitem(Protocol):
+    def __setitem__(self, key: Any, value: Any) -> None:
+        ...
+
+
 class _WeakSetitem(WeakCallback):
     """Caller to call __setitem__ on a weakly-referenced object."""
 
@@ -422,8 +434,9 @@ class _WeakSetitem(WeakCallback):
         on_ref_error: RefErrorChoice = "warn",
     ) -> None:
         super().__init__(obj, max_args, on_ref_error)
+        self._key += f".__setitem__({key!r})"
         self._obj_ref = self._try_ref(obj, finalize)
-        self._key = key
+        self._itemkey = key
 
     def cb(self, args: tuple[Any, ...] = ()) -> None:
         obj = self._obj_ref()
@@ -431,8 +444,8 @@ class _WeakSetitem(WeakCallback):
             raise ReferenceError("weakly-referenced object no longer exists")
         if self._max_args is not None:
             args = args[: self._max_args]
-        obj[self._key] = args[0] if len(args) == 1 else args
+        obj[self._itemkey] = args[0] if len(args) == 1 else args
 
     def dereference(self) -> partial | None:
         obj = self._obj_ref()
-        return None if obj is None else partial(obj.__setitem__, self._key)
+        return None if obj is None else partial(obj.__setitem__, self._itemkey)

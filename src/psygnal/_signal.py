@@ -443,7 +443,11 @@ class SignalInstance:
         if check_types is None:
             check_types = self._check_types_on_connect
 
-        def _wrapper(slot: Callable, max_args: int | None = max_args) -> Callable:
+        def _wrapper(
+            slot: Callable,
+            max_args: int | None = max_args,
+            on_ref_error: RefErrorChoice = on_ref_error,
+        ) -> Callable:
             if not callable(slot):
                 raise TypeError(f"Cannot connect to non-callable object: {slot}")
 
@@ -456,9 +460,14 @@ class SignalInstance:
                         )
                     return slot
 
-                slot_sig = None
+                slot_sig: Signature | None = None
                 if check_nargs and (max_args is None):
-                    slot_sig, max_args = self._check_nargs(slot, self.signature)
+                    _sig, max_args = self._check_nargs(slot, self.signature)
+                    if isinstance(_sig, str):
+                        # it's a Qt-style signal ... ignore weakref errors
+                        on_ref_error = "ignore"
+                    else:
+                        slot_sig = slot_sig
                 if check_types:
                     slot_sig = slot_sig or signature(slot)
                     if not _parameter_types_match(slot, self.signature, slot_sig):
@@ -709,7 +718,7 @@ class SignalInstance:
 
     def _check_nargs(
         self, slot: Callable, spec: Signature
-    ) -> tuple[Signature | None, int | None]:
+    ) -> tuple[Signature | str | None, int | None]:
         """Make sure slot is compatible with signature.
 
         Also returns the maximum number of arguments that we can pass to the slot
@@ -731,8 +740,7 @@ class SignalInstance:
                 f"arguments, but spec only provides {n_spec_params}"
             )
             self._raise_connection_error(slot, extra)
-        _sig = None if isinstance(slot_sig, str) else slot_sig
-        return _sig, maxargs
+        return slot_sig, maxargs
 
     def _raise_connection_error(self, slot: Callable, extra: str = "") -> NoReturn:
         name = getattr(slot, "__name__", str(slot))
