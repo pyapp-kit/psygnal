@@ -37,6 +37,8 @@ from psygnal._weak_callback import (
 if TYPE_CHECKING:
     from typing_extensions import Literal, TypeGuard
 
+    from ._weak_callback import RefErrorChoice
+
     ReducerFunc = Callable[[tuple, tuple], tuple]
 
 __all__ = ["Signal", "SignalInstance", "_compiled"]
@@ -353,6 +355,7 @@ class SignalInstance:
         check_types: bool | None = ...,
         unique: bool | str = ...,
         max_args: int | None = None,
+        on_ref_error: RefErrorChoice = ...,
     ) -> Callable[[Callable], Callable]:
         ...  # pragma: no cover
 
@@ -365,6 +368,7 @@ class SignalInstance:
         check_types: bool | None = ...,
         unique: bool | str = ...,
         max_args: int | None = None,
+        on_ref_error: RefErrorChoice = ...,
     ) -> Callable:
         ...  # pragma: no cover
 
@@ -376,6 +380,7 @@ class SignalInstance:
         check_types: bool | None = None,
         unique: bool | str = False,
         max_args: int | None = None,
+        on_ref_error: RefErrorChoice = "warn",
     ) -> Callable[[Callable], Callable] | Callable:
         """Connect a callback (`slot`) to this signal.
 
@@ -418,6 +423,11 @@ class SignalInstance:
             If provided, `slot` will be called with no more more than `max_args` when
             this SignalInstance is emitted.  (regardless of how many arguments are
             emitted).
+        on_ref_error : {'raise', 'warn', 'ignore'}, optional
+            What to do if a weak reference cannot be created.  If 'raise', a
+            ReferenceError will be raised.  If 'warn' (default), a warning will be
+            issued and a strong-reference will be used. If 'ignore' a strong-reference
+            will be used (silently).
 
         Raises
         ------
@@ -456,7 +466,12 @@ class SignalInstance:
                         extra = f"- Slot types {slot_sig} do not match types in signal."
                         self._raise_connection_error(slot, extra)
 
-                cb = weak_callback(slot, max_args=max_args, finalize=self._try_discard)
+                cb = weak_callback(
+                    slot,
+                    max_args=max_args,
+                    finalize=self._try_discard,
+                    on_ref_error=on_ref_error,
+                )
                 self._slots.append(cb)
             return slot
 
@@ -483,6 +498,8 @@ class SignalInstance:
         obj: weakref.ref | object,
         attr: str,
         maxargs: int | None = None,
+        *,
+        on_ref_error: RefErrorChoice = "warn",
     ) -> WeakCallback:
         """Bind an object attribute to the emitted value of this signal.
 
@@ -495,12 +512,17 @@ class SignalInstance:
         Parameters
         ----------
         obj : Union[weakref.ref, object]
-            An object or weak reference to an object.
+            An object or weak reference (deprecated) to an object.
         attr : str
             The name of an attribute on `obj` that should be set to the value of this
             signal when emitted.
         maxargs : Optional[int]
             max number of positional args to accept
+        on_ref_error: {'raise', 'warn', 'ignore'}, optional
+            What to do if a weak reference cannot be created.  If 'raise', a
+            ReferenceError will be raised.  If 'warn' (default), a warning will be
+            issued and a strong-reference will be used. If 'ignore' a strong-reference
+            will be used (silently).
 
         Returns
         -------
@@ -529,14 +551,25 @@ class SignalInstance:
         >>> t.sig.emit(5)
         >>> assert my_obj.x == 5
         """
-        if isinstance(obj, weakref.ReferenceType):
+        if isinstance(obj, weakref.ReferenceType):  # pragma: no cover
+            warnings.warn(
+                'Using a weakref as the "obj" argument is deprecated. '
+                "Use the object directly instead. This will raise an error in "
+                "a future release.",
+                FutureWarning,
+                stacklevel=2,
+            )
             obj = obj()
         if not hasattr(obj, attr):
             raise AttributeError(f"Object {obj} has no attribute {attr!r}")
 
         with self._lock:
             caller = _WeakSetattr(
-                obj, attr, max_args=maxargs, finalize=self._try_discard
+                obj,
+                attr,
+                max_args=maxargs,
+                finalize=self._try_discard,
+                on_ref_error=on_ref_error,
             )
             self._slots.append(caller)
         return caller
@@ -564,13 +597,16 @@ class SignalInstance:
         """
         # sourcery skip: merge-nested-ifs, use-next
         with self._lock:
-            self._try_discard(_WeakSetattr(obj, attr), missing_ok)
+            cb = _WeakSetattr(obj, attr, on_ref_error="ignore")
+            self._try_discard(cb, missing_ok)
 
     def connect_setitem(
         self,
         obj: weakref.ref | object,
         key: str,
         maxargs: int | None = None,
+        *,
+        on_ref_error: RefErrorChoice = "warn",
     ) -> WeakCallback:
         """Bind a container item (such as a dict key) to emitted value of this signal.
 
@@ -583,12 +619,17 @@ class SignalInstance:
         Parameters
         ----------
         obj : Union[weakref.ref, object]
-            An object or weak reference to an object.
+            An object or weak reference (deprecated) to an object.
         key : str
             Name of the key in `obj` that should be set to the value of this
             signal when emitted
         maxargs : Optional[int]
             max number of positional args to accept
+        on_ref_error: {'raise', 'warn', 'ignore'}, optional
+            What to do if a weak reference cannot be created.  If 'raise', a
+            ReferenceError will be raised.  If 'warn' (default), a warning will be
+            issued and a strong-reference will be used. If 'ignore' a strong-reference
+            will be used (silently).
 
         Returns
         -------
@@ -614,14 +655,25 @@ class SignalInstance:
         >>> t.sig.emit(5)
         >>> assert my_obj == {'x': 5}
         """
-        if isinstance(obj, weakref.ReferenceType):
+        if isinstance(obj, weakref.ReferenceType):  # pragma: no cover
+            warnings.warn(
+                'Using a weakref as the "obj" argument is deprecated. '
+                "Use the object directly instead. This will raise an error in "
+                "a future release.",
+                FutureWarning,
+                stacklevel=2,
+            )
             obj = obj()
         if not hasattr(obj, "__setitem__"):
             raise TypeError(f"Object {obj} does not support __setitem__")
 
         with self._lock:
             caller = _WeakSetitem(
-                obj, key, max_args=maxargs, finalize=self._try_discard  # type: ignore
+                obj,  # type: ignore
+                key,
+                max_args=maxargs,
+                finalize=self._try_discard,
+                on_ref_error=on_ref_error,
             )
             self._slots.append(caller)
 
@@ -653,7 +705,7 @@ class SignalInstance:
 
         # sourcery skip: merge-nested-ifs, use-next
         with self._lock:
-            caller = _WeakSetitem(obj, key)
+            caller = _WeakSetitem(obj, key, on_ref_error="ignore")
             self._try_discard(caller, missing_ok)
 
     def _check_nargs(
@@ -693,7 +745,7 @@ class SignalInstance:
     def _slot_index(self, slot: Callable) -> int:
         """Get index of `slot` in `self._slots`.  Return -1 if not connected."""
         with self._lock:
-            normed = weak_callback(slot)
+            normed = weak_callback(slot, on_ref_error="ignore")
             # NOTE:
             # the == method here relies on the __eq__ method of each SlotCaller subclass
             return next((i for i, s in enumerate(self._slots) if s == normed), -1)

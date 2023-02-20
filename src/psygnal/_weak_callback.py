@@ -17,13 +17,17 @@ __all__ = ["weak_callback", "WeakCallback"]
 _T = TypeVar("_T")
 
 
+class Q:
+    __slots__ = ("__weakref__",)
+
+
 def weak_callback(
     cb: Callable | WeakCallback,
     *args: Any,
     max_args: int | None = None,
     finalize: Callable[[WeakCallback], Any] | None = None,
     strong_func: bool = True,
-    on_ref_error: Literal["raise", "warn", "ignore"] = "warn",
+    on_ref_error: RefErrorChoice = "warn",
 ) -> WeakCallback:
     """Create a weakly-referenced callback.
 
