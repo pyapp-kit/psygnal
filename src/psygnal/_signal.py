@@ -5,9 +5,8 @@ import threading
 import warnings
 import weakref
 from contextlib import contextmanager, suppress
-from functools import lru_cache, partial, reduce
+from functools import lru_cache, reduce
 from inspect import Parameter, Signature, isclass
-from types import MethodType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -25,7 +24,7 @@ from typing import (
 )
 
 from mypy_extensions import mypyc_attr
-from typing_extensions import Protocol, get_args, get_origin
+from typing_extensions import get_args, get_origin
 
 from psygnal._weak_callback import (
     WeakCallback,
@@ -35,7 +34,7 @@ from psygnal._weak_callback import (
 )
 
 if TYPE_CHECKING:
-    from typing_extensions import Literal, TypeGuard
+    from typing_extensions import Literal
 
     from ._weak_callback import RefErrorChoice
 
@@ -1117,20 +1116,6 @@ class EmitThread(threading.Thread):
 
 # #############################################################################
 # #############################################################################
-class PartialMethod(Protocol):
-    """Bound method wrapped in partial: `partial(MyClass().some_method, y=1)`."""
-
-    func: MethodType
-    args: tuple
-    keywords: dict[str, Any]
-
-    def __call__(self, *args: Any, **kwds: Any) -> Any:
-        ...
-
-
-def _is_partial_method(obj: object) -> TypeGuard[PartialMethod]:
-    """Return `True` of `obj` is a `functools.partial` wrapping a bound method."""
-    return isinstance(obj, partial) and isinstance(obj.func, MethodType)
 
 
 def signature(obj: Any) -> inspect.Signature:
