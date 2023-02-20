@@ -163,10 +163,10 @@ class WeakCallback(Generic[_R]):
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = "warn",
     ) -> None:
-        self._key = WeakCallback.object_key(obj)
-        self._max_args = max_args
-        self._alive = True
-        self._on_ref_error = on_ref_error
+        self._key: str = WeakCallback.object_key(obj)
+        self._max_args: int | None = max_args
+        self._alive: bool = True
+        self._on_ref_error: RefErrorChoice = on_ref_error
 
     def cb(self, args: tuple[Any, ...] = ()) -> None:
         """Call the callback with `args`. Args will be spread when calling the func."""
