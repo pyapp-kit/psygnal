@@ -105,6 +105,7 @@ include = [
     "src/psygnal/_group.py",
     "src/psygnal/_evented_decorator.py",
     "src/psygnal/_group_descriptor.py",
+    "src/psygnal/_weak_callback.py",
 ]
 
 [tool.cibuildwheel]

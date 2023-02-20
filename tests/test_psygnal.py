@@ -4,21 +4,13 @@ import time
 from contextlib import suppress
 from functools import partial, wraps
 from inspect import Signature
-from typing import Optional, Type
+from typing import Optional
 from unittest.mock import MagicMock, Mock, call
-from weakref import ref
 
 import pytest
 
 from psygnal import EmitLoopError, Signal, SignalInstance, _compiled
-from psygnal._signal import (
-    SlotCaller,
-    _BoundMethodCaller,
-    _FunctionCaller,
-    _PartialMethodCaller,
-    _SetattrCaller,
-    _SetitemCaller,
-)
+from psygnal._weak_callback import WeakCallback
 
 
 def stupid_decorator(fun):
@@ -136,7 +128,6 @@ def test_decorator():
 
     with pytest.raises(EmitLoopError) as e:
         emitter.one_int.emit(1)
-    assert e.value.slot is boom
     assert e.value.__cause__ is err
     assert e.value.__context__ is err
 
@@ -245,32 +236,24 @@ def test_slot_types(type_: str) -> None:
     signal = emitter.one_int
     assert len(signal) == 0
     obj = MyObj()
-    caller_type: Type[SlotCaller]
 
     if type_ == "setattr":
         signal.connect_setattr(obj, "x")
-        caller_type = _SetattrCaller
     elif type_ == "setitem":
         signal.connect_setitem(obj, "x")
-        caller_type = _SetitemCaller
     elif type_ == "function":
         signal.connect(f_int)
-        caller_type = _FunctionCaller
     elif type_ == "lambda":
         signal.connect(lambda x: None)
-        caller_type = _FunctionCaller
     elif type_ == "method":
         signal.connect(obj.f_int)
-        caller_type = _BoundMethodCaller
     elif type_ == "partial_method":
         signal.connect(partial(obj.f_int_int, 2))
-        caller_type = _PartialMethodCaller
 
     assert len(signal) == 1
 
     stored_slot = signal._slots[-1]
-    assert isinstance(stored_slot, caller_type)
-    assert callable(stored_slot.slot())
+    assert isinstance(stored_slot, WeakCallback)
     assert stored_slot == stored_slot
 
     with pytest.raises(TypeError):
@@ -298,7 +281,6 @@ def test_basic_signal_with_sender_receiver():
     with pytest.raises(EmitLoopError) as e:
         emitter.one_int.emit(1)
 
-    assert e.value.slot == receiver.assert_not_sender
     assert isinstance(e.value.__cause__, AssertionError)
     assert isinstance(e.value.__context__, AssertionError)
 
@@ -763,11 +745,10 @@ def test_connect_setitem():
     assert my_obj._dict == {"x": 5}
 
     obj = object()
-    with pytest.warns(RuntimeWarning):
-        with pytest.raises(TypeError, match="does not support __setitem__"):
-            t.sig.connect_setitem(obj, "x")
+    with pytest.raises(TypeError, match="does not support __setitem__"):
+        t.sig.connect_setitem(obj, "x")
 
-    with pytest.raises(ValueError):
+    with pytest.raises(TypeError):
         t.sig.disconnect_setitem(obj, "x", missing_ok=False)
 
 
@@ -789,6 +770,8 @@ def test_repr_not_used():
     mock.assert_not_called()
 
 
+# b.signal2.emit will warn that compiled SignalInstances cannot be weakly referenced
+@pytest.mark.filterwarnings("ignore:failed to create weakref:UserWarning")
 def test_signal_emit_as_slot():
     class A:
         signal1 = Signal(int)
@@ -857,124 +840,15 @@ def test_emit_loop_exceptions():
 )
 def test_weakref_disconnect(slot):
     """Test that a connected method doesn't hold strong ref."""
-    from psygnal._signal import _PARTIAL_CACHE, _prune_partial_cache
 
     emitter = Emitter()
     obj = MyObj()
 
-    _prune_partial_cache()
-    assert not _PARTIAL_CACHE
-
     assert len(emitter.one_int) == 0
     cb = partial(obj.f_int_int, 1) if slot == "partial" else getattr(obj, slot)
-    cb_id = id(cb)
-    assert cb_id not in _PARTIAL_CACHE
     emitter.one_int.connect(cb)
-    assert (cb_id in _PARTIAL_CACHE) == (slot == "partial")
     assert len(emitter.one_int) == 1
     emitter.one_int.emit(1)
     assert len(emitter.one_int) == 1
     emitter.one_int.disconnect(cb)
     assert len(emitter.one_int) == 0
-    assert cb_id not in _PARTIAL_CACHE
-
-
-def test_multiple_bound_methods():
-    """Make sure weakref pruning works when multiple bound methods are connected."""
-    e = Emitter()
-    obj1 = MyObj()
-    obj2 = MyObj()
-    obj3 = MyObj()
-
-    p1 = partial(obj1.f_int_int, 3)
-    p2 = partial(obj2.f_int_int, 3)
-    p3 = partial(obj3.f_int_int, 3)
-
-    e.one_int.connect(obj1.f_int)
-    e.one_int.connect(obj2.f_int)
-    e.one_int.connect(obj3.f_int)
-    e.one_int.connect(obj3.f_any)
-    e.one_int.connect(obj2.f_any)
-    e.one_int.connect(obj1.f_any)
-    e.one_int.connect(p1)
-    e.one_int.connect(p2)
-    e.one_int.connect(p3)
-
-    assert [s._method() for s in e.one_int._slots] == [
-        obj1.f_int,
-        obj2.f_int,
-        obj3.f_int,
-        obj3.f_any,
-        obj2.f_any,
-        obj1.f_any,
-        obj1.f_int_int,
-        obj2.f_int_int,
-        obj3.f_int_int,
-    ]
-
-    e.one_int.disconnect(obj2.f_any)
-    assert [s._method() for s in e.one_int._slots] == [
-        obj1.f_int,
-        obj2.f_int,
-        obj3.f_int,
-        obj3.f_any,
-        obj1.f_any,
-        obj1.f_int_int,
-        obj2.f_int_int,
-        obj3.f_int_int,
-    ]
-
-    del p2, obj2
-    gc.collect()
-    e.one_int.disconnect(p3)
-    e.one_int.emit(1)
-    assert [s._method() for s in e.one_int._slots] == (
-        [obj1.f_int, obj3.f_int, obj3.f_any, obj1.f_any, obj1.f_int_int]
-    )
-
-    del p1, obj1
-    gc.collect()
-    e.one_int.emit(1)
-    assert [s._method() for s in e.one_int._slots] == [
-        obj3.f_int,
-        obj3.f_any,
-    ]
-
-    del p3, obj3
-    gc.collect()
-    e.one_int.emit(1)
-    assert not e.one_int._slots
-
-
-def test_slot_caller_equality():
-    """Slot callers should be equal only if they represent the same bound-method."""
-
-    class T:
-        def x(self):
-            ...
-
-    t1 = T()
-    t2 = T()
-    t1_ref = ref(t1)
-    t2_ref = ref(t2)
-
-    bmt1_a = _BoundMethodCaller(t1.x)
-    bmt1_b = _BoundMethodCaller(t1.x)
-    bmt2_a = _BoundMethodCaller(t2.x)
-    bmt2_b = _BoundMethodCaller(t2.x)
-
-    def _assert_equality():
-        assert bmt1_a == bmt1_b
-        assert bmt2_a == bmt2_b
-        assert bmt1_a != bmt2_a
-        assert bmt1_b != bmt2_b
-
-    _assert_equality()
-    del t1
-    gc.collect()
-    assert t1_ref() is None
-    _assert_equality()
-    del t2
-    gc.collect()
-    assert t2_ref() is None
-    _assert_equality()
