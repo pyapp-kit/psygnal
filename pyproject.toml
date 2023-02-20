@@ -101,11 +101,12 @@ dependencies = [
     "msgspec ; python_version >= '3.8'",
 ]
 include = [
-    "src/psygnal/_signal.py",
-    "src/psygnal/_group.py",
+    "src/psygnal/_dataclass_utils.py",
     "src/psygnal/_evented_decorator.py",
     "src/psygnal/_group_descriptor.py",
-    "src/psygnal/_dataclass_utils.py",
+    "src/psygnal/_group.py",
+    "src/psygnal/_signal.py",
+    "src/psygnal/_weak_callback.py",
 ]
 
 [tool.cibuildwheel]
