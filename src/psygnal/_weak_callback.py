@@ -95,7 +95,7 @@ def weak_callback(
     if isinstance(cb, WeakCallback):
         return cb
 
-    kwargs = None
+    kwargs: dict[str, Any] | None = None
     if isinstance(cb, partial):
         args = cb.args + args
         kwargs = cb.keywords
