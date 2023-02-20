@@ -446,7 +446,7 @@ class SignalInstance:
         def _wrapper(
             slot: Callable,
             max_args: int | None = max_args,
-            on_ref_error: RefErrorChoice = on_ref_error,
+            _on_ref_err: RefErrorChoice = on_ref_error,
         ) -> Callable:
             if not callable(slot):
                 raise TypeError(f"Cannot connect to non-callable object: {slot}")
@@ -462,12 +462,9 @@ class SignalInstance:
 
                 slot_sig: Signature | None = None
                 if check_nargs and (max_args is None):
-                    _sig, max_args = self._check_nargs(slot, self.signature)
-                    if isinstance(_sig, str):
-                        # it's a Qt-style signal ... ignore weakref errors
-                        on_ref_error = "ignore"
-                    else:
-                        slot_sig = slot_sig
+                    slot_sig, max_args, isqt = self._check_nargs(slot, self.signature)
+                    if isqt:
+                        _on_ref_err = "ignore"
                 if check_types:
                     slot_sig = slot_sig or signature(slot)
                     if not _parameter_types_match(slot, self.signature, slot_sig):
@@ -478,7 +475,7 @@ class SignalInstance:
                     slot,
                     max_args=max_args,
                     finalize=self._try_discard,
-                    on_ref_error=on_ref_error,
+                    on_ref_error=_on_ref_err,
                 )
                 self._slots.append(cb)
             return slot
@@ -718,10 +715,19 @@ class SignalInstance:
 
     def _check_nargs(
         self, slot: Callable, spec: Signature
-    ) -> tuple[Signature | str | None, int | None]:
+    ) -> tuple[Signature | None, int | None, bool]:
         """Make sure slot is compatible with signature.
 
         Also returns the maximum number of arguments that we can pass to the slot
+
+        Returns
+        -------
+        slot_sig : Signature | None
+            The signature of the slot, or None if it could not be determined.
+        maxargs : int | None
+            The maximum number of arguments that we can pass to the slot.
+        is_qt : bool
+            Whether the slot is a Qt slot.
         """
         try:
             slot_sig = _get_signature_possibly_qt(slot)
@@ -729,7 +735,7 @@ class SignalInstance:
             warnings.warn(
                 f"{e}. To silence this warning, connect with " "`check_nargs=False`"
             )
-            return None, None
+            return None, None, False
         minargs, maxargs = _acceptable_posarg_range(slot_sig)
 
         n_spec_params = len(spec.parameters)
@@ -740,7 +746,8 @@ class SignalInstance:
                 f"arguments, but spec only provides {n_spec_params}"
             )
             self._raise_connection_error(slot, extra)
-        return slot_sig, maxargs
+
+        return None if isinstance(slot_sig, str) else slot_sig, maxargs, True
 
     def _raise_connection_error(self, slot: Callable, extra: str = "") -> NoReturn:
         name = getattr(slot, "__name__", str(slot))
