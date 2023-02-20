@@ -10,7 +10,7 @@ from typing import (
     overload,
 )
 
-from ._group_descriptor import SignalGroupDescriptor
+from psygnal._group_descriptor import SignalGroupDescriptor
 
 if TYPE_CHECKING:
     from typing_extensions import Literal

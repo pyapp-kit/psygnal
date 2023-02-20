@@ -56,8 +56,6 @@ __all__ = [
     "throttled",
 ]
 
-from ._evented_decorator import evented
-from ._group_descriptor import SignalGroupDescriptor, get_evented_namespace, is_evented
 
 if os.getenv("PSYGNAL_UNCOMPILED"):
 
@@ -77,17 +75,33 @@ if os.getenv("PSYGNAL_UNCOMPILED"):
         spec.loader.exec_module(module)
         return module
 
+    m = _import_purepy_mod("_evented_decorator")
+    evented = m.evented
+
+    m = _import_purepy_mod("_group")
+    SignalGroup, EmissionInfo = m.SignalGroup, m.EmissionInfo
+
+    m = _import_purepy_mod("_group_descriptor")
+    SignalGroupDescriptor = m.SignalGroupDescriptor
+    get_evented_namespace, is_evented = m.get_evented_namespace, m.is_evented
+
     m = _import_purepy_mod("_signal")
     Signal, SignalInstance, _compiled = m.Signal, m.SignalInstance, m._compiled
     EmitLoopError = m.EmitLoopError  # type: ignore
-    m = _import_purepy_mod("_group")
-    SignalGroup, EmissionInfo = m.SignalGroup, m.EmissionInfo
+
     m = _import_purepy_mod("_throttler")
     throttled, debounced = m.throttled, m.debounced
+
     del _import_purepy_mod
 
 else:
+    from ._evented_decorator import evented
     from ._group import EmissionInfo, SignalGroup
+    from ._group_descriptor import (
+        SignalGroupDescriptor,
+        get_evented_namespace,
+        is_evented,
+    )
     from ._signal import EmitLoopError, Signal, SignalInstance, _compiled
     from ._throttler import debounced, throttled
 

@@ -10,11 +10,6 @@ class MyGroup(SignalGroup):
     sig2 = Signal(str)
 
 
-class MyStrictGroup(SignalGroup, strict=True):
-    sig1 = Signal(int)
-    sig2 = Signal(int)
-
-
 def test_signal_group():
     assert not MyGroup.is_uniform()
     group = MyGroup()
@@ -27,6 +22,10 @@ def test_signal_group():
 
 def test_uniform_group():
     """In a uniform group, all signals must have the same signature."""
+
+    class MyStrictGroup(SignalGroup, strict=True):
+        sig1 = Signal(int)
+        sig2 = Signal(int)
 
     assert MyStrictGroup.is_uniform()
     group = MyStrictGroup()

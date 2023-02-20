@@ -19,8 +19,8 @@ from typing import (
     overload,
 )
 
-from ._group import SignalGroup
-from ._signal import Signal
+from psygnal._group import SignalGroup
+from psygnal._signal import Signal
 
 if TYPE_CHECKING:
     import msgspec
