@@ -316,13 +316,16 @@ class SignalGroupDescriptor:
         # do it now and cache it.  Note that we cache it here rather than
         # on the instance in case the instance is not modifiable.
         if obj_id not in self._instance_map:
-            # now we definitely need a signal group class. So if we don't have one
-            # yet, build it now.
-            if self._signal_group is None:
-                # (setting attr just for the sake of mypy)
-                self._signal_group = self.build_signal_group(owner)
+            grp_cls = self._signal_group
+            if grp_cls is None:
+                grp_cls = _build_dataclass_signal_group(owner, self._eqop)
+            if self._warn_on_no_fields and not grp_cls._signals_:
+                warnings.warn(
+                    f"No mutable fields found on class {owner}: no events will be "
+                    "emitted. (Is this a dataclass, attrs, msgspec, or pydantic model?)"
+                )
 
-            group = self._signal_group(instance)
+            group = grp_cls(instance)
             # cache it
             self._instance_map[obj_id] = group
             # also *try* to set it on the instance as well, since it will skip all the
@@ -338,25 +341,3 @@ class SignalGroupDescriptor:
                 )
 
         return self._instance_map[obj_id]
-
-    def build_signal_group(self, owner: type) -> type[SignalGroup]:
-        """Build a [`psygnal.SignalGroup`][] for the given class and update this descriptor.
-
-        Building of the SignalGroup is deferred until the first time it is accessed,
-        so that we can be sure that the class has been fully initialized, and all
-        dataclass-style fields have been added to the class. This method is provided
-        as a way to manually force the build process, but usually needn't be called
-        directly.
-
-        Parameters
-        ----------
-        owner : type
-            The class that owns this descriptor.
-        """  # noqa: E501
-        self._signal_group = _build_dataclass_signal_group(owner, self._eqop)
-        if self._warn_on_no_fields and not self._signal_group._signals_:
-            warnings.warn(
-                f"No mutable fields found on class {owner}: no events will be "
-                "emitted. (Is this a dataclass, attrs, msgspec, or pydantic model?)"
-            )
-        return self._signal_group
