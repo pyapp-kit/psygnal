@@ -8,21 +8,10 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     PackageNotFoundError = Exception
+    from ._evented_model import EventedModel
 
     def version(package: str) -> str:
         """Return version."""
-
-    from types import ModuleType
-
-    from . import _group, _signal
-    from ._evented_model import EventedModel
-
-    Signal = _signal.Signal
-    SignalInstance = _signal.SignalInstance
-    EmitLoopError = _signal.EmitLoopError
-    _compiled = _signal._compiled
-    SignalGroup = _group.SignalGroup
-    EmissionInfo = _group.EmissionInfo
 
 else:
     # hiding this import from type checkers so mypyc can work on both 3.7 and later
@@ -56,40 +45,26 @@ __all__ = [
     "throttled",
 ]
 
-from ._evented_decorator import evented
-from ._group_descriptor import SignalGroupDescriptor, get_evented_namespace, is_evented
 
 if os.getenv("PSYGNAL_UNCOMPILED"):
+    import warnings
 
-    def _import_purepy_mod(name: str) -> "ModuleType":
-        """Import stuff from the uncompiled python module, for debugging."""
-        import importlib.util
-        import os
-        import sys
+    warnings.warn(
+        "PSYGNAL_UNCOMPILED no longer has any effect. If you wish to run psygnal "
+        "without compiled files, you can run:\n\n"
+        'python -c "import psygnal.utils; psygnal.utils.decompile()"\n\n'
+        "(You will need to reinstall psygnal to get the compiled version back.)"
+    )
 
-        ROOT = os.path.dirname(__file__)
-        MODULE_PATH = os.path.join(ROOT, f"{name}.py")
-        spec = importlib.util.spec_from_file_location(name, MODULE_PATH)
-        if spec is None or spec.loader is None:  # pragma: no cover
-            raise ImportError(f"Could not find pure python module: {MODULE_PATH}")
-        module = importlib.util.module_from_spec(spec)
-        sys.modules[spec.name] = module
-        spec.loader.exec_module(module)
-        return module
-
-    m = _import_purepy_mod("_signal")
-    Signal, SignalInstance, _compiled = m.Signal, m.SignalInstance, m._compiled
-    EmitLoopError = m.EmitLoopError  # type: ignore
-    m = _import_purepy_mod("_group")
-    SignalGroup, EmissionInfo = m.SignalGroup, m.EmissionInfo
-    m = _import_purepy_mod("_throttler")
-    throttled, debounced = m.throttled, m.debounced
-    del _import_purepy_mod
-
-else:
-    from ._group import EmissionInfo, SignalGroup
-    from ._signal import EmitLoopError, Signal, SignalInstance, _compiled
-    from ._throttler import debounced, throttled
+from ._evented_decorator import evented
+from ._group import EmissionInfo, SignalGroup
+from ._group_descriptor import (
+    SignalGroupDescriptor,
+    get_evented_namespace,
+    is_evented,
+)
+from ._signal import EmitLoopError, Signal, SignalInstance, _compiled
+from ._throttler import debounced, throttled
 
 
 def __getattr__(name: str) -> Any:
