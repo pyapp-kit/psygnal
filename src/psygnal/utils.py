@@ -85,7 +85,7 @@ def decompile() -> None:
 
     This function requires write permissions to the psygnal source directory.
     """
-    for suffix in _COMPILED_EXTS:
+    for suffix in _COMPILED_EXTS:  # pragma: no cover
         for path in Path(__file__).parent.rglob(f"**/*{suffix}"):
             path.rename(path.with_suffix(f"{suffix}{_BAK}"))
 
@@ -95,6 +95,6 @@ def recompile() -> None:
 
     This function requires write permissions to the psygnal source directory.
     """
-    for suffix in _COMPILED_EXTS:
+    for suffix in _COMPILED_EXTS:  # pragma: no cover
         for path in Path(__file__).parent.rglob(f"**/*{suffix}{_BAK}"):
             path.rename(path.with_suffix(suffix))
