@@ -22,6 +22,7 @@ clean:
 	rm -rf wheelhouse
 	rm -f `find src -type f -name '*.c' `
 	rm -f `find src -type f -name '*.so' `
+	rm -f `find src -type f -name '*.so_BAK' `
 	rm -rf coverage.xml
 
 # run benchmarks for all commits since v0.1.0

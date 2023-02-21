@@ -669,15 +669,6 @@ def test_signals_on_unhashables():
     e.signal.emit(1)
 
 
-def test_debug_import(monkeypatch):
-    """Test that PSYGNAL_UNCOMPILED gives a warning."""
-    monkeypatch.delitem(sys.modules, "psygnal")
-    monkeypatch.setenv("PSYGNAL_UNCOMPILED", "1")
-
-    with pytest.warns(UserWarning, match="PSYGNAL_UNCOMPILED no longer has any effect"):
-        import psygnal  # noqa: F401
-
-
 def test_property_connect():
     class A:
         def __init__(self):
