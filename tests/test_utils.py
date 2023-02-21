@@ -37,10 +37,7 @@ def test_event_debugger(capsys):
     assert captured.out == "sig.emit(1, 2)\nsig.emit(3, 4)\n"
 
 
-OLD_WIN = bool((sys.version_info < (3, 8)) and os.name == "nt")
-
-
-@pytest.mark.skipif(OLD_WIN, reason="can't rewrite open files on Windows")
+@pytest.mark.skipif(os.name == "nt", reason="rewrite open files on Windows is buggy")
 def test_decompile_recompile(monkeypatch):
     import psygnal
 
