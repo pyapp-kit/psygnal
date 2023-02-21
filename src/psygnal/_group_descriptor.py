@@ -273,23 +273,27 @@ def evented_setattr(
 
 
 class SignalGroupDescriptor:
-    """Lazily create a SignalGroup when attribute is accessed.
+    """Create a [`psygnal.SignalGroup`][] on first instance attribute access.
 
     This descriptor is designed to be used as a class attribute on a dataclass-like
-    class (e.g. a dataclass, a `pydantic.BaseModel`, an attrs class, a `msgspec.Struct`)
-    On first access of the descriptor on an instance, it will create a `SignalGroup`
-    with a signal for each field in the dataclass.
+    class (e.g. a [`dataclass`](https://docs.python.org/3/library/dataclasses.html), a
+    [`pydantic.BaseModel`](https://docs.pydantic.dev/usage/models/), an
+    [attrs](https://www.attrs.org/en/stable/overview.html) class, a
+    [`msgspec.Struct`](https://jcristharif.com/msgspec/structs.html)) On first access of
+    the descriptor on an instance, it will create a [`SignalGroup`][psygnal.SignalGroup]
+    bound to the instance, with a [`SignalInstance`][psygnal.SignalInstance] for each
+    field in the dataclass.
 
     Parameters
     ----------
-    equality_operators : Dict[str, Callable[[Any, Any], bool]], optional
+    equality_operators : dict[str, Callable[[Any, Any], bool]], optional
         A dictionary mapping field names to custom equality operators, where an equality
         operator is a callable that accepts two arguments and returns True if the two
         objects are equal. This will be used when comparing the old and new values of a
         field to determine whether to emit an event. If not provided, the default
         equality operator is `operator.eq`, except for numpy arrays, where
         `np.array_equal` is used.
-    signal_group_class : Type[SignalGroup], optional
+    signal_group_class : type[SignalGroup], optional
         A custom SignalGroup class to use, by default None
     warn_on_no_fields : bool, optional
         If `True` (the default), a warning will be emitted if no mutable dataclass-like
@@ -310,14 +314,14 @@ class SignalGroupDescriptor:
     from psygnal import SignalGroupDescriptor
 
     @dataclass
-    class Foo:
-        bar: int
-        baz: str
+    class Person:
+        name: str
+        age: int = 0
         events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
 
-    foo = Foo(1, 'hi')
-    foo.events.bar.connect(print)
-    foo.bar = 2  # prints 2
+    john = Person('John', 40)
+    john.events.age.connect(print)
+    john.age += 1  # prints 41
     ```
     """
 
@@ -401,13 +405,19 @@ class SignalGroupDescriptor:
         return self._instance_map[obj_id]
 
     def build_signal_group(self, owner: type) -> type[SignalGroup]:
-        """Build a SignalGroup for the given class and update this descriptor.
+        """Build a [`psygnal.SignalGroup`][] for the given class and update this descriptor.
 
         Building of the SignalGroup is deferred until the first time it is accessed,
         so that we can be sure that the class has been fully initialized, and all
         dataclass-style fields have been added to the class. This method is provided
-        as a way to manually trigger the build process.
-        """
+        as a way to manually force the build process, but usually needn't be called
+        directly.
+
+        Parameters
+        ----------
+        owner : type
+            The class that owns this descriptor.
+        """  # noqa: E501
         self._signal_group = _build_dataclass_signal_group(owner, self._eqop)
         if self._warn_on_no_fields and not self._signal_group._signals_:
             warnings.warn(

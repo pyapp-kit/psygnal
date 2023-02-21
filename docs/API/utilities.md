@@ -1,5 +1,5 @@
 # Utilities
 
 ::: psygnal.utils
-    rendering:
+    options:
         show_root_heading: false
