@@ -129,7 +129,8 @@ def is_frozen(obj: Any) -> bool:
         return True
 
     cfg = getattr(cls, "__struct_config__", None)
-    if cfg is not None:
+    if cfg is not None:  # pragma: no cover
+        # this will be covered in msgspec > 0.13.1
         return bool(getattr(cfg, "frozen", False))
 
     return False
