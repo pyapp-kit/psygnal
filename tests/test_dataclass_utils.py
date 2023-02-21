@@ -2,12 +2,18 @@ from dataclasses import dataclass
 
 import pytest
 from attr import define
-from msgspec import Struct
 from pydantic import BaseModel
 
 from psygnal import _dataclass_utils
 
-VARIANTS = ["dataclass", "attrs_class", "pydantic_model", "msgspec_struct"]
+try:
+    from msgspec import Struct
+except ImportError:
+    Struct = None
+
+VARIANTS = ["dataclass", "attrs_class", "pydantic_model"]
+if Struct is not None:
+    VARIANTS.append("msgspec_struct")
 
 
 @pytest.mark.parametrize("frozen", [True, False], ids=["frozen", ""])

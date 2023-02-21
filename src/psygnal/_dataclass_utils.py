@@ -3,10 +3,16 @@ from __future__ import annotations
 import contextlib
 import dataclasses
 import sys
-from types import GenericAlias
 from typing import TYPE_CHECKING, Any, Iterator, cast, overload
 
 from typing_extensions import Protocol
+
+try:
+    from types import GenericAlias
+except ImportError:
+    from typing import List
+
+    GenericAlias = type(List[int])  # type: ignore
 
 if TYPE_CHECKING:
     import attrs
