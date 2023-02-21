@@ -96,13 +96,13 @@ performance.  To disable all compiled files and run the pure python version,
 you may run:
 
 ```bash
-python -c "import psygnal.utils; psygnal.utils.decompile()
+python -c "import psygnal.utils; psygnal.utils.decompile()"
 ```
 
 To return the compiled version, run:
 
 ```bash
-python -c "import psygnal.utils; psygnal.utils.recompile()
+python -c "import psygnal.utils; psygnal.utils.recompile()"
 ```
 
 The `psygnal._compiled` variable will tell you if you're using the compiled
