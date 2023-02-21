@@ -11,7 +11,7 @@ called; it is useful when the callback is expensive.
 *Debouncing* means waiting
 for a period of time to pass *before* calling the callback; it is useful when
 you'd like to wait a moment to see if a user might do additional actions (say,
-moving a slider or typing in a text field) before "comitting" to calling the
+moving a slider or typing in a text field) before "committing" to calling the
 callback.
 
 ::: psygnal.throttled
