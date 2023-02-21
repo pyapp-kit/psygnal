@@ -17,6 +17,7 @@ from typing import (
     Iterator,
     NoReturn,
     Type,
+    TypeVar,
     Union,
     cast,
     get_type_hints,
@@ -42,6 +43,7 @@ if TYPE_CHECKING:
 
 __all__ = ["Signal", "SignalInstance", "_compiled"]
 _NULL = object()
+F = TypeVar("F", bound=Callable)
 
 
 class EmitLoopError(Exception):
@@ -355,32 +357,32 @@ class SignalInstance:
         unique: bool | str = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
-    ) -> Callable[[Callable], Callable]:
+    ) -> Callable[[F], F]:
         ...  # pragma: no cover
 
     @overload
     def connect(
         self,
-        slot: Callable,
+        slot: F,
         *,
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
         unique: bool | str = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
-    ) -> Callable:
+    ) -> F:
         ...  # pragma: no cover
 
     def connect(
         self,
-        slot: Callable | None = None,
+        slot: F | None = None,
         *,
         check_nargs: bool | None = None,
         check_types: bool | None = None,
         unique: bool | str = False,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = "warn",
-    ) -> Callable[[Callable], Callable] | Callable:
+    ) -> Callable[[F], F] | F:
         """Connect a callback (`slot`) to this signal.
 
         `slot` is compatible if:
@@ -444,10 +446,10 @@ class SignalInstance:
             check_types = self._check_types_on_connect
 
         def _wrapper(
-            slot: Callable,
+            slot: F,
             max_args: int | None = max_args,
             _on_ref_err: RefErrorChoice = on_ref_error,
-        ) -> Callable:
+        ) -> F:
             if not callable(slot):
                 raise TypeError(f"Cannot connect to non-callable object: {slot}")
 
@@ -471,7 +473,11 @@ class SignalInstance:
                         extra = f"- Slot types {slot_sig} do not match types in signal."
                         self._raise_connection_error(slot, extra)
 
-                cb = weak_callback(
+                # this type ignore could be fixed with ParamSpec, but that's not yet
+                # supported by mypyc.  we need cb to be a WeakCallback[R], but we can't
+                # preserve the full typing information of the callback without using
+                # Callable[ParamSpec, R] or a general TypeVar('F', bound=Callable).
+                cb = weak_callback(  # type: ignore [var-annotated]
                     slot,
                     max_args=max_args,
                     finalize=self._try_discard,
@@ -505,7 +511,7 @@ class SignalInstance:
         maxargs: int | None = None,
         *,
         on_ref_error: RefErrorChoice = "warn",
-    ) -> WeakCallback:
+    ) -> WeakCallback[None]:
         """Bind an object attribute to the emitted value of this signal.
 
         Equivalent to calling `self.connect(functools.partial(setattr, obj, attr))`,
@@ -612,7 +618,7 @@ class SignalInstance:
         maxargs: int | None = None,
         *,
         on_ref_error: RefErrorChoice = "warn",
-    ) -> WeakCallback:
+    ) -> WeakCallback[None]:
         """Bind a container item (such as a dict key) to emitted value of this signal.
 
         Equivalent to calling `self.connect(functools.partial(obj.__setitem__, attr))`,
