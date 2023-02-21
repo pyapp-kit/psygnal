@@ -16,20 +16,19 @@ container type for details on the available signals.
 ## Container SignalGroups
 
 ::: psygnal.containers._evented_dict.DictEvents
-    rendering:
+    options:
       show_source: false
       heading_level: 3
 ::: psygnal.containers._evented_list.ListEvents
-    selection:
+    options:
       members: []
-    rendering:
       show_source: false
       heading_level: 3
 ::: psygnal.containers._evented_set.SetEvents
-    rendering:
+    options:
       show_source: false
       heading_level: 3
 ::: psygnal.containers._selection.SelectionEvents
-    rendering:
+    options:
       show_source: false
       heading_level: 3

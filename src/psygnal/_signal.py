@@ -64,7 +64,7 @@ class Signal:
     This is class implements the [descriptor
     protocol](https://docs.python.org/3/howto/descriptor.html#descriptorhowto)
     and is designed to be used as a class attribute, with the supported signature types
-    provided in the contructor:
+    provided in the constructor:
 
     ```python
     from psygnal import Signal
@@ -266,7 +266,7 @@ class SignalInstance:
     signature : Optional[inspect.Signature]
         The signature that this signal accepts and will emit, by default `Signature()`.
     instance : Optional[Any]
-        An object to which this signal is bound. Normally this will be provied by the
+        An object to which this signal is bound. Normally this will be provided by the
         `Signal.__get__` method (see above).  However, an unbound `SignalInstance`
         may also be created directly. by default `None`.
     name : Optional[str]
@@ -849,7 +849,7 @@ class SignalInstance:
             These arguments will be passed when calling each slot (unless the slot
             accepts fewer arguments, in which case extra args will be discarded.)
         check_nargs : Optional[bool]
-            If `False` and the provided arguments cannot be successfuly bound to the
+            If `False` and the provided arguments cannot be successfully bound to the
             signature of this Signal, raise `TypeError`.  Incurs some overhead.
             by default False.
         check_types : Optional[bool]
@@ -1011,7 +1011,7 @@ class SignalInstance:
             follows: `self.emit(*functools.reduce(reducer, [(1,), (1,), (1,)]))`
 
         initial: any, optional
-            intial value to pass to `functools.reduce`
+            initial value to pass to `functools.reduce`
 
         Examples
         --------
@@ -1044,7 +1044,7 @@ class SignalInstance:
     def paused(
         self, reducer: ReducerFunc | None = None, initial: Any = _NULL
     ) -> ContextManager[None]:
-        """Context manager to temporarly pause this signal.
+        """Context manager to temporarily pause this signal.
 
         Parameters
         ----------
@@ -1057,7 +1057,7 @@ class SignalInstance:
             For example, three `emit(1)` events would be reduced and re-emitted as
             follows: `self.emit(*functools.reduce(reducer, [(1,), (1,), (1,)]))`
         initial: any, optional
-            intial value to pass to `functools.reduce`
+            initial value to pass to `functools.reduce`
 
         Examples
         --------
