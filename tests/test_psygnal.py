@@ -670,20 +670,12 @@ def test_signals_on_unhashables():
 
 
 def test_debug_import(monkeypatch):
-    """Test that PSYGNAL_UNCOMPILED always imports the pure python file."""
-    import sys
-
-    import psygnal._signal
-
-    if not psygnal._signal.__file__.endswith(".py"):
-        assert psygnal._compiled
-
+    """Test that PSYGNAL_UNCOMPILED gives a warning."""
     monkeypatch.delitem(sys.modules, "psygnal")
-    monkeypatch.delitem(sys.modules, "psygnal._signal")
     monkeypatch.setenv("PSYGNAL_UNCOMPILED", "1")
 
-    with pytest.warns(UserWarning):
-        import psygnal
+    with pytest.warns(UserWarning, match="PSYGNAL_UNCOMPILED no longer has any effect"):
+        import psygnal  # noqa: F401
 
 
 def test_property_connect():
