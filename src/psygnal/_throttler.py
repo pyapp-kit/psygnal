@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 from threading import Timer
-from typing import TYPE_CHECKING, Any, Callable, overload
+from typing import Any, Callable
 
-if TYPE_CHECKING:
-    from typing_extensions import Literal, ParamSpec
+from typing_extensions import Literal
 
-    P = ParamSpec("P")
-
-    Kind = Literal["throttler", "debouncer"]
-    EmissionPolicy = Literal["trailing", "leading"]
+Kind = Literal["throttler", "debouncer"]
+EmissionPolicy = Literal["trailing", "leading"]
 
 
 class _ThrottlerBase:
@@ -17,20 +14,22 @@ class _ThrottlerBase:
 
     def __init__(
         self,
-        func: Callable[P, Any],
+        func: Callable[..., Any],
         interval: int = 100,
         policy: EmissionPolicy = "leading",
     ) -> None:
         self._func = func
-        self._interval = interval
-        self._policy = policy
-        self._has_pending = False
-        self._timer = Timer(0, lambda: None)
+        self._interval: int = interval
+        self._policy: EmissionPolicy = policy
+        self._has_pending: bool = False
+        self._timer: Timer = Timer(0, lambda: None)
         self._timer.start()
+        self._args: tuple[Any, ...] = ()
+        self._kwargs: dict[str, Any] = {}
 
     def _actually_call(self) -> None:
         self._has_pending = False
-        self._func(*self._args, **self._kwargs)  # type: ignore
+        self._func(*self._args, **self._kwargs)
         self._start_timer()
 
     def _call_if_has_pending(self) -> None:
@@ -51,13 +50,16 @@ class _ThrottlerBase:
         """Force a call if there is one pending."""
         self._call_if_has_pending()
 
+    def __call__(self, *args: Any, **kwargs: Any) -> None:
+        raise NotImplementedError("Subclasses must implement this method.")
+
 
 class Throttler(_ThrottlerBase):
     """Class that prevents calling `func` more than once per `interval`.
 
     Parameters
     ----------
-    func : Callable[P, Any]
+    func : Callable[..., Any]
         a function to wrap
     interval : int, optional
         the minimum interval in ms that must pass before the function is called again,
@@ -95,7 +97,7 @@ class Debouncer(_ThrottlerBase):
 
     Parameters
     ----------
-    func : Callable[P, Any]
+    func : Callable[..., Any]
         a function to wrap
     interval : int, optional
         the minimum interval in ms that must pass before the function is called again,
@@ -126,29 +128,11 @@ class Debouncer(_ThrottlerBase):
         self._start_timer()
 
 
-@overload
 def throttled(
-    func: Callable[P, Any],
+    func: Callable[..., Any] | None = None,
     timeout: int = 100,
     leading: bool = True,
-) -> Callable[P, None]:
-    ...
-
-
-@overload
-def throttled(
-    func: Literal[None] = None,
-    timeout: int = 100,
-    leading: bool = True,
-) -> Callable[[Callable[P, Any]], Callable[P, None]]:
-    ...
-
-
-def throttled(
-    func: Callable[P, Any] | None = None,
-    timeout: int = 100,
-    leading: bool = True,
-) -> Callable[P, None] | Callable[[Callable[P, Any]], Callable[P, None]]:
+) -> Callable[..., None] | Callable[[Callable[..., Any]], Callable[..., None]]:
     """Create a throttled function that invokes func at most once per timeout.
 
     The throttled function comes with a `cancel` method to cancel delayed func
@@ -190,36 +174,18 @@ def throttled(
     ```
     """
 
-    def deco(func: Callable[P, Any]) -> Callable[P, None]:
+    def deco(func: Callable[..., Any]) -> Callable[..., None]:
         policy: EmissionPolicy = "leading" if leading else "trailing"
         return Throttler(func, timeout, policy)
 
     return deco(func) if func is not None else deco
 
 
-@overload
 def debounced(
-    func: Callable[P, Any],
+    func: Callable[..., Any] | None = None,
     timeout: int = 100,
     leading: bool = False,
-) -> Callable[P, None]:
-    ...
-
-
-@overload
-def debounced(
-    func: Literal[None] = None,
-    timeout: int = 100,
-    leading: bool = False,
-) -> Callable[[Callable[P, Any]], Callable[P, None]]:
-    ...
-
-
-def debounced(
-    func: Callable[P, Any] | None = None,
-    timeout: int = 100,
-    leading: bool = False,
-) -> Callable[P, None] | Callable[[Callable[P, Any]], Callable[P, None]]:
+) -> Callable[..., None] | Callable[[Callable[..., Any]], Callable[..., None]]:
     """Create a debounced function that delays invoking `func`.
 
     `func` will not be invoked until `timeout` ms have elapsed since the last time
@@ -264,7 +230,7 @@ def debounced(
     ```
     """
 
-    def deco(func: Callable[P, Any]) -> Callable[P, None]:
+    def deco(func: Callable[..., Any]) -> Callable[..., None]:
         policy: EmissionPolicy = "leading" if leading else "trailing"
         return Debouncer(func, timeout, policy)
 
