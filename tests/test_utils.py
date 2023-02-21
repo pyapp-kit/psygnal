@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 from unittest.mock import Mock, call
@@ -36,6 +37,7 @@ def test_event_debugger(capsys):
     assert captured.out == "sig.emit(1, 2)\nsig.emit(3, 4)\n"
 
 
+@pytest.mark.skipif(os.name == "nt", reason="can't rewrite open files on Windows")
 def test_decompile_recompile(monkeypatch):
     import psygnal
 
