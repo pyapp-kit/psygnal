@@ -9,11 +9,13 @@
 [![Documentation Status](https://readthedocs.org/projects/psygnal/badge/?version=latest)](https://psygnal.readthedocs.io/en/latest/?badge=latest)
 [![Benchmarks](https://img.shields.io/badge/⏱-codspeed-%23FF7B53)](https://codspeed.io/pyapp-kit/psygnal)
 
-Psygnal (pronounced "signal") is a pure python implementation of
-[Qt-style Signals](https://doc.qt.io/qt-5/signalsandslots.html) with
-(optional) signature and type checking, and support for threading.
+Psygnal (pronounced "signal") is a pure python implementation of the [observer
+pattern](https://en.wikipedia.org/wiki/Observer_pattern), with the API of
+[Qt-style Signals](https://doc.qt.io/qt-5/signalsandslots.html) with (optional)
+signature and type checking, and support for threading.
 
-> Note: this library does _not_ require Qt. It just implements a similar pattern of inter-object communication with loose coupling.
+> This library does ***not*** require or use Qt in any way, It simply implements
+> a similar observer pattern API.
 
 ## Documentation
 
@@ -31,22 +33,28 @@ conda install -c conda-forge psygnal
 
 ## Usage
 
-A very simple example:
+The [observer pattern](https://en.wikipedia.org/wiki/Observer_pattern) is a software design pattern in which an object maintains a list of its dependents ("**observers**"), and notifies them of any state changes – usually by calling a **callback function** provided by the observer.
+
+Here is a simple example of using psygnal:
 
 ```python
 from psygnal import Signal
 
 class MyObject:
+    # define one or signals as class attributes
     value_changed = Signal(str)
-    shutting_down = Signal()
 
+# create an instance
 my_obj = MyObject()
 
+# You (or others) can connect callbacks to your signals
 @my_obj.value_changed.connect
 def on_change(new_value: str):
     print(f"The value changed to {new_value}!")
 
-my_obj.value_changed.emit('hi')
+# The object may now emit signals when appropriate,
+# (for example in a setter method)
+my_obj.value_changed.emit('hi')  # prints "The value changed to hi!"
 ```
 
 Much more detail available in the [documentation](https://psygnal.readthedocs.io/)!
@@ -86,6 +94,10 @@ See the [dataclass documentation](https://psygnal.readthedocs.io/en/latest/datac
 ## Benchmark history
 
 https://pyapp-kit.github.io/psygnal/
+
+and
+
+https://codspeed.io/pyapp-kit/psygnal
 
 ## Developers
 
