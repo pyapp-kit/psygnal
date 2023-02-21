@@ -9,9 +9,6 @@ then you should be good to go!  `psygnal` aims to be a superset of those APIs
 [`check_nargs`](#connection-safety-number-of-arguments) and
 [`check_types`](#connection-safety-types)).
 
-*Note: the name "`Signal`" is used here instead of `pyqtSignal`, following the
-`qtpy` and `PySide` convention.*
-
 ## Creating a Signal
 
 Generally speaking, you will create a [`Signal`][psygnal.Signal] as an
