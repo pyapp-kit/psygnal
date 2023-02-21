@@ -6,6 +6,8 @@ import sys
 from types import GenericAlias
 from typing import TYPE_CHECKING, Any, Iterator, cast, overload
 
+from typing_extensions import Protocol
+
 if TYPE_CHECKING:
     import attrs
     import msgspec
@@ -13,7 +15,7 @@ if TYPE_CHECKING:
     from typing_extensions import TypeGuard
 
 
-class _DataclassParams:
+class _DataclassParams(Protocol):
     init: bool
     repr: bool
     eq: bool
