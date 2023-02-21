@@ -3,7 +3,8 @@ from __future__ import annotations
 import contextlib
 import dataclasses
 import sys
-from typing import TYPE_CHECKING, Any, Iterator, cast
+from types import GenericAlias
+from typing import TYPE_CHECKING, Any, Iterator, cast, overload
 
 if TYPE_CHECKING:
     import attrs
@@ -28,6 +29,9 @@ class AttrsType:
 _DATACLASS_PARAMS = "__dataclass_params__"
 with contextlib.suppress(ImportError):
     from dataclasses import _DATACLASS_PARAMS  # type: ignore
+_DATACLASS_FIELDS = "__dataclass_fields__"
+with contextlib.suppress(ImportError):
+    from dataclasses import _DATACLASS_FIELDS  # type: ignore
 
 
 class DataClassType:
@@ -35,26 +39,74 @@ class DataClassType:
     __dataclass_fields__: dict[str, dataclasses.Field]
 
 
-def is_dataclass(cls: type) -> TypeGuard[DataClassType]:
-    """Return True if the class is a dataclass."""
-    return dataclasses.is_dataclass(cls)
+@overload
+def is_dataclass(obj: type) -> TypeGuard[type[DataClassType]]:
+    ...
 
 
-def is_attrs_class(cls: type) -> TypeGuard[type[AttrsType]]:
+@overload
+def is_dataclass(obj: object) -> TypeGuard[DataClassType]:
+    ...
+
+
+def is_dataclass(obj: object) -> TypeGuard[DataClassType]:
+    """Return True if the object is a dataclass."""
+    cls = (
+        obj
+        if isinstance(obj, type) and not isinstance(obj, GenericAlias)
+        else type(obj)
+    )
+    return hasattr(cls, _DATACLASS_FIELDS)
+
+
+@overload
+def is_attrs_class(obj: type) -> TypeGuard[type[AttrsType]]:
+    ...
+
+
+@overload
+def is_attrs_class(obj: object) -> TypeGuard[AttrsType]:
+    ...
+
+
+def is_attrs_class(obj: object) -> TypeGuard[type[AttrsType]]:
     """Return True if the class is an attrs class."""
     attr = sys.modules.get("attr", None)
+    cls = obj if isinstance(obj, type) else type(obj)
     return attr.has(cls) if attr is not None else False  # type: ignore [no-any-return]
 
 
-def is_pydantic_model(cls: type) -> TypeGuard[BaseModel]:
+@overload
+def is_pydantic_model(obj: type) -> TypeGuard[type[BaseModel]]:
+    ...
+
+
+@overload
+def is_pydantic_model(obj: object) -> TypeGuard[BaseModel]:
+    ...
+
+
+def is_pydantic_model(obj: object) -> TypeGuard[BaseModel]:
     """Return True if the class is a pydantic BaseModel."""
     pydantic = sys.modules.get("pydantic", None)
+    cls = obj if isinstance(obj, type) else type(obj)
     return pydantic is not None and issubclass(cls, pydantic.BaseModel)
 
 
-def is_msgspec_struct(cls: type) -> TypeGuard[msgspec.Struct]:
+@overload
+def is_msgspec_struct(obj: type) -> TypeGuard[type[msgspec.Struct]]:
+    ...
+
+
+@overload
+def is_msgspec_struct(obj: object) -> TypeGuard[msgspec.Struct]:
+    ...
+
+
+def is_msgspec_struct(obj: object) -> TypeGuard[msgspec.Struct]:
     """Return True if the class is a `msgspec.Struct`."""
     msgspec = sys.modules.get("msgspec", None)
+    cls = obj if isinstance(obj, type) else type(obj)
     return msgspec is not None and issubclass(cls, msgspec.Struct)
 
 
