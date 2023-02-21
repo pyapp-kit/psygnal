@@ -3,22 +3,18 @@ from __future__ import annotations
 import contextlib
 import dataclasses
 import sys
-from typing import TYPE_CHECKING, Any, Iterator, cast, overload
+import types
+from typing import TYPE_CHECKING, Any, Iterator, List, cast, overload
 
 from typing_extensions import Protocol
-
-try:
-    from types import GenericAlias
-except ImportError:
-    from typing import List
-
-    GenericAlias = type(List[int])  # type: ignore
 
 if TYPE_CHECKING:
     import attrs
     import msgspec
     from pydantic import BaseModel
     from typing_extensions import TypeGuard
+
+GenericAlias = getattr(types, "GenericAlias", type(List[int]))  # safe for < py 3.9
 
 
 class _DataclassParams(Protocol):
