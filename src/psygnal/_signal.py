@@ -473,7 +473,11 @@ class SignalInstance:
                         extra = f"- Slot types {slot_sig} do not match types in signal."
                         self._raise_connection_error(slot, extra)
 
-                cb = weak_callback(  # type: ignore
+                # this type ignore could be fixed with ParamSpec, but that's not yet
+                # supported by mypyc.  we need cb to be a WeakCallback[R], but we can't
+                # preserve the full typing information of the callback without using
+                # Callable[ParamSpec, R] or a general TypeVar('F', bound=Callable).
+                cb = weak_callback(  # type: ignore [var-annotated]
                     slot,
                     max_args=max_args,
                     finalize=self._try_discard,
@@ -507,7 +511,7 @@ class SignalInstance:
         maxargs: int | None = None,
         *,
         on_ref_error: RefErrorChoice = "warn",
-    ) -> WeakCallback:
+    ) -> WeakCallback[None]:
         """Bind an object attribute to the emitted value of this signal.
 
         Equivalent to calling `self.connect(functools.partial(setattr, obj, attr))`,
@@ -614,7 +618,7 @@ class SignalInstance:
         maxargs: int | None = None,
         *,
         on_ref_error: RefErrorChoice = "warn",
-    ) -> WeakCallback:
+    ) -> WeakCallback[None]:
         """Bind a container item (such as a dict key) to emitted value of this signal.
 
         Equivalent to calling `self.connect(functools.partial(obj.__setitem__, attr))`,
