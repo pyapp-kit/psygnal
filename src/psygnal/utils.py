@@ -1,32 +1,36 @@
 """These utilities may help when using signals and evented objects."""
+from __future__ import annotations
 
 from contextlib import contextmanager
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Iterable, Iterator, Tuple
+from typing import Any, Callable, Generator, Iterator
+from warnings import warn
 
+from ._group import EmissionInfo
 from ._signal import SignalInstance
 
 __all__ = ["monitor_events", "iter_signal_instances"]
 
 
-def _default_event_monitor(signal_name: str, args: Tuple[Any, ...]) -> None:
-    print(f"{signal_name}.emit{args!r}")
+def _default_event_monitor(info: EmissionInfo) -> None:
+    print(f"{info.signal.name}.emit{info.args!r}")
 
 
 @contextmanager
 def monitor_events(
-    obj: Any,
-    logger: Callable[[str, Tuple[Any, ...]], Any] = _default_event_monitor,
+    obj: Any | None = None,
+    logger: Callable[[EmissionInfo], Any] = _default_event_monitor,
     include_private_attrs: bool = False,
 ) -> Iterator[None]:
     """Context manager to print or collect events emitted by SignalInstances on `obj`.
 
     Parameters
     ----------
-    obj : object
+    obj : object, optional
         Any object that has an attribute that has a SignalInstance (or SignalGroup).
-    logger : Callable[[str, Tuple[Any, ...]], None], optional
+        If None, all SignalInstances will be monitored.
+    logger : Callable[[EmissionInfo], None], optional
         A optional function to handle the logging of the event emission.  This function
         must take two positional args: a signal name string, and a tuple that contains
         the emitted arguments. The default logger simply prints the signal name and
@@ -35,25 +39,50 @@ def monitor_events(
         Whether private signals (starting with an underscore) should also be logged,
         by default False
     """
-    disconnectors = []
-    for siginst in iter_signal_instances(obj, include_private_attrs):
+    code = getattr(logger, "__code__", None)
+    _old_api = bool(code and code.co_argcount > 1)
 
-        def _report(*args: Any, signal_name: str = siginst.name) -> None:
-            logger(signal_name, args)
+    if obj is None:
+        # install the hook globally
+        if _old_api:
+            raise ValueError(
+                "logger function must take a single argument (an EmissionInfo instance)"
+            )
+        before, SignalInstance._debug_hook = SignalInstance._debug_hook, logger
+    else:
+        if _old_api:
+            warn(
+                "logger functions must now take a single argument (an instance of "
+                "psygnal.EmissionInfo). Please update your logger function.",
+                stacklevel=2,
+            )
+        disconnectors = set()
+        for siginst in iter_signal_instances(obj, include_private_attrs):
+            if _old_api:
 
-        siginst.connect(_report)
-        disconnectors.append(partial(siginst.disconnect, _report))
+                def _report(*args: Any, signal: SignalInstance = siginst) -> None:
+                    logger(signal.name, args)  # type: ignore
+
+            else:
+
+                def _report(*args: Any, signal: SignalInstance = siginst) -> None:
+                    logger(EmissionInfo(signal, args))
+
+            disconnectors.add(partial(siginst.disconnect, siginst.connect(_report)))
 
     try:
         yield
     finally:
-        for disconnector in disconnectors:
-            disconnector()
+        if obj is None:
+            SignalInstance._debug_hook = before
+        else:
+            for disconnector in disconnectors:
+                disconnector()
 
 
 def iter_signal_instances(
     obj: Any, include_private_attrs: bool = False
-) -> Iterable[SignalInstance]:
+) -> Generator[SignalInstance, None, None]:
     """Yield all `SignalInstance` attributes found on `obj`.
 
     Parameters

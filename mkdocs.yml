@@ -17,6 +17,19 @@ extra_css:
 watch:
   - src/psygnal
 
+nav:
+  - Overview: index.md
+  - Usage: usage.md
+  - Evented Dataclasses: dataclasses.md
+  - API:
+    - Core API: API/index.md
+    - Dataclass Descriptor: API/evented.md
+    - Evented Pydantic Model: API/model.md
+    - Evented Containers: API/containers.md
+    - Throttling & Debouncing: API/throttler.md
+    - Proxy Objects: API/proxy.md
+    - Utilities: API/utilities.md
+
 theme:
   icon:
     logo: material/alarm-light
