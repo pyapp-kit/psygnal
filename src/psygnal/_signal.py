@@ -47,6 +47,8 @@ F = TypeVar("F", bound=Callable)
 
 
 class EmitLoopError(Exception):
+    """Error type raised when an exception occurs during a callback."""
+
     def __init__(self, slot_repr: str, args: tuple, exc: BaseException) -> None:
         self.slot_repr = slot_repr
         self.args = args
