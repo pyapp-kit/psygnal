@@ -17,7 +17,7 @@
     s = Signal(int, str)
     s = Signal(object)
     s = Signal(Signature())
-    s = Signal(1) # E: Argument 1 to "Signal" has incompatible type "int"; expected "Union[Type[Any], Signature]"
+    s = Signal(1) # E: Argument 1 to "Signal" has incompatible type "int"; expected "Union[Type[Any], Signature]"  [arg-type]
 
 - case: signal_emit
   main: |
@@ -31,21 +31,30 @@
 - case: signal_connection
   main: |
     from psygnal import SignalInstance
+    from typing import Any
     s = SignalInstance()
 
-    deco = s.connect(check_nargs=False)
-    reveal_type(deco)  # N: Revealed type is "def (def (*Any, **Any) -> Any) -> def (*Any, **Any) -> Any"
-
-    def a() -> None: ...
+    def a(x: int, y: str) -> Any: ...
     x = s.connect(a)
-    reveal_type(x)  # N: Revealed type is "def (*Any, **Any) -> Any"
+    reveal_type(x)  # N: Revealed type is "def (x: builtins.int, y: builtins.str) -> Any"
 
     @s.connect
     def b() -> None: ...
 
-    def c() -> None: ...
+    def c(x: int, y: str) -> Any: ...
     y = s.connect(c, check_nargs=False)
-    reveal_type(y)  # N: Revealed type is "def (*Any, **Any) -> Any"
+    reveal_type(y)  # N: Revealed type is "def (x: builtins.int, y: builtins.str) -> Any"
 
     @s.connect(check_nargs=False)
     def d() -> None: ...
+
+- case: throttled
+  main: |
+    from psygnal import throttled
+    
+    def a(x: int, y: str) -> bool:
+      return True
+    
+    x = throttled(a)
+    reveal_type(x.__call__)  # N: Revealed type is "def (x: builtins.int, y: builtins.str)"
+    reveal_type(x)  # N: Revealed type is "psygnal._throttler.Throttler[[x: builtins.int, y: builtins.str]]"
