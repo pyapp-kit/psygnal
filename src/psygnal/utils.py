@@ -2,6 +2,7 @@
 
 from contextlib import contextmanager
 from functools import partial
+from pathlib import Path
 from typing import Any, Callable, Iterable, Iterator, Tuple
 
 from ._signal import SignalInstance
@@ -73,3 +74,27 @@ def iter_signal_instances(
             attr = getattr(obj, n)
             if isinstance(attr, SignalInstance):
                 yield attr
+
+
+_COMPILED_EXTS = (".so", ".pyd")
+_BAK = "_BAK"
+
+
+def decompile() -> None:
+    """Mangle names of mypyc-compiled files so that they aren't used.
+
+    This function requires write permissions to the psygnal source directory.
+    """
+    for suffix in _COMPILED_EXTS:
+        for path in Path(__file__).parent.rglob(f"**/*{suffix}"):
+            path.rename(path.with_suffix(f"{suffix}{_BAK}"))
+
+
+def recompile() -> None:
+    """Fix all name-mangled mypyc-compiled files so that they ARE used.
+
+    This function requires write permissions to the psygnal source directory.
+    """
+    for suffix in _COMPILED_EXTS:
+        for path in Path(__file__).parent.rglob(f"**/*{suffix}{_BAK}"):
+            path.rename(path.with_suffix(suffix))

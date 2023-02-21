@@ -15,9 +15,17 @@ Code is compiled using [mypyc](https://mypyc.readthedocs.io/en/latest/index.html
 
 !!! tip
 
-    To run psygnal *without* using the compiled code, set an
-    `PSYGNAL_UNCOMPILED` environment variable to `1`.
-    (You can also just delete the `.so` files in the `psygnal` folder).
+    To run psygnal *without* using the compiled code, run:
+
+    ```bash
+    python -c "import psygnal.utils; psygnal.utils.decompile()
+    ```
+
+    To return the compiled version, run:
+
+    ```bash
+    python -c "import psygnal.utils; psygnal.utils.recompile()
+    ```
 
 ## Quickstart
 

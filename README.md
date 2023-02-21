@@ -91,8 +91,19 @@ https://pyapp-kit.github.io/psygnal/
 
 ### Debugging
 
-While `psygnal` is a pure python module, it is compiled with Cython to increase
-performance.  To import `psygnal` in uncompiled mode, without deleting the
-shared library files from the psyngal module, set the environment variable
-`PSYGNAL_UNCOMPILED` before importing psygnal.  The `psygnal._compiled` variable
-will tell you if you're running the compiled library or not.
+While `psygnal` is a pure python module, it is compiled with mypyc to increase
+performance.  To disable all compiled files and run the pure python version,
+you may run:
+
+```bash
+python -c "import psygnal.utils; psygnal.utils.decompile()
+```
+
+To return the compiled version, run:
+
+```bash
+python -c "import psygnal.utils; psygnal.utils.recompile()
+```
+
+The `psygnal._compiled` variable will tell you if you're using the compiled
+version or not.

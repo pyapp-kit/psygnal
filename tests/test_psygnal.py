@@ -682,9 +682,8 @@ def test_debug_import(monkeypatch):
     monkeypatch.delitem(sys.modules, "psygnal._signal")
     monkeypatch.setenv("PSYGNAL_UNCOMPILED", "1")
 
-    import psygnal
-
-    assert not psygnal._compiled
+    with pytest.warns(UserWarning):
+        import psygnal
 
 
 def test_property_connect():
