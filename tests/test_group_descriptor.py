@@ -1,4 +1,5 @@
 from typing import ClassVar
+from unittest.mock import Mock
 
 import pytest
 
@@ -6,7 +7,7 @@ from psygnal import SignalGroupDescriptor
 
 
 @pytest.mark.parametrize("type_", ["dataclass", "pydantic", "attrs", "msgspec"])
-def test_descriptor_inherits(type_: str):
+def test_descriptor_inherits(type_: str) -> None:
     if type_ == "dataclass":
         from dataclasses import dataclass
 
@@ -26,14 +27,14 @@ def test_descriptor_inherits(type_: str):
     elif type_ == "pydantic":
         from pydantic import BaseModel
 
-        class Base(BaseModel):  # type: ignore [no-redef]
+        class Base(BaseModel):
             a: int
             events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
 
-        class Foo(Base):  # type: ignore [no-redef]
+        class Foo(Base):
             b: str
 
-        class Bar(Foo):  # type: ignore [no-redef]
+        class Bar(Foo):
             c: float
 
     elif type_ == "attrs":
@@ -55,7 +56,7 @@ def test_descriptor_inherits(type_: str):
     elif type_ == "msgspec":
         msgspec = pytest.importorskip("msgspec")
 
-        class Base(msgspec.Struct):
+        class Base(msgspec.Struct):  # type: ignore
             a: int
             events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
 
@@ -70,6 +71,18 @@ def test_descriptor_inherits(type_: str):
     base = Base(a=1)
     foo = Foo(a=1, b="2")
     bar = Bar(a=1, b="2", c=3.0)
-    assert set(base.events._signals_) == {"a"}
-    assert set(foo.events._signals_) == {"a", "b"}
-    assert set(bar.events._signals_) == {"a", "b", "c"}
+    assert set(base.events.signals) == {"a"}
+    assert set(foo.events.signals) == {"a", "b"}
+    assert set(bar.events.signals) == {"a", "b", "c"}
+
+    mock = Mock()
+    foo.events.a.connect(mock)
+
+    base.events.a.emit(1)
+    mock.assert_not_called()
+
+    bar.events.a.emit(1)
+    mock.assert_not_called()
+
+    foo.events.a.emit(1)
+    mock.assert_called_once_with(1)
