@@ -4,7 +4,7 @@ from psygnal import EmissionInfo, Signal
 from psygnal.utils import monitor_events
 
 
-def test_event_debugger(capsys):
+def test_event_debugger(capsys) -> None:
     """Test that the event debugger works"""
 
     class M:
@@ -32,3 +32,25 @@ def test_event_debugger(capsys):
 
     captured = capsys.readouterr()
     assert captured.out == "sig.emit(1, 2)\nsig.emit(3, 4)\n"
+
+
+def test_monitor_all() -> None:
+    class M:
+        sig = Signal(int, int)
+
+    m1 = M()
+    m2 = M()
+    _logger = Mock()
+
+    with monitor_events(logger=_logger):
+        m1.sig.emit(1, 2)
+        m2.sig.emit(3, 4)
+        m1.sig.emit(5, 6)
+        m2.sig.emit(7, 8)
+
+    assert _logger.call_args_list == [
+        call(EmissionInfo(m1.sig, (1, 2))),
+        call(EmissionInfo(m2.sig, (3, 4))),
+        call(EmissionInfo(m1.sig, (5, 6))),
+        call(EmissionInfo(m2.sig, (7, 8))),
+    ]

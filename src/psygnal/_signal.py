@@ -36,6 +36,7 @@ from psygnal._weak_callback import (
 if TYPE_CHECKING:
     from typing_extensions import Literal
 
+    from ._group import EmissionInfo
     from ._weak_callback import RefErrorChoice
 
     ReducerFunc = Callable[[tuple, tuple], tuple]
@@ -287,6 +288,7 @@ class SignalInstance:
 
     _is_blocked: bool = False
     _is_paused: bool = False
+    _debug_hook: ClassVar[Callable[[EmissionInfo], None] | None] = None
 
     def __init__(
         self,
@@ -881,6 +883,11 @@ class SignalInstance:
         if self._is_paused:
             self._args_queue.append(args)
             return None
+
+        if SignalInstance._debug_hook is not None:
+            from ._group import EmissionInfo
+
+            SignalInstance._debug_hook(EmissionInfo(self, args))
 
         if asynchronous:
             sd = EmitThread(self, args)
