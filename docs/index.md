@@ -18,13 +18,13 @@ Code is compiled using [mypyc](https://mypyc.readthedocs.io/en/latest/index.html
     To run psygnal *without* using the compiled code, run:
 
     ```bash
-    python -c "import psygnal.utils; psygnal.utils.decompile()
+    python -c "import psygnal.utils; psygnal.utils.decompile()"
     ```
 
     To return the compiled version, run:
 
     ```bash
-    python -c "import psygnal.utils; psygnal.utils.recompile()
+    python -c "import psygnal.utils; psygnal.utils.recompile()"
     ```
 
 ## Quickstart
