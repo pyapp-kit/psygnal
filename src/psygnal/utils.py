@@ -1,4 +1,5 @@
 """These utilities may help when using signals and evented objects."""
+from __future__ import annotations
 
 from contextlib import contextmanager
 from functools import partial
