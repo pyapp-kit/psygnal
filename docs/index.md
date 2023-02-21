@@ -64,7 +64,7 @@ In addition to the `Signal` object, psygnal contains:
 - an ["evented" pydantic model](API/model.md) that emits signals whenever a model field changes
 - [throttling/debouncing](API/throttler.md) decorators
 - an experimental ["evented object proxy"](API/proxy.md)
-- a few other [utilties](API/utilities.md) for dealing with events.
+- a few other [utilities](API/utilities.md) for dealing with events.
 
 ## Installation
 

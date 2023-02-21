@@ -58,11 +58,17 @@ def evented(
 ) -> Union[Callable[[T], T], T]:
     """A decorator to add events to a dataclass.
 
-    Supports [dataclass][dataclasses.dataclass], [attrs](https://www.attrs.org),
-    [msgspec](https://jcristharif.com/msgspec/) and
-    [pydantic](https://pydantic-docs.helpmanual.io) models.
+    See also the documentation for
+    [`SignalGroupDescriptor`][psygnal.SignalGroupDescriptor].  This decorator is
+    equivalent setting a class variable named `events` to a new
+    `SignalGroupDescriptor` instance.
 
     Note that this decorator will modify `cls` *in place*, as well as return it.
+
+    !!!tip
+        It is recommended to use the `SignalGroupDescriptor` descriptor rather than
+        the decorator, as it it is more explicit and provides for easier static type
+        inference.
 
     Parameters
     ----------
