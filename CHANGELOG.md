@@ -1,8 +1,40 @@
 # Changelog
 
-## [0.7.2](https://github.com/pyapp-kit/psygnal/tree/0.7.2) (2023-02-11)
+## [v0.8.0](https://github.com/pyapp-kit/psygnal/tree/v0.8.0) (2023-02-21)
 
-[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.7.1...0.7.2)
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.7.2...v0.8.0)
+
+**Implemented enhancements:**
+
+- feat: compile throttler module, improve typing [\#187](https://github.com/pyapp-kit/psygnal/pull/187) ([tlambert03](https://github.com/tlambert03))
+- feat: improved `monitor_events` [\#181](https://github.com/pyapp-kit/psygnal/pull/181) ([tlambert03](https://github.com/tlambert03))
+- feat: make SignalGroupDescriptor public [\#173](https://github.com/pyapp-kit/psygnal/pull/173) ([tlambert03](https://github.com/tlambert03))
+
+**Fixed bugs:**
+
+- fix: fix inheritance of classes with a SignalGroupDescriptor [\#186](https://github.com/pyapp-kit/psygnal/pull/186) ([tlambert03](https://github.com/tlambert03))
+- fix: minor typing fixes on `connect` [\#180](https://github.com/pyapp-kit/psygnal/pull/180) ([tlambert03](https://github.com/tlambert03))
+- fix: add getattr to signalgroup for typing [\#174](https://github.com/pyapp-kit/psygnal/pull/174) ([tlambert03](https://github.com/tlambert03))
+
+**Tests & CI:**
+
+- test: no cover compile funcs [\#185](https://github.com/pyapp-kit/psygnal/pull/185) ([tlambert03](https://github.com/tlambert03))
+- ci: add evented benchmark [\#175](https://github.com/pyapp-kit/psygnal/pull/175) ([tlambert03](https://github.com/tlambert03))
+- ci: add codspeed benchmarks [\#170](https://github.com/pyapp-kit/psygnal/pull/170) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- docs: small docs updates, document EmissionLoopError [\#184](https://github.com/pyapp-kit/psygnal/pull/184) ([tlambert03](https://github.com/tlambert03))
+- refactor: remove PSYGNAL\_UNCOMPILED flag. [\#183](https://github.com/pyapp-kit/psygnal/pull/183) ([tlambert03](https://github.com/tlambert03))
+- docs: adding spellchecking to docs [\#182](https://github.com/pyapp-kit/psygnal/pull/182) ([tlambert03](https://github.com/tlambert03))
+- docs: update evented docs to descript SignalGroupDescriptor [\#179](https://github.com/pyapp-kit/psygnal/pull/179) ([tlambert03](https://github.com/tlambert03))
+- refactor: split out SlotCaller logic into new `weak_callable` module... maybe public eventually [\#178](https://github.com/pyapp-kit/psygnal/pull/178) ([tlambert03](https://github.com/tlambert03))
+- refactor: split out dataclass utils [\#176](https://github.com/pyapp-kit/psygnal/pull/176) ([tlambert03](https://github.com/tlambert03))
+- refactor: use weakmethod instead of \_get\_method\_name [\#168](https://github.com/pyapp-kit/psygnal/pull/168) ([tlambert03](https://github.com/tlambert03))
+
+## [v0.7.2](https://github.com/pyapp-kit/psygnal/tree/v0.7.2) (2023-02-11)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.7.1...v0.7.2)
 
 **Fixed bugs:**
 
