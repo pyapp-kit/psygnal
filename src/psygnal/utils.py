@@ -4,6 +4,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from functools import partial
 from typing import Any, Callable, Generator, Iterator
+from warnings import warn
 
 from ._group import EmissionInfo
 from ._signal import SignalInstance
@@ -37,15 +38,34 @@ def monitor_events(
         Whether private signals (starting with an underscore) should also be logged,
         by default False
     """
+    code = getattr(logger, "__code__", None)
+    _old_api = bool(code and code.co_argcount > 1)
+
     if obj is None:
         # install the hook globally
+        if _old_api:
+            raise ValueError(
+                "logger function must take a single argument (an EmissionInfo instance)"
+            )
         before, SignalInstance._debug_hook = SignalInstance._debug_hook, logger
     else:
+        if _old_api:
+            warn(
+                "logger functions must now take a single argument (an instance of "
+                "psygnal.EmissionInfo). Please update your logger function.",
+                stacklevel=2,
+            )
         disconnectors = set()
         for siginst in iter_signal_instances(obj, include_private_attrs):
+            if _old_api:
 
-            def _report(*args: Any, signal: SignalInstance = siginst) -> None:
-                logger(EmissionInfo(signal, args))
+                def _report(*args: Any, signal: SignalInstance = siginst) -> None:
+                    logger(signal.name, args)  # type: ignore
+
+            else:
+
+                def _report(*args: Any, signal: SignalInstance = siginst) -> None:
+                    logger(EmissionInfo(signal, args))
 
             disconnectors.add(partial(siginst.disconnect, siginst.connect(_report)))
 
