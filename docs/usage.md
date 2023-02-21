@@ -61,7 +61,7 @@ obj.value_changed.connect(on_value_changed)
 obj.set_value('hello!')  # prints: 'The new value is 'hello!'
 ```
 
-### `connect` as a decorator
+### Using `connect` as a Decorator
 
 `.connect()` returns the object that it is passed, and so
 can be used as a decorator.
@@ -74,7 +74,7 @@ def some_other_callback(value):
 obj.set_value('world!') # prints: "I also received: 'world!'"
 ```
 
-### disconnecting callbacks
+### Disconnecting Callbacks
 
 Callbacks can be disconnected using
 [`disconnect`][psygnal.SignalInstance.disconnect]
@@ -83,12 +83,12 @@ Callbacks can be disconnected using
 obj.value_changed.disconnect(on_value_changed)
 ```
 
-## Connection safety
+## Connection Safety
 
 The [`connect`][psygnal.SignalInstance.connect] method provides
 a number of "safety" measures:
 
-### too many arguments
+### Too Many Arguments
 
 By default `psygnal` prevents you from connecting a callback function that is
 ***guaranteed to fail*** due to an incompatible number of positional arguments.
@@ -115,7 +115,7 @@ Accepted signature: (p0: str, /)
 *Note: Positional argument checking can be disabled with `connect(...,
 check_nargs=False)`*
 
-### too few arguments
+### Too Few Arguments
 
 While a callback may not require *more* positional arguments than the signature
 of the `Signal` to which it is connecting, it *may* accept less. Extra arguments
@@ -136,7 +136,7 @@ obj.value_changed.connect(no_args_please)
 obj.value_changed.emit('hi')  # prints: "{}"
 ```
 
-### type checking
+### Type Checking
 
 For type safety when connecting slots, use `check_types=True` when connecting a
 callback.  Recall that our signal was declared as accepting a string
@@ -164,9 +164,9 @@ Accepted signature: (p0: str, /)
 *Note: unlike Qt, `psygnal` does **not** perform any type coercion when emitting
 a value.*
 
-### weak references
+### Weak References
 
-psygnal tries very hard not to hold strong references to connected objects.
+Psygnal tries very hard not to hold strong references to connected objects.
 In the simplest case, if you connect a bound method as a callback to a signal
 instance:
 
@@ -205,10 +205,9 @@ and helps you avoid leaking strong references to `obj`:
 signal.connect_setatttr(obj, 'x')
 ```
 
-## Querying the sender
+## Querying the Sender
 
-Your callback may occasionally need to know which signal
-invoked the callback.
+Your callback may occasionally need to know which signal invoked the callback.
 
 Similar to Qt's [`QObject.sender()`](https://doc.qt.io/qt-5/qobject.html#sender)
 method, a callback can query the sender using the `Signal.sender()` class
@@ -232,7 +231,7 @@ obj.value_changed.emit(10)
 *If you want the actual signal instance that is emitting the signal
 (`obj.value_changed` in the above example), use `Signal.current_emitter()`.*
 
-## Asynchronous signal emission
+## Asynchronous Signal Emission
 
 There is experimental support for calling all connected slots in another
 thread, using `emit(..., asynchronous=True)`
@@ -282,7 +281,7 @@ asynchronous=True)`.
 used during important state mutations) it is not guaranteed.  Please use at your
 own risk. Issues/PRs welcome.
 
-## Blocking a signal
+## Blocking a Signal
 
 To temporarily block a signal, use the `signal.blocked()` context context manager:
 
@@ -297,7 +296,7 @@ with obj.value_changed.blocked():
 To block/unblock permanently (outside of a context manager), use `signal.block()`
 and `signal.unblock()`.
 
-## Pausing a signal
+## Pausing a Signal
 
 Sometimes it is useful to temporarily collect/buffer emission events, and then emit
 them together as a single event.  This can be accomplished using the
@@ -332,4 +331,24 @@ For example, the three `emit()` events above would be collected as*
 
 ```python
 obj.emit(*functools.reduce(reducer, [('a',), ('b',), ('c',)]))
+```
+
+## Exceptions in Callbacks
+
+If an exception is raised in a callback, it will be immediately re-raised as a
+`psygnal.EmitLoopError` from the original exception.  The original exception
+will be available at the `__cause__` attribute of the `EmitLoopError` and
+should appear higher up in the stack trace.
+
+If you would like to *ignore* exceptions that occur in callbacks (e.g. if you
+want to make sure that all other connected callbacks are still called), you can
+use the `suppress` context manager from the `contextlib` module when emitting
+the signal:
+
+```python
+from contextlib import suppress
+from psygnal import EmitLoopError
+
+with suppress(EmitLoopError):
+    obj.emitter.emit(...)
 ```
