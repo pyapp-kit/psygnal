@@ -80,10 +80,17 @@ plugins:
             # show_bases: true
             # group_by_category: true
             # heading_level: 2
-            members_order: alphabetical  # alphabetical/source
+            members_order: alphabetical # alphabetical/source
 
             ## experimental
             # separate_signature: false
             # line_length: 60
             # show_submodules: true
-            docstring_section_style: list  # or table/list/spacy
+            docstring_section_style: list # or table/list/spacy
+  - spellcheck:
+      backends: # the backends you want to use
+        - codespell: # or nested configs
+            dictionaries: [clear, rare]
+
+      # known_words can also be a list of words
+      # known_words: known_words.txt

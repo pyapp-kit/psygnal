@@ -43,7 +43,7 @@ print(john)  # prints: Person(name='John', age=30)
 
 ### ... in third-party libraries
 
-There are multiple hird-party libraries that also implement this pattern, or
+There are multiple third-party libraries that also implement this pattern, or
 something similar:
 
 - [pydantic](https://pydantic-docs.helpmanual.io/) provides a
@@ -268,7 +268,7 @@ john.age = 31  # prints: John's age changed to 31.
 ```
 
 You can also connect to the `SignalGroup` itself to listen to *any*
-changes on the obect:
+changes on the object:
 
 ```python
 from psygnal import EmissionInfo
