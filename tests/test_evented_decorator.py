@@ -14,7 +14,6 @@ from psygnal import (
     get_evented_namespace,
     is_evented,
 )
-from psygnal._group_descriptor import evented_setattr
 
 decorated_or_descriptor = pytest.mark.parametrize(
     "decorator", [True, False], ids=["decorator", "descriptor"]
@@ -181,8 +180,6 @@ def test_msgspec_struct(decorator: bool) -> None:
             baz: str
             qux: np.ndarray
             events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
-
-        Foo.__setattr__ = evented_setattr(Foo, "events")  # type: ignore [assignment]
 
     _check_events(Foo)
 
