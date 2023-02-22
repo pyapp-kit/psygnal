@@ -161,15 +161,7 @@ There are two (related) APIs for adding events to dataclasses:
                 name: str
                 age: int = 0
                 events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
-
-            # haven't yet figured out a more elegant way to do this
-            from psygnal._group_descriptor import evented_setattr
-            Foo.__setattr__ = evented_setattr(Foo, "events")
             ```
-
-            !!!warning
-                As you can see, using the descriptor with `msgspec` still requires using a private API.  If you find this API useful and would like to see it public, please
-                [open an issue](https://github.com/pyapp-kit/psygnal/issues/new)
 
         === "attrs"
 
