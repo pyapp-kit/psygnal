@@ -262,7 +262,7 @@ class SignalGroupDescriptor:
     bound to the instance, with a [`SignalInstance`][psygnal.SignalInstance] for each
     field in the dataclass.
 
-    !!!noote
+    !!!important
         Using this descriptor will *patch* the class's `__setattr__` method to emit
         events when fields change. (That patching occurs on first access of the
         descriptor name on an instance).  To prevent this patching, you can set
@@ -279,9 +279,9 @@ class SignalGroupDescriptor:
         @dataclass
         class Foo:
             x: int
-            events: ClassVar = SignalGroupDescriptor(patch_setattr=False)
+            _events: ClassVar = SignalGroupDescriptor(patch_setattr=False)
 
-            @evented_setattr("events")  # pass the name of your SignalGroup
+            @evented_setattr("_events")  # pass the name of your SignalGroup
             def __setattr__(self, name: str, value: Any) -> None:
                 super().__setattr__(name, value)
         ```
