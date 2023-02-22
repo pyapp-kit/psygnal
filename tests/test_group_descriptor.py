@@ -153,3 +153,33 @@ def test_direct_patching() -> None:
     foo.a = 2
     mock.assert_called_once_with(2)  # confirm no double event emission
     mock1.assert_called_with("a", 2)
+
+
+def test_no_getattr_on_non_evented_fields() -> None:
+    """Make sure that we're not accidentally calling getattr on non-evented fields."""
+    a_mock = Mock()
+    b_mock = Mock()
+
+    @dataclass
+    class Foo:
+        a: int
+        events: ClassVar = SignalGroupDescriptor()
+
+        @property
+        def b(self) -> int:
+            b_mock(self._b)
+            return self._b
+
+        @b.setter
+        def b(self, value: int) -> None:
+            self._b = value
+
+    foo = Foo(a=1)
+    foo.events.a.connect(a_mock)
+    foo.a = 2
+    a_mock.assert_called_once_with(2)
+
+    foo.b = 1
+    b_mock.assert_not_called()  # getter shouldn't have been called
+    assert foo.b == 1
+    b_mock.assert_called_once_with(1)  # getter should have been called only once
