@@ -6,17 +6,9 @@ import sys
 import warnings
 import weakref
 from functools import lru_cache
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Iterable,
-    Literal,
-    Type,
-    TypeVar,
-    cast,
-    overload,
-)
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Type, TypeVar, cast, overload
+
+from typing_extensions import Literal
 
 from ._dataclass_utils import iter_fields
 from ._group import SignalGroup
