@@ -94,3 +94,7 @@ def attribute_access(num: int = 100_000, repeat: int = 20) -> None:
         print(f"{type_} (no events): {wo_events:.3f} µs")
         print(f"{type_} (with events): {w_events:.3f} µs")
         print(f"{type_} (with events): {w_events / wo_events:.3f}x slower")
+
+
+if __name__ == "__main__":
+    attribute_access()
