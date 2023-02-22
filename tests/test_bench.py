@@ -2,11 +2,12 @@ import sys
 from dataclasses import dataclass
 from functools import partial
 from inspect import signature
-from typing import Callable
+from typing import Callable, ClassVar
+from unittest.mock import Mock
 
 import pytest
 
-from psygnal import Signal, SignalInstance, evented
+from psygnal import EmissionInfo, Signal, SignalGroupDescriptor, SignalInstance, evented
 
 if all(x not in {"--codspeed", "--benchmark", "tests/test_bench.py"} for x in sys.argv):
     pytest.skip("use --benchmark to run benchmark", allow_module_level=True)
@@ -141,3 +142,85 @@ def test_evented_setattr(benchmark: Callable) -> None:
     _ = obj.events  # type: ignore
 
     benchmark(setattr, obj, "x", 1)
+
+
+def _get_dataclass(type_: str) -> type:
+    if type_ == "attrs":
+        from attrs import define
+
+        @define
+        class Foo:
+            a: int
+            b: str
+            c: bool
+            d: float
+            e: tuple[int, str]
+            events: ClassVar = SignalGroupDescriptor()
+
+    elif type_ == "dataclass":
+
+        @dataclass
+        class Foo:  # type: ignore [no-redef]
+            a: int
+            b: str
+            c: bool
+            d: float
+            e: tuple[int, str]
+            events: ClassVar = SignalGroupDescriptor()
+
+    elif type_ == "msgspec":
+        import msgspec
+
+        class Foo(msgspec.Struct):  # type: ignore [no-redef]
+            a: int
+            b: str
+            c: bool
+            d: float
+            e: tuple[int, str]
+            events: ClassVar = SignalGroupDescriptor()
+
+    elif type_ == "pydantic":
+        from pydantic import BaseModel
+
+        class Foo(BaseModel):  # type: ignore [no-redef]
+            a: int
+            b: str
+            c: bool
+            d: float
+            e: tuple[int, str]
+            events: ClassVar = SignalGroupDescriptor()
+
+    return Foo
+
+
+@pytest.mark.parametrize("type_", ["dataclass", "pydantic", "attrs", "msgspec"])
+def test_dataclass_group_create(type_: str, benchmark: Callable) -> None:
+    if type_ == "msgspec":
+        pytest.importorskip("msgspec")
+
+    Foo = _get_dataclass(type_)
+    foo = Foo(a=1, b="hi", c=True, d=1.0, e=(1, "hi"))
+    benchmark(getattr, foo, "events")
+
+
+@pytest.mark.parametrize("type_", ["dataclass", "pydantic", "attrs", "msgspec"])
+def test_dataclass_setattr(type_: str, benchmark: Callable) -> None:
+    if type_ == "msgspec":
+        pytest.importorskip("msgspec")
+
+    Foo = _get_dataclass(type_)
+    foo = Foo(a=1, b="hi", c=True, d=1.0, e=(1, "hi"))
+    mock = Mock()
+    foo.events.connect(mock)
+
+    def _doit() -> None:
+        foo.a = 2
+        foo.b = "hello"
+        foo.c = False
+        foo.d = 2.0
+        foo.e = (2, "hello")
+
+    benchmark(_doit)
+    for newval, attr in zip([2, "hello", False, 2.0, (2, "hello")], "abcde"):
+        mock.assert_any_call(EmissionInfo(getattr(foo.events, attr), (newval,)))
+        assert getattr(foo, attr) == newval
