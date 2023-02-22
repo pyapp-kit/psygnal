@@ -70,7 +70,8 @@ def _check_field_equality(
         True if the values are equal, False otherwise.
     """
     if before is _NULL:
-        return after is _NULL
+        # field didn't exist to begin with (unlikely)
+        return after is _NULL  # pragma: no cover
 
     eq_map = _get_eq_operator_map(cls)
 
@@ -169,14 +170,15 @@ class _changes_emitted:
         self._before: Any = getattr(self.obj, self.field, _NULL)
 
     def __exit__(self, *args: Any) -> None:
-        if self.signal is None:
+        if self.signal is None:  # pragma: no cover
+            # there was no signal for this field
             return
         after: Any = getattr(self.obj, self.field, _NULL)
         if not _check_field_equality(type(self.obj), self.field, self._before, after):
             self.signal.emit(after)
 
 
-SetAttr = Callable[[object, str, Any], None]
+SetAttr = Callable[[Any, str, Any], None]
 
 
 @overload
