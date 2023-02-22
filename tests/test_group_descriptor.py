@@ -4,7 +4,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from psygnal import SignalGroupDescriptor, _group_descriptor
+from psygnal import SignalGroupDescriptor, _compiled, _group_descriptor
 
 
 @pytest.mark.parametrize("type_", ["dataclass", "pydantic", "attrs", "msgspec"])
@@ -84,7 +84,8 @@ def test_descriptor_inherits(type_: str) -> None:
         assert set(foo.events.signals) == {"a", "b"}
         assert set(bar.events.signals) == {"a", "b", "c"}
         assert set(bar2.events.signals) == {"a", "b", "c"}
-        assert mock_decorator.call_count == 1
+        if not _compiled:  # can't patch otherwise
+            assert mock_decorator.call_count == 1
 
     mock = Mock()
     foo.events.a.connect(mock)
@@ -116,7 +117,8 @@ def test_no_patching(patch_setattr: bool) -> None:
     ) as mock_decorator:
         foo = Foo(a=1)
         foo._events
-        assert mock_decorator.call_count == int(patch_setattr)
+        if not _compiled:  # can't patch otherwise
+            assert mock_decorator.call_count == int(patch_setattr)
 
     assert _group_descriptor.is_evented(Foo.__setattr__) == patch_setattr
     mock = Mock()
