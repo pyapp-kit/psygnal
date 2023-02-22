@@ -159,23 +159,18 @@ def get_evented_namespace(obj: object) -> str | None:
 
 
 class _changes_emitted:
-    def __init__(self, obj: object, field: str, signal_group_name: str) -> None:
+    def __init__(self, obj: object, field: str, signal: SignalInstance) -> None:
         self.obj = obj
         self.field = field
-
-        group = getattr(obj, signal_group_name, None)
-        self.signal = cast("SignalInstance | None", getattr(group, field, None))
+        self.signal = signal
 
     def __enter__(self) -> None:
-        self._before: Any = getattr(self.obj, self.field, _NULL)
+        self._prev = getattr(self.obj, self.field, _NULL)
 
     def __exit__(self, *args: Any) -> None:
-        if self.signal is None:  # pragma: no cover
-            # there was no signal for this field
-            return
-        after: Any = getattr(self.obj, self.field, _NULL)
-        if not _check_field_equality(type(self.obj), self.field, self._before, after):
-            self.signal.emit(after)
+        new: Any = getattr(self.obj, self.field, _NULL)
+        if not _check_field_equality(type(self.obj), self.field, self._prev, new):
+            self.signal.emit(new)
 
 
 SetAttr = Callable[[Any, str, Any], None]
@@ -235,7 +230,12 @@ def evented_setattr(
             if name == signal_group_name:
                 return super_setattr(self, name, value)
 
-            with _changes_emitted(self, name, signal_group_name):
+            group = getattr(self, signal_group_name, None)
+            signal = cast("SignalInstance | None", getattr(group, name, None))
+            if signal is None:
+                return super_setattr(self, name, value)
+
+            with _changes_emitted(self, name, signal):
                 super_setattr(self, name, value)
 
         setattr(_setattr_and_emit_, PATCHED_BY_PSYGNAL, True)
