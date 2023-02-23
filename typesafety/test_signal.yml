@@ -51,10 +51,10 @@
 - case: throttled
   main: |
     from psygnal import throttled
-    
+
     def a(x: int, y: str) -> bool:
       return True
-    
+
     x = throttled(a)
     reveal_type(x.__call__)  # N: Revealed type is "def (x: builtins.int, y: builtins.str)"
     reveal_type(x)  # N: Revealed type is "psygnal._throttler.Throttler[[x: builtins.int, y: builtins.str]]"
