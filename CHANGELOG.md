@@ -1,8 +1,8 @@
 # Changelog
 
-## [v0.8.0](https://github.com/pyapp-kit/psygnal/tree/v0.8.0) (2023-02-22)
+## [0.8.0](https://github.com/pyapp-kit/psygnal/tree/0.8.0) (2023-02-23)
 
-[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.7.2...v0.8.0)
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.7.2...0.8.0)
 
 **Implemented enhancements:**
 
@@ -18,6 +18,7 @@
 
 **Tests & CI:**
 
+- ci: add dataclasses benchmarks [\#189](https://github.com/pyapp-kit/psygnal/pull/189) ([tlambert03](https://github.com/tlambert03))
 - test: no cover compile funcs [\#185](https://github.com/pyapp-kit/psygnal/pull/185) ([tlambert03](https://github.com/tlambert03))
 - ci: add evented benchmark [\#175](https://github.com/pyapp-kit/psygnal/pull/175) ([tlambert03](https://github.com/tlambert03))
 - ci: add codspeed benchmarks [\#170](https://github.com/pyapp-kit/psygnal/pull/170) ([tlambert03](https://github.com/tlambert03))
