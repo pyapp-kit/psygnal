@@ -1,4 +1,4 @@
-.PHONY: build check clean benchmark-all benchmark-compare
+.PHONY: build check clean benchmark-all benchmark-compare typetest
 
 build:
 	HATCH_BUILD_HOOKS_ENABLE=1 pip install -e .
@@ -35,3 +35,6 @@ benchmark-compare:
 	asv run --interleave-processes --skip-existing main^!
 	asv run --interleave-processes HEAD^!
 	asv compare --split --factor 1.15 main HEAD
+
+typetest:
+	pytest typesafety --mypy-only-local-stub
