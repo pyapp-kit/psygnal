@@ -8,6 +8,8 @@ import weakref
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Type, TypeVar, cast, overload
 
+from typing_extensions import Literal
+
 from ._dataclass_utils import iter_fields
 from ._group import SignalGroup
 from ._signal import Signal
@@ -25,6 +27,7 @@ EqOperator = Callable[[Any, Any], bool]
 _EQ_OPERATORS: dict[type, dict[str, EqOperator]] = {}
 _EQ_OPERATOR_NAME = "__eq_operators__"
 PSYGNAL_GROUP_NAME = "_psygnal_group_"
+PATCHED_BY_PSYGNAL = "_patched_by_psygnal_"
 _NULL = object()
 
 
@@ -67,7 +70,8 @@ def _check_field_equality(
         True if the values are equal, False otherwise.
     """
     if before is _NULL:
-        return after is _NULL
+        # field didn't exist to begin with (unlikely)
+        return after is _NULL  # pragma: no cover
 
     eq_map = _get_eq_operator_map(cls)
 
@@ -125,8 +129,11 @@ def _build_dataclass_signal_group(
 
 
 def is_evented(obj: object) -> bool:
-    """Return `True` if the object or its class has been decorated with evented."""
-    return hasattr(obj, PSYGNAL_GROUP_NAME)
+    """Return `True` if the object or its class has been decorated with evented.
+
+    This also works for a __setattr__ method that has been patched by psygnal.
+    """
+    return hasattr(obj, PSYGNAL_GROUP_NAME) or hasattr(obj, PATCHED_BY_PSYGNAL)
 
 
 def get_evented_namespace(obj: object) -> str | None:
@@ -151,9 +158,39 @@ def get_evented_namespace(obj: object) -> str | None:
     return getattr(obj, PSYGNAL_GROUP_NAME, None)
 
 
+class _changes_emitted:
+    def __init__(self, obj: object, field: str, signal: SignalInstance) -> None:
+        self.obj = obj
+        self.field = field
+        self.signal = signal
+
+    def __enter__(self) -> None:
+        self._prev = getattr(self.obj, self.field, _NULL)
+
+    def __exit__(self, *args: Any) -> None:
+        new: Any = getattr(self.obj, self.field, _NULL)
+        if not _check_field_equality(type(self.obj), self.field, self._prev, new):
+            self.signal.emit(new)
+
+
+SetAttr = Callable[[Any, str, Any], None]
+
+
+@overload
+def evented_setattr(signal_group_name: str, super_setattr: SetAttr) -> SetAttr:
+    ...
+
+
+@overload
 def evented_setattr(
-    owner: type[S], signal_group_name: str
-) -> Callable[[S, str, Any], None]:
+    signal_group_name: str, super_setattr: Literal[None] = None
+) -> Callable[[SetAttr], SetAttr]:
+    ...
+
+
+def evented_setattr(
+    signal_group_name: str, super_setattr: SetAttr | None = None
+) -> SetAttr | Callable[[SetAttr], SetAttr]:
     """Create a new __setattr__ method that emits events when fields change.
 
     `signal_group_name` must point to an attribute on the `self` object provided to
@@ -176,35 +213,35 @@ def evented_setattr(
 
     Parameters
     ----------
-    owner: type
-        The class that will have a new __setattr__ method.
     signal_group_name : str, optional
         The name of the attribute on `self` that holds the `SignalGroup` instance, by
         default "_psygnal_group_".
+    super_setattr: Callable
+        The original __setattr__ method for the class.
     """
 
-    def _setattr_and_emit_(self: Any, _attr_name: str, _value: Any) -> None:
-        """New __setattr__ method that emits events when fields change."""
-        # get the signal group
-        sig_group = getattr(self, signal_group_name, None)
-        # if we don't have a signal instance for this attribute, just set it.
-        if sig_group is None or not hasattr(sig_group, _attr_name):  # pragma: no cover
-            super(owner, self).__setattr__(_attr_name, _value)
-            return
+    def _inner(super_setattr: SetAttr) -> SetAttr:
+        # don't patch twice
+        if getattr(super_setattr, PATCHED_BY_PSYGNAL, False):
+            return super_setattr
 
-        # grab current value
-        before = getattr(self, _attr_name, _NULL)
+        def _setattr_and_emit_(self: object, name: str, value: Any) -> None:
+            """New __setattr__ method that emits events when fields change."""
+            if name == signal_group_name:
+                return super_setattr(self, name, value)
 
-        # set value using original setter
-        super(owner, self).__setattr__(_attr_name, _value)
+            group = getattr(self, signal_group_name, None)
+            signal = cast("SignalInstance | None", getattr(group, name, None))
+            if signal is None:
+                return super_setattr(self, name, value)
 
-        # check the new value and emit the event if different
-        after = getattr(self, _attr_name)
-        if not _check_field_equality(owner, _attr_name, before, after):
-            signal_instance = cast("SignalInstance", getattr(sig_group, _attr_name))
-            signal_instance.emit(after)
+            with _changes_emitted(self, name, signal):
+                super_setattr(self, name, value)
 
-    return _setattr_and_emit_
+        setattr(_setattr_and_emit_, PATCHED_BY_PSYGNAL, True)
+        return _setattr_and_emit_
+
+    return _inner(super_setattr) if super_setattr else _inner
 
 
 class SignalGroupDescriptor:
@@ -218,6 +255,33 @@ class SignalGroupDescriptor:
     the descriptor on an instance, it will create a [`SignalGroup`][psygnal.SignalGroup]
     bound to the instance, with a [`SignalInstance`][psygnal.SignalInstance] for each
     field in the dataclass.
+
+    !!!important
+        Using this descriptor will *patch* the class's `__setattr__` method to emit
+        events when fields change. (That patching occurs on first access of the
+        descriptor name on an instance).  To prevent this patching, you can set
+        `patch_setattr=False` when creating the descriptor, but then you will need to
+        manually call `emit` on the appropriate `SignalInstance` when you want to emit
+        an event.  Or you can use `evented_setattr` yourself
+
+        ```python
+        from psygnal._group_descriptor import evented_setattr
+        from psygnal import SignalGroupDescriptor
+        from dataclasses import dataclass
+        from typing import ClassVar
+
+        @dataclass
+        class Foo:
+            x: int
+            _events: ClassVar = SignalGroupDescriptor(patch_setattr=False)
+
+            @evented_setattr("_events")  # pass the name of your SignalGroup
+            def __setattr__(self, name: str, value: Any) -> None:
+                super().__setattr__(name, value)
+        ```
+
+        *This currently requires a private import, please open an issue if you would
+        like to depend on this functionality.*
 
     Parameters
     ----------
@@ -240,6 +304,11 @@ class SignalGroupDescriptor:
         access, but means that the owner instance will no longer be pickleable.  If
         `False`, the SignalGroup instance will *still* be cached, but not on the
         instance itself.
+    patch_setattr : bool, optional
+        If `True` (the default), a new `__setattr__` method will be created that emits
+        events when fields change.  If `False`, no `__setattr__` method will be
+        created.  (This will prevent signal emission, and assumes you are using a
+        different mechanism to emit signals when fields change.)
 
     Examples
     --------
@@ -267,30 +336,40 @@ class SignalGroupDescriptor:
         signal_group_class: type[SignalGroup] | None = None,
         warn_on_no_fields: bool = True,
         cache_on_instance: bool = True,
+        patch_setattr: bool = True,
     ):
         self._signal_group = signal_group_class
         self._name: str | None = None
         self._eqop = tuple(equality_operators.items()) if equality_operators else None
         self._warn_on_no_fields = warn_on_no_fields
         self._cache_on_instance = cache_on_instance
+        self._patch_setattr = patch_setattr
 
     def __set_name__(self, owner: type, name: str) -> None:
         """Called when this descriptor is added to class `owner` as attribute `name`."""
         self._name = name
+        with contextlib.suppress(AttributeError):
+            # This is the flag that identifies this object as evented
+            setattr(owner, PSYGNAL_GROUP_NAME, name)
+
+    def _do_patch_setattr(self, owner: type) -> None:
+        """Patch the owner class's __setattr__ method to emit events."""
+        if not self._patch_setattr:
+            return
+        if getattr(owner.__setattr__, PATCHED_BY_PSYGNAL, False):
+            return
 
         try:
             # assign a new __setattr__ method to the class
-            owner.__setattr__ = evented_setattr(owner, name)  # type: ignore
+            owner.__setattr__ = evented_setattr(  # type: ignore
+                self._name, owner.__setattr__  # type: ignore
+            )
         except Exception as e:  # pragma: no cover
             # not sure what might cause this ... but it will have consequences
             raise type(e)(
                 f"Could not update __setattr__ on class: {owner}. Events will not be "
                 "emitted when fields change."
             ) from e
-
-        with contextlib.suppress(AttributeError):
-            # This is the flag that identifies this object as evented
-            setattr(owner, PSYGNAL_GROUP_NAME, name)
 
     # map of id(obj) -> SignalGroup
     # cached here in case the object isn't modifiable
@@ -311,29 +390,20 @@ class SignalGroupDescriptor:
         if instance is None:
             return self
 
-        obj_id = id(instance)
         # if we haven't yet instantiated a SignalGroup for this instance,
-        # do it now and cache it.  Note that we cache it here rather than
-        # on the instance in case the instance is not modifiable.
+        # do it now and cache it.  Note that we cache it here in addition to
+        # the instance (in case the instance is not modifiable).
+        obj_id = id(instance)
         if obj_id not in self._instance_map:
-            grp_cls = self._signal_group
-            if grp_cls is None:
-                grp_cls = _build_dataclass_signal_group(owner, self._eqop)
-            if self._warn_on_no_fields and not grp_cls._signals_:
-                warnings.warn(
-                    f"No mutable fields found on class {owner}: no events will be "
-                    "emitted. (Is this a dataclass, attrs, msgspec, or pydantic model?)"
-                )
-
-            group = grp_cls(instance)
             # cache it
-            self._instance_map[obj_id] = group
+            self._instance_map[obj_id] = self._create_group(owner)(instance)
             # also *try* to set it on the instance as well, since it will skip all the
             # __get__ logic in the future, but if it fails, no big deal.
             if self._name and self._cache_on_instance:
                 with contextlib.suppress(Exception):
                     setattr(instance, self._name, self._instance_map[obj_id])
 
+            # clean up the cache when the instance is deleted
             with contextlib.suppress(TypeError):
                 # mypy says too many attributes for weakref.finalize, but it's wrong.
                 weakref.finalize(  # type: ignore [call-arg]
@@ -341,3 +411,13 @@ class SignalGroupDescriptor:
                 )
 
         return self._instance_map[obj_id]
+
+    def _create_group(self, owner: type) -> type[SignalGroup]:
+        Group = self._signal_group or _build_dataclass_signal_group(owner, self._eqop)
+        if self._warn_on_no_fields and not Group._signals_:
+            warnings.warn(
+                f"No mutable fields found on class {owner}: no events will be "
+                "emitted. (Is this a dataclass, attrs, msgspec, or pydantic model?)"
+            )
+        self._do_patch_setattr(owner)
+        return Group

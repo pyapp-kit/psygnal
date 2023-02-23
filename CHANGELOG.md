@@ -1,6 +1,6 @@
 # Changelog
 
-## [v0.8.0](https://github.com/pyapp-kit/psygnal/tree/v0.8.0) (2023-02-21)
+## [v0.8.0](https://github.com/pyapp-kit/psygnal/tree/v0.8.0) (2023-02-22)
 
 [Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.7.2...v0.8.0)
 
@@ -24,6 +24,7 @@
 
 **Merged pull requests:**
 
+- refactor: change patching of \_\_setattr\_\_ in SignalGroupDescriptor, make more explicit [\#188](https://github.com/pyapp-kit/psygnal/pull/188) ([tlambert03](https://github.com/tlambert03))
 - docs: small docs updates, document EmissionLoopError [\#184](https://github.com/pyapp-kit/psygnal/pull/184) ([tlambert03](https://github.com/tlambert03))
 - refactor: remove PSYGNAL\_UNCOMPILED flag. [\#183](https://github.com/pyapp-kit/psygnal/pull/183) ([tlambert03](https://github.com/tlambert03))
 - docs: adding spellchecking to docs [\#182](https://github.com/pyapp-kit/psygnal/pull/182) ([tlambert03](https://github.com/tlambert03))

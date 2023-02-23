@@ -161,15 +161,7 @@ There are two (related) APIs for adding events to dataclasses:
                 name: str
                 age: int = 0
                 events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
-
-            # haven't yet figured out a more elegant way to do this
-            from psygnal._group_descriptor import evented_setattr
-            Foo.__setattr__ = evented_setattr(Foo, "events")
             ```
-
-            !!!warning
-                As you can see, using the descriptor with `msgspec` still requires using a private API.  If you find this API useful and would like to see it public, please
-                [open an issue](https://github.com/pyapp-kit/psygnal/issues/new)
 
         === "attrs"
 
@@ -323,3 +315,23 @@ class Person:
     a `SignalInstance`.
 
     If you have any ideas for how to improve this, please let me know!
+
+## Performance cost of evented dataclasses
+
+Adding signal emission on every field change is definitely not without cost, as
+it requires 2 additional `getattr` calls and an equality check for every field
+change.
+
+The scale of the penalty will depend on the flavor of dataclass you are using,
+with fast dataclasses like `msgspec` taking a much bigger hit than slower ones.
+
+The following table shows the minimum time it took (on my computer) to set an
+attribute on a dataclass, with and without signal emission. (Timed using `timeit`,
+with 20 repeats of 100,000 iterations each).
+
+| dataclass | without signals | with signals | penalty (fold slower) |
+| ---------     | ------- | ------- | ----- |
+| `pydantic`    | 0.300 µs  | 1.860 µs  |  6.20 |
+| `dataclasses` | 0.023 µs  | 1.316 µs  | 57.37 |
+| `msgspec`     | 0.021 µs  | 1.545 µs  | 72.61 |
+| `attrs`       | 0.020 µs  | 1.531 µs  | 76.13 |
