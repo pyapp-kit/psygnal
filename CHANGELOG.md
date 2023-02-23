@@ -1,8 +1,20 @@
 # Changelog
 
-## [0.8.0](https://github.com/pyapp-kit/psygnal/tree/0.8.0) (2023-02-23)
+## [0.8.1](https://github.com/pyapp-kit/psygnal/tree/0.8.1) (2023-02-23)
 
-[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.7.2...0.8.0)
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.8.0...0.8.1)
+
+**Fixed bugs:**
+
+- fix: fix strict signal group checking when signatures aren't hashable [\#192](https://github.com/pyapp-kit/psygnal/pull/192) ([tlambert03](https://github.com/tlambert03))
+
+**Tests & CI:**
+
+- test: add back typesafety tests [\#190](https://github.com/pyapp-kit/psygnal/pull/190) ([tlambert03](https://github.com/tlambert03))
+
+## [v0.8.0](https://github.com/pyapp-kit/psygnal/tree/v0.8.0) (2023-02-23)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.7.2...v0.8.0)
 
 **Implemented enhancements:**
 
