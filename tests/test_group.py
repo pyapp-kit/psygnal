@@ -1,7 +1,7 @@
-from typing import Annotated
 from unittest.mock import Mock, call
 
 import pytest
+from typing_extensions import Annotated
 
 from psygnal import EmissionInfo, Signal, SignalGroup
 
