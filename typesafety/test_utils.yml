@@ -1,0 +1,33 @@
+- case: throttled
+  main: |
+    from psygnal import throttled
+
+    def a(x: int, y: str) -> bool:
+      return True
+
+    x = throttled(a)
+    reveal_type(x.__call__)  # N: Revealed type is "def (x: builtins.int, y: builtins.str)"
+    reveal_type(x)           # N: Revealed type is "psygnal._throttler.Throttler[[x: builtins.int, y: builtins.str]]"
+
+- case: debounced
+  main: |
+    from psygnal import debounced
+
+    def a(x: int, y: str) -> bool:
+      return True
+
+    x = debounced(a)
+    reveal_type(x.__call__)  # N: Revealed type is "def (x: builtins.int, y: builtins.str)"
+    reveal_type(x)           # N: Revealed type is "psygnal._throttler.Debouncer[[x: builtins.int, y: builtins.str]]"
+
+- case: weak_callback
+  main: |
+    from psygnal._weak_callback import weak_callback
+
+    def a(x: int, y: str) -> bool:
+      return True
+
+    x = weak_callback(a)
+    reveal_type(x)           # N: Revealed type is "psygnal._weak_callback.WeakCallback[builtins.bool]"
+    reveal_type(x.cb)        # N: Revealed type is "def (args: builtins.tuple[Any, ...] =)"
+    reveal_type(x.__call__)  # N: Revealed type is "def (*args: Any, **kwds: Any) -> builtins.bool"
