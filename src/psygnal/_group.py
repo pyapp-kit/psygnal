@@ -252,9 +252,9 @@ class SignalGroup(SignalInstance):
 
 def _is_uniform(signals: Iterable[Signal]) -> bool:
     """Return True if all signals have the same signature."""
-    seen: set[str] = set()
+    seen: set[tuple[str, ...]] = set()
     for s in signals:
-        v = str(s.signature)
+        v = tuple(str(p.annotation) for p in s.signature.parameters.values())
         if seen and v not in seen:  # allow zero or one
             return False
         seen.add(v)
