@@ -45,7 +45,6 @@ dev = [
     "pydantic",
     "PyQt5",
     "pytest-cov",
-    "pytest-mypy-plugins",
     "pytest-qt",
     "pytest",
     "qtpy",
