@@ -120,6 +120,21 @@ jobs:
         with:
           run: python -m pytest magicgui/tests -v --color=yes
 
+  typing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+      - name: install
+        run: |
+          python -m pip install -U pip
+          python -m pip install -e .
+          python -m pip install pytest pytest-mypy-plugins
+      - name: test
+        run: pytest typesafety --mypy-only-local-stub --color=yes
+
   benchmarks:
     runs-on: ubuntu-latest
     steps:
