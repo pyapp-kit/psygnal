@@ -97,11 +97,8 @@ class SignalGroup(SignalInstance):
             v = getattr(cls, k)
             if isinstance(v, Signal):
                 cls._signals_[k] = v
-        _sigs = {
-            tuple(p.annotation for p in s.signature.parameters.values())
-            for s in cls._signals_.values()
-        }
-        cls._uniform = len(_sigs) == 1
+
+        cls._uniform = _is_uniform(cls._signals_.values())
         if strict and not cls._uniform:
             raise TypeError(
                 "All Signals in a strict SignalGroup must have the same signature"
@@ -253,26 +250,12 @@ class SignalGroup(SignalInstance):
         return f"<SignalGroup{name} with {signals}{instance}>"
 
 
-# _doc = SignalGroup.connect.__doc__.split("Parameters")[-1]  # type: ignore
-
-
-# SignalGroup.connect.__doc__ = (
-#     """
-#         Connect `slot` to be called whenever *any* Signal in this group is emitted.
-
-#         Note that unlike a slot/callback connected to `SignalInstance.connect`, a slot
-#         connected to `SignalGroup.connect` does *not* receive the direct arguments
-#         that were emitted by a given `SignalInstance` in the group. Instead, the
-#         slot/callback will receive an `EmissionInfo` named tuple, which contains
-#         `.signal`: the SignalInstance doing the emitting, `.args`: the args that were
-#         emitted.
-
-#         This method may be used as a decorator.
-
-#             @group.connect
-#             def my_function(): ...
-
-#         Parameters
-# """.strip()
-#     + _doc
-# )
+def _is_uniform(signals: Iterable[Signal]) -> bool:
+    """Return True if all signals have the same signature."""
+    seen: set[str] = set()
+    for s in signals:
+        v = str(s.signature)
+        if seen and v not in seen:  # allow zero or one
+            return False
+        seen.add(v)
+    return True
