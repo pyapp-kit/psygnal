@@ -1,6 +1,7 @@
 from unittest.mock import Mock, call
 
 import pytest
+from typing_extensions import Annotated
 
 from psygnal import EmissionInfo, Signal, SignalGroup
 
@@ -40,6 +41,22 @@ def test_uniform_group():
             sig2 = Signal(int)
 
     assert str(e.value).startswith("All Signals in a strict SignalGroup must")
+
+
+def test_nonhashable_args():
+    """Test that non-hashable annotations are allowed in a SignalGroup"""
+
+    class MyGroup(SignalGroup):
+        sig1 = Signal(Annotated[int, {"a": 1}])  # type: ignore
+        sig2 = Signal(Annotated[float, {"b": 1}])  # type: ignore
+
+    assert not MyGroup.is_uniform()
+
+    with pytest.raises(TypeError):
+
+        class MyGroup2(SignalGroup, strict=True):
+            sig1 = Signal(Annotated[int, {"a": 1}])  # type: ignore
+            sig2 = Signal(Annotated[float, {"b": 1}])  # type: ignore
 
 
 @pytest.mark.parametrize("direct", [True, False])
