@@ -1332,13 +1332,16 @@ def _guess_qtsignal_signature(obj: Any) -> str | None:
     qualname = getattr(obj, "__qualname__", "")
     if qualname == "pyqtBoundSignal.emit":
         return cast("str", obj.__self__.signal)
+
+    # note: this IS all actually covered in tests... but only in the Qt tests,
+    # so it (annoyingly) briefly looks like it fails coverage.
     if qualname == "SignalInstance.emit" and type_.__name__.startswith("builtin"):
         # we likely have the emit method of a SignalInstance
         # call it with ridiculous params to get the err
-        return _ridiculously_call_emit(obj.__self__.emit)
+        return _ridiculously_call_emit(obj.__self__.emit)  # pragma: no cover
     if "SignalInstance" in type_.__name__ and "QtCore" in getattr(
         type_, "__module__", ""
-    ):
+    ):  # pragma: no cover
         return _ridiculously_call_emit(obj.emit)
     return None
 
@@ -1346,7 +1349,9 @@ def _guess_qtsignal_signature(obj: Any) -> str | None:
 _CRAZY_ARGS = (1,) * 255
 
 
-def _ridiculously_call_emit(emitter: Any) -> str | None:
+# note: this IS all actually covered in tests... but only in the Qt tests,
+# so it (annoyingly) briefly looks like it fails coverage.
+def _ridiculously_call_emit(emitter: Any) -> str | None:  # pragma: no cover
     """Call SignalInstance emit() to get the signature from err message."""
     try:
         emitter(*_CRAZY_ARGS)
