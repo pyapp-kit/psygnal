@@ -11,7 +11,12 @@ except ImportError:
     )
     from importlib_metadata import files as package_files  # type: ignore[no-redef]
 
-CURRENT_DIR = Path(__file__).parent
+try:
+    import psygnal
+
+    PSYGNAL_DIR = Path(psygnal.__file__).parent
+except ImportError:
+    PSYGNAL_DIR = Path(__file__).parent.parent
 
 
 def binary_files(file_list: Iterable[Union[PackagePath, Path]]) -> List[Path]:
@@ -34,11 +39,11 @@ def create_hiddenimports() -> List[str]:
     if not modules:
         # This is a workaround for a bug in importlib.metadata in editable mode
 
-        src_path = CURRENT_DIR.parent.parent
+        src_path = PSYGNAL_DIR.parent
 
         modules = [
             x.relative_to(src_path)
-            for x in binary_files(CURRENT_DIR.parent.iterdir())
+            for x in binary_files(PSYGNAL_DIR.iterdir())
             + binary_files(src_path.iterdir())
         ]
 

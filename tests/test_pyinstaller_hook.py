@@ -23,5 +23,6 @@ def test_pyintstaller_hiddenimports(tmp_path: Path) -> None:
         str(app),
     ]
     with pytest.warns():
+        # silence warnings about deprecations
         pyi_main.run(args)
     subprocess.run([str(dist_path / app_name / app_name)], check=True)
