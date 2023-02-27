@@ -36,7 +36,7 @@ def create_hiddenimports() -> List[str]:
 
     modules = binary_files(files_list)
 
-    if not modules:
+    if len(modules) < 2:
         # This is a workaround for a bug in importlib.metadata in editable mode
 
         src_path = PSYGNAL_DIR.parent
