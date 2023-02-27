@@ -1,6 +1,7 @@
 import importlib.util
 import os
 import subprocess
+import warnings
 from pathlib import Path
 
 import pytest
@@ -23,7 +24,9 @@ def test_hook_content():
 
 
 def test_pyintstaller_hiddenimports(tmp_path: Path) -> None:
-    with pytest.warns():
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+
         from PyInstaller import __main__ as pyi_main
 
     build_path = tmp_path / "build"
@@ -42,7 +45,9 @@ def test_pyintstaller_hiddenimports(tmp_path: Path) -> None:
         str(tmp_path),
         str(app),
     ]
-    with pytest.warns():
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
         # silence warnings about deprecations
         pyi_main.run(args)
     subprocess.run([str(dist_path / app_name / app_name)], check=True)
