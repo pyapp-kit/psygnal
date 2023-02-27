@@ -1,6 +1,7 @@
 import subprocess
 from pathlib import Path
 
+import pytest
 from PyInstaller import __main__ as pyi_main
 
 
@@ -21,5 +22,6 @@ def test_pyintstaller_hiddenimports(tmp_path: Path) -> None:
         str(tmp_path),
         str(app),
     ]
-    pyi_main.run(args)
+    with pytest.warns():
+        pyi_main.run(args)
     subprocess.run([str(dist_path / app_name / app_name)], check=True)
