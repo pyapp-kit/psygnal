@@ -1,7 +1,15 @@
-from importlib.metadata import PackageNotFoundError, PackagePath
-from importlib.metadata import files as package_files
 from pathlib import Path
 from typing import Iterable, List, Union
+
+try:
+    from importlib.metadata import PackageNotFoundError, PackagePath
+    from importlib.metadata import files as package_files
+except ImportError:
+    from importlib_metadata import (  # type: ignore[no-redef]
+        PackageNotFoundError,
+        PackagePath,
+    )
+    from importlib_metadata import files as package_files  # type: ignore[no-redef]
 
 CURRENT_DIR = Path(__file__).parent
 
@@ -10,7 +18,7 @@ def binary_files(file_list: Iterable[Union[PackagePath, Path]]) -> List[Path]:
     return [Path(file) for file in file_list if file.suffix in {".so", ".pyd"}]
 
 
-def create_hiddenimports() -> list[str]:
+def create_hiddenimports() -> List[str]:
     res = ["mypy_extensions", "__future__"]
 
     try:
