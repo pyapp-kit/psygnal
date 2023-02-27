@@ -201,6 +201,7 @@ exclude_lines = [
 ]
 [tool.coverage.run]
 source = ["src"]
+omit = ["src/psygnal/_pyinstaller_util/hook-psygnal.py"]
 
 # https://github.com/mgedmin/check-manifest#configuration
 [tool.check-manifest]
