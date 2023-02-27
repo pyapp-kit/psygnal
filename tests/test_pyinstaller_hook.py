@@ -1,8 +1,24 @@
+import importlib.util
+import os
 import subprocess
 from pathlib import Path
 
 import pytest
 from PyInstaller import __main__ as pyi_main
+
+import psygnal
+
+
+def test_hook_content():
+    spec = importlib.util.spec_from_file_location(
+        "hook",
+        os.path.join(
+            os.path.dirname(psygnal.__file__), "_pyinstaller_util", "hook-psygnal.py"
+        ),
+    )
+    hook = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(hook)
+    assert "psygnal._dataclass_utils" in hook.hiddenimports
 
 
 def test_pyintstaller_hiddenimports(tmp_path: Path) -> None:
