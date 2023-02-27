@@ -4,12 +4,9 @@ import subprocess
 import warnings
 from pathlib import Path
 
-import pytest
-
 import psygnal
 
 
-@pytest.mark.skipif(not psygnal._compiled, reason="Compiled psygnal not found")
 def test_hook_content():
     spec = importlib.util.spec_from_file_location(
         "hook",
@@ -19,6 +16,11 @@ def test_hook_content():
     )
     hook = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(hook)
+
+    assert "mypy_extensions" in hook.hiddenimports
+
+    if not psygnal._compiled:
+        return
 
     assert "psygnal._dataclass_utils" in hook.hiddenimports
 
