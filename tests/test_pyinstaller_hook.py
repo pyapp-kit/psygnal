@@ -4,7 +4,6 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from PyInstaller import __main__ as pyi_main
 
 import psygnal
 
@@ -24,6 +23,9 @@ def test_hook_content():
 
 
 def test_pyintstaller_hiddenimports(tmp_path: Path) -> None:
+    with pytest.warns():
+        from PyInstaller import __main__ as pyi_main
+
     build_path = tmp_path / "build"
     dist_path = tmp_path / "dist"
     app_name = "psygnal_test"
