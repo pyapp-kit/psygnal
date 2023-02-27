@@ -168,7 +168,7 @@ testpaths = ["tests"]
 filterwarnings = [
     "error",
     "ignore:The distutils package is deprecated:DeprecationWarning:",
-    "ignore:BackendFinder.find_spec() not found; falling back to find_module()", # pyinstaller import
+    "ignore:BackendFinder.find_spec()", # pyinstaller import
 ]
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
