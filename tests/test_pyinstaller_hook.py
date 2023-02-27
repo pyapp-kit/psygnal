@@ -19,7 +19,10 @@ def test_hook_content():
     )
     hook = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(hook)
-    assert "psygnal._dataclass_utils" in hook.hiddenimports
+
+    assert "psygnal._dataclass_utils" in hook.hiddenimports, list(
+        hook.PSYGNAL_DIR.iterdir()
+    )
 
 
 def test_pyintstaller_hiddenimports(tmp_path: Path) -> None:
