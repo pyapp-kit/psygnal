@@ -9,6 +9,7 @@ from PyInstaller import __main__ as pyi_main
 import psygnal
 
 
+@pytest.mark.skipif(not psygnal._compiled, reason="Compiled psygnal not found")
 def test_hook_content():
     spec = importlib.util.spec_from_file_location(
         "hook",
