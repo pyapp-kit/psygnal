@@ -66,6 +66,7 @@ test = [
     "dask",
     "numpy",
     "pydantic",
+    "pyinstaller>=4.0",
     "pytest>=6.0",
     "pytest-codspeed",
     "pytest-cov",
@@ -78,6 +79,9 @@ testqt = ["pytest-qt", "qtpy"]
 homepage = "https://github.com/pyapp-kit/psygnal"
 repository = "https://github.com/pyapp-kit/psygnal"
 documentation = "https://psygnal.readthedocs.io"
+
+[project.entry-points.pyinstaller40]
+hook-dirs = "psygnal._pyinstaller_util._pyinstaller_hook:get_hook_dirs"
 
 [tool.hatch.version]
 source = "vcs"
@@ -164,6 +168,7 @@ testpaths = ["tests"]
 filterwarnings = [
     "error",
     "ignore:The distutils package is deprecated:DeprecationWarning:",
+    "ignore:.*BackendFinder.find_spec()", # pyinstaller import
 ]
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
@@ -196,6 +201,7 @@ exclude_lines = [
 ]
 [tool.coverage.run]
 source = ["src"]
+omit = ["src/psygnal/_pyinstaller_util/hook-psygnal.py"]
 
 # https://github.com/mgedmin/check-manifest#configuration
 [tool.check-manifest]
