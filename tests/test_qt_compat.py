@@ -1,5 +1,7 @@
 """qtbot should work for testing!"""
+from threading import Thread, current_thread, main_thread
 from typing import TYPE_CHECKING, Any, Callable, Tuple
+from unittest.mock import Mock
 
 import pytest
 
@@ -98,3 +100,39 @@ def test_connect_qt_signal_instance(qtbot: "QtBot") -> None:
     with pytest.raises(ValueError):
         e.sig1.connect(q_obj.qsig2.emit)
     e.sig1.emit()
+
+
+def test_q_main_thread_emit(qtbot: "QtBot") -> None:
+    """Test using signal.emit(..., queue=True)
+
+    ... and receiving it on the main thread with a QTimer connected to `emit_queued`
+    """
+    from qtpy.QtCore import QTimer
+
+    class C:
+        sig = Signal(int)
+
+    obj = C()
+
+    timer = QTimer()
+    timer.timeout.connect(obj.sig.emit_queued)
+    timer.start(0)
+
+    ARGS = (1,)
+
+    def _emit_from_thread() -> None:
+        assert current_thread() is not main_thread()
+        obj.sig.emit(*ARGS, queue=True)
+
+    mock = Mock()
+
+    def _cb(*args: int) -> bool:
+        mock(current_thread())
+        return args == ARGS
+
+    with qtbot.waitSignal(obj.sig, timeout=1000, check_params_cb=_cb):
+        t = Thread(target=_emit_from_thread)
+        t.start()
+        t.join()
+
+    mock.assert_called_once_with(main_thread())

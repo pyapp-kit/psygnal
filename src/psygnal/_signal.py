@@ -7,6 +7,7 @@ import weakref
 from contextlib import contextmanager, suppress
 from functools import lru_cache, reduce
 from inspect import Parameter, Signature, isclass
+from queue import Queue
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -330,6 +331,7 @@ class SignalInstance:
         self._is_blocked: bool = False
         self._is_paused: bool = False
         self._lock = threading.RLock()
+        self._emit_queue: Queue[tuple[tuple, dict]] = Queue()
 
     @property
     def signature(self) -> Signature:
@@ -815,9 +817,10 @@ class SignalInstance:
     def emit(
         self,
         *args: Any,
-        check_nargs: bool = False,
-        check_types: bool = False,
-        asynchronous: Literal[False] = False,
+        queue: bool = ...,
+        check_nargs: bool = ...,
+        check_types: bool = ...,
+        asynchronous: Literal[False] = ...,
     ) -> None:
         ...  # pragma: no cover
 
@@ -825,8 +828,9 @@ class SignalInstance:
     def emit(
         self,
         *args: Any,
-        check_nargs: bool = False,
-        check_types: bool = False,
+        queue: bool = ...,
+        check_nargs: bool = ...,
+        check_types: bool = ...,
         asynchronous: Literal[True],
     ) -> EmitThread | None:
         # will return `None` if emitter is blocked
@@ -835,6 +839,7 @@ class SignalInstance:
     def emit(
         self,
         *args: Any,
+        queue: bool = False,
         check_nargs: bool = False,
         check_types: bool = False,
         asynchronous: bool = False,
@@ -850,6 +855,12 @@ class SignalInstance:
         *args : Any
             These arguments will be passed when calling each slot (unless the slot
             accepts fewer arguments, in which case extra args will be discarded.)
+        queue: bool
+            If `False` (default), invoke connected callbacks immediately. If `True`,
+            add the arguments to a queue to be emitted the next time `emit_queued` is
+            called. This is useful when emitting from a thread other than the main
+            thread.  It is up to the user to call `emit_queued` at the appropriate time,
+            (psygnal doesn't do it for you).
         check_nargs : Optional[bool]
             If `False` and the provided arguments cannot be successfully bound to the
             signature of this Signal, raise `TypeError`.  Incurs some overhead.
@@ -897,6 +908,13 @@ class SignalInstance:
 
             SignalInstance._debug_hook(EmissionInfo(self, args))
 
+        if queue:
+            with self._lock:
+                self._emit_queue.put(
+                    (args, {"queue": False, "asynchronous": asynchronous})
+                )
+            return None
+
         if asynchronous:
             sd = EmitThread(self, args)
             sd.start()
@@ -904,6 +922,53 @@ class SignalInstance:
 
         self._run_emit_loop(args)
         return None
+
+    def emit_queued(self) -> None:
+        """Emit all signals that have been queued with `self.queue_emit()`.
+
+        This method is thread safe.
+
+        This is designed to be called from the main thread in some sort of event
+        loop, and will emit all signals that have been queued with `self.queue_emit()`
+        (which may have been queued from a different thread).
+
+        How you call this method is up to you.  For example, in Qt, you could call it
+        from a QTimer, or from a QEventLoop:
+
+        Examples
+        --------
+        ```python
+        from qtpy.QtCore import QTimer, Qt
+        from psygnal import Signal
+        import threading
+
+        class Emitter:
+            sig = Signal(int)
+
+        obj = Emitter()
+
+        @obj.sig.connect
+        def on_emit(value: int):
+            print(f"got value {value} from thread {threading.current_thread().name!r}")
+
+        # this timer lives in the main thread
+        timer = QTimer()
+        timer.setTimerType(Qt.TimerType.PreciseTimer)
+        # connect the timer to the `emit_queued` method
+        timer.timeout.connect(obj.sig.emit_queued)
+        timer.start(0)
+
+        def _some_thread_that_emits() -> None:
+            # inside the thread call `emit()` with `queue=True`
+            obj.sig.emit(1, queue=True)
+
+        threading.Thread(target=_some_thread_that_emits).start()
+        ```
+        """
+        with self._lock:
+            while not self._emit_queue.empty():
+                args, kwargs = self._emit_queue.get()
+                self.emit(*args, **kwargs)
 
     @overload
     def __call__(
@@ -1081,6 +1146,7 @@ class SignalInstance:
             "_is_blocked",
             "_is_paused",
             "_args_queue",
+            "_emit_queue",
             "_lock",
             "_check_nargs_on_connect",
             "_check_types_on_connect",
