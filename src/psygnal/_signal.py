@@ -953,10 +953,10 @@ class SignalInstance:
 
         # this timer lives in the main thread
         timer = QTimer()
-        timer.setTimerType(Qt.TimerType.PreciseTimer)
-        # connect the timer to the `emit_queued` method
+
+        # whenever the timer times out, it will call `emit_queued`
         timer.timeout.connect(obj.sig.emit_queued)
-        timer.start(0)
+        timer.start(0)  # start the timer
 
         def _some_thread_that_emits() -> None:
             # inside the thread call `emit()` with `queue=True`
