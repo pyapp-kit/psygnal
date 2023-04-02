@@ -967,8 +967,8 @@ class SignalInstance:
         threading.Thread(target=_some_thread_that_emits).start()
         ```
         """
-        if self._emit_queue is None or self._emit_queue.empty():
-            return
+        if self._emit_queue is None:
+            return  # pragma: no cover
 
         while not self._emit_queue.empty():
             args, kwargs = self._emit_queue.get()
