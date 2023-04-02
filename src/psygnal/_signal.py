@@ -331,7 +331,7 @@ class SignalInstance:
         self._is_blocked: bool = False
         self._is_paused: bool = False
         self._lock = threading.RLock()
-        self._emit_queue: Queue[tuple[tuple, dict]] = Queue()
+        self._emit_queue: Queue[tuple[tuple, dict]] | None = None
 
     @property
     def signature(self) -> Signature:
@@ -909,6 +909,11 @@ class SignalInstance:
             SignalInstance._debug_hook(EmissionInfo(self, args))
 
         if queue:
+            # we delay the creation of the queue until the first time it's needed
+            # because it's not needed in the common case where queue=False
+            # and we don't want to incur the overhead of creating it for every instance.
+            if self._emit_queue is None:
+                self._emit_queue = Queue()
             with self._lock:
                 self._emit_queue.put(
                     (args, {"queue": False, "asynchronous": asynchronous})
@@ -965,6 +970,9 @@ class SignalInstance:
         threading.Thread(target=_some_thread_that_emits).start()
         ```
         """
+        if self._emit_queue is None or self._emit_queue.empty():
+            return
+
         with self._lock:
             while not self._emit_queue.empty():
                 args, kwargs = self._emit_queue.get()
@@ -1146,15 +1154,17 @@ class SignalInstance:
             "_is_blocked",
             "_is_paused",
             "_args_queue",
-            "_emit_queue",
             "_lock",
+            "_emit_queue",
             "_check_nargs_on_connect",
             "_check_types_on_connect",
             "__weakref__",
         )
 
         d = {slot: getattr(self, slot) for slot in attrs}
+        # don't pickle the lock or the queue
         d.pop("_lock", None)
+        d.pop("_emit_queue", None)
         return d
 
 

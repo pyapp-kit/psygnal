@@ -349,6 +349,10 @@ def test_defaults():
 
     default_r = R()
 
+    # this line forces the creation of the _emit_queue Queue object.
+    # this makes sure that we can still pickle the D model even with the Queue object.
+    default_r.events.x.emit("there", queue=True)
+
     class D(EventedModel):
         a: int = 1
         b: int = 1
