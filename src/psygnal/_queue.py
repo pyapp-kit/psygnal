@@ -28,7 +28,7 @@ class QueueLike(Protocol[T]):
 
 
 SigArgTuple = Tuple["SignalInstance", tuple]
-SignalQueue = Queue[SigArgTuple]
+SignalQueue = QueueLike[SigArgTuple]
 _GLOBAL_QUEUE: Queue[SigArgTuple] = Queue()
 
 
