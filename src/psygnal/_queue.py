@@ -1,5 +1,5 @@
 from queue import Queue
-from typing import Any, Callable, Tuple
+from typing import Any, Callable, ClassVar, Tuple
 
 from ._weak_callback import WeakCallback
 
@@ -8,7 +8,7 @@ CbArgsTuple = Tuple[Callback, tuple]
 
 
 class QueuedCallback(WeakCallback):
-    _GLOBAL_QUEUE: Queue[CbArgsTuple] = Queue()
+    _GLOBAL_QUEUE: ClassVar[Queue[CbArgsTuple]] = Queue()
 
     def __init__(self, wrapped: WeakCallback) -> None:
         self._wrapped = wrapped
@@ -18,7 +18,7 @@ class QueuedCallback(WeakCallback):
         self._on_ref_error = wrapped._on_ref_error
 
     def cb(self, args: tuple = ()) -> None:
-        self._GLOBAL_QUEUE.put((self._wrapped.cb, args))
+        QueuedCallback._GLOBAL_QUEUE.put((self._wrapped.cb, args))
 
     def dereference(self) -> Callable | None:
         return self._wrapped.dereference()
