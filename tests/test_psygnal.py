@@ -4,7 +4,7 @@ import time
 from contextlib import suppress
 from functools import partial, wraps
 from inspect import Signature
-from typing import Optional
+from typing import Literal, Optional
 from unittest.mock import MagicMock, Mock, call
 
 import pytest
@@ -210,7 +210,8 @@ def test_nested_signal_blocked():
     mock.assert_called_once_with(3)
 
 
-def test_disconnect():
+@pytest.mark.parametrize("connect_type", ["direct", "queued"])
+def test_disconnect(connect_type: Literal["direct", "queued"]) -> None:
     emitter = Emitter()
     mock = MagicMock()
     with pytest.raises(ValueError) as e:
@@ -218,14 +219,17 @@ def test_disconnect():
     assert "slot is not connected" in str(e)
     emitter.one_int.disconnect(mock)
 
-    emitter.one_int.connect(mock)
-    emitter.one_int.emit(1)
-    mock.assert_called_once_with(1)
+    emitter.one_int.connect(mock, type=connect_type)
+    assert len(emitter.one_int) == 1
+    if connect_type == "direct":
+        emitter.one_int.emit(1)
+        mock.assert_called_once_with(1)
+        mock.reset_mock()
 
-    mock.reset_mock()
     emitter.one_int.disconnect(mock)
     emitter.one_int.emit(1)
     mock.assert_not_called()
+    assert len(emitter.one_int) == 0
 
 
 @pytest.mark.parametrize(
