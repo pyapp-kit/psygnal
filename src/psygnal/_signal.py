@@ -7,7 +7,6 @@ import weakref
 from contextlib import contextmanager, suppress
 from functools import lru_cache, reduce
 from inspect import Parameter, Signature, isclass
-from queue import Queue
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -35,10 +34,13 @@ from psygnal._weak_callback import (
     weak_callback,
 )
 
+from ._queue import _GLOBAL_QUEUE
+
 if TYPE_CHECKING:
     from typing_extensions import Literal
 
     from ._group import EmissionInfo
+    from ._queue import SignalQueue
     from ._weak_callback import RefErrorChoice
 
     ReducerFunc = Callable[[tuple, tuple], tuple]
@@ -331,7 +333,6 @@ class SignalInstance:
         self._is_blocked: bool = False
         self._is_paused: bool = False
         self._lock = threading.RLock()
-        self._emit_queue: Queue[tuple[tuple, dict]] | None = None
 
     @property
     def signature(self) -> Signature:
@@ -817,7 +818,7 @@ class SignalInstance:
     def emit(
         self,
         *args: Any,
-        queue: bool = ...,
+        queue: bool | SignalQueue = ...,
         check_nargs: bool = ...,
         check_types: bool = ...,
         asynchronous: Literal[False] = ...,
@@ -828,7 +829,7 @@ class SignalInstance:
     def emit(
         self,
         *args: Any,
-        queue: bool = ...,
+        queue: bool | SignalQueue = ...,
         check_nargs: bool = ...,
         check_types: bool = ...,
         asynchronous: Literal[True],
@@ -839,7 +840,7 @@ class SignalInstance:
     def emit(
         self,
         *args: Any,
-        queue: bool = False,
+        queue: bool | SignalQueue = False,
         check_nargs: bool = False,
         check_types: bool = False,
         asynchronous: bool = False,
@@ -855,12 +856,15 @@ class SignalInstance:
         *args : Any
             These arguments will be passed when calling each slot (unless the slot
             accepts fewer arguments, in which case extra args will be discarded.)
-        queue: bool
-            If `False` (default), invoke connected callbacks immediately. If `True`,
-            add the arguments to a queue to be emitted the next time `emit_queued` is
-            called. This is useful when emitting from a thread other than the main
-            thread.  It is up to the user to call `emit_queued` at the appropriate time,
-            (psygnal doesn't do it for you).
+        queue: bool | SignalQueue
+            If `False` (default), invoke connected callbacks immediately. If `True`, add
+            the arguments to a queue to be emitted the next time `psygnal.emit_queued`
+            is called. This is useful when emitting from a thread other than the main
+            thread.  It is up to the user to call `psygnal.emit_queued` at the
+            appropriate time, (psygnal doesn't do it for you).
+            A `queue.Queue` instance can also be provided, in which case the signal
+            args will be added to that queue, and the user is responsible for calling
+            `psygnal.emit_queued(queue_instance)` to emit from that queue.
         check_nargs : Optional[bool]
             If `False` and the provided arguments cannot be successfully bound to the
             signature of this Signal, raise `TypeError`.  Incurs some overhead.
@@ -909,12 +913,15 @@ class SignalInstance:
             SignalInstance._debug_hook(EmissionInfo(self, args))
 
         if queue:
-            # we delay the creation of the queue until the first time it's needed
-            # because it's not needed in the common case where queue=False
-            # and we don't want to incur the overhead of creating it for every instance.
-            if self._emit_queue is None:
-                self._emit_queue = Queue()
-            self._emit_queue.put((args, {"queue": False, "asynchronous": asynchronous}))
+            if asynchronous:
+                raise ValueError(
+                    "Cannot use `asynchronous=True` with `queue=True`.  "
+                    "If you are emitting from a thread other than the main thread, "
+                    "you can use `queue=True` to queue the emission for later, and "
+                    "then call `emit_queued` from the main thread."
+                )
+            q = _GLOBAL_QUEUE if queue is True else queue
+            q.put((self, args))
             return None
 
         if asynchronous:
@@ -924,55 +931,6 @@ class SignalInstance:
 
         self._run_emit_loop(args)
         return None
-
-    def emit_queued(self) -> None:
-        """Emit all signals that have been queued with `self.queue_emit()`.
-
-        This method is thread safe.
-
-        This is designed to be called from the main thread in some sort of event
-        loop, and will emit all signals that have been queued with `self.queue_emit()`
-        (which may have been queued from a different thread).
-
-        How you call this method is up to you.  For example, in Qt, you could call it
-        from a QTimer, or from a QEventLoop:
-
-        Examples
-        --------
-        ```python
-        from qtpy.QtCore import QTimer, Qt
-        from psygnal import Signal
-        import threading
-
-        class Emitter:
-            sig = Signal(int)
-
-        obj = Emitter()
-
-        @obj.sig.connect
-        def on_emit(value: int):
-            print(f"got value {value} from thread {threading.current_thread().name!r}")
-
-        # this timer lives in the main thread
-        timer = QTimer()
-
-        # whenever the timer times out, it will call `emit_queued`
-        timer.timeout.connect(obj.sig.emit_queued)
-        timer.start(0)  # start the timer
-
-        def _some_thread_that_emits() -> None:
-            # inside the thread call `emit()` with `queue=True`
-            obj.sig.emit(1, queue=True)
-
-        threading.Thread(target=_some_thread_that_emits).start()
-        ```
-        """
-        if self._emit_queue is None:
-            return  # pragma: no cover
-
-        while not self._emit_queue.empty():
-            args, kwargs = self._emit_queue.get()
-            self.emit(*args, **kwargs)
 
     @overload
     def __call__(
@@ -1151,7 +1109,6 @@ class SignalInstance:
             "_is_paused",
             "_args_queue",
             "_lock",
-            "_emit_queue",
             "_check_nargs_on_connect",
             "_check_types_on_connect",
             "__weakref__",
@@ -1160,7 +1117,6 @@ class SignalInstance:
         d = {slot: getattr(self, slot) for slot in attrs}
         # don't pickle the lock or the queue
         d.pop("_lock", None)
-        d.pop("_emit_queue", None)
         return d
 
 

@@ -109,14 +109,16 @@ def test_q_main_thread_emit(qtbot: "QtBot") -> None:
     """
     from qtpy.QtCore import QTimer
 
+    from psygnal import emit_queued
+
     class C:
         sig = Signal(int)
 
     obj = C()
 
-    timer = QTimer()
-    timer.timeout.connect(obj.sig.emit_queued)
-    timer.start(0)
+    signal_relay = QTimer()
+    signal_relay.timeout.connect(emit_queued)
+    signal_relay.start(0)
 
     ARGS = (1,)
 
