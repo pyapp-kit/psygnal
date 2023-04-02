@@ -24,7 +24,7 @@ def binary_files(file_list: Iterable[Union[PackagePath, Path]]) -> List[Path]:
 
 
 def create_hiddenimports() -> List[str]:
-    res = ["mypy_extensions", "__future__"]
+    res = ["queue", "mypy_extensions", "__future__"]
 
     try:
         files_list = package_files("psygnal")
@@ -47,9 +47,10 @@ def create_hiddenimports() -> List[str]:
             + binary_files(src_path.iterdir())
         ]
 
-    for module in modules:
-        res.append(str(module).split(".")[0].replace("/", ".").replace("\\", "."))
-
+    res.extend(
+        str(module).split(".")[0].replace("/", ".").replace("\\", ".")
+        for module in modules
+    )
     return res
 
 
