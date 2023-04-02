@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 from queue import Queue
 from typing import Any, Callable, ClassVar, Tuple
 
 from ._weak_callback import WeakCallback
 
-Callback = Callable[[tuple[Any, ...]], Any]
+Callback = Callable[[Tuple[Any, ...]], Any]
 CbArgsTuple = Tuple[Callback, tuple]
 
 
