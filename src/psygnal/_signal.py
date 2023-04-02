@@ -914,10 +914,7 @@ class SignalInstance:
             # and we don't want to incur the overhead of creating it for every instance.
             if self._emit_queue is None:
                 self._emit_queue = Queue()
-            with self._lock:
-                self._emit_queue.put(
-                    (args, {"queue": False, "asynchronous": asynchronous})
-                )
+            self._emit_queue.put((args, {"queue": False, "asynchronous": asynchronous}))
             return None
 
         if asynchronous:
@@ -973,10 +970,9 @@ class SignalInstance:
         if self._emit_queue is None or self._emit_queue.empty():
             return
 
-        with self._lock:
-            while not self._emit_queue.empty():
-                args, kwargs = self._emit_queue.get()
-                self.emit(*args, **kwargs)
+        while not self._emit_queue.empty():
+            args, kwargs = self._emit_queue.get()
+            self.emit(*args, **kwargs)
 
     @overload
     def __call__(
