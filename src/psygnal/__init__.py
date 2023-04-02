@@ -34,6 +34,7 @@ __all__ = [
     "debounced",
     "EmissionInfo",
     "EmitLoopError",
+    "emit_queued",
     "evented",
     "EventedModel",
     "get_evented_namespace",
@@ -63,6 +64,7 @@ from ._group_descriptor import (
     get_evented_namespace,
     is_evented,
 )
+from ._queue import emit_queued
 from ._signal import EmitLoopError, Signal, SignalInstance, _compiled
 from ._throttler import debounced, throttled
 
