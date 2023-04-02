@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from queue import Queue
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, Tuple, TypeVar
 
 from typing_extensions import Protocol
 
@@ -27,7 +27,7 @@ class QueueLike(Protocol[T]):
         ...
 
 
-SigArgTuple = tuple["SignalInstance", tuple]
+SigArgTuple = Tuple[SignalInstance, tuple]
 SignalQueue = Queue[SigArgTuple]
 _GLOBAL_QUEUE: Queue[SigArgTuple] = Queue()
 
