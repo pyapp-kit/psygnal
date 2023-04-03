@@ -211,8 +211,8 @@ def test_nested_signal_blocked():
     mock.assert_called_once_with(3)
 
 
-@pytest.mark.parametrize("connect_type", ["direct", "queued"])
-def test_disconnect(connect_type: Literal["direct", "queued"]) -> None:
+@pytest.mark.parametrize("thread", [None, "main"])
+def test_disconnect(thread: Literal[None, "main"]) -> None:
     emitter = Emitter()
     mock = MagicMock()
     with pytest.raises(ValueError) as e:
@@ -220,9 +220,9 @@ def test_disconnect(connect_type: Literal["direct", "queued"]) -> None:
     assert "slot is not connected" in str(e)
     emitter.one_int.disconnect(mock)
 
-    emitter.one_int.connect(mock, type=connect_type)
+    emitter.one_int.connect(mock, thread=thread)
     assert len(emitter.one_int) == 1
-    if connect_type == "direct":
+    if thread is None:
         emitter.one_int.emit(1)
         mock.assert_called_once_with(1)
         mock.reset_mock()
@@ -862,12 +862,12 @@ def test_queued_connections():
     any_thread_mock = Mock()
 
     # mock1 wants to be called in this thread
-    @emitter.one_int.connect(type=this_thread)
+    @emitter.one_int.connect(thread=this_thread)
     def cb1(arg):
         this_thread_mock(arg, current_thread())
 
     # mock2 wants to be called in other_thread
-    @emitter.one_int.connect(type=other_thread)
+    @emitter.one_int.connect(thread=other_thread)
     def cb2(arg):
         other_thread_mock(arg, current_thread())
 

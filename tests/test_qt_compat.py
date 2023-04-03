@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Any, Callable, Tuple
 from unittest.mock import Mock
 
 import pytest
+from typing_extensions import Literal
 
 from psygnal import Signal
 from psygnal._signal import _guess_qtsignal_signature
@@ -102,8 +103,10 @@ def test_connect_qt_signal_instance(qtbot: "QtBot") -> None:
     e.sig1.emit()
 
 
-@pytest.mark.parametrize("type", ["queued", "direct"])
-def test_q_main_thread_emit(type: str, qtbot: "QtBot", qapp) -> None:
+@pytest.mark.parametrize("thread", [None, "main"])
+def test_q_main_thread_emit(
+    thread: Literal["main", None], qtbot: "QtBot", qapp
+) -> None:
     """Test using signal.emit(..., queue=True)
 
     ... and receiving it on the main thread with a QTimer connected to `emit_queued`
@@ -116,10 +119,10 @@ def test_q_main_thread_emit(type: str, qtbot: "QtBot", qapp) -> None:
     obj = C()
     mock = Mock()
 
-    @obj.sig.connect(type=type)
+    @obj.sig.connect(thread=thread)
     def _some_slot(val: int) -> None:
         mock(val)
-        assert (current_thread() == main_thread()) == (type == "queued")
+        assert (current_thread() == main_thread()) == (thread == "main")
 
     def _emit_from_thread() -> None:
         assert current_thread() != main_thread()
@@ -131,7 +134,7 @@ def test_q_main_thread_emit(type: str, qtbot: "QtBot", qapp) -> None:
         t.join()
 
     qapp.processEvents()
-    if type == "direct":
+    if thread is None:
         mock.assert_called_once_with(1)
     else:
         mock.assert_not_called()

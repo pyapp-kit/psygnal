@@ -340,7 +340,7 @@ class SignalInstance:
     def connect(
         self,
         *,
-        type: Literal["direct", "queued"] | threading.Thread = ...,
+        thread: threading.Thread | Literal["main", "current"] | None = ...,
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
         unique: bool | str = ...,
@@ -354,7 +354,7 @@ class SignalInstance:
         self,
         slot: F,
         *,
-        type: Literal["direct", "queued"] | threading.Thread = ...,
+        thread: threading.Thread | Literal["main", "current"] | None = ...,
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
         unique: bool | str = ...,
@@ -367,7 +367,7 @@ class SignalInstance:
         self,
         slot: F | None = None,
         *,
-        type: Literal["direct", "queued"] | threading.Thread = "direct",
+        thread: threading.Thread | Literal["main", "current"] | None = None,
         check_nargs: bool | None = None,
         check_types: bool | None = None,
         unique: bool | str = False,
@@ -394,11 +394,11 @@ class SignalInstance:
         ```
 
         !!!important
-
-            If a signal is connected with `type != 'direct'`, then it is up to the user
+            If a signal is connected with `thread != None`, then it is up to the user
             to ensure that `psygnal.emit_queued` is called, or that one of the backend
             convenience functions is used (e.g. `psygnal.qt.start_emitting_from_queue`).
-            Otherwise, the slot will never be called.
+            Otherwise, callbacks that are connected to signals that are emitted from
+            another thread will never be called.
 
         Parameters
         ----------
@@ -409,14 +409,16 @@ class SignalInstance:
         check_nargs : Optional[bool]
             If `True` and the provided `slot` requires more positional arguments than
             the signature of this Signal, raise `TypeError`. by default `True`.
-        type: Literal["direct", "queued"] | threading.Thread
-            If 'direct' (the default), this slot will be invoked immediately when a
-            signal is emitted, from whatever thread emitted the signal.  If 'queued',
-            invocation of this slot will be delayed until the next time the main thread
-            event loop is entered. If a thread object is provided, then the event will
-            be added to a queue for that thread. If you connect a slot using `queued`
-            or a thread, then you must ensure that `psygnal.emit_queued` is called.
-            (See note above).
+        thread: Thread | Literal["main", "current"] | None
+            If `None` (the default), this slot will be invoked immediately when a signal
+            is emitted, from whatever thread emitted the signal. If a thread object is
+            provided, then the callback will only be immediately invoked if the signal
+            is emitted from that thread.  Otherwise, the callback will be added to a
+            queue. **Note!**, when using the `thread` parameter, the user is responsible
+            for calling `psygnal.emit_queued()` in the corresponding thread, otherwise
+            the slot will never be invoked. (See note above). (The strings `"main"` and
+            `"current"` are also accepted, and will be interpreted as the
+            `threading.main_thread()` and `threading.current_thread()`, respectively).
         check_types : Optional[bool]
             If `True`, An additional check will be performed to make sure that types
             declared in the slot signature are compatible with the signature
@@ -489,12 +491,10 @@ class SignalInstance:
                     finalize=self._try_discard,
                     on_ref_error=_on_ref_err,
                 )
-                if type == "direct":
+                if thread is None:
                     self._slots.append(cb)
-                elif type == "queued":
-                    self._slots.append(QueuedCallback(cb))
                 else:
-                    self._slots.append(QueuedCallback(cb, thread=type))
+                    self._slots.append(QueuedCallback(cb, thread=thread))
             return slot
 
         return _wrapper if slot is None else _wrapper(slot)
