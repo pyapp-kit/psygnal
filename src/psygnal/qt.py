@@ -1,5 +1,6 @@
 from __future__ import annotations
-from threading import current_thread, Thread
+
+from threading import current_thread
 
 try:
     from qtpy.QtCore import Qt, QTimer

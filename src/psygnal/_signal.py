@@ -356,7 +356,7 @@ class SignalInstance:
     def connect(
         self,
         *,
-        type: Union[Literal["direct", "queued"], Thread] = "direct",
+        type: Literal["direct", "queued"] | Thread = "direct",
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
         unique: bool | str = ...,
@@ -370,7 +370,7 @@ class SignalInstance:
         self,
         slot: F,
         *,
-        type: Union[Literal["direct", "queued"], Thread] = "direct",
+        type: Literal["direct", "queued"] | Thread = "direct",
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
         unique: bool | str = ...,
@@ -383,7 +383,7 @@ class SignalInstance:
         self,
         slot: F | None = None,
         *,
-        type: Union[Literal["direct", "queued"], Thread] = "direct",
+        type: Literal["direct", "queued"] | Thread = "direct",
         check_nargs: bool | None = None,
         check_types: bool | None = None,
         unique: bool | str = False,
@@ -421,9 +421,9 @@ class SignalInstance:
         type: {'direct', 'queued'} or Thread, optional
             If 'direct' (the default), this slot will be invoked immediately when a
             signal is emitted.  If 'queued', invocation of this slot will be delayed
-            until the next time the main thread event loop is entered. If a thread 
-            object is provided, then the event will be delayed to the next thread 
-            event loop processing. 
+            until the next time the main thread event loop is entered. If a thread
+            object is provided, then the event will be delayed to the next thread
+            event loop processing.
         check_types : Optional[bool]
             If `True`, An additional check will be performed to make sure that types
             declared in the slot signature are compatible with the signature

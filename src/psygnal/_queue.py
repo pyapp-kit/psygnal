@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from queue import Queue
-from threading import main_thread, Thread
+from threading import Thread
 from typing import Any, Callable, ClassVar, Tuple
 
 from ._weak_callback import WeakCallback
@@ -28,7 +28,8 @@ class QueuedCallback(WeakCallback):
 
 
 def emit_queued(queue: Optional[Queue[CbArgsTuple]] = None) -> None:
-    from ._signal import EmitLoopError
+    pass
+
 
 if queue is None:
     queue = QueuedCallback._GLOBAL_QUEUE[current_thread()]
