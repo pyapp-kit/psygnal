@@ -109,6 +109,7 @@ exclude = [
     "src/psygnal/_evented_model.py",
     "src/psygnal/utils.py",
     "src/psygnal/containers",
+    "src/psygnal/qt.py",
     "src/psygnal/_pyinstaller_util",
 ]
 

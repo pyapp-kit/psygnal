@@ -44,13 +44,15 @@ class QueuedCallback(WeakCallback):
             raise TypeError(
                 f"thread must be a Thread instance, not {type(thread).__name__}"
             )
-        self._thread = thread
+        # NOTE: for some strange reason, mypyc crashes if we use `self._thread` here
+        # so we use `self._thred` instead
+        self._thred = thread
 
     def cb(self, args: tuple = ()) -> None:
-        if current_thread() is self._thread:
+        if current_thread() is self._thred:
             self._wrapped.cb(args)
         else:
-            QueuedCallback._GLOBAL_QUEUE[self._thread].put((self._wrapped.cb, args))
+            QueuedCallback._GLOBAL_QUEUE[self._thred].put((self._wrapped.cb, args))
 
     def dereference(self) -> Callable | None:
         return self._wrapped.dereference()
