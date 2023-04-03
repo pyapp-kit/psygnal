@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from queue import Queue
-from threading import Thread
+from threading import main_thread, Thread
 from typing import Any, Callable, ClassVar, Tuple
 
 from ._weak_callback import WeakCallback
