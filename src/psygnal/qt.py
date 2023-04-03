@@ -13,7 +13,7 @@ from ._queue import emit_queued
 
 try:
     from qtpy.QtCore import Qt, QTimer
-except ImportError:
+except (ImportError, RuntimeError):
     raise ImportError(
         "The psygnal.qt module requires qtpy and some Qt backend to be installed"
     ) from None
