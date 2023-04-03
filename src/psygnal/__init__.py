@@ -54,10 +54,12 @@ if os.getenv("PSYGNAL_UNCOMPILED"):
         "PSYGNAL_UNCOMPILED no longer has any effect. If you wish to run psygnal "
         "without compiled files, you can run:\n\n"
         'python -c "import psygnal.utils; psygnal.utils.decompile()"\n\n'
-        "(You will need to reinstall psygnal to get the compiled version back.)"
+        "(You will need to reinstall psygnal to get the compiled version back.)",
+        stacklevel=2,
     )
 
 from ._evented_decorator import evented
+from ._exceptions import EmitLoopError
 from ._group import EmissionInfo, SignalGroup
 from ._group_descriptor import (
     SignalGroupDescriptor,
@@ -65,7 +67,7 @@ from ._group_descriptor import (
     is_evented,
 )
 from ._queue import emit_queued
-from ._signal import EmitLoopError, Signal, SignalInstance, _compiled
+from ._signal import Signal, SignalInstance, _compiled
 from ._throttler import debounced, throttled
 
 

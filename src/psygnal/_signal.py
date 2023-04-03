@@ -27,12 +27,9 @@ from typing import (
 from mypy_extensions import mypyc_attr
 from typing_extensions import get_args, get_origin
 
-from psygnal._weak_callback import (
-    WeakCallback,
-    _WeakSetattr,
-    _WeakSetitem,
-    weak_callback,
-)
+from ._exceptions import EmitLoopError
+from ._queue import QueuedCallback
+from ._weak_callback import WeakCallback, _WeakSetattr, _WeakSetitem, weak_callback
 
 if TYPE_CHECKING:
     from typing_extensions import Literal
@@ -45,19 +42,6 @@ if TYPE_CHECKING:
 __all__ = ["Signal", "SignalInstance", "_compiled"]
 _NULL = object()
 F = TypeVar("F", bound=Callable)
-
-
-class EmitLoopError(Exception):
-    """Error type raised when an exception occurs during a callback."""
-
-    def __init__(self, slot_repr: str, args: tuple, exc: BaseException) -> None:
-        self.slot_repr = slot_repr
-        self.args = args
-        self.__cause__ = exc  # mypyc doesn't set this, but uncompiled code would
-        super().__init__(
-            f"calling {self.slot_repr} with args={args!r} caused "
-            f"{type(exc).__name__}: {exc}."
-        )
 
 
 class Signal:
@@ -356,7 +340,7 @@ class SignalInstance:
     def connect(
         self,
         *,
-        type: Literal["direct", "queued"] | Thread = "direct",
+        type: Literal["direct", "queued"] | threading.Thread = "direct",
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
         unique: bool | str = ...,
@@ -370,7 +354,7 @@ class SignalInstance:
         self,
         slot: F,
         *,
-        type: Literal["direct", "queued"] | Thread = "direct",
+        type: Literal["direct", "queued"] | threading.Thread = "direct",
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
         unique: bool | str = ...,
@@ -383,7 +367,7 @@ class SignalInstance:
         self,
         slot: F | None = None,
         *,
-        type: Literal["direct", "queued"] | Thread = "direct",
+        type: Literal["direct", "queued"] | threading.Thread = "direct",
         check_nargs: bool | None = None,
         check_types: bool | None = None,
         unique: bool | str = False,
@@ -499,8 +483,6 @@ class SignalInstance:
                 if type == "direct":
                     self._slots.append(cb)
                 elif type == "queued":
-                    from ._queue import QueuedCallback
-
                     self._slots.append(QueuedCallback(cb))
                 else:
                     self._slots.append(QueuedCallback(cb, thread=type))
