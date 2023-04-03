@@ -8,6 +8,7 @@ from typing_extensions import Literal
 
 from psygnal import Signal
 from psygnal._signal import _guess_qtsignal_signature
+from psygnal.qt import stop_emitting_from_queue
 
 pytest.importorskip("pytestqt")
 if TYPE_CHECKING:
@@ -141,3 +142,6 @@ def test_q_main_thread_emit(
         start_emitting_from_queue()
         qapp.processEvents()
         mock.assert_called_once_with(1)
+
+        start_emitting_from_queue(10)  # just for test coverage
+        stop_emitting_from_queue()
