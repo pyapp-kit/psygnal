@@ -911,10 +911,10 @@ class SignalInstance:
 
         if asynchronous:
             warnings.warn(
-                "The `asynchronous` parameter is deprecated. If you need this, please "
-                "create your own `threading.Thread` and call `SignalInstance.emit`."
-                "See also the new `thread` parameter in the `SignalInstance.connect` "
-                "method.",
+                "The `asynchronous` parameter is deprecated and will be removed in a "
+                "future release. If you need this, please create your own "
+                "`threading.Thread` and call `SignalInstance.emit`. See also the new "
+                "`thread` parameter in the `SignalInstance.connect` method.",
                 DeprecationWarning,
                 stacklevel=2,
             )
