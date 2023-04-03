@@ -8,7 +8,6 @@ from typing_extensions import Literal
 
 from psygnal import Signal
 from psygnal._signal import _guess_qtsignal_signature
-from psygnal.qt import stop_emitting_from_queue
 
 pytest.importorskip("pytestqt")
 if TYPE_CHECKING:
@@ -112,7 +111,7 @@ def test_q_main_thread_emit(
 
     ... and receiving it on the main thread with a QTimer connected to `emit_queued`
     """
-    from psygnal.qt import start_emitting_from_queue
+    from psygnal.qt import start_emitting_from_queue, stop_emitting_from_queue
 
     class C:
         sig = Signal(int)
