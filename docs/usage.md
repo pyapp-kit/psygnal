@@ -230,8 +230,15 @@ obj.value_changed.emit(10)
 
 ## Asynchronous Signal Emission
 
-There is experimental support for calling all connected slots in another
-thread, using `emit(..., asynchronous=True)`
+!!!warning "Deprecated"
+
+    This feature is deprecated and will be removed in a future release.
+    Its use is not recommended in new code. If you need to emit signals
+    in a background thread, please create your own [`threading.Thread`][]
+    and call `emit` from within that thread.
+
+There is ~~experimental~~ **deprecated** support for calling all connected slots
+in another thread, using `emit(..., asynchronous=True)`
 
 ```py
 obj = MyObj()
