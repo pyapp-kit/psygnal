@@ -1,3 +1,10 @@
+"""Module that provides Qt-specific functionality for psygnal.
+
+This module provides convenience functions for starting and stopping a QTimer that
+will monitor "queued" signals and invoke their callbacks.  This is useful when
+psygnal is used in a Qt application, and you'd like to emit signals from a thread
+but have their callbacks invoked in the main thread.
+"""
 from __future__ import annotations
 
 from threading import Thread, current_thread
@@ -22,7 +29,8 @@ def start_emitting_from_queue(
     """Start a QTimer that will monitor the global emission queue.
 
     If a QTimer is already running in the current thread, then this function will
-    update the interval and timer type of that QTimer.
+    update the interval and timer type of that QTimer. (It is safe to call this
+    function multiple times in the same thread.)
 
     When callbacks are connected to signals with `connect(type='queued')`, then they
     are not invoked immediately, but rather added to a global queue.  This function

@@ -340,7 +340,7 @@ class SignalInstance:
     def connect(
         self,
         *,
-        type: Literal["direct", "queued"] | threading.Thread = "direct",
+        type: Literal["direct", "queued"] | threading.Thread = ...,
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
         unique: bool | str = ...,
@@ -354,7 +354,7 @@ class SignalInstance:
         self,
         slot: F,
         *,
-        type: Literal["direct", "queued"] | threading.Thread = "direct",
+        type: Literal["direct", "queued"] | threading.Thread = ...,
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
         unique: bool | str = ...,
@@ -393,6 +393,13 @@ class SignalInstance:
             ...
         ```
 
+        !!!important
+
+            If a signal is connected with `type != 'direct'`, then it is up to the user
+            to ensure that `psygnal.emit_queued` is called, or that one of the backend
+            convenience functions is used (e.g. `psygnal.qt.start_emitting_from_queue`).
+            Otherwise, the slot will never be called.
+
         Parameters
         ----------
         slot : Callable
@@ -402,12 +409,14 @@ class SignalInstance:
         check_nargs : Optional[bool]
             If `True` and the provided `slot` requires more positional arguments than
             the signature of this Signal, raise `TypeError`. by default `True`.
-        type: {'direct', 'queued'} or Thread, optional
+        type: Literal["direct", "queued"] | threading.Thread
             If 'direct' (the default), this slot will be invoked immediately when a
-            signal is emitted.  If 'queued', invocation of this slot will be delayed
-            until the next time the main thread event loop is entered. If a thread
-            object is provided, then the event will be delayed to the next thread
-            event loop processing.
+            signal is emitted, from whatever thread emitted the signal.  If 'queued',
+            invocation of this slot will be delayed until the next time the main thread
+            event loop is entered. If a thread object is provided, then the event will
+            be added to a queue for that thread. If you connect a slot using `queued`
+            or a thread, then you must ensure that `psygnal.emit_queued` is called.
+            (See note above).
         check_types : Optional[bool]
             If `True`, An additional check will be performed to make sure that types
             declared in the slot signature are compatible with the signature

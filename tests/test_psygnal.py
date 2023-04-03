@@ -839,3 +839,65 @@ def test_weakref_disconnect(slot):
     assert len(emitter.one_int) == 1
     emitter.one_int.disconnect(cb)
     assert len(emitter.one_int) == 0
+
+
+def test_queued_connections():
+    from threading import Thread, current_thread
+
+    from psygnal import emit_queued
+
+    this_thread = current_thread()
+
+    emitter = Emitter()
+
+    # function to run in another thread
+    def _run():
+        emit_queued()
+        emitter.one_int.emit(2)
+
+    other_thread = Thread(target=_run)
+
+    this_thread_mock = Mock()
+    other_thread_mock = Mock()
+    any_thread_mock = Mock()
+
+    # mock1 wants to be called in this thread
+    @emitter.one_int.connect(type=this_thread)
+    def cb1(arg):
+        this_thread_mock(arg, current_thread())
+
+    # mock2 wants to be called in other_thread
+    @emitter.one_int.connect(type=other_thread)
+    def cb2(arg):
+        other_thread_mock(arg, current_thread())
+
+    # mock3 wants to be called in whatever thread the emitter is in
+    @emitter.one_int.connect
+    def cb3(arg):
+        any_thread_mock(arg, current_thread())
+
+    # emit in this thread
+    emitter.one_int.emit(1)
+    this_thread_mock.assert_called_once_with(1, this_thread)
+    # other_thread_mock not called because it's waiting for other_thread
+    other_thread_mock.assert_not_called()
+    # any_thread_mock called because it's waiting for any thread
+    any_thread_mock.assert_called_once_with(1, this_thread)
+
+    # Now we run `_run` in other_thread
+    this_thread_mock.reset_mock()
+    any_thread_mock.reset_mock()
+    other_thread.start()
+    other_thread.join()
+
+    # now mock2 should be called TWICE.  Once for the .emit(1) queued from this thread,
+    # and once for the .emit(2) in other_thread
+    other_thread_mock.assert_has_calls([call(1, other_thread), call(2, other_thread)])
+    # stuff queued for any_thread_mock should have also been called
+    any_thread_mock.assert_called_once_with(2, other_thread)
+
+    # stuff queued for this thread should NOT have been called
+    this_thread_mock.assert_not_called()
+    # ... until we call emit_queued() from this thread
+    emit_queued()
+    this_thread_mock.assert_called_once_with(2, this_thread)

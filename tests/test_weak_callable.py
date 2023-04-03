@@ -163,3 +163,7 @@ def test_deref(strong: bool) -> None:
     assert dp.func is p.func
     assert dp.args == p.args
     assert dp.keywords == p.keywords
+
+
+def test_queued_callbacks():
+    ...
