@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from queue import Queue
+from threading import main_thread, Thread
 from typing import Any, Callable, ClassVar, Tuple
 
 from ._weak_callback import WeakCallback
@@ -10,9 +11,9 @@ CbArgsTuple = Tuple[Callback, tuple]
 
 
 class QueuedCallback(WeakCallback):
-    _GLOBAL_QUEUE: ClassVar[Queue[CbArgsTuple]] = Queue()
+    _GLOBAL_QUEUE: ClassVar[dict[Thread, Queue[CbArgsTuple]]] = defaultdict(Queue)
 
-    def __init__(self, wrapped: WeakCallback) -> None:
+    def __init__(self, wrapped: WeakCallback, thread: Thread = maint_thread()) -> None:
         self._wrapped = wrapped
         self._key: str = wrapped._key
         self._max_args: int | None = wrapped._max_args
@@ -20,15 +21,17 @@ class QueuedCallback(WeakCallback):
         self._on_ref_error = wrapped._on_ref_error
 
     def cb(self, args: tuple = ()) -> None:
-        QueuedCallback._GLOBAL_QUEUE.put((self._wrapped.cb, args))
+        QueuedCallback._GLOBAL_QUEUE[self._thread].put((self._wrapped.cb, args))
 
     def dereference(self) -> Callable | None:
         return self._wrapped.dereference()
 
 
-def emit_queued(queue: Queue[CbArgsTuple] = QueuedCallback._GLOBAL_QUEUE) -> None:
+def emit_queued(queue: Optional[Queue[CbArgsTuple]] = None) -> None:
     from ._signal import EmitLoopError
 
+if queue is None:
+    queue = QueuedCallback._GLOBAL_QUEUE[current_thread()]
     while not queue.empty():
         cb, args = queue.get()
         try:

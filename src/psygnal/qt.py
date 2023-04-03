@@ -1,4 +1,5 @@
 from __future__ import annotations
+from threading import current_thread, Thread
 
 try:
     from qtpy.QtCore import Qt, QTimer
@@ -7,7 +8,7 @@ except ImportError:
         "The psygnal.qt module requires qtpy and some Qt backend to be installed"
     ) from None
 
-_TIMER: QTimer | None = None
+_TIMER: dict[Tread, QTimer] = {}
 
 
 def start_emitting_from_queue(
@@ -20,23 +21,23 @@ def start_emitting_from_queue(
     starts a QTimer that will periodically check the queue and invoke any callbacks
     that are waiting to be invoked (in whatever thread this QTimer is running in).
     """
-    global _TIMER
-
-    if _TIMER is None:
-        _TIMER = QTimer()
+    thread = current_thread()
+    if thread not in _TIMER:
+        _TIMER[thread] = QTimer()
         from ._queue import emit_queued
 
-        _TIMER.timeout.connect(emit_queued)
+        _TIMER[thread].timeout.connect(emit_queued)
 
-    _TIMER.setTimerType(timer_type)
-    if _TIMER.isActive():
-        _TIMER.setInterval(msec)
+    _TIMER[thread].setTimerType(timer_type)
+    if _TIMER[thread].isActive():
+        _TIMER[thread].setInterval(msec)
     else:
-        _TIMER.start(msec)
+        _TIMER[thread].start(msec)
 
 
 def stop_emitting_from_queue() -> None:
     """Stop the QTimer that monitors the global emission queue."""
     global _TIMER
-    if _TIMER is not None:
-        _TIMER.stop()
+    timer = _TIMER.get(current_thread())
+    if timer is not None:
+        timer.stop()

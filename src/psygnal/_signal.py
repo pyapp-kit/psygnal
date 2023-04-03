@@ -356,7 +356,7 @@ class SignalInstance:
     def connect(
         self,
         *,
-        type: Literal["direct", "queued"] = "direct",
+        type: Union[Literal["direct", "queued"], Thread] = "direct",
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
         unique: bool | str = ...,
@@ -370,7 +370,7 @@ class SignalInstance:
         self,
         slot: F,
         *,
-        type: Literal["direct", "queued"] = "direct",
+        type: Union[Literal["direct", "queued"], Thread] = "direct",
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
         unique: bool | str = ...,
@@ -383,7 +383,7 @@ class SignalInstance:
         self,
         slot: F | None = None,
         *,
-        type: Literal["direct", "queued"] = "direct",
+        type: Union[Literal["direct", "queued"], Thread] = "direct",
         check_nargs: bool | None = None,
         check_types: bool | None = None,
         unique: bool | str = False,
@@ -418,10 +418,12 @@ class SignalInstance:
         check_nargs : Optional[bool]
             If `True` and the provided `slot` requires more positional arguments than
             the signature of this Signal, raise `TypeError`. by default `True`.
-        type: {'direct', 'queued'}, optional
+        type: {'direct', 'queued'} or Thread, optional
             If 'direct' (the default), this slot will be invoked immediately when a
             signal is emitted.  If 'queued', invocation of this slot will be delayed
-            until the next time the event loop is entered.
+            until the next time the main thread event loop is entered. If a thread 
+            object is provided, then the event will be delayed to the next thread 
+            event loop processing. 
         check_types : Optional[bool]
             If `True`, An additional check will be performed to make sure that types
             declared in the slot signature are compatible with the signature
@@ -494,12 +496,14 @@ class SignalInstance:
                     finalize=self._try_discard,
                     on_ref_error=_on_ref_err,
                 )
-                if type == "queued":
+                if type == "direct":
+                    self._slots.append(cb)
+                elif type == "queued":
                     from ._queue import QueuedCallback
 
                     self._slots.append(QueuedCallback(cb))
                 else:
-                    self._slots.append(cb)
+                    self._slots.append(QueuedCallback(cb, thread=type))
             return slot
 
         return _wrapper if slot is None else _wrapper(slot)
