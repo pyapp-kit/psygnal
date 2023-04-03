@@ -13,7 +13,7 @@ CbArgsTuple = Tuple[Callback, tuple]
 class QueuedCallback(WeakCallback):
     _GLOBAL_QUEUE: ClassVar[dict[Thread, Queue[CbArgsTuple]]] = defaultdict(Queue)
 
-    def __init__(self, wrapped: WeakCallback, thread: Thread = maint_thread()) -> None:
+    def __init__(self, wrapped: WeakCallback, thread: Thread = main_thread()) -> None:
         self._wrapped = wrapped
         self._key: str = wrapped._key
         self._max_args: int | None = wrapped._max_args
