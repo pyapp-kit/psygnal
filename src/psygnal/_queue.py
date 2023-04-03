@@ -19,6 +19,7 @@ class QueuedCallback(WeakCallback):
         self._max_args: int | None = wrapped._max_args
         self._alive: bool = wrapped._alive
         self._on_ref_error = wrapped._on_ref_error
+        self._thread = thread
 
     def cb(self, args: tuple = ()) -> None:
         QueuedCallback._GLOBAL_QUEUE[self._thread].put((self._wrapped.cb, args))
