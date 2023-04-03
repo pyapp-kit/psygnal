@@ -163,3 +163,16 @@ def test_deref(strong: bool) -> None:
     assert dp.func is p.func
     assert dp.args == p.args
     assert dp.keywords == p.keywords
+
+
+def test_queued_callbacks():
+    from psygnal._queue import QueuedCallback
+
+    def func(x):
+        return x
+
+    cb = weak_callback(func)
+    qcb = QueuedCallback(cb, thread="current")
+
+    assert qcb.dereference() is func
+    assert qcb(1) == 1

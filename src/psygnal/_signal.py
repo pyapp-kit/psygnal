@@ -27,12 +27,9 @@ from typing import (
 from mypy_extensions import mypyc_attr
 from typing_extensions import get_args, get_origin
 
-from psygnal._weak_callback import (
-    WeakCallback,
-    _WeakSetattr,
-    _WeakSetitem,
-    weak_callback,
-)
+from ._exceptions import EmitLoopError
+from ._queue import QueuedCallback
+from ._weak_callback import WeakCallback, _WeakSetattr, _WeakSetitem, weak_callback
 
 if TYPE_CHECKING:
     from typing_extensions import Literal
@@ -45,19 +42,6 @@ if TYPE_CHECKING:
 __all__ = ["Signal", "SignalInstance", "_compiled"]
 _NULL = object()
 F = TypeVar("F", bound=Callable)
-
-
-class EmitLoopError(Exception):
-    """Error type raised when an exception occurs during a callback."""
-
-    def __init__(self, slot_repr: str, args: tuple, exc: BaseException) -> None:
-        self.slot_repr = slot_repr
-        self.args = args
-        self.__cause__ = exc  # mypyc doesn't set this, but uncompiled code would
-        super().__init__(
-            f"calling {self.slot_repr} with args={args!r} caused "
-            f"{type(exc).__name__}: {exc}."
-        )
 
 
 class Signal:
@@ -356,6 +340,7 @@ class SignalInstance:
     def connect(
         self,
         *,
+        thread: threading.Thread | Literal["main", "current"] | None = ...,
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
         unique: bool | str = ...,
@@ -369,6 +354,7 @@ class SignalInstance:
         self,
         slot: F,
         *,
+        thread: threading.Thread | Literal["main", "current"] | None = ...,
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
         unique: bool | str = ...,
@@ -381,6 +367,7 @@ class SignalInstance:
         self,
         slot: F | None = None,
         *,
+        thread: threading.Thread | Literal["main", "current"] | None = None,
         check_nargs: bool | None = None,
         check_types: bool | None = None,
         unique: bool | str = False,
@@ -406,6 +393,13 @@ class SignalInstance:
             ...
         ```
 
+        !!!important
+            If a signal is connected with `thread != None`, then it is up to the user
+            to ensure that `psygnal.emit_queued` is called, or that one of the backend
+            convenience functions is used (e.g. `psygnal.qt.start_emitting_from_queue`).
+            Otherwise, callbacks that are connected to signals that are emitted from
+            another thread will never be called.
+
         Parameters
         ----------
         slot : Callable
@@ -415,6 +409,16 @@ class SignalInstance:
         check_nargs : Optional[bool]
             If `True` and the provided `slot` requires more positional arguments than
             the signature of this Signal, raise `TypeError`. by default `True`.
+        thread: Thread | Literal["main", "current"] | None
+            If `None` (the default), this slot will be invoked immediately when a signal
+            is emitted, from whatever thread emitted the signal. If a thread object is
+            provided, then the callback will only be immediately invoked if the signal
+            is emitted from that thread.  Otherwise, the callback will be added to a
+            queue. **Note!**, when using the `thread` parameter, the user is responsible
+            for calling `psygnal.emit_queued()` in the corresponding thread, otherwise
+            the slot will never be invoked. (See note above). (The strings `"main"` and
+            `"current"` are also accepted, and will be interpreted as the
+            `threading.main_thread()` and `threading.current_thread()`, respectively).
         check_types : Optional[bool]
             If `True`, An additional check will be performed to make sure that types
             declared in the slot signature are compatible with the signature
@@ -487,7 +491,10 @@ class SignalInstance:
                     finalize=self._try_discard,
                     on_ref_error=_on_ref_err,
                 )
-                self._slots.append(cb)
+                if thread is None:
+                    self._slots.append(cb)
+                else:
+                    self._slots.append(QueuedCallback(cb, thread=thread))
             return slot
 
         return _wrapper if slot is None else _wrapper(slot)
