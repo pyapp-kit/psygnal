@@ -417,7 +417,8 @@ class SignalGroupDescriptor:
         if self._warn_on_no_fields and not Group._signals_:
             warnings.warn(
                 f"No mutable fields found on class {owner}: no events will be "
-                "emitted. (Is this a dataclass, attrs, msgspec, or pydantic model?)"
+                "emitted. (Is this a dataclass, attrs, msgspec, or pydantic model?)",
+                stacklevel=2,
             )
         self._do_patch_setattr(owner)
         return Group

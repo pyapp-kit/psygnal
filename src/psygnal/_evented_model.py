@@ -201,7 +201,9 @@ def _get_field_dependents(cls: "EventedModel") -> Dict[str, Set[str]]:
                 )
             for field in fields:
                 if field not in cls.__fields__:
-                    warnings.warn(f"Unrecognized field dependency: {field!r}")
+                    warnings.warn(
+                        f"Unrecognized field dependency: {field!r}", stacklevel=2
+                    )
                 deps.setdefault(field, set()).add(prop)
     if getattr(cls.__config__, GUESS_PROPERTY_DEPENDENCIES, False):
         # if property_dependencies haven't been explicitly defined, we can glean

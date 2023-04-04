@@ -116,7 +116,7 @@ def test_no_patching(patch_setattr: bool) -> None:
         _group_descriptor, "evented_setattr", wraps=_group_descriptor.evented_setattr
     ) as mock_decorator:
         foo = Foo(a=1)
-        foo._events
+        _ = foo._events
         if not _compiled:  # can't patch otherwise
             assert mock_decorator.call_count == int(patch_setattr)
 

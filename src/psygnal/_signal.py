@@ -116,7 +116,8 @@ class Signal:
             if len(types) > 1:
                 warnings.warn(
                     "Only a single argument is accepted when directly providing a"
-                    f" `Signature`.  These args were ignored: {types[1:]}"
+                    f" `Signature`.  These args were ignored: {types[1:]}",
+                    stacklevel=2,
                 )
         else:
             self._signature = _build_signature(*cast("tuple[Type[Any], ...]", types))
@@ -750,7 +751,8 @@ class SignalInstance:
             slot_sig = _get_signature_possibly_qt(slot)
         except ValueError as e:
             warnings.warn(
-                f"{e}. To silence this warning, connect with " "`check_nargs=False`"
+                f"{e}. To silence this warning, connect with " "`check_nargs=False`",
+                stacklevel=2,
             )
             return None, None, False
         minargs, maxargs = _acceptable_posarg_range(slot_sig)
