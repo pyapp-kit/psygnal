@@ -915,7 +915,7 @@ class SignalInstance:
                 "future release. If you need this, please create your own "
                 "`threading.Thread` and call `SignalInstance.emit`. See also the new "
                 "`thread` parameter in the `SignalInstance.connect` method.",
-                DeprecationWarning,
+                FutureWarning,
                 stacklevel=2,
             )
             sd = EmitThread(self, args)
