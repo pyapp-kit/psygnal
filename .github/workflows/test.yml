@@ -69,7 +69,7 @@ jobs:
           python -c "import sys, psygnal; sys.exit(1 if psygnal._compiled else 0)"
 
       - name: test uncompiled
-        uses: GabrielBB/xvfb-action@v1
+        uses: aganders3/headless-gui@v1
         with:
           run: pytest --color=yes --cov=psygnal --cov-report=xml
 
@@ -81,7 +81,7 @@ jobs:
           HATCH_BUILD_HOOKS_ENABLE: "1"
 
       - name: test compiled
-        uses: GabrielBB/xvfb-action@v1
+        uses: aganders3/headless-gui@v1
         with:
           run: pytest --color=yes --cov=psygnal --cov-report=xml --cov-append
 
@@ -116,7 +116,7 @@ jobs:
           pip install -e psygnal
 
       - name: test magicgui
-        uses: GabrielBB/xvfb-action@v1
+        uses: aganders3/headless-gui@v1
         with:
           run: python -m pytest magicgui/tests -v --color=yes
 
