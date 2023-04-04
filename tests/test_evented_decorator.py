@@ -191,21 +191,21 @@ def test_no_signals_warn() -> None:
         class Foo:
             ...
 
-        Foo().events  # type: ignore
+        _ = Foo().events  # type: ignore
 
     with pytest.warns(UserWarning, match="No mutable fields found on class"):
 
         class Foo2:
             events = SignalGroupDescriptor()
 
-        Foo2().events
+        _ = Foo2().events
 
     @dataclass
     class Foo3:
         events = SignalGroupDescriptor(warn_on_no_fields=False)
 
     # no warning
-    Foo3().events
+    _ = Foo3().events
 
 
 @dataclass

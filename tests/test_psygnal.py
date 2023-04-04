@@ -139,16 +139,16 @@ def test_misc():
     assert isinstance(emitter.one_int, SignalInstance)
 
     with pytest.raises(AttributeError):
-        emitter.one_int.asdf
+        _ = emitter.one_int.asdf
 
     with pytest.raises(AttributeError):
-        emitter.one_int.asdf
+        _ = emitter.one_int.asdf
 
 
 def test_getattr():
     s = Signal()
     with pytest.raises(AttributeError):
-        s.not_a_thing
+        _ = s.not_a_thing
 
 
 def test_signature_provided():

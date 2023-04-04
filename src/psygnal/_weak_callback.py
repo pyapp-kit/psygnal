@@ -202,7 +202,10 @@ class WeakCallback(Generic[_R]):
             if self._on_ref_error == "raise":
                 raise
             if self._on_ref_error == "warn":
-                warn(f"failed to create weakref for {obj!r}, returning strong ref")
+                warn(
+                    f"failed to create weakref for {obj!r}, returning strong ref",
+                    stacklevel=2,
+                )
 
             def _strong_ref() -> _T:
                 return obj
