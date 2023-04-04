@@ -857,16 +857,21 @@ class SignalInstance:
         *args : Any
             These arguments will be passed when calling each slot (unless the slot
             accepts fewer arguments, in which case extra args will be discarded.)
-        check_nargs : Optional[bool]
+        check_nargs : bool
             If `False` and the provided arguments cannot be successfully bound to the
             signature of this Signal, raise `TypeError`.  Incurs some overhead.
             by default False.
-        check_types : Optional[bool]
+        check_types : bool
             If `False` and the provided arguments do not match the types declared by
             the signature of this Signal, raise `TypeError`.  Incurs some overhead.
             by default False.
-        asynchronous : Optional[bool]
+        asynchronous : bool
             If `True`, run signal emission in another thread. by default `False`.
+            **DEPRECATED:**. *If you need to emit from a thread, please just create
+            your own [`threading.Thread`][] and call
+            [`SignalInstance.emit`][psygnal.SignalInstance.emit]. See also the `thread`
+            parameter in the [`SignalInstance.connect`][psygnal.SignalInstance.connect]
+            method.*
 
         Raises
         ------
@@ -905,6 +910,14 @@ class SignalInstance:
             SignalInstance._debug_hook(EmissionInfo(self, args))
 
         if asynchronous:
+            warnings.warn(
+                "The `asynchronous` parameter is deprecated and will be removed in a "
+                "future release. If you need this, please create your own "
+                "`threading.Thread` and call `SignalInstance.emit`. See also the new "
+                "`thread` parameter in the `SignalInstance.connect` method.",
+                FutureWarning,
+                stacklevel=2,
+            )
             sd = EmitThread(self, args)
             sd.start()
             return sd

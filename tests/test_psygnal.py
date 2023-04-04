@@ -573,7 +573,8 @@ def test_asynchronous_emit():
 
     assert not Signal.current_emitter()
     value = 42
-    thread = e.no_arg.emit(value, asynchronous=True)
+    with pytest.warns(FutureWarning):
+        thread = e.no_arg.emit(value, asynchronous=True)
     mock.assert_called_once()
     assert Signal.current_emitter() is e.no_arg
 
