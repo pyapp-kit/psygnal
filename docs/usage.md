@@ -257,14 +257,15 @@ which are aliases for the main thread and the current thread, respectively),
 and will ensure that the callback is invoked in that thread.  This is accomplished
 as follows:
 
-1. If the signal is emitted from the same thread as the
-   thread that was passed to the `connect(thread=...)` method), then the callback
-   is invoked immediately.
+1. If the signal is emitted from the same thread as the thread that was passed
+   to the `connect(thread=...)` method, then the callback is invoked
+   immediately.
 2. If the signal is emitted from a different thread, then the callback is added
     to a queue specific to that thread.
-3. **Important!**  It is up to the user to ensure that target thread is running
-   an event loop that calls `psygnal.emit_queued()` periodically (see below,
-   for a convenient way to do this when using Qt).
+3. **Important!**  It is up to the user to ensure that `psygnal.emit_queued()`
+   is called in the target thread. Most often, this will be done periodically
+   using an event loop (see below, for a convenient way to do this when using
+   Qt).
 
 ```py
 from threading import Thread, current_thread
@@ -287,7 +288,7 @@ emit_queued()  # <-- emits anything queued in the thread calling this function
 
 Most of the time, you will want to call `psygnal.emit_queued` periodically from
 some event loop. Psygnal itself is agnostic to the event loop you are using.
-A _very_ rudimentary event loop might look like this:
+A *very* rudimentary event loop might look like this:
 
 ```py
 import time
