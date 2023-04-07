@@ -1,8 +1,27 @@
 # Changelog
 
-## [0.8.1](https://github.com/pyapp-kit/psygnal/tree/0.8.1) (2023-02-23)
+## [0.9.0](https://github.com/pyapp-kit/psygnal/tree/0.9.0) (2023-04-07)
 
-[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.8.0...0.8.1)
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.8.1...0.9.0)
+
+**Implemented enhancements:**
+
+- feat: add thread parameter to connection method, allowed "queued connections" [\#200](https://github.com/pyapp-kit/psygnal/pull/200) ([tlambert03](https://github.com/tlambert03))
+
+**Tests & CI:**
+
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.12.0 to 2.12.1 [\#197](https://github.com/pyapp-kit/psygnal/pull/197) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(dependabot\): bump actions/setup-python from 3 to 4 [\#193](https://github.com/pyapp-kit/psygnal/pull/193) ([dependabot[bot]](https://github.com/apps/dependabot))
+
+**Merged pull requests:**
+
+- docs: add docs on connecting across thread [\#203](https://github.com/pyapp-kit/psygnal/pull/203) ([tlambert03](https://github.com/tlambert03))
+- chore: deprecate async keyword in emit method [\#201](https://github.com/pyapp-kit/psygnal/pull/201) ([tlambert03](https://github.com/tlambert03))
+- build: add pyinstaller hook to simplify frozing apps using pyinstaller  [\#194](https://github.com/pyapp-kit/psygnal/pull/194) ([Czaki](https://github.com/Czaki))
+
+## [v0.8.1](https://github.com/pyapp-kit/psygnal/tree/v0.8.1) (2023-02-23)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.8.0...v0.8.1)
 
 **Fixed bugs:**
 
