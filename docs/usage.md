@@ -228,6 +228,126 @@ obj.value_changed.emit(10)
 *If you want the actual signal instance that is emitting the signal
 (`obj.value_changed` in the above example), use `Signal.current_emitter()`.*
 
+## Connecting across Threads
+
+By default, callbacks connected to signals are invoked immediately when the
+signal is emitted, in the same thread that emitted the signal.  This means
+that if you emit a signal from a background thread, the callbacks will be
+invoked in that background thread:
+
+```py
+from threading import Thread, current_thread
+
+obj = MyObj()
+
+@obj.value_changed.connect
+def callback(arg):
+    print(f"I was called with {arg!r} in {current_thread().name!r}")
+
+Thread(target=obj.value_changed.emit, args=('hi',)).start()
+# prints "I was called with 'hi' in 'Thread-1 (emit)'"
+```
+
+In some cases, particularly when working with GUI frameworks like Qt, you may
+want to ensure that callbacks are invoked in a specific thread (e.g. the main
+thread). For this, you can use the `thread` argument to the `connect` method.
+
+It takes a `threading.Thread` instance (or the strings `"main"` or `"current"`,
+which are aliases for the main thread and the current thread, respectively),
+and will ensure that the callback is invoked in that thread.  This is accomplished
+as follows:
+
+1. If the signal is emitted from the same thread as the thread that was passed
+   to the `connect(thread=...)` method, then the callback is invoked
+   immediately.
+2. If the signal is emitted from a different thread, then the callback is added
+    to a queue specific to that thread.
+3. **Important!**  It is up to the user to ensure that `psygnal.emit_queued()`
+   is called in the target thread. Most often, this will be done periodically
+   using an event loop (see below, for a convenient way to do this when using
+   Qt).
+
+```py
+from threading import Thread, current_thread
+from psygnal import emit_queued
+
+obj = MyObj()
+
+@obj.value_changed.connect(thread='main')
+def callback(arg):
+    print(f"I was called with {arg!r} in {current_thread().name!r}")
+
+Thread(target=obj.value_changed.emit, args=('hi',)).start()
+# at this point, the callback has not yet been invoked
+
+emit_queued()  # <-- emits anything queued in the thread calling this function
+# prints "I was called with 'hi' in 'MainThread'"
+```
+
+### Using with Event Loops
+
+Most of the time, you will want to call `psygnal.emit_queued` periodically from
+some event loop. Psygnal itself is agnostic to the event loop you are using.
+A *very* rudimentary event loop might look like this:
+
+```py
+import time
+
+# A simple event loop that just calls emit_queued periodically
+def run_loop():
+    while True:
+        try:
+            # do some work
+            emit_queued()
+            time.sleep(0.1)
+        except KeyboardInterrupt:
+            break
+
+# something to run in a background thread
+def _emit_periodically():
+    for i in range(10):
+        obj.value_changed.emit("hi")
+        time.sleep(0.5)
+
+# start the background thread
+Thread(target=_emit_periodically).start()
+# start the event loop
+run_loop()
+
+# prints "I was called with 'hi' in 'MainThread'" 10 times
+```
+
+### Using with Qt
+
+Because Qt is commonly used with psygnal, we provide a convenience
+function `psygnal.qt.start_emitting_from_queue` that can be used to start
+monitoring the emission queue for a given thread. (It starts a `QTimer` in the
+invoking thread that calls `psygnal.emit_queueud` periodically).
+
+```py
+from threading import Thread, current_thread
+from qtpy.QtCore import QCoreApplication
+from psygnal.qt import start_emitting_from_queue
+
+obj = MyObj()
+
+@obj.value_changed.connect(thread='main')
+def callback(arg):
+    print(f"I was called with {arg!r} in {current_thread().name!r}")
+
+app = QCoreApplication([])
+start_emitting_from_queue()  # <-- watch for queued signals in the main thread
+
+# emit the signal from a background thread
+Thread(target=obj.value_changed.emit, args=('hi',)).start()
+
+app.processEvents()  # or app.exec_(), or anything to keep the event loop running
+# prints "I was called with 'hi' in 'MainThread'"
+```
+
+It is ok to call `start_emitting_from_queue` multiple times (so multiple
+end-users can use it).
+
 ## Asynchronous Signal Emission
 
 !!!warning "Deprecated"
