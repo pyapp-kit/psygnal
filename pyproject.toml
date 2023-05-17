@@ -64,6 +64,7 @@ proxy = ["wrapt"]
 pydantic = ["pydantic"]
 test = [
     "dask",
+    "attrs",
     "numpy",
     "pydantic",
     "pyinstaller>=4.0",
