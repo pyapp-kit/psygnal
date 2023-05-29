@@ -146,7 +146,7 @@ def weak_callback(
 
     if _is_toolz_curry(cb):
         cb_partial = getattr(cb, "_partial", None)
-        if cb_partial is None:
+        if cb_partial is None:  # pragma: no cover
             raise TypeError(
                 "toolz.curry object found without a '_partial' attribute. This "
                 "version of toolz is not supported. Please open an issue at psygnal."
