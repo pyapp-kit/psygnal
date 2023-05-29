@@ -243,6 +243,8 @@ def test_disconnect(thread: Literal[None, "main"]) -> None:
         "partial_method",
         "toolz_function",
         "toolz_method",
+        "partial_method_kwarg",
+        "partial_method_kwarg_bad",
         "setattr",
         "setitem",
     ],
@@ -270,6 +272,12 @@ def test_slot_types(type_: str) -> None:
         signal.connect(toolz.curry(f_int_int, 2))
     elif type_ == "toolz_method":
         signal.connect(toolz.curry(obj.f_int_int, 2))
+    elif type_ == "partial_method_kwarg":
+        signal.connect(partial(obj.f_int_int, b=2))
+    elif type_ == "partial_method_kwarg_bad":
+        with pytest.raises(ValueError, match=".*prefer using positional args"):
+            signal.connect(partial(obj.f_int_int, a=2))
+        return
 
     assert len(signal) == 1
 
@@ -558,7 +566,7 @@ def test_keyword_only_not_allowed():
 
     with pytest.raises(ValueError) as er:
         e.two_int.connect(f)
-    assert "Required KEYWORD_ONLY parameters not allowed" in str(er)
+    assert "Unsupported KEYWORD_ONLY parameters in signature" in str(er)
 
 
 def test_unique_connections():
@@ -838,6 +846,7 @@ def test_emit_loop_exceptions():
         "f_int_decorated_good",
         "f_any_assigned",
         "partial",
+        "partial_kwargs",
         pytest.param(
             "partial",
             marks=pytest.mark.xfail(
@@ -853,7 +862,12 @@ def test_weakref_disconnect(slot):
     obj = MyObj()
 
     assert len(emitter.one_int) == 0
-    cb = partial(obj.f_int_int, 1) if slot == "partial" else getattr(obj, slot)
+    if slot == "partial":
+        cb = partial(obj.f_int_int, 1)
+    elif slot == "partial_kwargs":
+        cb = partial(obj.f_int_int, b=1)
+    else:
+        cb = getattr(obj, slot)
     emitter.one_int.connect(cb)
     assert len(emitter.one_int) == 1
     emitter.one_int.emit(1)

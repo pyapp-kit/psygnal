@@ -5,7 +5,7 @@ import threading
 import warnings
 import weakref
 from contextlib import contextmanager, suppress
-from functools import lru_cache, reduce
+from functools import lru_cache, partial, reduce
 from inspect import Parameter, Signature, isclass
 from typing import (
     TYPE_CHECKING,
@@ -755,7 +755,15 @@ class SignalInstance:
                 stacklevel=2,
             )
             return None, None, False
-        minargs, maxargs = _acceptable_posarg_range(slot_sig)
+        try:
+            minargs, maxargs = _acceptable_posarg_range(slot_sig)
+        except ValueError as e:
+            if isinstance(slot, partial):
+                raise ValueError(
+                    f"{e}. (Note: prefer using positional args with "
+                    "functools.partials when possible)."
+                ) from e
+            raise
 
         n_spec_params = len(spec.parameters)
         # if `slot` requires more arguments than we will provide, raise.
@@ -1290,7 +1298,7 @@ def _acceptable_posarg_range(
             and param.default is Parameter.empty
             and forbid_required_kwarg
         ):
-            raise ValueError("Required KEYWORD_ONLY parameters not allowed")
+            raise ValueError(f"Unsupported KEYWORD_ONLY parameters in signature: {sig}")
     return (required, None if posargs_unlimited else required + optional)
 
 
