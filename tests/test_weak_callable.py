@@ -4,6 +4,7 @@ from unittest.mock import Mock
 from weakref import ref
 
 import pytest
+import toolz
 
 from psygnal._weak_callback import WeakCallback, weak_callback
 
@@ -12,10 +13,12 @@ from psygnal._weak_callback import WeakCallback, weak_callback
     "type_",
     [
         "function",
+        "toolz_function",
         "weak_func",
         "lambda",
         "method",
         "partial_method",
+        "toolz_method",
         "setattr",
         "setitem",
         "mock",
@@ -54,12 +57,22 @@ def test_slot_types(type_: str, capsys) -> None:
             return x
 
         cb = weak_callback(obj, strong_func=(type_ == "function"), finalize=final_mock)
+    elif type_ == "toolz_function":
+
+        @toolz.curry
+        def obj(z: int, x: int) -> None:
+            mock(x)
+            return x
+
+        cb = weak_callback(obj(5), finalize=final_mock)
     elif type_ == "lambda":
         cb = weak_callback(lambda x: mock(x) and x, finalize=final_mock)
     elif type_ == "method":
         cb = weak_callback(obj.method, finalize=final_mock)
     elif type_ == "partial_method":
         cb = weak_callback(partial(obj.method, 2), max_args=0, finalize=final_mock)
+    elif type_ == "toolz_method":
+        cb = weak_callback(toolz.curry(obj.method, 2), max_args=0, finalize=final_mock)
     elif type_ == "mock":
         cb = weak_callback(mock, finalize=final_mock)
     elif type_ == "weak_cb":
@@ -84,7 +97,7 @@ def test_slot_types(type_: str, capsys) -> None:
 
     del obj
 
-    if type_ not in ("function", "lambda", "mock"):
+    if type_ not in ("function", "toolz_function", "lambda", "mock"):
         final_mock.assert_called_once_with(cb)
         assert cb.dereference() is None
         with pytest.raises(ReferenceError):
