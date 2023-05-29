@@ -8,6 +8,7 @@ from typing import Optional
 from unittest.mock import MagicMock, Mock, call
 
 import pytest
+import toolz
 from typing_extensions import Literal
 
 from psygnal import EmitLoopError, Signal, SignalInstance, _compiled
@@ -240,6 +241,8 @@ def test_disconnect(thread: Literal[None, "main"]) -> None:
         "lambda",
         "method",
         "partial_method",
+        "toolz_function",
+        "toolz_method",
         "partial_method_kwarg",
         "partial_method_kwarg_bad",
         "setattr",
@@ -258,12 +261,17 @@ def test_slot_types(type_: str) -> None:
         signal.connect_setitem(obj, "x")
     elif type_ == "function":
         signal.connect(f_int)
+
     elif type_ == "lambda":
         signal.connect(lambda x: None)
     elif type_ == "method":
         signal.connect(obj.f_int)
     elif type_ == "partial_method":
         signal.connect(partial(obj.f_int_int, 2))
+    elif type_ == "toolz_function":
+        signal.connect(toolz.curry(f_int_int, 2))
+    elif type_ == "toolz_method":
+        signal.connect(toolz.curry(obj.f_int_int, 2))
     elif type_ == "partial_method_kwarg":
         signal.connect(partial(obj.f_int_int, b=2))
     elif type_ == "partial_method_kwarg_bad":
@@ -343,6 +351,7 @@ def test_signal_instance():
         "f_int_decorated_good",
         "f_any_assigned",
         "partial",
+        "toolz_curry",
     ],
 )
 def test_weakref(slot):
@@ -351,9 +360,12 @@ def test_weakref(slot):
     obj = MyObj()
 
     assert len(emitter.one_int) == 0
-    emitter.one_int.connect(
-        partial(obj.f_int_int, 1) if slot == "partial" else getattr(obj, slot)
-    )
+    if slot == "partial":
+        emitter.one_int.connect(partial(obj.f_int_int, 1))
+    elif slot == "toolz_curry":
+        emitter.one_int.connect(toolz.curry(obj.f_int_int, 1))
+    else:
+        emitter.one_int.connect(getattr(obj, slot))
     assert len(emitter.one_int) == 1
     emitter.one_int.emit(1)
     assert len(emitter.one_int) == 1

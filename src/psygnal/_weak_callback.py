@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 import weakref
 from functools import partial
 from types import BuiltinMethodType, FunctionType, MethodType, MethodWrapperType
@@ -9,13 +10,20 @@ from warnings import warn
 from typing_extensions import Protocol
 
 if TYPE_CHECKING:
-    from typing_extensions import Literal, TypeAlias
+    import toolz
+    from typing_extensions import Literal, TypeAlias, TypeGuard
 
     RefErrorChoice: TypeAlias = Literal["raise", "warn", "ignore"]
 
 __all__ = ["weak_callback", "WeakCallback"]
 _T = TypeVar("_T")
 _R = TypeVar("_R")  # return type of cb
+
+
+def _is_toolz_curry(obj: Any) -> TypeGuard[toolz.curry]:
+    """Return True if obj is a toolz.curry object."""
+    tz = sys.modules.get("toolz")
+    return False if tz is None else isinstance(obj, tz.curry)
 
 
 def weak_callback(
@@ -135,6 +143,21 @@ def weak_callback(
                 ) from e
             return _WeakSetattr(obj, attr, max_args, finalize, on_ref_error)
         return _WeakBuiltin(cb, max_args, args, finalize, on_ref_error)
+
+    if _is_toolz_curry(cb):
+        cb_partial = getattr(cb, "_partial", None)
+        if cb_partial is None:  # pragma: no cover
+            raise TypeError(
+                "toolz.curry object found without a '_partial' attribute. This "
+                "version of toolz is not supported. Please open an issue at psygnal."
+            )
+        return weak_callback(
+            cb_partial,
+            *args,
+            max_args=max_args,
+            finalize=finalize,
+            on_ref_error=on_ref_error,
+        )
 
     if callable(cb):
         return _WeakFunction(cb, max_args, args, kwargs, finalize, on_ref_error)
