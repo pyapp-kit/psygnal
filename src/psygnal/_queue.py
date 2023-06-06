@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Any, Callable, ClassVar, DefaultDict, Tuple
 if TYPE_CHECKING:
     from typing_extensions import Literal
 
+import collections
+
 from ._exceptions import EmitLoopError
 from ._weak_callback import WeakCallback
 
@@ -28,9 +30,9 @@ class QueuedCallback(WeakCallback):
         thread will be used.
     """
 
-    _GLOBAL_QUEUE: ClassVar[DefaultDict[Thread, Queue[CbArgsTuple]]] = DefaultDict(
-        Queue
-    )
+    _GLOBAL_QUEUE: ClassVar[
+        collections.defaultdict[Thread, Queue[CbArgsTuple]]
+    ] = DefaultDict(Queue)
 
     def __init__(
         self,
