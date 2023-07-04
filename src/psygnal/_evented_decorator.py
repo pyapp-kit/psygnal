@@ -38,7 +38,7 @@ def evented(
 
 @overload
 def evented(
-    cls: "Literal[None]" = None,
+    cls: "Optional[Literal[None]]" = None,
     *,
     events_namespace: str = "events",
     equality_operators: Optional[Dict[str, EqOperator]] = None,

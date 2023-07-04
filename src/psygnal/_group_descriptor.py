@@ -6,7 +6,16 @@ import sys
 import warnings
 import weakref
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Type, TypeVar, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterable,
+    Type,
+    TypeVar,
+    cast,
+    overload,
+)
 
 from typing_extensions import Literal
 
@@ -183,7 +192,7 @@ def evented_setattr(signal_group_name: str, super_setattr: SetAttr) -> SetAttr:
 
 @overload
 def evented_setattr(
-    signal_group_name: str, super_setattr: Literal[None] = None
+    signal_group_name: str, super_setattr: Literal[None] | None = None
 ) -> Callable[[SetAttr], SetAttr]:
     ...
 
