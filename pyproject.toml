@@ -42,7 +42,7 @@ dev = [
     "mypy",
     "numpy",
     "pre-commit",
-    "pydantic",
+    "pydantic<2",
     "PyQt5",
     "pytest-cov",
     "pytest-qt",
@@ -102,7 +102,7 @@ require-runtime-dependencies = true
 dependencies = [
     "hatch-mypyc>=0.13.0",
     "mypy>=0.991",
-    "pydantic",
+    "pydantic<2",
     "types-attrs",
     "msgspec ; python_version >= '3.8'",
 ]
