@@ -37,7 +37,6 @@ dev = [
     "black",
     "cruft",
     "dask",
-    "ruff",
     "ipython",
     "mypy",
     "numpy",
@@ -45,10 +44,12 @@ dev = [
     "pydantic<2",
     "PyQt5",
     "pytest-cov",
+    "pytest-mypy-plugins",
     "pytest-qt",
     "pytest",
     "qtpy",
     "rich",
+    "ruff",
     "wrapt",
 ]
 docs = [
