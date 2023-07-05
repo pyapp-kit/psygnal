@@ -316,7 +316,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
 
     class Config:
         # this seems to be necessary for the _json_encoders trick to work
-        json_encoders = {"____": None}
+        json_encoders: ClassVar[dict] = {"____": None}
 
     def __init__(_model_self_, **data: Any) -> None:
         super().__init__(**data)

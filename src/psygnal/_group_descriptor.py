@@ -10,6 +10,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    ClassVar,
     Iterable,
     Type,
     TypeVar,
@@ -382,7 +383,7 @@ class SignalGroupDescriptor:
 
     # map of id(obj) -> SignalGroup
     # cached here in case the object isn't modifiable
-    _instance_map: dict[int, SignalGroup] = {}
+    _instance_map: ClassVar[dict[int, SignalGroup]] = {}
 
     @overload
     def __get__(self, instance: None, owner: type) -> SignalGroupDescriptor:

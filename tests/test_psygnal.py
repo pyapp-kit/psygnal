@@ -449,7 +449,6 @@ SIG_INCOMPATIBLE = {
         "f_str_int_any",
         "f_str_int_vararg",
         "f_str_str",
-        "f_str_str",
         "f_str",
     },
     "str_int": {"f_int_int", "f_int", "f_str_int_any", "f_str_str"},
