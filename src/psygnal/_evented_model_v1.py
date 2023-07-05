@@ -15,9 +15,15 @@ from typing import (
     no_type_check,
 )
 
-import pydantic.main
-from pydantic import BaseModel, PrivateAttr, utils
-from pydantic.fields import Field, FieldInfo
+try:
+    import pydantic.v1.main as pydantic_main
+    from pydantic.v1 import BaseModel, PrivateAttr, utils
+    from pydantic.v1.fields import Field, FieldInfo
+except ImportError:  # pragma: no cover
+    import pydantic.main as pydantic_main
+    from pydantic import BaseModel, PrivateAttr, utils
+    from pydantic.fields import Field, FieldInfo
+
 
 from ._group import SignalGroup
 from ._group_descriptor import _check_field_equality, _pick_equality_operator
@@ -48,7 +54,7 @@ GUESS_PROPERTY_DEPENDENCIES = "guess_property_dependencies"
 
 @contextmanager
 def no_class_attributes() -> Iterator[None]:  # pragma: no cover
-    """Context in which pydantic.main.ClassAttribute just passes value 2.
+    """Context in which pydantic_main.ClassAttribute just passes value 2.
 
     Due to a very annoying decision by PySide2, all class ``__signature__``
     attributes may only be assigned **once**.  (This seems to be regardless of
@@ -83,16 +89,16 @@ def no_class_attributes() -> Iterator[None]:  # pragma: no cover
     def _return2(x: str, y: "Signature") -> "Signature":
         return y
 
-    pydantic.main.ClassAttribute = _return2  # type: ignore
+    pydantic_main.ClassAttribute = _return2  # type: ignore
     try:
         yield
     finally:
         # undo our monkey patch
-        pydantic.main.ClassAttribute = utils.ClassAttribute  # type: ignore
+        pydantic_main.ClassAttribute = utils.ClassAttribute  # type: ignore
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=(Field, FieldInfo))
-class EventedMetaclass(pydantic.main.ModelMetaclass):
+class EventedMetaclass(pydantic_main.ModelMetaclass):
     """pydantic ModelMetaclass that preps "equality checking" operations.
 
     A metaclass is the thing that "constructs" a class, and ``ModelMetaclass``
@@ -456,7 +462,7 @@ def _get_defaults(obj: BaseModel) -> Dict[str, Any]:
     dflt = {}
     for k, v in obj.__fields__.items():
         d = v.get_default()
-        if d is None and isinstance(v.type_, pydantic.main.ModelMetaclass):
+        if d is None and isinstance(v.type_, pydantic_main.ModelMetaclass):
             d = _get_defaults(v.type_)  # pragma: no cover
         dflt[k] = d
     return dflt

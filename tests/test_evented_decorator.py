@@ -6,6 +6,7 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
+from pydantic import __version__ as pydantic_version
 
 from psygnal import (
     SignalGroup,
@@ -105,8 +106,13 @@ def test_attrs_dataclass(decorator: bool, slots: bool) -> None:
     _check_events(Foo)
 
 
-class Config:
-    arbitrary_types_allowed = True
+PYDANTIC_V2 = pydantic_version.startswith("2")
+if PYDANTIC_V2:
+    Config = {"arbitrary_types_allowed": True}
+else:
+
+    class Config:
+        arbitrary_types_allowed = True
 
 
 @decorated_or_descriptor
@@ -142,7 +148,10 @@ def test_pydantic_base_model(decorator: bool) -> None:
         baz: str
         qux: np.ndarray
 
-        Config = Config  # type: ignore
+        if PYDANTIC_V2:
+            model_config = Config
+        else:
+            Config = Config  # type: ignore
 
     if decorator:
 

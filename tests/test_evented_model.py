@@ -1,6 +1,6 @@
 import inspect
 import sys
-from typing import ClassVar, List, Sequence, Union
+from typing import Any, ClassVar, List, Sequence, Union
 from unittest.mock import Mock
 
 import numpy as np
@@ -512,7 +512,7 @@ def test_setter_inheritance():
     class M(EventedModel):
         _x: int = PrivateAttr()
 
-        def __init__(self, x: int, **data) -> None:
+        def __init__(self, x: int, **data: Any) -> None:
             self.x = x
             super().__init__(**data)
 

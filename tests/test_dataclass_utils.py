@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import pytest
 from attr import define
 from pydantic import BaseModel
+from pydantic import __version__ as pydantic_version
 
 from psygnal import _dataclass_utils
 
@@ -11,6 +12,7 @@ try:
 except ImportError:
     Struct = None
 
+PYDANTIC2 = pydantic_version.startswith("2.")
 VARIANTS = ["dataclass", "attrs_class", "pydantic_model"]
 if Struct is not None:
     VARIANTS.append("msgspec_struct")
@@ -45,8 +47,13 @@ def test_dataclass_utils(type_: str, frozen: bool) -> None:
             x: int
             y: str = "foo"
 
-            class Config:
-                allow_mutation = not frozen
+            if PYDANTIC2:
+                model_config = {"frozen": frozen}
+
+            else:
+
+                class Config:
+                    allow_mutation = not frozen
 
     for name in VARIANTS:
         is_type = getattr(_dataclass_utils, f"is_{name}")

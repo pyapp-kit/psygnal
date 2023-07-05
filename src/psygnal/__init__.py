@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     PackageNotFoundError = Exception
-    from ._evented_model import EventedModel
+    from ._evented_model_v1 import EventedModel
 
     def version(package: str) -> str:
         """Return version."""
@@ -73,7 +73,7 @@ from ._throttler import debounced, throttled
 
 def __getattr__(name: str) -> Any:
     if name == "EventedModel":
-        from ._evented_model import EventedModel
+        from ._evented_model_v1 import EventedModel
 
         return EventedModel
     raise AttributeError(  # pragma: no cover

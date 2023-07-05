@@ -128,6 +128,11 @@ def is_frozen(obj: Any) -> bool:
     if cfg is not None and getattr(cfg, "allow_mutation", None) is False:
         return True
 
+    # pydantic v2
+    cfg = getattr(cls, "model_config", None)
+    if cfg is not None and cfg.get("frozen"):
+        return True
+
     # attrs
     if getattr(cls.__setattr__, "__name__", None) == "_frozen_setattrs":
         return True
@@ -170,9 +175,14 @@ def iter_fields(
         return
 
     if is_pydantic_model(cls):
-        for p_field in cls.__fields__.values():
-            if p_field.field_info.allow_mutation or not exclude_frozen:
-                yield p_field.name, p_field.outer_type_
+        if hasattr(cls, "model_fields"):
+            for field_name, p_field in cls.model_fields.items():
+                if not p_field.frozen or not exclude_frozen:
+                    yield field_name, p_field.annotation
+        else:
+            for p_field in cls.__fields__.values():
+                if p_field.field_info.allow_mutation or not exclude_frozen:
+                    yield p_field.name, p_field.outer_type_
         return
 
     attrs_fields = getattr(cls, "__attrs_attrs__", None)
