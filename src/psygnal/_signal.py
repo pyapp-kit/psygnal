@@ -248,6 +248,7 @@ class SignalInstance:
     # This is what you will use to connect your callbacks
     e.signal.connect(some_callback)
     ```
+
     Parameters
     ----------
     signature : Optional[inspect.Signature]
