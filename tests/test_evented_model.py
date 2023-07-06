@@ -539,3 +539,29 @@ def test_setter_inheritance():
         class Bad(M):
             class Config:
                 allow_property_setters = False
+
+
+def test_derived_events() -> None:
+    class Model(EventedModel):
+        a: int
+
+        @property
+        def b(self) -> int:
+            return self.a + 1
+
+        @b.setter
+        def b(self, b: int) -> None:
+            self.a = b - 1
+
+        class Config:
+            allow_property_setters = True
+            property_dependencies = {"b": ["a"]}
+
+    mock_a = Mock()
+    mock_b = Mock()
+    m = Model(a=0)
+    m.events.a.connect(mock_a)
+    m.events.b.connect(mock_b)
+    m.b = 3
+    mock_a.assert_called_once_with(2)
+    mock_b.assert_called_once_with(3)
