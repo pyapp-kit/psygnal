@@ -557,8 +557,11 @@ def test_derived_events() -> None:
             allow_property_setters = True
             property_dependencies = {"b": ["a"]}
 
-    mock = Mock()
+    mock_a = Mock()
+    mock_b = Mock()
     m = Model(a=0)
-    m.events.b.connect(mock)
+    m.events.a.connect(mock_a)
+    m.events.b.connect(mock_b)
     m.b = 3
-    mock.assert_called_once_with(3)
+    mock_a.assert_called_once_with(2)
+    mock_b.assert_called_once_with(3)
