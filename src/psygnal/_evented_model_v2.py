@@ -332,13 +332,14 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         before = getattr(self, name, object())
 
         # set value using original setter
-        self._super_setattr_(name, value)
+        signal_instance: SignalInstance = getattr(self._events, name)
+        with signal_instance.blocked():
+            self._super_setattr_(name, value)
 
         # if different we emit the event with new value
         after = getattr(self, name)
 
         if not _check_field_equality(type(self), name, after, before):
-            signal_instance: SignalInstance = getattr(self.events, name)
             signal_instance.emit(after)  # emit event
 
             # emit events for any dependent computed property setters as well
