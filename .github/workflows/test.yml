@@ -76,7 +76,7 @@ jobs:
 
       - name: downgrade pydantic
         if: matrix.pydantic != ''
-        run: python -m pip install ${{ matrix.pydantic }}
+        run: python -m pip install "${{ matrix.pydantic }}"
 
       - name: test uncompiled
         uses: aganders3/headless-gui@v1

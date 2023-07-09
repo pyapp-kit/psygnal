@@ -662,9 +662,16 @@ def test_derived_events() -> None:
         def b(self, b: int) -> None:
             self.a = b - 1
 
-        class Config:
-            allow_property_setters = True
-            property_dependencies = {"b": ["a"]}
+        if PYDANTIC_V2:
+            model_config = {
+                "allow_property_setters": True,
+                "property_dependencies": {"b": ["a"]},
+            }
+        else:
+
+            class Config:
+                allow_property_setters = True
+                property_dependencies = {"b": ["a"]}
 
     mock_a = Mock()
     mock_b = Mock()
