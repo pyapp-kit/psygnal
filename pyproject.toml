@@ -193,11 +193,6 @@ ignore_errors = true
 module = ["wrapt", "msgspec"]
 ignore_missing_imports = true
 
-[[tool.mypy.overrides]]
-# since we'll usually have pydantic2 in the env
-module = ["psygnal._evented_model_v1"]
-ignore_errors = true
-
 # https://coverage.readthedocs.io/en/6.4/config.html
 [tool.coverage.report]
 exclude_lines = [

@@ -15,10 +15,6 @@ from typing import (
     no_type_check,
 )
 
-import pydantic.main as pydantic_main  # type: ignore
-from pydantic import BaseModel, PrivateAttr, utils  # type: ignore
-from pydantic.fields import Field, FieldInfo  # type: ignore
-
 from ._group import SignalGroup
 from ._group_descriptor import _check_field_equality, _pick_equality_operator
 from ._signal import Signal, SignalInstance
@@ -26,12 +22,18 @@ from ._signal import Signal, SignalInstance
 if TYPE_CHECKING:
     from inspect import Signature
 
-    from pydantic.fields import ModelField
+    import pydantic.v1.main as pydantic_main
+    from pydantic.v1 import BaseModel, PrivateAttr, utils
+    from pydantic.v1.fields import Field, FieldInfo, ModelField
     from typing_extensions import dataclass_transform
 
     EqOperator = Callable[[Any, Any], bool]
 
 else:
+    import pydantic.main as pydantic_main
+    from pydantic import BaseModel, PrivateAttr, utils
+    from pydantic.fields import Field, FieldInfo
+
     try:
         from typing_extensions import dataclass_transform
     except ImportError:  # pragma: no cover
