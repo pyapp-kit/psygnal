@@ -41,7 +41,7 @@ dev = [
     "mypy",
     "numpy",
     "pre-commit",
-    "pydantic<2",
+    "pydantic",
     "PyQt5",
     "pytest-cov",
     "pytest-mypy-plugins",
@@ -62,12 +62,12 @@ docs = [
     "mkdocs-spellcheck[all]",
 ]
 proxy = ["wrapt"]
-pydantic = ["pydantic<2"]
+pydantic = ["pydantic"]
 test = [
     "dask",
     "attrs",
     "numpy",
-    "pydantic<2",
+    "pydantic",
     "pyinstaller>=4.0",
     "pytest>=6.0",
     "pytest-codspeed",
@@ -103,7 +103,7 @@ require-runtime-dependencies = true
 dependencies = [
     "hatch-mypyc>=0.13.0",
     "mypy>=0.991",
-    "pydantic<2",
+    "pydantic",
     "types-attrs",
     "msgspec ; python_version >= '3.8'",
 ]
