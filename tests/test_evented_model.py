@@ -5,7 +5,11 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
-from pydantic import PrivateAttr
+
+try:
+    from pydantic.v1 import PrivateAttr
+except ImportError:
+    from pydantic import PrivateAttr
 from typing_extensions import Protocol, runtime_checkable
 
 from psygnal import EventedModel, SignalGroup

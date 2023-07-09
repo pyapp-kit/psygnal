@@ -20,9 +20,9 @@ try:
     from pydantic.v1 import BaseModel, PrivateAttr, utils
     from pydantic.v1.fields import Field, FieldInfo
 except ImportError:  # pragma: no cover
-    import pydantic.main as pydantic_main
-    from pydantic import BaseModel, PrivateAttr, utils
-    from pydantic.fields import Field, FieldInfo
+    import pydantic.main as pydantic_main  # type: ignore
+    from pydantic import BaseModel, PrivateAttr, utils  # type: ignore
+    from pydantic.fields import Field, FieldInfo  # type: ignore
 
 
 from ._group import SignalGroup
@@ -32,7 +32,7 @@ from ._signal import Signal, SignalInstance
 if TYPE_CHECKING:
     from inspect import Signature
 
-    from pydantic.fields import ModelField
+    from pydantic.v1.fields import ModelField
     from typing_extensions import dataclass_transform
 
     EqOperator = Callable[[Any, Any], bool]

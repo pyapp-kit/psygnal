@@ -180,9 +180,9 @@ def iter_fields(
                 if not p_field.frozen or not exclude_frozen:
                     yield field_name, p_field.annotation
         else:
-            for p_field in cls.__fields__.values():
-                if p_field.field_info.allow_mutation or not exclude_frozen:
-                    yield p_field.name, p_field.outer_type_
+            for p_field in cls.__fields__.values():  # type: ignore
+                if p_field.field_info.allow_mutation or not exclude_frozen:  # type: ignore  # noqa
+                    yield p_field.name, p_field.outer_type_  # type: ignore
         return
 
     attrs_fields = getattr(cls, "__attrs_attrs__", None)
