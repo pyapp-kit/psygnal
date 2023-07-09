@@ -455,7 +455,6 @@ def test_enums_as_values():
     m = SomeModel()
     assert asdict(m) == {"a": MyEnum.A}
     with m.enums_as_values():
-        breakpoint()
         assert asdict(m) == {"a": "value"}
     assert asdict(m) == {"a": MyEnum.A}
 
