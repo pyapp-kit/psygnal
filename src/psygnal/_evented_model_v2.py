@@ -417,7 +417,9 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
 
     @classmethod
     @contextmanager
-    def enums_as_values(cls, as_values: bool = True) -> Iterator[None]:
+    def enums_as_values(
+        cls, as_values: bool = True
+    ) -> Iterator[None]:  # pragma: no cover
         """Temporarily override how enums are retrieved.
 
         Parameters
