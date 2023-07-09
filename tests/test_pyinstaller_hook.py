@@ -27,6 +27,7 @@ def test_hook_content():
     assert "psygnal._dataclass_utils" in hook.hiddenimports
 
 
+@pytest.mark.skipif(not os.getenv("CI"), reason="slow test")
 def test_pyintstaller_hiddenimports(tmp_path: Path) -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")

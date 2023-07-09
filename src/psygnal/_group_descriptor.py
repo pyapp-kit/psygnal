@@ -105,7 +105,10 @@ def _check_field_equality(
         ):
             eq_map[name] = np.array_equal
             return _check_field_equality(cls, name, before, after, _fail=False)
-        else:
+        else:  # pragma: no cover
+            # at some point, dask array started hitting in the above condition
+            # so we add explicit casing in _pick_equality_operator
+            # but we keep this fallback just in case
             eq_map[name] = operator.is_
             return _check_field_equality(cls, name, before, after, _fail=True)
 
@@ -113,6 +116,10 @@ def _check_field_equality(
 def _pick_equality_operator(type_: type | None) -> EqOperator:
     """Get the default equality operator for a given type."""
     np = sys.modules.get("numpy", None)
+    if getattr(type_, "__module__", "").startswith("dask"):
+        # for dask, simply check if the values are the same object
+        # this is to avoid accidentally triggering a computation with array_equal
+        return operator.is_
     if np is not None and hasattr(type_, "__array__"):
         return np.array_equal  # type: ignore [no-any-return]
     return operator.eq
@@ -416,9 +423,7 @@ class SignalGroupDescriptor:
             # clean up the cache when the instance is deleted
             with contextlib.suppress(TypeError):
                 # mypy says too many attributes for weakref.finalize, but it's wrong.
-                weakref.finalize(  # type: ignore [call-arg]
-                    instance, self._instance_map.pop, obj_id, None
-                )
+                weakref.finalize(instance, self._instance_map.pop, obj_id, None)  # type: ignore [call-arg]  # noqa
 
         return self._instance_map[obj_id]
 

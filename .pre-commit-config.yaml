@@ -44,4 +44,4 @@ repos:
         exclude: tests|_throttler.pyi
         additional_dependencies:
           - types-attrs
-          - pydantic<2
+          - pydantic
