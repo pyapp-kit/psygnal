@@ -59,7 +59,7 @@ def throttled(
 ) -> Throttler[P]: ...
 @overload
 def throttled(
-    func: Literal[None] = None,
+    func: Literal[None] | None = None,
     timeout: int = 100,
     leading: bool = True,
 ) -> Callable[[Callable[P, Any]], Throttler[P]]: ...
@@ -71,7 +71,7 @@ def debounced(
 ) -> Debouncer[P]: ...
 @overload
 def debounced(
-    func: Literal[None] = None,
+    func: Literal[None] | None = None,
     timeout: int = 100,
     leading: bool = False,
 ) -> Callable[[Callable[P, Any]], Debouncer[P]]: ...
