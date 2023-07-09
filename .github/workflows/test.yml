@@ -19,7 +19,7 @@ jobs:
       - run: pip install check-manifest && check-manifest
 
   test-linux:
-    name: py${{ matrix.python-version }} on ${{ matrix.platform }} ${{ matrix.backend }}
+    name: py${{ matrix.python-version }} on ${{ matrix.platform }} ${{ matrix.backend }} ${{ matrix.pydantic }}
     runs-on: ${{ matrix.platform }}
 
     strategy:
