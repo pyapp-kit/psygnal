@@ -105,7 +105,10 @@ def _check_field_equality(
         ):
             eq_map[name] = np.array_equal
             return _check_field_equality(cls, name, before, after, _fail=False)
-        else:
+        else:  # pragma: no cover
+            # at some point, dask array started hitting in the above condition
+            # so we add explicit casing in _pick_equality_operator
+            # but we keep this fallback just in case
             eq_map[name] = operator.is_
             return _check_field_equality(cls, name, before, after, _fail=True)
 
