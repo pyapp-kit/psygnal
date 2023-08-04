@@ -117,6 +117,7 @@ else:
 
 @decorated_or_descriptor
 def test_pydantic_dataclass(decorator: bool) -> None:
+    pytest.importorskip("pydantic")
     from pydantic.dataclasses import dataclass
 
     @dataclass(config=Config)
@@ -141,6 +142,7 @@ def test_pydantic_dataclass(decorator: bool) -> None:
 
 @decorated_or_descriptor
 def test_pydantic_base_model(decorator: bool) -> None:
+    pytest.importorskip("pydantic")
     from pydantic import BaseModel
 
     class Base(BaseModel):
