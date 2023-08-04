@@ -6,19 +6,21 @@ import sys
 import types
 from typing import TYPE_CHECKING, Any, Iterator, List, cast, overload
 
+from typing_extensions import Protocol
+
 if TYPE_CHECKING:
     import attrs
     import msgspec
     from pydantic import BaseModel
-    from typing_extensions import Protocol, TypeGuard
+    from typing_extensions import TypeGuard
 
-    class _DataclassParams(Protocol):
-        init: bool
-        repr: bool
-        eq: bool
-        order: bool
-        unsafe_hash: bool
-        frozen: bool
+class _DataclassParams(Protocol):
+    init: bool
+    repr: bool
+    eq: bool
+    order: bool
+    unsafe_hash: bool
+    frozen: bool
 
 
 GenericAlias = getattr(types, "GenericAlias", type(List[int]))  # safe for < py 3.9
