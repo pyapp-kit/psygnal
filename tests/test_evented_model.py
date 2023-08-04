@@ -5,11 +5,7 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
-from git import TYPE_CHECKING
 from typing_extensions import Protocol, runtime_checkable
-
-if TYPE_CHECKING:
-    from pydantic import BaseModel
 
 try:
     from pydantic import PrivateAttr
@@ -17,6 +13,7 @@ except ImportError:
     pytest.skip("pydantic not installed", allow_module_level=True)
 
 import pydantic.version
+from pydantic import BaseModel
 
 from psygnal import EventedModel, SignalGroup
 
