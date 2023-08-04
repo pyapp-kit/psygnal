@@ -26,6 +26,7 @@ def test_descriptor_inherits(type_: str) -> None:
             c: float
 
     elif type_ == "pydantic":
+        pytest.importorskip("pydantic")
         from pydantic import BaseModel
 
         class Base(BaseModel):

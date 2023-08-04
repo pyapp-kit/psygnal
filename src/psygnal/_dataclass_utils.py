@@ -14,8 +14,6 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
     from typing_extensions import TypeGuard
 
-GenericAlias = getattr(types, "GenericAlias", type(List[int]))  # safe for < py 3.9
-
 
 class _DataclassParams(Protocol):
     init: bool
@@ -24,6 +22,9 @@ class _DataclassParams(Protocol):
     order: bool
     unsafe_hash: bool
     frozen: bool
+
+
+GenericAlias = getattr(types, "GenericAlias", type(List[int]))  # safe for < py 3.9
 
 
 class AttrsType:
@@ -180,7 +181,7 @@ def iter_fields(
                 if not p_field.frozen or not exclude_frozen:
                     yield field_name, p_field.annotation
         else:
-            for p_field in cls.__fields__.values():  # type: ignore
+            for p_field in cls.__fields__.values():  # type: ignore [attr-defined]
                 if p_field.field_info.allow_mutation or not exclude_frozen:  # type: ignore  # noqa
                     yield p_field.name, p_field.outer_type_  # type: ignore
         return

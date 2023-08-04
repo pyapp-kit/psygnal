@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from itertools import chain
-from typing import Any, Iterable, Iterator, MutableSet, TypeVar
-
-from typing_extensions import Final
+from typing import TYPE_CHECKING, Any, Iterable, Iterator, MutableSet, TypeVar
 
 from psygnal import Signal, SignalGroup
+
+if TYPE_CHECKING:
+    from typing_extensions import Final
 
 _T = TypeVar("_T")
 _Cls = TypeVar("_Cls", bound="_BaseMutableSet")

@@ -18,13 +18,13 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Literal
-
 from ._dataclass_utils import iter_fields
 from ._group import SignalGroup
 from ._signal import Signal
 
 if TYPE_CHECKING:
+    from typing_extensions import Literal
+
     from ._signal import SignalInstance
 
 

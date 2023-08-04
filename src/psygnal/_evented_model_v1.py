@@ -34,12 +34,8 @@ else:
     from pydantic import BaseModel, PrivateAttr, utils
     from pydantic.fields import Field, FieldInfo
 
-    try:
-        from typing_extensions import dataclass_transform
-    except ImportError:  # pragma: no cover
-
-        def dataclass_transform(*args, **kwargs):
-            return lambda a: a
+    def dataclass_transform(*args, **kwargs):
+        return lambda a: a
 
 
 _NULL = object()

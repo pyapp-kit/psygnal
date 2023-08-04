@@ -6,7 +6,14 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
-from pydantic import __version__ as pydantic_version
+
+try:
+    import pydantic.version
+
+    PYDANTIC_V2 = pydantic.version.VERSION.startswith("2")
+except ImportError:
+    PYDANTIC_V2 = False
+
 
 from psygnal import (
     SignalGroup,
@@ -106,7 +113,6 @@ def test_attrs_dataclass(decorator: bool, slots: bool) -> None:
     _check_events(Foo)
 
 
-PYDANTIC_V2 = pydantic_version.startswith("2")
 if PYDANTIC_V2:
     Config = {"arbitrary_types_allowed": True}
 else:
@@ -117,6 +123,7 @@ else:
 
 @decorated_or_descriptor
 def test_pydantic_dataclass(decorator: bool) -> None:
+    pytest.importorskip("pydantic")
     from pydantic.dataclasses import dataclass
 
     @dataclass(config=Config)
@@ -141,6 +148,7 @@ def test_pydantic_dataclass(decorator: bool) -> None:
 
 @decorated_or_descriptor
 def test_pydantic_base_model(decorator: bool) -> None:
+    pytest.importorskip("pydantic")
     from pydantic import BaseModel
 
     class Base(BaseModel):

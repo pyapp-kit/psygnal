@@ -2,8 +2,6 @@ from dataclasses import dataclass
 
 import pytest
 from attr import define
-from pydantic import BaseModel
-from pydantic import __version__ as pydantic_version
 
 from psygnal import _dataclass_utils
 
@@ -12,7 +10,13 @@ try:
 except ImportError:
     Struct = None
 
-PYDANTIC2 = pydantic_version.startswith("2.")
+try:
+    from pydantic import __version__ as pydantic_version
+
+    PYDANTIC2 = pydantic_version.startswith("2.")
+except ImportError:
+    PYDANTIC2 = False
+
 VARIANTS = ["dataclass", "attrs_class", "pydantic_model"]
 if Struct is not None:
     VARIANTS.append("msgspec_struct")
@@ -42,6 +46,8 @@ def test_dataclass_utils(type_: str, frozen: bool) -> None:
             y: str = "foo"
 
     elif type_ == "pydantic_model":
+        pytest.importorskip("pydantic")
+        from pydantic import BaseModel
 
         class Foo(BaseModel):  # type: ignore [no-redef]
             x: int

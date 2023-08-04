@@ -4,10 +4,16 @@ from typing import Any, ClassVar, List, Sequence, Union
 from unittest.mock import Mock
 
 import numpy as np
-import pydantic.version
 import pytest
-from pydantic import BaseModel, PrivateAttr
 from typing_extensions import Protocol, runtime_checkable
+
+try:
+    from pydantic import PrivateAttr
+except ImportError:
+    pytest.skip("pydantic not installed", allow_module_level=True)
+
+import pydantic.version
+from pydantic import BaseModel
 
 from psygnal import EventedModel, SignalGroup
 
@@ -24,7 +30,7 @@ except ImportError:
         return decorator
 
 
-def asdict(obj: BaseModel) -> dict:
+def asdict(obj: "BaseModel") -> dict:
     if PYDANTIC_V2:
         return obj.model_dump()
     else:
