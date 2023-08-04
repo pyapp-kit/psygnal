@@ -4,9 +4,9 @@ from typing import Any, ClassVar, List, Sequence, Union
 from unittest.mock import Mock
 
 import numpy as np
-import pydantic.version
 import pytest
 from git import TYPE_CHECKING
+from typing_extensions import Protocol, runtime_checkable
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
@@ -16,7 +16,7 @@ try:
 except ImportError:
     pytest.skip("pydantic not installed", allow_module_level=True)
 
-from typing_extensions import Protocol, runtime_checkable
+import pydantic.version
 
 from psygnal import EventedModel, SignalGroup
 
@@ -40,7 +40,7 @@ def asdict(obj: "BaseModel") -> dict:
         return obj.dict()
 
 
-def asjson(obj: "BaseModel") -> str:
+def asjson(obj: BaseModel) -> str:
     if PYDANTIC_V2:
         return obj.model_dump_json()
     else:
