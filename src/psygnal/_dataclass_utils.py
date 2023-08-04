@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from pydantic import BaseModel
     from typing_extensions import TypeGuard
 
+
 class _DataclassParams(Protocol):
     init: bool
     repr: bool
