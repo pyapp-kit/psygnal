@@ -7,6 +7,7 @@ from types import BuiltinMethodType, FunctionType, MethodType, MethodWrapperType
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, cast
 from warnings import warn
 
+from mypy_extensions import mypyc_attr
 from typing_extensions import Protocol
 
 if TYPE_CHECKING:
@@ -165,6 +166,7 @@ def weak_callback(
     raise TypeError(f"unsupported type {type(cb)}")  # pragma: no cover
 
 
+@mypyc_attr(serializable=True)
 class WeakCallback(Generic[_R]):
     """Abstract Base Class for weakly-referenced callbacks.
 

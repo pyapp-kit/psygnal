@@ -1118,13 +1118,16 @@ class SignalInstance:
             "__weakref__",
         )
 
-        d = {slot: getattr(self, slot) for slot in attrs}
+        d = {name: getattr(self, name, "_null_") for name in attrs}
         d.pop("_lock", None)
         return d
 
     def __setstate__(self, state: dict) -> None:
         """Restore state from pickle."""
-        self.__dict__.update(state)
+        # don't use __dict__, mypyc doesn't have it
+        for k, v in state.items():
+            if v != "_null_":
+                setattr(self, k, v)
         self._lock = threading.RLock()
 
 
