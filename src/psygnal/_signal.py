@@ -1118,7 +1118,7 @@ class SignalInstance:
             "__weakref__",
         )
 
-        d = {slot: getattr(self, slot) for slot in attrs}
+        d = {slot: getattr(self, slot, None) for slot in attrs}
         d.pop("_lock", None)
         return d
 
