@@ -25,7 +25,7 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
-    "typing-extensions",
+    "typing-extensions >=3.7.4.2",
     "mypy_extensions",
     "importlib_metadata ; python_version < '3.8'",
 ]
@@ -134,16 +134,16 @@ line-length = 88
 target-version = "py37"
 src = ["src", "tests"]
 select = [
-    "E",  # style errors
-    "F",  # flakes
-    "D",  # pydocstyle
-    "I",  # isort
-    "UP", # pyupgrade
-    # "N",  # pep8-naming
+    "E",    # style errors
+    "F",    # flakes
+    "D",    # pydocstyle
+    "I",    # isort
+    "UP",   # pyupgrade
     "S",    # bandit
     "C4",   # flake8-comprehensions
     "B",    # flake8-bugbear
     "A001", # flake8-builtins
+    "TCH",  # flake8-typecheck
     "TID",  # flake8-tidy-imports
     "RUF",  # ruff-specific rules
 ]

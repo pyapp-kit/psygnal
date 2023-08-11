@@ -34,12 +34,8 @@ else:
     from pydantic import BaseModel, PrivateAttr, utils
     from pydantic.fields import Field, FieldInfo
 
-    try:
-        from typing_extensions import dataclass_transform
-    except ImportError:  # pragma: no cover
-
-        def dataclass_transform(*args, **kwargs):
-            return lambda a: a
+    def dataclass_transform(*args, **kwargs):
+        return lambda a: a
 
 
 _NULL = object()
@@ -118,7 +114,7 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
 
         cls.__eq_operators__ = {}
         signals = {}
-        fields: Dict[str, "ModelField"] = cls.__fields__
+        fields: Dict[str, ModelField] = cls.__fields__
         for n, f in fields.items():
             cls.__eq_operators__[n] = _pick_equality_operator(f.type_)
             if f.field_info.allow_mutation:
