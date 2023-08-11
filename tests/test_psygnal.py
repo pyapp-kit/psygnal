@@ -935,3 +935,27 @@ def test_queued_connections():
     # ... until we call emit_queued() from this thread
     emit_queued()
     this_thread_mock.assert_called_once_with(2, this_thread)
+
+
+def test_deepcopy():
+    from copy import deepcopy
+
+    class T:
+        sig = Signal()
+
+    mock = Mock()
+    t = T()
+
+    @t.sig.connect
+    def f():
+        mock()
+
+    t.sig.emit()
+    mock.assert_called_once()
+    mock.reset_mock()
+
+    x = deepcopy(t)
+    x.sig.emit()
+    mock.assert_called_once()
+
+    assert x is not t

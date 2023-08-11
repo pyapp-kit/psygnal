@@ -1122,6 +1122,11 @@ class SignalInstance:
         d.pop("_lock", None)
         return d
 
+    def __setstate__(self, state: dict) -> None:
+        """Restore state from pickle."""
+        self.__dict__.update(state)
+        self._lock = threading.RLock()
+
 
 class _SignalBlocker:
     """Context manager to block and unblock a signal."""
