@@ -114,7 +114,7 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
 
         cls.__eq_operators__ = {}
         signals = {}
-        fields: Dict[str, "ModelField"] = cls.__fields__
+        fields: Dict[str, ModelField] = cls.__fields__
         for n, f in fields.items():
             cls.__eq_operators__[n] = _pick_equality_operator(f.type_)
             if f.field_info.allow_mutation:
