@@ -1153,7 +1153,9 @@ class SignalInstance:
                 has_refs = True
         if has_refs:
             warnings.warn(
-                "Deepcopying a signal clears all weakref slots.", stacklevel=2
+                "Deepcopying a SignalInstance does not copy connected "
+                "weakly referenced slots.",
+                stacklevel=2,
             )
         return new
 

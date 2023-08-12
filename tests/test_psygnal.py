@@ -959,3 +959,21 @@ def test_deepcopy():
     assert x is not t
     x.sig.emit()
     mock.assert_called_once()
+
+    mock2 = Mock()
+
+    class Foo:
+        def method(self):
+            mock2()
+
+    foo = Foo()
+    t.sig.connect(foo.method)
+    t.sig.emit()
+    mock2.assert_called_once()
+    mock2.reset_mock()
+
+    with pytest.warns(UserWarning, match="does not copy connected weakly referenced"):
+        x2 = deepcopy(t)
+
+    x2.sig.emit()
+    mock2.assert_not_called()

@@ -9,6 +9,7 @@ the args that were emitted.
 """
 from __future__ import annotations
 
+import warnings
 from typing import (
     Any,
     Callable,
@@ -22,6 +23,8 @@ from typing import (
 from mypy_extensions import mypyc_attr
 
 from psygnal._signal import Signal, SignalInstance, _SignalBlocker
+
+from ._weak_callback import _StrongFunction
 
 __all__ = ["EmissionInfo", "SignalGroup"]
 
@@ -122,7 +125,11 @@ class SignalGroup(SignalInstance):
     @property
     def signals(self) -> dict[str, SignalInstance]:
         """Return {name -> SignalInstance} map of all signal instances in this group."""
-        return {n: getattr(self, n) for n in type(self)._signals_}
+        try:
+            return {n: getattr(self, n) for n in type(self)._signals_}
+        except AttributeError:  # pragma: no cover
+            # can happen during deepcopy if class is not fully initialized
+            return {}
 
     @classmethod
     def is_uniform(cls) -> bool:
@@ -248,6 +255,25 @@ class SignalGroup(SignalInstance):
         nsignals = len(self.signals)
         signals = f"{nsignals} signals" if nsignals > 1 else ""
         return f"<SignalGroup{name} with {signals}{instance}>"
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> SignalGroup:
+        """Deepcopy this signal.
+
+        Note: slots with weakrefs will not be copied.
+        """
+        new = SignalGroup(self._instance, self._name)
+        has_refs = False
+        for x in self._slots:
+            if isinstance(x, _StrongFunction):
+                new._slots.append(x)
+            else:
+                has_refs = True
+        if has_refs:
+            warnings.warn(
+                "Deepcopying a SignalGroup does not copy connected weakref slots.",
+                stacklevel=2,
+            )
+        return new
 
 
 def _is_uniform(signals: Iterable[Signal]) -> bool:
