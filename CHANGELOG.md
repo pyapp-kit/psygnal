@@ -1,8 +1,32 @@
 # Changelog
 
-## [0.9.1](https://github.com/pyapp-kit/psygnal/tree/0.9.1) (2023-05-29)
+## [v0.9.2](https://github.com/pyapp-kit/psygnal/tree/v0.9.2) (2023-08-12)
 
-[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.0...0.9.1)
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.1...v0.9.2)
+
+**Fixed bugs:**
+
+- fix: add deepcopy method for mypyc support, don't copy weakly connected slots [\#222](https://github.com/pyapp-kit/psygnal/pull/222) ([tlambert03](https://github.com/tlambert03))
+- Fix imports of typing extensions [\#221](https://github.com/pyapp-kit/psygnal/pull/221) ([tlambert03](https://github.com/tlambert03))
+
+**Tests & CI:**
+
+- ci: fix linux wheels [\#226](https://github.com/pyapp-kit/psygnal/pull/226) ([tlambert03](https://github.com/tlambert03))
+- ci: change concurrency [\#224](https://github.com/pyapp-kit/psygnal/pull/224) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- build: remove setuppy [\#223](https://github.com/pyapp-kit/psygnal/pull/223) ([tlambert03](https://github.com/tlambert03))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.13.1 to 2.14.1 [\#218](https://github.com/pyapp-kit/psygnal/pull/218) ([dependabot[bot]](https://github.com/apps/dependabot))
+- fix: fix duplicated derived events [\#216](https://github.com/pyapp-kit/psygnal/pull/216) ([tlambert03](https://github.com/tlambert03))
+- feat: support pydantic v2 [\#214](https://github.com/pyapp-kit/psygnal/pull/214) ([tlambert03](https://github.com/tlambert03))
+- ci\(pre-commit.ci\): autoupdate [\#213](https://github.com/pyapp-kit/psygnal/pull/213) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.13.0 to 2.13.1 [\#212](https://github.com/pyapp-kit/psygnal/pull/212) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(pre-commit.ci\): autoupdate [\#211](https://github.com/pyapp-kit/psygnal/pull/211) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+
+## [v0.9.1](https://github.com/pyapp-kit/psygnal/tree/v0.9.1) (2023-05-29)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.0...v0.9.1)
 
 **Implemented enhancements:**
 
