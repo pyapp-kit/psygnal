@@ -124,7 +124,7 @@ test-extras = ["test"]
 test-command = "pytest {project}/tests -v"
 test-skip = "*-musllinux*"
 
-[tool.cibuildwheel.manylinux]
+[tool.cibuildwheel.linux]
 before-all = "yum install python3-devel"
 
 [tool.cibuildwheel.environment]
