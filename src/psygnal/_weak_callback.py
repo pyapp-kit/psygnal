@@ -7,7 +7,6 @@ from types import BuiltinMethodType, FunctionType, MethodType, MethodWrapperType
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, cast
 from warnings import warn
 
-from mypy_extensions import mypyc_attr
 from typing_extensions import Protocol
 
 if TYPE_CHECKING:
@@ -166,7 +165,6 @@ def weak_callback(
     raise TypeError(f"unsupported type {type(cb)}")  # pragma: no cover
 
 
-@mypyc_attr(serializable=True)
 class WeakCallback(Generic[_R]):
     """Abstract Base Class for weakly-referenced callbacks.
 
@@ -192,6 +190,7 @@ class WeakCallback(Generic[_R]):
         self._max_args: int | None = max_args
         self._alive: bool = True
         self._on_ref_error: RefErrorChoice = on_ref_error
+        self._finalize: Callable[[WeakCallback], Any] | None = None
 
     def cb(self, args: tuple[Any, ...] = ()) -> None:
         """Call the callback with `args`. Args will be spread when calling the func."""
@@ -220,6 +219,7 @@ class WeakCallback(Generic[_R]):
         obj: _T,
         finalize: Callable[[WeakCallback], Any] | None = None,
     ) -> Callable[[], _T | None]:
+        self._finalize = finalize
         _cb = None if finalize is None else _kill_and_finalize(self, finalize)
         try:
             return weakref.ref(obj, _cb)
@@ -297,6 +297,12 @@ class _StrongFunction(WeakCallback):
             return partial(self._f, *self._args, **self._kwargs)
         return self._f
 
+    def __reduce__(self) -> tuple[Any, ...]:
+        return (
+            self.__class__,
+            (self._f, self._max_args, self._args, self._kwargs, self._on_ref_error),
+        )
+
 
 class _WeakFunction(WeakCallback):
     """Wrapper around a weak function reference."""
@@ -330,6 +336,23 @@ class _WeakFunction(WeakCallback):
         if self._args or self._kwargs:
             return partial(f, *self._args, **self._kwargs)
         return f
+
+    def __reduce__(self) -> str | tuple[Any, ...]:
+        obj = self._f()
+        if obj is None:
+            raise ReferenceError("weakly-referenced object no longer exists")
+
+        return (
+            self.__class__,
+            (
+                obj,
+                self._max_args,
+                self._args,
+                self._kwargs,
+                self._finalize,
+                self._on_ref_error,
+            ),
+        )
 
 
 class _WeakMethod(WeakCallback):
@@ -378,6 +401,24 @@ class _WeakMethod(WeakCallback):
             return partial(method, *self._args, **self._kwargs)
         return method
 
+    def __reduce__(self) -> str | tuple[Any, ...]:
+        obj = self._obj_ref()
+        func = self._func_ref()
+        if obj is None or func is None:
+            raise ReferenceError("weakly-referenced object no longer exists")
+
+        return (
+            self.__class__,
+            (
+                func.__get__(obj),
+                self._max_args,
+                self._args,
+                self._kwargs,
+                self._finalize,
+                self._on_ref_error,
+            ),
+        )
+
 
 class _WeakBuiltin(WeakCallback):
     """Wrapper around a c-based method on a weakly-referenced object.
@@ -415,6 +456,16 @@ class _WeakBuiltin(WeakCallback):
     def dereference(self) -> MethodWrapperType | BuiltinMethodType | None:
         return getattr(self._obj_ref(), self._func_name, None)
 
+    def __reduce__(self) -> str | tuple[Any, ...]:
+        func = getattr(self._obj_ref(), self._func_name, None)
+        if func is None:
+            raise ReferenceError("weakly-referenced object no longer exists")
+
+        return (
+            self.__class__,
+            (func, self._max_args, self._args, self._finalize, self._on_ref_error),
+        )
+
 
 class _WeakSetattr(WeakCallback):
     """Caller to set an attribute on a weakly-referenced object."""
@@ -443,6 +494,15 @@ class _WeakSetattr(WeakCallback):
     def dereference(self) -> partial | None:
         obj = self._obj_ref()
         return None if obj is None else partial(setattr, obj, self._attr)
+
+    def __reduce__(self) -> str | tuple[Any, ...]:
+        obj = self._obj_ref()
+        if obj is None:
+            raise ReferenceError("weakly-referenced object no longer exists")
+        return (
+            self.__class__,
+            (obj, self._attr, self._max_args, self._finalize, self._on_ref_error),
+        )
 
 
 class SupportsSetitem(Protocol):
@@ -477,3 +537,12 @@ class _WeakSetitem(WeakCallback):
     def dereference(self) -> partial | None:
         obj = self._obj_ref()
         return None if obj is None else partial(obj.__setitem__, self._itemkey)
+
+    def __reduce__(self) -> str | tuple[Any, ...]:
+        obj = self._obj_ref()
+        if obj is None:
+            raise ReferenceError("weakly-referenced object no longer exists")
+        return (
+            self.__class__,
+            (obj, self._itemkey, self._max_args, self._finalize, self._on_ref_error),
+        )
