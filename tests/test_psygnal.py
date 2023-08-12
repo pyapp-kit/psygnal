@@ -940,10 +940,11 @@ def test_queued_connections():
 def test_deepcopy():
     from copy import deepcopy
 
+    mock = Mock()
+
     class T:
         sig = Signal()
 
-    mock = Mock()
     t = T()
 
     @t.sig.connect
@@ -955,7 +956,6 @@ def test_deepcopy():
     mock.reset_mock()
 
     x = deepcopy(t)
+    assert x is not t
     x.sig.emit()
     mock.assert_called_once()
-
-    assert x is not t
