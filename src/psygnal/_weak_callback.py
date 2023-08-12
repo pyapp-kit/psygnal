@@ -298,24 +298,12 @@ class _StrongFunction(WeakCallback):
         return self._f
 
     def __getstate__(self) -> dict[str, Any]:
-        return {
-            "_key": self._key,
-            "_max_args": self._max_args,
-            "_alive": self._alive,
-            "_on_ref_error": self._on_ref_error,
-            "_f": self._f,
-            "_args": self._args,
-            "_kwargs": self._kwargs,
-        }
+        atr = ("_key", "_max_args", "_alive", "_on_ref_error", "_f", "_args", "_kwargs")
+        return {k: getattr(self, k) for k in atr}
 
     def __setstate__(self, state: dict) -> None:
-        self._key = state["_key"]
-        self._max_args = state["_max_args"]
-        self._alive = state["_alive"]
-        self._on_ref_error = state["_on_ref_error"]
-        self._f = state["_f"]
-        self._args = state["_args"]
-        self._kwargs = state["_kwargs"]
+        for k, v in state.items():
+            setattr(self, k, v)
 
 
 class _WeakFunction(WeakCallback):

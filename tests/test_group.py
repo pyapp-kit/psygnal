@@ -210,7 +210,7 @@ def test_group_deepcopy():
     group = MyGroup(obj)
     group.connect(obj.method)
 
-    with pytest.warns(UserWarning, match="does not copy connected weakref"):
+    with pytest.warns(UserWarning, match="does not copy connected weakly"):
         group2 = deepcopy(group)
 
     assert not len(group2)

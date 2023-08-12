@@ -296,15 +296,7 @@ class SignalInstance:
         check_types_on_connect: bool = False,
     ) -> None:
         self._name = name
-        if instance is None:
-            self._instance: Callable = lambda: None
-        else:
-            try:
-                self._instance = weakref.ref(instance)
-            except TypeError:
-                # fall back to strong reference if instance is not weak-referenceable
-                self._instance = lambda: instance
-
+        self._instance: Callable = self._instance_ref(instance)
         self._args_queue: list[Any] = []  # filled when paused
 
         if isinstance(signature, (list, tuple)):
@@ -322,6 +314,17 @@ class SignalInstance:
         self._is_blocked: bool = False
         self._is_paused: bool = False
         self._lock = threading.RLock()
+
+    @staticmethod
+    def _instance_ref(instance: Any) -> Callable[[], Any]:
+        if instance is None:
+            return lambda: None
+
+        try:
+            return weakref.ref(instance)
+        except TypeError:
+            # fall back to strong reference if instance is not weak-referenceable
+            return lambda: instance
 
     @property
     def signature(self) -> Signature:
@@ -1112,35 +1115,20 @@ class SignalInstance:
         """Return dict of current state, for pickle."""
         attrs = (
             "_signature",
-            # "_instance",
             "_name",
-            # "_slots",
             "_is_blocked",
             "_is_paused",
             "_args_queue",
-            # "_lock",
             "_check_nargs_on_connect",
             "_check_types_on_connect",
-            "__weakref__",
         )
-        dd = {slot: getattr(self, slot, None) for slot in attrs}
-        dd["_instance"] = (
-            self._instance()
-            if isinstance(self._instance, weakref.ref)
-            else self._instance
-        )
-        _slots: list[_StrongFunction] = []
-        has_refs = False
-        for x in self._slots:
-            if isinstance(x, _StrongFunction):
-                _slots.append(x)
-            else:
-                has_refs = True
-        dd["_slots"] = _slots
-        if has_refs:
+        dd = {slot: getattr(self, slot) for slot in attrs}
+        dd["_instance"] = self._instance()
+        dd["_slots"] = [x for x in self._slots if isinstance(x, _StrongFunction)]
+        if len(self._slots) > len(dd["_slots"]):
             warnings.warn(
-                "Deepcopying/Pickling a SignalInstance does not copy connected "
-                "weakly referenced slots.",
+                "Pickling a SignalInstance does not copy connected weakly referenced "
+                "slots.",
                 stacklevel=2,
             )
 
@@ -1151,42 +1139,10 @@ class SignalInstance:
         # don't use __dict__, mypyc doesn't have it
         for k, v in state.items():
             if k == "_instance":
-                if v is None:
-                    self._instance = lambda: None
-                else:
-                    try:
-                        self._instance = weakref.ref(v)
-                    except TypeError:
-                        # fall back to strong reference if instance is not
-                        # weak-referenceable
-                        self._instance = lambda obj=v: obj
-
-            if k != "__weakref__":
+                self._instance = self._instance_ref(v)
+            else:
                 setattr(self, k, v)
         self._lock = threading.RLock()
-
-    # def __deepcopy__(self, memo: dict[int, Any]) -> SignalInstance:
-    #     """Deepcopy this signal."""
-    #     new = SignalInstance(
-    #         self._signature,
-    #         instance=self._instance,
-    #         name=self._name,
-    #         check_nargs_on_connect=self._check_nargs_on_connect,
-    #         check_types_on_connect=self._check_types_on_connect,
-    #     )
-    #     has_refs = False
-    #     for x in self._slots:
-    #         if isinstance(x, _StrongFunction):
-    #             new._slots.append(x)
-    #         else:
-    #             has_refs = True
-    #     if has_refs:
-    #         warnings.warn(
-    #             "Deepcopying a SignalInstance does not copy connected "
-    #             "weakly referenced slots.",
-    #             stacklevel=2,
-    #         )
-    #     return new
 
 
 class _SignalBlocker:
