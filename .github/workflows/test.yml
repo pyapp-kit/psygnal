@@ -7,6 +7,10 @@ on:
   pull_request: {}
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   check-manifest:
     name: Check Manifest
@@ -19,7 +23,7 @@ jobs:
       - run: pip install check-manifest && check-manifest
 
   test-linux:
-    name: py${{ matrix.python-version }} on ${{ matrix.platform }} ${{ matrix.backend }}
+    name: py${{ matrix.python-version }} on ${{ matrix.platform }} ${{ matrix.backend }} ${{ matrix.pydantic }}
     runs-on: ${{ matrix.platform }}
 
     strategy:
@@ -42,15 +46,16 @@ jobs:
             python-version: "3.10"
             backend: "PySide6"
           - platform: ubuntu-latest
+            python-version: "3.11"
+            pydantic: "pydantic<2"
+          - platform: windows-latest
+            python-version: "3.11"
+            pydantic: "pydantic<2"
+          - platform: ubuntu-latest
             python-version: "3.12-dev"
             backend: ""
 
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.11.0
-        with:
-          access_token: ${{ github.token }}
-
       - uses: actions/checkout@v3
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
@@ -70,6 +75,10 @@ jobs:
           python -m pip install -U pip
           python -m pip install -e .[test]
           python -c "import sys, psygnal; sys.exit(1 if psygnal._compiled else 0)"
+
+      - name: downgrade pydantic
+        if: matrix.pydantic != ''
+        run: python -m pip install "${{ matrix.pydantic }}"
 
       - name: test uncompiled
         uses: aganders3/headless-gui@v1

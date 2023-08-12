@@ -8,7 +8,7 @@ from ._selectable_evented_list import SelectableEventedList
 from ._selection import Selection
 
 if TYPE_CHECKING:
-    from ._evented_proxy import EventedCallableObjectProxy, EventedObjectProxy
+    from ._evented_proxy import EventedCallableObjectProxy, EventedObjectProxy  # noqa
 
 __all__ = [
     "EventedCallableObjectProxy",
