@@ -29,7 +29,13 @@ from typing_extensions import get_args, get_origin
 
 from ._exceptions import EmitLoopError
 from ._queue import QueuedCallback
-from ._weak_callback import WeakCallback, _WeakSetattr, _WeakSetitem, weak_callback
+from ._weak_callback import (
+    WeakCallback,
+    _StrongFunction,
+    _WeakSetattr,
+    _WeakSetitem,
+    weak_callback,
+)
 
 if TYPE_CHECKING:
     from typing_extensions import Literal
@@ -1129,6 +1135,27 @@ class SignalInstance:
             if k != "__weakref__":
                 setattr(self, k, v)
         self._lock = threading.RLock()
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> SignalInstance:
+        """Deepcopy this signal."""
+        new = SignalInstance(
+            self._signature,
+            instance=self._instance,
+            name=self._name,
+            check_nargs_on_connect=self._check_nargs_on_connect,
+            check_types_on_connect=self._check_types_on_connect,
+        )
+        has_refs = False
+        for x in self._slots:
+            if isinstance(x, _StrongFunction):
+                new._slots.append(x)
+            else:
+                has_refs = True
+        if has_refs:
+            warnings.warn(
+                "Deepcopying a signal clears all weakref slots.", stacklevel=2
+            )
+        return new
 
 
 class _SignalBlocker:

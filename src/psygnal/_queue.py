@@ -69,9 +69,6 @@ class QueuedCallback(WeakCallback):
     def dereference(self) -> Callable | None:
         return self._wrapped.dereference()
 
-    def __reduce__(self) -> str | tuple[Any, ...]:
-        return (self.__class__, (self._wrapped, self._thred))
-
 
 def emit_queued(thread: Thread | None = None) -> None:
     """Trigger emissions of all callbacks queued in the current thread.
