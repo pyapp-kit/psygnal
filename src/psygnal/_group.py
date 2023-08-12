@@ -122,11 +122,7 @@ class SignalGroup(SignalInstance):
     @property
     def signals(self) -> dict[str, SignalInstance]:
         """Return {name -> SignalInstance} map of all signal instances in this group."""
-        try:
-            return {n: getattr(self, n) for n in type(self)._signals_}
-        except AttributeError:  # pragma: no cover
-            # can happen during deepcopy if class is not fully initialized
-            return {}
+        return {n: getattr(self, n) for n in type(self)._signals_}
 
     @classmethod
     def is_uniform(cls) -> bool:
