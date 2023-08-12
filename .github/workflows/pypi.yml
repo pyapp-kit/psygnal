@@ -6,7 +6,6 @@ on:
       - main
     tags:
       - "v*"
-  pull_request:
 
 jobs:
   main:
@@ -42,7 +41,7 @@ jobs:
           generate_release_notes: true
 
   mypyc:
-    # if: startsWith(github.event.ref, 'refs/tags/v')
+    if: startsWith(github.event.ref, 'refs/tags/v')
     name: mypyc wheels (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     strategy:
@@ -70,13 +69,13 @@ jobs:
         env:
           CIBW_ARCHS_MACOS: "${{ matrix.macos_arch }}"
 
-      # - name: Upload wheels as workflow artifacts
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #     name: ${{ matrix.name }}-mypyc-wheels
-      #     path: ./wheelhouse/*.whl
+      - name: Upload wheels as workflow artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.name }}-mypyc-wheels
+          path: ./wheelhouse/*.whl
 
-      # - name: Upload wheels to PyPI via Twine
-      #   env:
-      #     TWINE_PASSWORD: ${{ secrets.pypi_token }}
-      #   run: pipx run twine upload --verbose -u '__token__' wheelhouse/*.whl
+      - name: Upload wheels to PyPI via Twine
+        env:
+          TWINE_PASSWORD: ${{ secrets.pypi_token }}
+        run: pipx run twine upload --verbose -u '__token__' wheelhouse/*.whl
