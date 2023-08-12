@@ -124,8 +124,8 @@ test-extras = ["test"]
 test-command = "pytest {project}/tests -v"
 test-skip = "*-musllinux*"
 
-[tool.cibuildwheel.linux]
-before-all = "apt install python3-dev"
+[tool.cibuildwheel.manylinux]
+before-all = "yum install python3-devel"
 
 [tool.cibuildwheel.environment]
 HATCH_BUILD_HOOKS_ENABLE = "1"
