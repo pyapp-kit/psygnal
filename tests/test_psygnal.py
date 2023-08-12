@@ -977,3 +977,27 @@ def test_deepcopy():
 
     x2.sig.emit()
     mock2.assert_not_called()
+
+
+class T:
+    sig = Signal()
+
+
+mock = Mock()
+
+
+def f():
+    return mock()
+
+
+def test_pickle():
+    import pickle
+
+    t = T()
+
+    t.sig.connect(f)
+
+    _dump = pickle.dumps(t)
+    x = pickle.loads(_dump)
+    x.sig.emit()
+    mock.assert_called_once()

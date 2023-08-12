@@ -7,6 +7,7 @@ from types import BuiltinMethodType, FunctionType, MethodType, MethodWrapperType
 from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, cast
 from warnings import warn
 
+from mypy_extensions import mypyc_attr
 from typing_extensions import Protocol
 
 if TYPE_CHECKING:
@@ -269,6 +270,7 @@ def _kill_and_finalize(
     return _cb
 
 
+@mypyc_attr(serializable=True)
 class _StrongFunction(WeakCallback):
     """Wrapper around a strong function reference."""
 
@@ -294,6 +296,26 @@ class _StrongFunction(WeakCallback):
         if self._args or self._kwargs:
             return partial(self._f, *self._args, **self._kwargs)
         return self._f
+
+    def __getstate__(self) -> dict[str, Any]:
+        return {
+            "_key": self._key,
+            "_max_args": self._max_args,
+            "_alive": self._alive,
+            "_on_ref_error": self._on_ref_error,
+            "_f": self._f,
+            "_args": self._args,
+            "_kwargs": self._kwargs,
+        }
+
+    def __setstate__(self, state: dict) -> None:
+        self._key = state["_key"]
+        self._max_args = state["_max_args"]
+        self._alive = state["_alive"]
+        self._on_ref_error = state["_on_ref_error"]
+        self._f = state["_f"]
+        self._args = state["_args"]
+        self._kwargs = state["_kwargs"]
 
 
 class _WeakFunction(WeakCallback):
