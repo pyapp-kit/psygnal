@@ -6,6 +6,9 @@ on:
       - main
     tags:
       - "v*"
+  pull_request:
+    branches:
+      - main
 
 jobs:
   main:
@@ -40,8 +43,7 @@ jobs:
         with:
           generate_release_notes: true
 
-  mypyc:
-    if: startsWith(github.event.ref, 'refs/tags/v')
+  wheels:
     name: mypyc wheels (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     strategy:
@@ -76,6 +78,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
       - name: Upload wheels to PyPI via Twine
+        if: startsWith(github.event.ref, 'refs/tags/v')
         env:
           TWINE_PASSWORD: ${{ secrets.pypi_token }}
         run: pipx run twine upload --verbose -u '__token__' wheelhouse/*.whl
