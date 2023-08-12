@@ -935,3 +935,69 @@ def test_queued_connections():
     # ... until we call emit_queued() from this thread
     emit_queued()
     this_thread_mock.assert_called_once_with(2, this_thread)
+
+
+def test_deepcopy():
+    from copy import deepcopy
+
+    mock = Mock()
+
+    class T:
+        sig = Signal()
+
+    t = T()
+
+    @t.sig.connect
+    def f():
+        mock()
+
+    t.sig.emit()
+    mock.assert_called_once()
+    mock.reset_mock()
+
+    x = deepcopy(t)
+    assert x is not t
+    x.sig.emit()
+    mock.assert_called_once()
+
+    mock2 = Mock()
+
+    class Foo:
+        def method(self):
+            mock2()
+
+    foo = Foo()
+    t.sig.connect(foo.method)
+    t.sig.emit()
+    mock2.assert_called_once()
+    mock2.reset_mock()
+
+    with pytest.warns(UserWarning, match="does not copy connected weakly referenced"):
+        x2 = deepcopy(t)
+
+    x2.sig.emit()
+    mock2.assert_not_called()
+
+
+class T:
+    sig = Signal()
+
+
+mock = Mock()
+
+
+def f():
+    return mock()
+
+
+def test_pickle():
+    import pickle
+
+    t = T()
+
+    t.sig.connect(f)
+
+    _dump = pickle.dumps(t)
+    x = pickle.loads(_dump)
+    x.sig.emit()
+    mock.assert_called_once()
