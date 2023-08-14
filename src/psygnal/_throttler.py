@@ -32,7 +32,7 @@ class _ThrottlerBase:
 
         # this mimics what functools.wraps does, but avoids __dict__ usage and other
         # things that won't work with mypyc... HOWEVER, most of these dynamic
-        # assignments won't work in mypyc anyway
+        # assignments won't work in mypyc anyway (they just do nothing.)
         self.__module__: str = getattr(func, "__module__", "")
         self.__name__: str = getattr(func, "__name__", "")
         self.__qualname__: str = getattr(func, "__qualname__", "")

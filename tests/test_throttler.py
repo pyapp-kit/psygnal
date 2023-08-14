@@ -89,7 +89,7 @@ def test_flush() -> None:
 def test_throttled_debounced_signature(deco: Callable) -> None:
     mock = Mock()
 
-    @deco(timeout=0)
+    @deco(timeout=0, leading=True)
     def f1(x: int) -> None:
         """Doc."""
         mock(x)
@@ -103,7 +103,6 @@ def test_throttled_debounced_signature(deco: Callable) -> None:
     sig = SignalInstance((int, int, int))
     sig.connect(f1)
     sig.emit(1, 2, 3)
-    time.sleep(0.1)
     mock.assert_called_once_with(1)
 
     if not _compiled:
