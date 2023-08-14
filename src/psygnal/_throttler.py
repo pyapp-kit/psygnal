@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from threading import Timer
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from typing_extensions import Literal
+
+if TYPE_CHECKING:
+    import inspect
 
 Kind = Literal["throttler", "debouncer"]
 EmissionPolicy = Literal["trailing", "leading"]
@@ -18,7 +21,7 @@ class _ThrottlerBase:
         interval: int = 100,
         policy: EmissionPolicy = "leading",
     ) -> None:
-        self._func = func
+        self.__wrapped__: Callable[..., Any] = func
         self._interval: int = interval
         self._policy: EmissionPolicy = policy
         self._has_pending: bool = False
@@ -27,9 +30,18 @@ class _ThrottlerBase:
         self._args: tuple[Any, ...] = ()
         self._kwargs: dict[str, Any] = {}
 
+        # this mimics what functools.wraps does, but avoids __dict__ usage and other
+        # things that won't work with mypyc... HOWEVER, most of these dynamic
+        # assignments won't work in mypyc anyway
+        self.__module__: str = getattr(func, "__module__", "")
+        self.__name__: str = getattr(func, "__name__", "")
+        self.__qualname__: str = getattr(func, "__qualname__", "")
+        self.__doc__: str | None = getattr(func, "__doc__", None)
+        self.__annotations__: dict[str, Any] = getattr(func, "__annotations__", {})
+
     def _actually_call(self) -> None:
         self._has_pending = False
-        self._func(*self._args, **self._kwargs)
+        self.__wrapped__(*self._args, **self._kwargs)
         self._start_timer()
 
     def _call_if_has_pending(self) -> None:
@@ -52,6 +64,12 @@ class _ThrottlerBase:
 
     def __call__(self, *args: Any, **kwargs: Any) -> None:
         raise NotImplementedError("Subclasses must implement this method.")
+
+    @property
+    def __signature__(self) -> inspect.Signature:
+        import inspect
+
+        return inspect.signature(self.__wrapped__)
 
 
 class Throttler(_ThrottlerBase):

@@ -1,7 +1,11 @@
 import time
+from inspect import Parameter, signature
+from typing import Callable
 from unittest.mock import Mock
 
-from psygnal import debounced, throttled
+import pytest
+
+from psygnal import SignalInstance, _compiled, debounced, throttled
 
 
 def test_debounced() -> None:
@@ -79,3 +83,30 @@ def test_flush() -> None:
     f1.flush()
     time.sleep(0.2)
     mock1.assert_called_once()
+
+
+@pytest.mark.parametrize("deco", [debounced, throttled])
+def test_throttled_debounced_signature(deco: Callable) -> None:
+    mock = Mock()
+
+    @deco(timeout=0)
+    def f1(x: int) -> None:
+        """Doc."""
+        mock(x)
+
+    # make sure we can still inspect the signature
+    assert signature(f1).parameters["x"] == Parameter(
+        "x", Parameter.POSITIONAL_OR_KEYWORD, annotation=int
+    )
+
+    # make sure these are connectable
+    sig = SignalInstance((int, int, int))
+    sig.connect(f1)
+    sig.emit(1, 2, 3)
+    time.sleep(0.1)
+    mock.assert_called_once_with(1)
+
+    if not _compiled:
+        # unfortunately, dynamic assignment of __doc__ and stuff isn't possible in mypyc
+        assert f1.__doc__ == "Doc."
+        assert f1.__name__ == "f1"
