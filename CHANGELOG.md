@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.9.3](https://github.com/pyapp-kit/psygnal/tree/v0.9.3) (2023-08-14)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.2...v0.9.3)
+
+**Fixed bugs:**
+
+- fix: fix signature inspection on debounced/throttled, update typing and wrapped [\#228](https://github.com/pyapp-kit/psygnal/pull/228) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.14.1 to 2.15.0 [\#227](https://github.com/pyapp-kit/psygnal/pull/227) ([dependabot[bot]](https://github.com/apps/dependabot))
+
 ## [v0.9.2](https://github.com/pyapp-kit/psygnal/tree/v0.9.2) (2023-08-12)
 
 [Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.1...v0.9.2)
