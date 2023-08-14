@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from threading import Timer
-from typing import TYPE_CHECKING, Any, Callable, Generic
+from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
 
 if TYPE_CHECKING:
     import inspect
@@ -12,9 +12,13 @@ if TYPE_CHECKING:
     EmissionPolicy = Literal["trailing", "leading"]
 
     P = ParamSpec("P")
+else:
+    # just so that we don't have to depend on a new version of typing_extensions
+    # at runtime
+    P = TypeVar("P")
 
 
-class _ThrottlerBase(Generic["P"]):
+class _ThrottlerBase(Generic[P]):
     _timer: Timer
 
     def __init__(
@@ -74,7 +78,7 @@ class _ThrottlerBase(Generic["P"]):
         return inspect.signature(self.__wrapped__)
 
 
-class Throttler(_ThrottlerBase, Generic["P"]):
+class Throttler(_ThrottlerBase, Generic[P]):
     """Class that prevents calling `func` more than once per `interval`.
 
     Parameters
@@ -112,7 +116,7 @@ class Throttler(_ThrottlerBase, Generic["P"]):
                 self._start_timer()
 
 
-class Debouncer(_ThrottlerBase, Generic["P"]):
+class Debouncer(_ThrottlerBase, Generic[P]):
     """Class that waits at least `interval` before calling `func`.
 
     Parameters
