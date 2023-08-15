@@ -121,6 +121,7 @@ exclude = [
 [tool.cibuildwheel]
 # Skip 32-bit builds & PyPy wheels on all platforms
 skip = ["*-manylinux_i686", "*-musllinux_i686", "*-win32", "pp*"]
+build = ["cp37-*", "cp38-*", "cp39-*", "cp310-*", "cp311-*"]
 test-extras = ["test"]
 test-command = "pytest {project}/tests -v"
 test-skip = "*-musllinux*"
