@@ -188,6 +188,7 @@ class WeakCallback(Generic[_R]):
         on_ref_error: RefErrorChoice = "warn",
     ) -> None:
         self._key: str = WeakCallback.object_key(obj)
+        self._obj_qualname: str = getattr(obj, "__qualname__", "")
         self._max_args: int | None = max_args
         self._alive: bool = True
         self._on_ref_error: RefErrorChoice = on_ref_error
@@ -235,6 +236,9 @@ class WeakCallback(Generic[_R]):
                 return obj
 
             return _strong_ref
+
+    def slot_qualname(self) -> str:
+        return self._obj_qualname
 
     @staticmethod
     def object_key(obj: Any) -> str:
@@ -366,6 +370,11 @@ class _WeakMethod(WeakCallback):
         self._args = args
         self._kwargs = kwargs or {}
 
+    def slot_qualname(self) -> str:
+        obj = self._obj_ref()
+        func_name = getattr(self._func_ref(), "__name__", "<method>")
+        return f"{obj.__class__.__qualname__}.{func_name}"
+
     def cb(self, args: tuple[Any, ...] = ()) -> None:
         obj = self._obj_ref()
         func = self._func_ref()
@@ -411,6 +420,10 @@ class _WeakBuiltin(WeakCallback):
         self._func_name = obj.__name__
         self._args = args
 
+    def slot_qualname(self) -> str:
+        obj = self._obj_ref()
+        return f"{obj.__class__.__qualname__}.{self._func_name}"
+
     def cb(self, args: tuple[Any, ...] = ()) -> None:
         func = getattr(self._obj_ref(), self._func_name, None)
         if func is None:
@@ -439,6 +452,10 @@ class _WeakSetattr(WeakCallback):
         self._key += f".__setattr__({attr!r})"
         self._obj_ref = self._try_ref(obj, finalize)
         self._attr = attr
+
+    def slot_qualname(self) -> str:
+        obj = self._obj_ref()
+        return f"setattr({obj.__class__.__qualname__}, {self._attr!r}, ...)"
 
     def cb(self, args: tuple[Any, ...] = ()) -> None:
         obj = self._obj_ref()
@@ -473,6 +490,10 @@ class _WeakSetitem(WeakCallback):
         self._key += f".__setitem__({key!r})"
         self._obj_ref = self._try_ref(obj, finalize)
         self._itemkey = key
+
+    def slot_qualname(self) -> str:
+        obj = self._obj_ref()
+        return f"{obj.__class__.__qualname__}.__setitem__({self._itemkey!r}, ...)"
 
     def cb(self, args: tuple[Any, ...] = ()) -> None:
         obj = self._obj_ref()
