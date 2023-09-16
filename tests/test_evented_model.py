@@ -542,8 +542,10 @@ def test_evented_model_with_property_setters_events():
     assert t.c == [5, 20]
 
 
-def test_non_setter_with_dependencies():
-    with pytest.raises(ValueError) as e:
+def test_non_setter_with_dependencies() -> None:
+    with pytest.raises(
+        ValueError, match="Fields with dependencies must be fields or property.setters"
+    ):
 
         class M(EventedModel):
             x: int
@@ -567,11 +569,9 @@ def test_non_setter_with_dependencies():
                     allow_property_setters = True
                     property_dependencies = {"a": []}
 
-    assert "Fields with dependencies must be property.setters" in str(e.value)
-
 
 def test_unrecognized_property_dependencies():
-    with pytest.warns(UserWarning) as e:
+    with pytest.warns(UserWarning, match="Unrecognized field dependency: 'b'"):
 
         class M(EventedModel):
             x: int
@@ -594,8 +594,6 @@ def test_unrecognized_property_dependencies():
                 class Config:
                     allow_property_setters = True
                     property_dependencies = {"y": ["b"]}
-
-    assert "Unrecognized field dependency: 'b'" in str(e[0])
 
 
 @pytest.mark.skipif(PYDANTIC_V2, reason="pydantic 2 does not support this")
@@ -687,3 +685,46 @@ def test_derived_events() -> None:
     m.b = 3
     mock_a.assert_called_once_with(2)
     mock_b.assert_called_once_with(3)
+
+
+def test_root_validator_events():
+    from pydantic import root_validator
+
+    class Model(EventedModel):
+        x: int
+        y: int
+
+        if PYDANTIC_V2:
+            model_config = {
+                "validate_assignment": True,
+                "property_dependencies": {"y": ["x"]},
+            }
+        else:
+
+            class Config:
+                validate_assignment = True
+                property_dependencies = {"y": ["x"]}
+
+        @root_validator
+        def check(cls, values: dict) -> dict:
+            x = values["x"]
+            values["y"] = min(values["y"], x)
+            return values
+
+    m = Model(x=2, y=1)
+    xmock = Mock()
+    ymock = Mock()
+    m.events.x.connect(xmock)
+    m.events.y.connect(ymock)
+    m.x = 0
+    assert m.y == 0
+    xmock.assert_called_once_with(0)
+    ymock.assert_called_once_with(0)
+
+    xmock.reset_mock()
+    ymock.reset_mock()
+
+    m.x = 2
+    assert m.y == 0
+    xmock.assert_called_once_with(2)
+    ymock.assert_not_called()

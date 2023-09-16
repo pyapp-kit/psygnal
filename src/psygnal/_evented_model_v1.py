@@ -192,9 +192,9 @@ def _get_field_dependents(cls: "EventedModel") -> Dict[str, Set[str]]:
                 f"Config property_dependencies must be a dict, not {cfg_deps!r}"
             )
         for prop, fields in cfg_deps.items():
-            if prop not in cls.__property_setters__:
+            if prop not in {*cls.__fields__, *cls.__property_setters__}:
                 raise ValueError(
-                    "Fields with dependencies must be property.setters."
+                    "Fields with dependencies must be fields or property.setters."
                     f"{prop!r} is not."
                 )
             for field in fields:
@@ -344,21 +344,28 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
 
         # grab current value
         before = getattr(self, name, object())
+        # if we have any dependent properties, we need to grab their values
+        # before we set the new value, so that we can emit events for them
+        # after the new value is set (only if they have changed).
+        deps_before: dict[str, Any] = {
+            dep: getattr(self, dep) for dep in self.__field_dependents__.get(name, ())
+        }
 
         # set value using original setter
         signal_instance: SignalInstance = getattr(self._events, name)
         with signal_instance.blocked():
             self._super_setattr_(name, value)
 
-        # if different we emit the event with new value
+        # if the value has changed we emit the event with new value
         after = getattr(self, name)
-
         if not _check_field_equality(type(self), name, after, before):
             signal_instance.emit(after)  # emit event
 
-            # emit events for any dependent computed property setters as well
-            for dep in self.__field_dependents__.get(name, ()):
-                getattr(self.events, dep).emit(getattr(self, dep))
+            # also emit events for any dependent computed property setters as well
+            for dep, before_val in deps_before.items():
+                after_val = getattr(self, dep)
+                if not _check_field_equality(type(self), dep, after_val, before_val):
+                    getattr(self._events, dep).emit(after_val)
 
     # expose the private SignalGroup publically
     @property
