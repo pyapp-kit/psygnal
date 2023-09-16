@@ -189,7 +189,7 @@ def _get_field_dependents(cls: "EventedModel") -> Dict[str, Set[str]]:
                 f"Config property_dependencies must be a dict, not {cfg_deps!r}"
             )
         for prop, fields in cfg_deps.items():
-            if prop not in {*cls.__fields__, *cls.__property_setters__}:
+            if prop not in {*cls.model_fields, *cls.__property_setters__}:
                 raise ValueError(
                     "Fields with dependencies must be fields or property.setters."
                     f"{prop!r} is not."

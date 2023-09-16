@@ -688,28 +688,36 @@ def test_derived_events() -> None:
 
 
 def test_root_validator_events():
-    from pydantic import root_validator
-
     class Model(EventedModel):
         x: int
         y: int
 
         if PYDANTIC_V2:
+            from pydantic import model_validator
+
             model_config = {
                 "validate_assignment": True,
                 "property_dependencies": {"y": ["x"]},
             }
+
+            @model_validator(mode="before")
+            def check(cls, values: dict) -> dict:
+                x = values["x"]
+                values["y"] = min(values["y"], x)
+                return values
+
         else:
+            from pydantic import root_validator
 
             class Config:
                 validate_assignment = True
                 property_dependencies = {"y": ["x"]}
 
-        @root_validator
-        def check(cls, values: dict) -> dict:
-            x = values["x"]
-            values["y"] = min(values["y"], x)
-            return values
+            @root_validator
+            def check(cls, values: dict) -> dict:
+                x = values["x"]
+                values["y"] = min(values["y"], x)
+                return values
 
     m = Model(x=2, y=1)
     xmock = Mock()
