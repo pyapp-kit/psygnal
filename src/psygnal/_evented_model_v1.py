@@ -347,7 +347,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         # if we have any dependent properties, we need to grab their values
         # before we set the new value, so that we can emit events for them
         # after the new value is set (only if they have changed).
-        deps_before: dict[str, Any] = {
+        deps_before: Dict[str, Any] = {
             dep: getattr(self, dep) for dep in self.__field_dependents__.get(name, ())
         }
 
