@@ -764,7 +764,9 @@ def test_deprecation() -> None:
         assert MyModel.__field_dependents__ == {"b": {"a"}}
 
 
-def test_comparison_count():
+def test_comparison_count() -> None:
+    """Test that we only compare fields that are actually connected to events."""
+
     class Model(EventedModel):
         a: int
 
@@ -811,3 +813,36 @@ def test_comparison_count():
         m.a = 3
     check_mock.assert_has_calls([call(Model, "a", 3, 1), call(Model, "b", 4, 2)])
     b_mock.assert_called_once_with(4)
+
+
+def test_connect_only_to_events() -> None:
+    """Make sure that we still make comparison and emit events when connecting
+    only to the events group itself."""
+
+    class Model(EventedModel):
+        a: int
+
+    # pick whether to mock v1 or v2 modules
+    model_module = sys.modules[type(Model).__module__]
+
+    m = Model(a=0)
+    mock1 = Mock()
+    with patch.object(
+        model_module,
+        "_check_field_equality",
+        wraps=model_module._check_field_equality,
+    ) as check_mock:
+        m.a = 1
+
+    check_mock.assert_not_called()
+    mock1.assert_not_called()
+
+    m.events.connect(mock1)
+    with patch.object(
+        model_module,
+        "_check_field_equality",
+        wraps=model_module._check_field_equality,
+    ) as check_mock:
+        m.a = 3
+    check_mock.assert_has_calls([call(Model, "a", 3, 1)])
+    mock1.assert_called_once()

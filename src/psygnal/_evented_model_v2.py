@@ -349,7 +349,11 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
             for dep_name in self.__field_dependents__.get(name, ())
             if len(getattr(self._events, dep_name)) > 1
         }
-        if len(signal_instance) < 2 and not deps_with_callbacks:
+        if (
+            len(signal_instance) < 2  # the signal itself has no listeners
+            and not deps_with_callbacks  # no dependent properties with listeners
+            and not len(self._events)  # no listeners on the SignalGroup
+        ):
             return self._super_setattr_(name, value)
 
         # grab the current value and those of any dependent properties
