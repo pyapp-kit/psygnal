@@ -36,10 +36,10 @@ print(john)  # prints: Person(name='John', age=30)
 ```
 
 !!! hint
-There's a lot more to be learned about dataclasses! See the [python
-docs](https://docs.python.org/3/library/dataclasses.html) for more, and
-[this realpython blog post](https://realpython.com/python-data-classes/) for
-an in-depth introduction.
+    There's a lot more to be learned about dataclasses! See the [python
+    docs](https://docs.python.org/3/library/dataclasses.html) for more, and
+    [this realpython blog post](https://realpython.com/python-data-classes/) for
+    an in-depth introduction.
 
 ### ... in third-party libraries
 
@@ -239,8 +239,8 @@ There are two (related) APIs for adding events to dataclasses:
             ```
 
     !!! tip
-    by default, the `SignalGroup` instance is named `'events'`, but this can be
-    changed by passing a `events_namespace` argument to the `@evented` decorator)
+        by default, the `SignalGroup` instance is named `'events'`, but this can be
+        changed by passing a `events_namespace` argument to the `@evented` decorator)
 
 Using any of the above, you can now connect callbacks to the change events
 of any field on the object (there will be a signal instance in the `events`
@@ -307,7 +307,7 @@ class Person:
 ```
 
 !!! note
-I know... it's not awesome :/
+    I know... it's not awesome :/
 
     Remember that adding these type annotations is optional: signals
     will still work without them.  But your IDE will not know that Person
