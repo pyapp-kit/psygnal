@@ -125,3 +125,36 @@ class EmitSuite:
 
     def time_emit_to_partial(self, n: int) -> None:
         self.emitter6.changed.emit(1)
+
+
+class EventedModelSuite:
+    params = [10, 100]
+
+    def setup(self, n: int) -> None:
+        try:
+            from psygnal import EventedModel
+        except ImportError:
+            self.model = None
+            return
+
+        class Model(EventedModel):
+            x: int = 1
+
+        self.model = Model
+
+    def time_setattr_no_connections(self, n: int) -> None:
+        if self.model is None:
+            return
+
+        obj = self.model()
+        for i in range(n):
+            obj.x = i
+
+    def time_setattr_with_connections(self, n: int) -> None:
+        if self.model is None:
+            return
+
+        obj = self.model()
+        obj.events.x.connect(callback)
+        for i in range(n):
+            obj.x = i
