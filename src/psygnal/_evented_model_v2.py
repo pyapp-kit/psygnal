@@ -340,7 +340,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
 
         # grab current value
         before = getattr(self, name, object())
-        # if we have any dependent properties, we need to grab their values
+        # if we have any dependent attributes, we need to grab their values
         # before we set the new value, so that we can emit events for them
         # after the new value is set (only if they have changed).
         deps_before: Dict[str, Any] = {
@@ -357,7 +357,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         if not _check_field_equality(type(self), name, after, before):
             signal_instance.emit(after)  # emit event
 
-            # also emit events for any dependent computed property setters as well
+            # also emit events for any dependent attributes as well
             for dep, before_val in deps_before.items():
                 after_val = getattr(self, dep)
                 if not _check_field_equality(type(self), dep, after_val, before_val):
