@@ -41,7 +41,7 @@ Here is a simple example of using psygnal:
 from psygnal import Signal
 
 class MyObject:
-    # define one or signals as class attributes
+    # define one or more signals as class attributes
     value_changed = Signal(str)
 
 # create an instance
