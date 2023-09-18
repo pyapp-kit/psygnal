@@ -187,7 +187,7 @@ def _get_field_dependents(cls: "EventedModel") -> Dict[str, Set[str]]:
 
     cfg_deps = getattr(cls.__config__, FIELD_DEPENDENCIES, {})  # sourcery skip
     if not cfg_deps:
-        cfg_deps = cls.model_config.get("property_dependencies", {})
+        cfg_deps = getattr(cls.__config__, "property_dependencies", {})
         if cfg_deps:
             warnings.warn(
                 "The 'property_dependencies' configuration key is deprecated. "
