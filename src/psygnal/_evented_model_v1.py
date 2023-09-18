@@ -355,13 +355,15 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         # if there are no listeners, we can just set the value without emitting
         # so first check if there are any listeners for this field or any of its
         # dependent properties.
+        # note that ALL signals will have at least one listener simply by nature of
+        # being in the `self._events` SignalGroup.
         signal_instance: SignalInstance = getattr(self._events, name)
         deps_with_callbacks = {
             dep_name
             for dep_name in self.__field_dependents__.get(name, ())
             if len(getattr(self._events, dep_name)) > 1
         }
-        if len(signal_instance) <= 1 and not deps_with_callbacks:
+        if len(signal_instance) < 2 and not deps_with_callbacks:
             return self._super_setattr_(name, value)
 
         # grab the current value and those of any dependent properties
