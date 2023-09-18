@@ -352,17 +352,32 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
             # fallback to default behavior
             return self._super_setattr_(name, value)
 
-        # grab current value
+        # if there are no listeners, we can just set the value without emitting
+        # so first check if there are any listeners for this field or any of its
+        # dependent properties.
+        # note that ALL signals will have at least one listener simply by nature of
+        # being in the `self._events` SignalGroup.
+        signal_instance: SignalInstance = getattr(self._events, name)
+        deps_with_callbacks = {
+            dep_name
+            for dep_name in self.__field_dependents__.get(name, ())
+            if len(getattr(self._events, dep_name)) > 1
+        }
+        if (
+            len(signal_instance) < 2  # the signal itself has no listeners
+            and not deps_with_callbacks  # no dependent properties with listeners
+            and not len(self._events)  # no listeners on the SignalGroup
+        ):
+            return self._super_setattr_(name, value)
+
+        # grab the current value and those of any dependent properties
+        # so that we can check if they have changed after setting the value
         before = getattr(self, name, object())
-        # if we have any dependent attributes, we need to grab their values
-        # before we set the new value, so that we can emit events for them
-        # after the new value is set (only if they have changed).
         deps_before: Dict[str, Any] = {
-            dep: getattr(self, dep) for dep in self.__field_dependents__.get(name, ())
+            dep: getattr(self, dep) for dep in deps_with_callbacks
         }
 
         # set value using original setter
-        signal_instance: SignalInstance = getattr(self._events, name)
         with signal_instance.blocked():
             self._super_setattr_(name, value)
 
@@ -371,7 +386,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         if not _check_field_equality(type(self), name, after, before):
             signal_instance.emit(after)  # emit event
 
-            # also emit events for any dependent computed property setters as well
+            # also emit events for any dependent attributes that have changed as well
             for dep, before_val in deps_before.items():
                 after_val = getattr(self, dep)
                 if not _check_field_equality(type(self), dep, after_val, before_val):

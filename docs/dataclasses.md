@@ -2,17 +2,17 @@
 
 A common usage of signals in an application is to notify other parts of the
 application when a particular object or value has changed. More often than not,
-these values are attributes on some object.  Dataclasses are a very common way
+these values are attributes on some object. Dataclasses are a very common way
 to represent such objects, and `psygnal` provides a convenient way to add the
 observer pattern to any dataclass.
 
 ## What is a dataclass
 
 A "data class" is a class that is primarily used to store a set of data. Of
-course, *most* python data structures (e.g. `tuples`, `dicts`) are used to store
+course, _most_ python data structures (e.g. `tuples`, `dicts`) are used to store
 a set of data, but when we refer to a "data class" we are generally referring to
 a class that formally defines a set of fields or attributes, each with a name,
-a current value, and (preferably) a type.  The values could represent anything,
+a current value, and (preferably) a type. The values could represent anything,
 such as a configuration of some sort, a set of parameters, or a set of data
 that is being processed.
 
@@ -21,7 +21,7 @@ that is being processed.
 Python 3.7 introduced [the `dataclasses`
 module](https://docs.python.org/3/library/dataclasses.html), which provides a
 decorator that can be used to easily create such classes with a minimal amount
-of boilerplate.  For example:
+of boilerplate. For example:
 
 ```python
 from dataclasses import dataclass
@@ -94,7 +94,7 @@ def my_callback(age: int):
 john.age_changed.connect(my_callback)
 ```
 
-But there's a lot of boilerplate here.  We have to define a signal and
+But there's a lot of boilerplate here. We have to define a signal and
 create a setter method that emits that signal (for each field!).
 This is where `psygnal`'s dataclass support comes in handy.
 
@@ -105,8 +105,8 @@ any time a field value is changed, a signal will be emitted. psygnal's
 [`SignalGroupDescriptor`][psygnal.SignalGroupDescriptor] does this by:
 
 1. Inspecting the object to determine what the (mutable) fields are (psygnal has
-awareness of multiple dataclass libraries, including the standard library's
-`dataclasses` module)
+   awareness of multiple dataclass libraries, including the standard library's
+   `dataclasses` module)
 2. Creating a [`SignalGroup`][psygnal.SignalGroup] with a
    [`SignalInstance`][psygnal.SignalInstance] for each field name
 3. Adding the `SignalGroup` as a new attribute on the object
@@ -116,7 +116,7 @@ with the new value as the first argument.
 
 There are two (related) APIs for adding events to dataclasses:
 
-1. Add a [`SignalGroupDescriptor`][psygnal.SignalGroupDescriptor] as a class attribute.
+1.  Add a [`SignalGroupDescriptor`][psygnal.SignalGroupDescriptor] as a class attribute.
 
     !!! example
 
@@ -177,11 +177,11 @@ There are two (related) APIs for adding events to dataclasses:
                 events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
             ```
 
-2. Decorate the class with the [`@evented` decorator][psygnal.evented].
+2.  Decorate the class with the [`@evented` decorator][psygnal.evented].
 
-    > *Under the hood, this just adds the `SignalGroupDescriptor` as a class
+    > _Under the hood, this just adds the `SignalGroupDescriptor` as a class
     > attribute named "events" for you, as shown above). Prefer the class
-    > attribute pattern to the decorator when in doubt.*
+    > attribute pattern to the decorator when in doubt._
 
     !!! example
 
@@ -259,7 +259,7 @@ def on_age_changed(age: int):
 john.age = 31  # prints: John's age changed to 31.
 ```
 
-You can also connect to the `SignalGroup` itself to listen to *any*
+You can also connect to the `SignalGroup` itself to listen to _any_
 changes on the object:
 
 ```python
@@ -278,7 +278,7 @@ If you use the `SignalGroupDescriptor` API, it is easier for type checkers
 because you are explicitly providing the `events` namespace for the SignalGroup.
 
 By default, type checkers and IDEs will not know about the signals that are
-dynamically added to the class by the `@evented` decorator.  If you'd like
+dynamically added to the class by the `@evented` decorator. If you'd like
 to have your type checker or IDE know about the signals, you can add an
 annotation as follows:
 
@@ -329,9 +329,10 @@ The following table shows the minimum time it took (on my computer) to set an
 attribute on a dataclass, with and without signal emission. (Timed using `timeit`,
 with 20 repeats of 100,000 iterations each).
 
-| dataclass | without signals | with signals | penalty (fold slower) |
-| ---------     | ------- | ------- | ----- |
-| `pydantic`    | 0.300 µs  | 1.860 µs  |  6.20 |
-| `dataclasses` | 0.023 µs  | 1.316 µs  | 57.37 |
-| `msgspec`     | 0.021 µs  | 1.545 µs  | 72.61 |
-| `attrs`       | 0.020 µs  | 1.531 µs  | 76.13 |
+| dataclass     | without signals | with signals | penalty (fold slower) |
+| ------------- | --------------- | ------------ | --------------------- |
+| `pydantic v1` | 0.386 µs        | 0.902 µs     | 2.33                  |
+| `pydantic v2` | 1.533 µs        | 2.145 µs     | 1.39                  |
+| `dataclasses` | 0.015 µs        | 0.371 µs     | 24.55                 |
+| `msgspec`     | 0.026 µs        | 0.561 µs     | 21.85                 |
+| `attrs`       | 0.014 µs        | 0.540 µs     | 37.85                 |
