@@ -29,7 +29,13 @@ from typing_extensions import get_args, get_origin
 
 from ._exceptions import EmitLoopError
 from ._queue import QueuedCallback
-from ._weak_callback import WeakCallback, _WeakSetattr, _WeakSetitem, weak_callback
+from ._weak_callback import (
+    WeakCallback,
+    _StrongFunction,
+    _WeakSetattr,
+    _WeakSetitem,
+    weak_callback,
+)
 
 if TYPE_CHECKING:
     from typing_extensions import Literal
@@ -290,15 +296,7 @@ class SignalInstance:
         check_types_on_connect: bool = False,
     ) -> None:
         self._name = name
-        if instance is None:
-            self._instance: Callable = lambda: None
-        else:
-            try:
-                self._instance = weakref.ref(instance)
-            except TypeError:
-                # fall back to strong reference if instance is not weak-referenceable
-                self._instance = lambda: instance
-
+        self._instance: Callable = self._instance_ref(instance)
         self._args_queue: list[Any] = []  # filled when paused
 
         if isinstance(signature, (list, tuple)):
@@ -316,6 +314,17 @@ class SignalInstance:
         self._is_blocked: bool = False
         self._is_paused: bool = False
         self._lock = threading.RLock()
+
+    @staticmethod
+    def _instance_ref(instance: Any) -> Callable[[], Any]:
+        if instance is None:
+            return lambda: None
+
+        try:
+            return weakref.ref(instance)
+        except TypeError:
+            # fall back to strong reference if instance is not weak-referenceable
+            return lambda: instance
 
     @property
     def signature(self) -> Signature:
@@ -1106,21 +1115,34 @@ class SignalInstance:
         """Return dict of current state, for pickle."""
         attrs = (
             "_signature",
-            "_instance",
             "_name",
-            "_slots",
             "_is_blocked",
             "_is_paused",
             "_args_queue",
-            "_lock",
             "_check_nargs_on_connect",
             "_check_types_on_connect",
-            "__weakref__",
         )
+        dd = {slot: getattr(self, slot) for slot in attrs}
+        dd["_instance"] = self._instance()
+        dd["_slots"] = [x for x in self._slots if isinstance(x, _StrongFunction)]
+        if len(self._slots) > len(dd["_slots"]):
+            warnings.warn(
+                "Pickling a SignalInstance does not copy connected weakly referenced "
+                "slots.",
+                stacklevel=2,
+            )
 
-        d = {slot: getattr(self, slot) for slot in attrs}
-        d.pop("_lock", None)
-        return d
+        return dd
+
+    def __setstate__(self, state: dict) -> None:
+        """Restore state from pickle."""
+        # don't use __dict__, mypyc doesn't have it
+        for k, v in state.items():
+            if k == "_instance":
+                self._instance = self._instance_ref(v)
+            else:
+                setattr(self, k, v)
+        self._lock = threading.RLock()
 
 
 class _SignalBlocker:
