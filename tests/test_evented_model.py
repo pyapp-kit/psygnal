@@ -1,7 +1,7 @@
 import inspect
 import sys
 from typing import Any, ClassVar, List, Sequence, Union
-from unittest.mock import Mock
+from unittest.mock import Mock, call, patch
 
 import numpy as np
 import pytest
@@ -15,7 +15,7 @@ except ImportError:
 import pydantic.version
 from pydantic import BaseModel
 
-from psygnal import EventedModel, SignalGroup
+from psygnal import EmissionInfo, EventedModel, SignalGroup
 
 PYDANTIC_V2 = pydantic.version.VERSION.startswith("2")
 
@@ -188,14 +188,14 @@ def test_values_updated():
         """
 
         id: int
-        name: str = "A"
+        user_name: str = "A"
         age: ClassVar[int] = 100
 
     user1 = User(id=0)
-    user2 = User(id=1, name="K")
+    user2 = User(id=1, user_name="K")
     # Check user1 and user2 dicts
-    assert asdict(user1) == {"id": 0, "name": "A"}
-    assert asdict(user2) == {"id": 1, "name": "K"}
+    assert asdict(user1) == {"id": 0, "user_name": "A"}
+    assert asdict(user2) == {"id": 1, "user_name": "K"}
 
     # Add mocks
     user1_events = Mock()
@@ -207,18 +207,27 @@ def test_values_updated():
 
     # Update user1 from user2
     user1.update(user2)
-    assert asdict(user1) == {"id": 1, "name": "K"}
+    assert asdict(user1) == {"id": 1, "user_name": "K"}
 
     u1_id_events.assert_called_with(1)
     u2_id_events.assert_not_called()
-    assert user1_events.call_count == 2
+
+    # NOTE:
+    # user.events.user_name is NOT actually emitted because it has no callbacks
+    # connected to it.  see test_comparison_count below...
+    user1_events.assert_has_calls(
+        [
+            call(EmissionInfo(signal=user1.events.id, args=(1,))),
+            # call(EmissionInfo(signal=user1.events.user_name, args=("K",))),
+        ]
+    )
     u1_id_events.reset_mock()
     u2_id_events.reset_mock()
     user1_events.reset_mock()
 
     # Update user1 from user2 again, no event emission expected
     user1.update(user2)
-    assert asdict(user1) == {"id": 1, "name": "K"}
+    assert asdict(user1) == {"id": 1, "user_name": "K"}
 
     u1_id_events.assert_not_called()
     u2_id_events.assert_not_called()
@@ -753,3 +762,87 @@ def test_deprecation() -> None:
                     property_dependencies = {"a": ["b"]}
 
         assert MyModel.__field_dependents__ == {"b": {"a"}}
+
+
+def test_comparison_count() -> None:
+    """Test that we only compare fields that are actually connected to events."""
+
+    class Model(EventedModel):
+        a: int
+
+        @property
+        def b(self) -> int:
+            return self.a + 1
+
+        @b.setter
+        def b(self, b: int) -> None:
+            self.a = b - 1
+
+        if PYDANTIC_V2:
+            model_config = {
+                "allow_property_setters": True,
+                "field_dependencies": {"b": ["a"]},
+            }
+        else:
+
+            class Config:
+                allow_property_setters = True
+                field_dependencies = {"b": ["a"]}
+
+    # pick whether to mock v1 or v2 modules
+    model_module = sys.modules[type(Model).__module__]
+
+    m = Model(a=0)
+    b_mock = Mock()
+    with patch.object(
+        model_module,
+        "_check_field_equality",
+        wraps=model_module._check_field_equality,
+    ) as check_mock:
+        m.a = 1
+
+    check_mock.assert_not_called()
+    b_mock.assert_not_called()
+
+    m.events.b.connect(b_mock)
+    with patch.object(
+        model_module,
+        "_check_field_equality",
+        wraps=model_module._check_field_equality,
+    ) as check_mock:
+        m.a = 3
+    check_mock.assert_has_calls([call(Model, "a", 3, 1), call(Model, "b", 4, 2)])
+    b_mock.assert_called_once_with(4)
+
+
+def test_connect_only_to_events() -> None:
+    """Make sure that we still make comparison and emit events when connecting
+    only to the events group itself."""
+
+    class Model(EventedModel):
+        a: int
+
+    # pick whether to mock v1 or v2 modules
+    model_module = sys.modules[type(Model).__module__]
+
+    m = Model(a=0)
+    mock1 = Mock()
+    with patch.object(
+        model_module,
+        "_check_field_equality",
+        wraps=model_module._check_field_equality,
+    ) as check_mock:
+        m.a = 1
+
+    check_mock.assert_not_called()
+    mock1.assert_not_called()
+
+    m.events.connect(mock1)
+    with patch.object(
+        model_module,
+        "_check_field_equality",
+        wraps=model_module._check_field_equality,
+    ) as check_mock:
+        m.a = 3
+    check_mock.assert_has_calls([call(Model, "a", 3, 1)])
+    mock1.assert_called_once()

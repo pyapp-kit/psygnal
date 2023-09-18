@@ -247,9 +247,10 @@ def evented_setattr(
             if name == signal_group_name:
                 return super_setattr(self, name, value)
 
-            group = getattr(self, signal_group_name, None)
-            signal = cast("SignalInstance | None", getattr(group, name, None))
-            if signal is None:
+            group: SignalGroup | None = getattr(self, signal_group_name, None)
+            signal: SignalInstance | None = getattr(group, name, None)
+            # don't emit if the signal doesn't exist or has no listeners
+            if group is None or signal is None or len(signal) < 2 and not len(group):
                 return super_setattr(self, name, value)
 
             with _changes_emitted(self, name, signal):
