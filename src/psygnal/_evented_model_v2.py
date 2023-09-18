@@ -347,7 +347,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         if not _check_field_equality(type(self), name, after, before):
             signal_instance.emit(after)  # emit event
 
-            # also emit events for any dependent computed property setters as well
+            # also emit events for any dependent attributes as well
             for dep, before_val in deps_before.items():
                 after_val = getattr(self, dep)
                 if not _check_field_equality(type(self), dep, after_val, before_val):
