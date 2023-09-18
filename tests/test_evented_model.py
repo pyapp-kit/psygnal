@@ -481,13 +481,13 @@ def test_properties_with_explicit_property_dependencies():
         if PYDANTIC_V2:
             model_config = {
                 "allow_property_setters": True,
-                "property_dependencies": {"c": ["a", "b"]},
+                "field_dependencies": {"c": ["a", "b"]},
             }
         else:
 
             class Config:
                 allow_property_setters = True
-                property_dependencies = {"c": ["a", "b"]}
+                field_dependencies = {"c": ["a", "b"]}
 
     assert list(MyModel.__property_setters__) == ["c"]
     # the metaclass should have figured out that both a and b affect c
@@ -561,13 +561,13 @@ def test_non_setter_with_dependencies() -> None:
             if PYDANTIC_V2:
                 model_config = {
                     "allow_property_setters": True,
-                    "property_dependencies": {"a": []},
+                    "field_dependencies": {"a": []},
                 }
             else:
 
                 class Config:
                     allow_property_setters = True
-                    property_dependencies = {"a": []}
+                    field_dependencies = {"a": []}
 
 
 def test_unrecognized_property_dependencies():
@@ -587,13 +587,13 @@ def test_unrecognized_property_dependencies():
             if PYDANTIC_V2:
                 model_config = {
                     "allow_property_setters": True,
-                    "property_dependencies": {"y": ["b"]},
+                    "field_dependencies": {"y": ["b"]},
                 }
             else:
 
                 class Config:
                     allow_property_setters = True
-                    property_dependencies = {"y": ["b"]}
+                    field_dependencies = {"y": ["b"]}
 
 
 @pytest.mark.skipif(PYDANTIC_V2, reason="pydantic 2 does not support this")
@@ -669,13 +669,13 @@ def test_derived_events() -> None:
         if PYDANTIC_V2:
             model_config = {
                 "allow_property_setters": True,
-                "property_dependencies": {"b": ["a"]},
+                "field_dependencies": {"b": ["a"]},
             }
         else:
 
             class Config:
                 allow_property_setters = True
-                property_dependencies = {"b": ["a"]}
+                field_dependencies = {"b": ["a"]}
 
     mock_a = Mock()
     mock_b = Mock()
@@ -697,7 +697,7 @@ def test_root_validator_events():
 
             model_config = {
                 "validate_assignment": True,
-                "property_dependencies": {"y": ["x"]},
+                "field_dependencies": {"y": ["x"]},
             }
 
             @model_validator(mode="before")
@@ -711,7 +711,7 @@ def test_root_validator_events():
 
             class Config:
                 validate_assignment = True
-                property_dependencies = {"y": ["x"]}
+                field_dependencies = {"y": ["x"]}
 
             @root_validator
             def check(cls, values: dict) -> dict:
@@ -736,3 +736,20 @@ def test_root_validator_events():
     assert m.y == 0
     xmock.assert_called_once_with(2)
     ymock.assert_not_called()
+
+
+def test_deprecation() -> None:
+    with pytest.warns(DeprecationWarning, match="Use 'field_dependencies' instead"):
+
+        class MyModel(EventedModel):
+            a: int = 1
+            b: int = 1
+
+            if PYDANTIC_V2:
+                model_config = {"property_dependencies": {"a": ["b"]}}
+            else:
+
+                class Config:
+                    property_dependencies = {"a": ["b"]}
+
+        assert MyModel.__field_dependents__ == {"b": {"a"}}

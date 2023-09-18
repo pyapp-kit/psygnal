@@ -41,7 +41,7 @@ else:
 
 _NULL = object()
 ALLOW_PROPERTY_SETTERS = "allow_property_setters"
-PROPERTY_DEPENDENCIES = "property_dependencies"
+FIELD_DEPENDENCIES = "field_dependencies"
 GUESS_PROPERTY_DEPENDENCIES = "guess_property_dependencies"
 
 
@@ -182,7 +182,17 @@ def _get_field_dependents(cls: "EventedModel") -> Dict[str, Set[str]]:
     """
     deps: Dict[str, Set[str]] = {}
 
-    cfg_deps = cls.model_config.get(PROPERTY_DEPENDENCIES, {})  # sourcery skip
+    cfg_deps = cls.model_config.get(FIELD_DEPENDENCIES, {})  # sourcery skip
+    if not cfg_deps:
+        cfg_deps = cls.model_config.get("property_dependencies", {})
+        if cfg_deps:
+            warnings.warn(
+                "The 'property_dependencies' configuration key is deprecated. "
+                "Use 'field_dependencies' instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
     if cfg_deps:
         if not isinstance(cfg_deps, dict):  # pragma: no cover
             raise TypeError(
