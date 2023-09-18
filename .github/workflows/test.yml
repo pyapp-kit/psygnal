@@ -64,18 +64,12 @@ jobs:
 
       - uses: tlambert03/setup-qt-libs@v1.4
         if: matrix.backend != ''
+
       - name: Install ${{ matrix.backend }}
+        if: matrix.backend != ''
         run: |
           python -m pip install -e .[testqt]
           python -m pip install ${{ matrix.backend }}
-        if: matrix.backend != ''
-
-      - name: install numpy
-        if: matrix.python-version == '3.12-dev'
-        run: |
-          # https://github.com/numpy/numpy/issues/23808
-          sudo apt-get install -y libopenblas-dev
-          python -m pip install 'numpy @ git+https://github.com/numpy/numpy'
 
       - name: install
         run: |
