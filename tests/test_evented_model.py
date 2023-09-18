@@ -15,7 +15,7 @@ except ImportError:
 import pydantic.version
 from pydantic import BaseModel
 
-from psygnal import EventedModel, SignalGroup
+from psygnal import EmissionInfo, EventedModel, SignalGroup
 
 PYDANTIC_V2 = pydantic.version.VERSION.startswith("2")
 
@@ -188,14 +188,14 @@ def test_values_updated():
         """
 
         id: int
-        name: str = "A"
+        user_name: str = "A"
         age: ClassVar[int] = 100
 
     user1 = User(id=0)
-    user2 = User(id=1, name="K")
+    user2 = User(id=1, user_name="K")
     # Check user1 and user2 dicts
-    assert asdict(user1) == {"id": 0, "name": "A"}
-    assert asdict(user2) == {"id": 1, "name": "K"}
+    assert asdict(user1) == {"id": 0, "user_name": "A"}
+    assert asdict(user2) == {"id": 1, "user_name": "K"}
 
     # Add mocks
     user1_events = Mock()
@@ -207,18 +207,27 @@ def test_values_updated():
 
     # Update user1 from user2
     user1.update(user2)
-    assert asdict(user1) == {"id": 1, "name": "K"}
+    assert asdict(user1) == {"id": 1, "user_name": "K"}
 
     u1_id_events.assert_called_with(1)
     u2_id_events.assert_not_called()
-    assert user1_events.call_count == 2
+
+    # NOTE:
+    # user.events.user_name is NOT actually emitted because it has no callbacks
+    # connected to it.  see test_comparison_count below...
+    user1_events.assert_has_calls(
+        [
+            call(EmissionInfo(signal=user1.events.id, args=(1,))),
+            # call(EmissionInfo(signal=user1.events.user_name, args=("K",))),
+        ]
+    )
     u1_id_events.reset_mock()
     u2_id_events.reset_mock()
     user1_events.reset_mock()
 
     # Update user1 from user2 again, no event emission expected
     user1.update(user2)
-    assert asdict(user1) == {"id": 1, "name": "K"}
+    assert asdict(user1) == {"id": 1, "user_name": "K"}
 
     u1_id_events.assert_not_called()
     u2_id_events.assert_not_called()
@@ -756,8 +765,6 @@ def test_deprecation() -> None:
 
 
 def test_comparison_count():
-    from psygnal import _evented_model_v2
-
     class Model(EventedModel):
         a: int
 

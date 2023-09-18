@@ -243,7 +243,7 @@ class SignalGroup(SignalInstance):
 
     def __repr__(self) -> str:
         """Return repr(self)."""
-        name = f" {self.name!r}" if self.name else ""
+        name = f" {self._name!r}" if self._name else ""
         instance = f" on {self.instance!r}" if self.instance else ""
         nsignals = len(self.signals)
         signals = f"{nsignals} signals" if nsignals > 1 else ""
