@@ -481,13 +481,13 @@ def test_properties_with_explicit_property_dependencies():
         if PYDANTIC_V2:
             model_config = {
                 "allow_property_setters": True,
-                "property_dependencies": {"c": ["a", "b"]},
+                "field_dependencies": {"c": ["a", "b"]},
             }
         else:
 
             class Config:
                 allow_property_setters = True
-                property_dependencies = {"c": ["a", "b"]}
+                field_dependencies = {"c": ["a", "b"]}
 
     assert list(MyModel.__property_setters__) == ["c"]
     # the metaclass should have figured out that both a and b affect c
@@ -542,8 +542,10 @@ def test_evented_model_with_property_setters_events():
     assert t.c == [5, 20]
 
 
-def test_non_setter_with_dependencies():
-    with pytest.raises(ValueError) as e:
+def test_non_setter_with_dependencies() -> None:
+    with pytest.raises(
+        ValueError, match="Fields with dependencies must be fields or property.setters"
+    ):
 
         class M(EventedModel):
             x: int
@@ -559,19 +561,17 @@ def test_non_setter_with_dependencies():
             if PYDANTIC_V2:
                 model_config = {
                     "allow_property_setters": True,
-                    "property_dependencies": {"a": []},
+                    "field_dependencies": {"a": []},
                 }
             else:
 
                 class Config:
                     allow_property_setters = True
-                    property_dependencies = {"a": []}
-
-    assert "Fields with dependencies must be property.setters" in str(e.value)
+                    field_dependencies = {"a": []}
 
 
 def test_unrecognized_property_dependencies():
-    with pytest.warns(UserWarning) as e:
+    with pytest.warns(UserWarning, match="Unrecognized field dependency: 'b'"):
 
         class M(EventedModel):
             x: int
@@ -587,15 +587,13 @@ def test_unrecognized_property_dependencies():
             if PYDANTIC_V2:
                 model_config = {
                     "allow_property_setters": True,
-                    "property_dependencies": {"y": ["b"]},
+                    "field_dependencies": {"y": ["b"]},
                 }
             else:
 
                 class Config:
                     allow_property_setters = True
-                    property_dependencies = {"y": ["b"]}
-
-    assert "Unrecognized field dependency: 'b'" in str(e[0])
+                    field_dependencies = {"y": ["b"]}
 
 
 @pytest.mark.skipif(PYDANTIC_V2, reason="pydantic 2 does not support this")
@@ -671,13 +669,13 @@ def test_derived_events() -> None:
         if PYDANTIC_V2:
             model_config = {
                 "allow_property_setters": True,
-                "property_dependencies": {"b": ["a"]},
+                "field_dependencies": {"b": ["a"]},
             }
         else:
 
             class Config:
                 allow_property_setters = True
-                property_dependencies = {"b": ["a"]}
+                field_dependencies = {"b": ["a"]}
 
     mock_a = Mock()
     mock_b = Mock()
@@ -687,3 +685,71 @@ def test_derived_events() -> None:
     m.b = 3
     mock_a.assert_called_once_with(2)
     mock_b.assert_called_once_with(3)
+
+
+def test_root_validator_events():
+    class Model(EventedModel):
+        x: int
+        y: int
+
+        if PYDANTIC_V2:
+            from pydantic import model_validator
+
+            model_config = {
+                "validate_assignment": True,
+                "field_dependencies": {"y": ["x"]},
+            }
+
+            @model_validator(mode="before")
+            def check(cls, values: dict) -> dict:
+                x = values["x"]
+                values["y"] = min(values["y"], x)
+                return values
+
+        else:
+            from pydantic import root_validator
+
+            class Config:
+                validate_assignment = True
+                field_dependencies = {"y": ["x"]}
+
+            @root_validator
+            def check(cls, values: dict) -> dict:
+                x = values["x"]
+                values["y"] = min(values["y"], x)
+                return values
+
+    m = Model(x=2, y=1)
+    xmock = Mock()
+    ymock = Mock()
+    m.events.x.connect(xmock)
+    m.events.y.connect(ymock)
+    m.x = 0
+    assert m.y == 0
+    xmock.assert_called_once_with(0)
+    ymock.assert_called_once_with(0)
+
+    xmock.reset_mock()
+    ymock.reset_mock()
+
+    m.x = 2
+    assert m.y == 0
+    xmock.assert_called_once_with(2)
+    ymock.assert_not_called()
+
+
+def test_deprecation() -> None:
+    with pytest.warns(DeprecationWarning, match="Use 'field_dependencies' instead"):
+
+        class MyModel(EventedModel):
+            a: int = 1
+            b: int = 1
+
+            if PYDANTIC_V2:
+                model_config = {"property_dependencies": {"a": ["b"]}}
+            else:
+
+                class Config:
+                    property_dependencies = {"a": ["b"]}
+
+        assert MyModel.__field_dependents__ == {"b": {"a"}}
