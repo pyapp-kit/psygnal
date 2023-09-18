@@ -7,8 +7,8 @@ from psygnal import _dataclass_utils
 
 try:
     from msgspec import Struct
-except ImportError:
-    Struct = None
+except (ImportError, TypeError):  # type error on python 3.12-dev
+    Struct = None  # type: ignore [assignment,misc]
 
 try:
     from pydantic import __version__ as pydantic_version
