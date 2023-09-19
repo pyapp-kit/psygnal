@@ -4,7 +4,10 @@ import timeit
 from dataclasses import dataclass
 from typing import ClassVar
 
-from psygnal import SignalGroupDescriptor
+try:
+    from psygnal import SignalGroupDescriptor
+except ImportError:
+    SignalGroupDescriptor = None
 
 
 def _get_dataclass(type_: str, evented: bool) -> type:
@@ -96,5 +99,7 @@ def attribute_access(num: int = 100_000, repeat: int = 20) -> None:
         print(f"{type_} (with events): {w_events / wo_events:.3f}x slower")
 
 
-if __name__ == "__main__":
+if SignalGroupDescriptor is None:
+    print("SignalGroupDescriptor not found, skipping evented benchmarks")
+elif __name__ == "__main__":
     attribute_access()
