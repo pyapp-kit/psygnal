@@ -1,7 +1,7 @@
 import inspect
 import sys
 from typing import Any, ClassVar, List, Sequence, Union
-from unittest.mock import Mock
+from unittest.mock import Mock, call, patch
 
 import numpy as np
 import pytest
@@ -15,7 +15,7 @@ except ImportError:
 import pydantic.version
 from pydantic import BaseModel
 
-from psygnal import EventedModel, SignalGroup
+from psygnal import EmissionInfo, EventedModel, SignalGroup
 
 PYDANTIC_V2 = pydantic.version.VERSION.startswith("2")
 
@@ -188,14 +188,14 @@ def test_values_updated():
         """
 
         id: int
-        name: str = "A"
+        user_name: str = "A"
         age: ClassVar[int] = 100
 
     user1 = User(id=0)
-    user2 = User(id=1, name="K")
+    user2 = User(id=1, user_name="K")
     # Check user1 and user2 dicts
-    assert asdict(user1) == {"id": 0, "name": "A"}
-    assert asdict(user2) == {"id": 1, "name": "K"}
+    assert asdict(user1) == {"id": 0, "user_name": "A"}
+    assert asdict(user2) == {"id": 1, "user_name": "K"}
 
     # Add mocks
     user1_events = Mock()
@@ -207,18 +207,27 @@ def test_values_updated():
 
     # Update user1 from user2
     user1.update(user2)
-    assert asdict(user1) == {"id": 1, "name": "K"}
+    assert asdict(user1) == {"id": 1, "user_name": "K"}
 
     u1_id_events.assert_called_with(1)
     u2_id_events.assert_not_called()
-    assert user1_events.call_count == 2
+
+    # NOTE:
+    # user.events.user_name is NOT actually emitted because it has no callbacks
+    # connected to it.  see test_comparison_count below...
+    user1_events.assert_has_calls(
+        [
+            call(EmissionInfo(signal=user1.events.id, args=(1,))),
+            # call(EmissionInfo(signal=user1.events.user_name, args=("K",))),
+        ]
+    )
     u1_id_events.reset_mock()
     u2_id_events.reset_mock()
     user1_events.reset_mock()
 
     # Update user1 from user2 again, no event emission expected
     user1.update(user2)
-    assert asdict(user1) == {"id": 1, "name": "K"}
+    assert asdict(user1) == {"id": 1, "user_name": "K"}
 
     u1_id_events.assert_not_called()
     u2_id_events.assert_not_called()
@@ -481,13 +490,13 @@ def test_properties_with_explicit_property_dependencies():
         if PYDANTIC_V2:
             model_config = {
                 "allow_property_setters": True,
-                "property_dependencies": {"c": ["a", "b"]},
+                "field_dependencies": {"c": ["a", "b"]},
             }
         else:
 
             class Config:
                 allow_property_setters = True
-                property_dependencies = {"c": ["a", "b"]}
+                field_dependencies = {"c": ["a", "b"]}
 
     assert list(MyModel.__property_setters__) == ["c"]
     # the metaclass should have figured out that both a and b affect c
@@ -542,8 +551,10 @@ def test_evented_model_with_property_setters_events():
     assert t.c == [5, 20]
 
 
-def test_non_setter_with_dependencies():
-    with pytest.raises(ValueError) as e:
+def test_non_setter_with_dependencies() -> None:
+    with pytest.raises(
+        ValueError, match="Fields with dependencies must be fields or property.setters"
+    ):
 
         class M(EventedModel):
             x: int
@@ -559,19 +570,17 @@ def test_non_setter_with_dependencies():
             if PYDANTIC_V2:
                 model_config = {
                     "allow_property_setters": True,
-                    "property_dependencies": {"a": []},
+                    "field_dependencies": {"a": []},
                 }
             else:
 
                 class Config:
                     allow_property_setters = True
-                    property_dependencies = {"a": []}
-
-    assert "Fields with dependencies must be property.setters" in str(e.value)
+                    field_dependencies = {"a": []}
 
 
 def test_unrecognized_property_dependencies():
-    with pytest.warns(UserWarning) as e:
+    with pytest.warns(UserWarning, match="Unrecognized field dependency: 'b'"):
 
         class M(EventedModel):
             x: int
@@ -587,15 +596,13 @@ def test_unrecognized_property_dependencies():
             if PYDANTIC_V2:
                 model_config = {
                     "allow_property_setters": True,
-                    "property_dependencies": {"y": ["b"]},
+                    "field_dependencies": {"y": ["b"]},
                 }
             else:
 
                 class Config:
                     allow_property_setters = True
-                    property_dependencies = {"y": ["b"]}
-
-    assert "Unrecognized field dependency: 'b'" in str(e[0])
+                    field_dependencies = {"y": ["b"]}
 
 
 @pytest.mark.skipif(PYDANTIC_V2, reason="pydantic 2 does not support this")
@@ -671,13 +678,13 @@ def test_derived_events() -> None:
         if PYDANTIC_V2:
             model_config = {
                 "allow_property_setters": True,
-                "property_dependencies": {"b": ["a"]},
+                "field_dependencies": {"b": ["a"]},
             }
         else:
 
             class Config:
                 allow_property_setters = True
-                property_dependencies = {"b": ["a"]}
+                field_dependencies = {"b": ["a"]}
 
     mock_a = Mock()
     mock_b = Mock()
@@ -687,3 +694,155 @@ def test_derived_events() -> None:
     m.b = 3
     mock_a.assert_called_once_with(2)
     mock_b.assert_called_once_with(3)
+
+
+def test_root_validator_events():
+    class Model(EventedModel):
+        x: int
+        y: int
+
+        if PYDANTIC_V2:
+            from pydantic import model_validator
+
+            model_config = {
+                "validate_assignment": True,
+                "field_dependencies": {"y": ["x"]},
+            }
+
+            @model_validator(mode="before")
+            def check(cls, values: dict) -> dict:
+                x = values["x"]
+                values["y"] = min(values["y"], x)
+                return values
+
+        else:
+            from pydantic import root_validator
+
+            class Config:
+                validate_assignment = True
+                field_dependencies = {"y": ["x"]}
+
+            @root_validator
+            def check(cls, values: dict) -> dict:
+                x = values["x"]
+                values["y"] = min(values["y"], x)
+                return values
+
+    m = Model(x=2, y=1)
+    xmock = Mock()
+    ymock = Mock()
+    m.events.x.connect(xmock)
+    m.events.y.connect(ymock)
+    m.x = 0
+    assert m.y == 0
+    xmock.assert_called_once_with(0)
+    ymock.assert_called_once_with(0)
+
+    xmock.reset_mock()
+    ymock.reset_mock()
+
+    m.x = 2
+    assert m.y == 0
+    xmock.assert_called_once_with(2)
+    ymock.assert_not_called()
+
+
+def test_deprecation() -> None:
+    with pytest.warns(DeprecationWarning, match="Use 'field_dependencies' instead"):
+
+        class MyModel(EventedModel):
+            a: int = 1
+            b: int = 1
+
+            if PYDANTIC_V2:
+                model_config = {"property_dependencies": {"a": ["b"]}}
+            else:
+
+                class Config:
+                    property_dependencies = {"a": ["b"]}
+
+        assert MyModel.__field_dependents__ == {"b": {"a"}}
+
+
+def test_comparison_count() -> None:
+    """Test that we only compare fields that are actually connected to events."""
+
+    class Model(EventedModel):
+        a: int
+
+        @property
+        def b(self) -> int:
+            return self.a + 1
+
+        @b.setter
+        def b(self, b: int) -> None:
+            self.a = b - 1
+
+        if PYDANTIC_V2:
+            model_config = {
+                "allow_property_setters": True,
+                "field_dependencies": {"b": ["a"]},
+            }
+        else:
+
+            class Config:
+                allow_property_setters = True
+                field_dependencies = {"b": ["a"]}
+
+    # pick whether to mock v1 or v2 modules
+    model_module = sys.modules[type(Model).__module__]
+
+    m = Model(a=0)
+    b_mock = Mock()
+    with patch.object(
+        model_module,
+        "_check_field_equality",
+        wraps=model_module._check_field_equality,
+    ) as check_mock:
+        m.a = 1
+
+    check_mock.assert_not_called()
+    b_mock.assert_not_called()
+
+    m.events.b.connect(b_mock)
+    with patch.object(
+        model_module,
+        "_check_field_equality",
+        wraps=model_module._check_field_equality,
+    ) as check_mock:
+        m.a = 3
+    check_mock.assert_has_calls([call(Model, "a", 3, 1), call(Model, "b", 4, 2)])
+    b_mock.assert_called_once_with(4)
+
+
+def test_connect_only_to_events() -> None:
+    """Make sure that we still make comparison and emit events when connecting
+    only to the events group itself."""
+
+    class Model(EventedModel):
+        a: int
+
+    # pick whether to mock v1 or v2 modules
+    model_module = sys.modules[type(Model).__module__]
+
+    m = Model(a=0)
+    mock1 = Mock()
+    with patch.object(
+        model_module,
+        "_check_field_equality",
+        wraps=model_module._check_field_equality,
+    ) as check_mock:
+        m.a = 1
+
+    check_mock.assert_not_called()
+    mock1.assert_not_called()
+
+    m.events.connect(mock1)
+    with patch.object(
+        model_module,
+        "_check_field_equality",
+        wraps=model_module._check_field_equality,
+    ) as check_mock:
+        m.a = 3
+    check_mock.assert_has_calls([call(Model, "a", 3, 1)])
+    mock1.assert_called_once()
