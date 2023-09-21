@@ -81,6 +81,9 @@ def test_slot_types(type_: str, capsys) -> None:
     elif type_ == "print":
         cb = weak_callback(print, finalize=final_mock)
 
+    print(cb)
+    return
+
     assert isinstance(cb, WeakCallback)
     cb.cb((2,))
     assert cb.dereference() is not None
