@@ -94,6 +94,7 @@ jobs:
           HATCH_BUILD_HOOKS_ENABLE: "1"
 
       - name: test compiled
+        if: matrix.python-version != '3.12-dev'
         uses: aganders3/headless-gui@v1
         with:
           run: pytest --color=yes --cov=psygnal --cov-report=xml --cov-append

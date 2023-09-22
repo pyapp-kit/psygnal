@@ -30,10 +30,10 @@ from typing_extensions import get_args, get_origin
 from ._exceptions import EmitLoopError
 from ._queue import QueuedCallback
 from ._weak_callback import (
+    StrongFunction,
     WeakCallback,
-    _StrongFunction,
-    _WeakSetattr,
-    _WeakSetitem,
+    WeakSetattr,
+    WeakSetitem,
     weak_callback,
 )
 
@@ -597,7 +597,7 @@ class SignalInstance:
             raise AttributeError(f"Object {obj} has no attribute {attr!r}")
 
         with self._lock:
-            caller = _WeakSetattr(
+            caller = WeakSetattr(
                 obj,
                 attr,
                 max_args=maxargs,
@@ -630,7 +630,7 @@ class SignalInstance:
         """
         # sourcery skip: merge-nested-ifs, use-next
         with self._lock:
-            cb = _WeakSetattr(obj, attr, on_ref_error="ignore")
+            cb = WeakSetattr(obj, attr, on_ref_error="ignore")
             self._try_discard(cb, missing_ok)
 
     def connect_setitem(
@@ -701,7 +701,7 @@ class SignalInstance:
             raise TypeError(f"Object {obj} does not support __setitem__")
 
         with self._lock:
-            caller = _WeakSetitem(
+            caller = WeakSetitem(
                 obj,  # type: ignore
                 key,
                 max_args=maxargs,
@@ -738,7 +738,7 @@ class SignalInstance:
 
         # sourcery skip: merge-nested-ifs, use-next
         with self._lock:
-            caller = _WeakSetitem(obj, key, on_ref_error="ignore")
+            caller = WeakSetitem(obj, key, on_ref_error="ignore")
             self._try_discard(caller, missing_ok)
 
     def _check_nargs(
@@ -1124,7 +1124,7 @@ class SignalInstance:
         )
         dd = {slot: getattr(self, slot) for slot in attrs}
         dd["_instance"] = self._instance()
-        dd["_slots"] = [x for x in self._slots if isinstance(x, _StrongFunction)]
+        dd["_slots"] = [x for x in self._slots if isinstance(x, StrongFunction)]
         if len(self._slots) > len(dd["_slots"]):
             warnings.warn(
                 "Pickling a SignalInstance does not copy connected weakly referenced "

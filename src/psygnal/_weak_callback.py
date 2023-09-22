@@ -112,9 +112,9 @@ def weak_callback(
 
     if isinstance(cb, FunctionType):
         return (
-            _StrongFunction(cb, max_args, args, kwargs)
+            StrongFunction(cb, max_args, args, kwargs)
             if strong_func
-            else _WeakFunction(cb, max_args, args, kwargs, finalize, on_ref_error)
+            else WeakFunction(cb, max_args, args, kwargs, finalize, on_ref_error)
         )
 
     if isinstance(cb, MethodType):
@@ -126,8 +126,8 @@ def weak_callback(
                     "WeakCallback.__setitem__ requires a key argument"
                 ) from e
             obj = cast("SupportsSetitem", cb.__self__)
-            return _WeakSetitem(obj, key, max_args, finalize, on_ref_error)
-        return _WeakMethod(cb, max_args, args, kwargs, finalize, on_ref_error)
+            return WeakSetitem(obj, key, max_args, finalize, on_ref_error)
+        return WeakMethod(cb, max_args, args, kwargs, finalize, on_ref_error)
 
     if isinstance(cb, (MethodWrapperType, BuiltinMethodType)):
         if kwargs:  # pragma: no cover
@@ -142,8 +142,8 @@ def weak_callback(
                 raise TypeError(
                     "setattr requires two arguments, an object and an attribute name."
                 ) from e
-            return _WeakSetattr(obj, attr, max_args, finalize, on_ref_error)
-        return _WeakBuiltin(cb, max_args, args, finalize, on_ref_error)
+            return WeakSetattr(obj, attr, max_args, finalize, on_ref_error)
+        return WeakBuiltin(cb, max_args, args, finalize, on_ref_error)
 
     if _is_toolz_curry(cb):
         cb_partial = getattr(cb, "_partial", None)
@@ -161,7 +161,7 @@ def weak_callback(
         )
 
     if callable(cb):
-        return _WeakFunction(cb, max_args, args, kwargs, finalize, on_ref_error)
+        return WeakFunction(cb, max_args, args, kwargs, finalize, on_ref_error)
 
     raise TypeError(f"unsupported type {type(cb)}")  # pragma: no cover
 
@@ -188,6 +188,7 @@ class WeakCallback(Generic[_R]):
         on_ref_error: RefErrorChoice = "warn",
     ) -> None:
         self._key: str = WeakCallback.object_key(obj)
+        self._object_repr: str = WeakCallback.object_repr(obj)
         self._max_args: int | None = max_args
         self._alive: bool = True
         self._on_ref_error: RefErrorChoice = on_ref_error
@@ -258,6 +259,28 @@ class WeakCallback(Generic[_R]):
             obj_name = getattr(obj, "__name__", None) or ""
         return f"{module}:{obj_name}@{hex(obj_id)}"
 
+    @staticmethod
+    def object_repr(obj: Any) -> str:
+        """Return a human-readable repr for obj."""
+        module = getattr(obj, "__module__", "")
+        if hasattr(obj, "__self__"):
+            # bound method ... don't take the id of the bound method itself.
+            owner_cls = type(obj.__self__)
+            module = getattr(owner_cls, "__module__", None) or ""
+            method_name = getattr(obj, "__name__", None) or ""
+            if module == "builtins":
+                return method_name
+            type_qname = getattr(owner_cls, "__qualname__", "")
+            return f"{module}.{type_qname}.{method_name}"
+        elif getattr(obj, "__qualname__", ""):
+            return f"{module}.{obj.__qualname__}"
+        elif getattr(type(obj), "__qualname__", ""):
+            return f"{module}.{type(obj).__qualname__}"
+        return repr(obj)
+
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} on {self._object_repr}>"
+
 
 def _kill_and_finalize(
     wcb: WeakCallback, finalize: Callable[[WeakCallback], Any]
@@ -271,7 +294,7 @@ def _kill_and_finalize(
 
 
 @mypyc_attr(serializable=True)
-class _StrongFunction(WeakCallback):
+class StrongFunction(WeakCallback):
     """Wrapper around a strong function reference."""
 
     def __init__(
@@ -286,6 +309,9 @@ class _StrongFunction(WeakCallback):
         self._f = obj
         self._args = args
         self._kwargs = kwargs or {}
+
+        if args:
+            self._object_repr = f"{self._object_repr}{(*args,)!r}".replace(")", " ...)")
 
     def cb(self, args: tuple[Any, ...] = ()) -> None:
         if self._max_args is not None:
@@ -306,7 +332,7 @@ class _StrongFunction(WeakCallback):
             setattr(self, k, v)
 
 
-class _WeakFunction(WeakCallback):
+class WeakFunction(WeakCallback):
     """Wrapper around a weak function reference."""
 
     def __init__(
@@ -322,6 +348,9 @@ class _WeakFunction(WeakCallback):
         self._f = self._try_ref(obj, finalize)
         self._args = args
         self._kwargs = kwargs or {}
+
+        if args:
+            self._object_repr = f"{self._object_repr}{(*args,)!r}".replace(")", " ...)")
 
     def cb(self, args: tuple[Any, ...] = ()) -> None:
         f = self._f()
@@ -340,7 +369,7 @@ class _WeakFunction(WeakCallback):
         return f
 
 
-class _WeakMethod(WeakCallback):
+class WeakMethod(WeakCallback):
     """Wrapper around a method bound to a weakly-referenced object.
 
     Bound methods have a `__self__` attribute that holds a strong reference to the
@@ -360,11 +389,14 @@ class _WeakMethod(WeakCallback):
         finalize: Callable | None = None,
         on_ref_error: RefErrorChoice = "warn",
     ) -> None:
-        super().__init__(obj.__self__, max_args, on_ref_error)
+        super().__init__(obj, max_args, on_ref_error)
         self._obj_ref = self._try_ref(obj.__self__, finalize)
         self._func_ref = self._try_ref(obj.__func__, finalize)
         self._args = args
         self._kwargs = kwargs or {}
+
+        if args:
+            self._object_repr = f"{self._object_repr}{(*args,)!r}".replace(")", " ...)")
 
     def cb(self, args: tuple[Any, ...] = ()) -> None:
         obj = self._obj_ref()
@@ -387,7 +419,7 @@ class _WeakMethod(WeakCallback):
         return method
 
 
-class _WeakBuiltin(WeakCallback):
+class WeakBuiltin(WeakCallback):
     """Wrapper around a c-based method on a weakly-referenced object.
 
     Builtin/extension methods do have a `__self__` attribute (the object to which they
@@ -411,6 +443,9 @@ class _WeakBuiltin(WeakCallback):
         self._func_name = obj.__name__
         self._args = args
 
+        if args:
+            self._object_repr = f"{self._object_repr}{(*args,)!r}".replace(")", " ...)")
+
     def cb(self, args: tuple[Any, ...] = ()) -> None:
         func = getattr(self._obj_ref(), self._func_name, None)
         if func is None:
@@ -424,7 +459,7 @@ class _WeakBuiltin(WeakCallback):
         return getattr(self._obj_ref(), self._func_name, None)
 
 
-class _WeakSetattr(WeakCallback):
+class WeakSetattr(WeakCallback):
     """Caller to set an attribute on a weakly-referenced object."""
 
     def __init__(
@@ -439,6 +474,8 @@ class _WeakSetattr(WeakCallback):
         self._key += f".__setattr__({attr!r})"
         self._obj_ref = self._try_ref(obj, finalize)
         self._attr = attr
+
+        self._object_repr += f".__setattr__({attr!r}, ...)"
 
     def cb(self, args: tuple[Any, ...] = ()) -> None:
         obj = self._obj_ref()
@@ -458,7 +495,7 @@ class SupportsSetitem(Protocol):
         ...
 
 
-class _WeakSetitem(WeakCallback):
+class WeakSetitem(WeakCallback):
     """Caller to call __setitem__ on a weakly-referenced object."""
 
     def __init__(
@@ -473,6 +510,8 @@ class _WeakSetitem(WeakCallback):
         self._key += f".__setitem__({key!r})"
         self._obj_ref = self._try_ref(obj, finalize)
         self._itemkey = key
+
+        self._object_repr += f".__setitem__({key!r}, ...)"
 
     def cb(self, args: tuple[Any, ...] = ()) -> None:
         obj = self._obj_ref()

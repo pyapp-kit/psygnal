@@ -7,7 +7,7 @@ from typing import ClassVar
 try:
     from psygnal import SignalGroupDescriptor
 except ImportError:
-    SignalGroupDescriptor = None
+    SignalGroupDescriptor = None  # type: ignore [misc,assignment]
 
 
 def _get_dataclass(type_: str, evented: bool) -> type:
