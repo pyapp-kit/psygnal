@@ -424,7 +424,7 @@ class SignalGroupDescriptor:
             # clean up the cache when the instance is deleted
             with contextlib.suppress(TypeError):
                 # mypy says too many attributes for weakref.finalize, but it's wrong.
-                weakref.finalize(instance, self._instance_map.pop, obj_id, None)  # type: ignore [call-arg]  # noqa
+                weakref.finalize(instance, self._instance_map.pop, obj_id, None)  # type: ignore [call-arg]
 
         return self._instance_map[obj_id]
 
