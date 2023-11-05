@@ -24,7 +24,7 @@ jobs:
 
   test:
     name: Test
-    uses: pyapp-kit/.github/.github/workflows/reusable-ci.yml@main
+    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@main
     with:
       os: ${{ matrix.platform }}
       python-version: ${{ matrix.python-version }}
@@ -55,10 +55,10 @@ jobs:
             backend: "PySide6"
           - platform: ubuntu-latest
             python-version: "3.11"
-            pydantic: "pydantic<2"
+            pydantic: "'pydantic<2'"
           - platform: windows-latest
             python-version: "3.11"
-            pydantic: "pydantic<2"
+            pydantic: "'pydantic<2'"
           - platform: ubuntu-latest
             python-version: "3.12"
             backend: ""
