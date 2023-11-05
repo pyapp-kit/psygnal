@@ -211,8 +211,8 @@ exclude_lines = [
     "raise NotImplementedError()",
 ]
 [tool.coverage.run]
-source = ["src"]
-omit = ["src/psygnal/_pyinstaller_util/hook-psygnal.py"]
+source = ["psygnal"]
+omit = ["*/_pyinstaller_util/hook-psygnal.py"]
 
 # https://github.com/mgedmin/check-manifest#configuration
 [tool.check-manifest]
