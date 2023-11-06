@@ -2,10 +2,11 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request: {}
   workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * 0" # run once a week
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -24,74 +25,60 @@ jobs:
 
   test:
     name: Test
-    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@main
+    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v1
     with:
-      os: ${{ matrix.platform }}
+      os: ${{ matrix.os }}
       python-version: ${{ matrix.python-version }}
-      qt: ${{ matrix.backend }}
-      pip-force-installs: ${{ matrix.pydantic }}
-      extras: ${{ matrix.backend == '' && 'test' || 'test,testqt' }}
+      qt: ${{ matrix.qt }}
+      pip-post-installs: ${{ matrix.pydantic }}
+      extras: ${{ matrix.qt == '' && 'test' || 'test,testqt' }}
       fail-on-coverage-error: true
       hatch-build-hooks-enable: ${{ matrix.compile }}
+      pip-install-pre-release: ${{ github.event_name == 'schedule' }}
+      report-failures: ${{ github.event_name == 'schedule' }}
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
-        platform: [ubuntu-latest, macos-latest, windows-latest]
-        backend: [""]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        qt: [""]
         compile: [true, false]
         include:
-          - platform: ubuntu-latest
+          - os: ubuntu-latest
             python-version: "3.10"
-            backend: "PyQt5"
-          - platform: macos-latest
+            qt: "PyQt5"
+          - os: macos-latest
             python-version: "3.10"
-            backend: "PyQt6"
-          - platform: ubuntu-latest
+            qt: "PyQt6"
+          - os: ubuntu-latest
             python-version: "3.10"
-            backend: "PySide2"
-          - platform: macos-latest
+            qt: "PySide2"
+          - os: macos-latest
             python-version: "3.10"
-            backend: "PySide6"
-          - platform: ubuntu-latest
+            qt: "PySide6"
+          - os: ubuntu-latest
             python-version: "3.11"
             pydantic: "'pydantic<2'"
-          - platform: windows-latest
+          - os: windows-latest
             python-version: "3.11"
             pydantic: "'pydantic<2'"
-          - platform: ubuntu-latest
+          - os: ubuntu-latest
             python-version: "3.12"
-            backend: ""
+            qt: ""
 
   test-magicgui:
-    name: test magicgui
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          path: psygnal
-
-      - uses: actions/checkout@v4
-        with:
-          repository: pyapp-kit/magicgui
-          path: magicgui
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-      - uses: tlambert03/setup-qt-libs@v1
-      - name: install
-        run: |
-          python -m pip install -U pip
-          pip install -e magicgui[testing,pyside2]
-          pip install -e psygnal
-
-      - name: test magicgui
-        uses: aganders3/headless-gui@v1
-        with:
-          run: python -m pytest magicgui/tests -v --color=yes
+    uses: pyapp-kit/workflows/.github/workflows/test-dependents.yml@v1
+    with:
+      dependency-repo: pyapp-kit/magicgui
+      dependency-ref: ${{ matrix.napari-version }}
+      dependency-extras: 'testing'
+      qt: ${{ matrix.qt }}
+      python-version: "3.10"
+    strategy:
+      fail-fast: false
+      matrix:
+        napari-version: ["", "v0.4.18"]
+        qt: ["pyside2"]
 
   typing:
     runs-on: ubuntu-latest
