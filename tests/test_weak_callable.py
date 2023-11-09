@@ -1,5 +1,6 @@
 import gc
 from functools import partial
+from typing import Any
 from unittest.mock import Mock
 from weakref import ref
 
@@ -178,7 +179,7 @@ def test_deref(strong: bool) -> None:
     assert dp.keywords == p.keywords
 
 
-def test_queued_callbacks():
+def test_queued_callbacks() -> None:
     from psygnal._queue import QueuedCallback
 
     def func(x):
@@ -189,3 +190,27 @@ def test_queued_callbacks():
 
     assert qcb.dereference() is func
     assert qcb(1) == 1
+
+
+def test_cb_raises() -> None:
+    from psygnal import EmitLoopError
+
+    m = str(EmitLoopError(weak_callback(print), (1,), RuntimeError("test")))
+    assert "an error occurred in callback 'module.print'" in m
+    m = str(EmitLoopError(print, (1,), RuntimeError("test")))
+    assert " an error occurred in callback 'print'" in m
+
+    class T:
+        x = 1
+
+        def __setitem__(self, *_: Any) -> Any:
+            pass
+
+    t = T()
+    cb = weak_callback(setattr, t, "x")
+    m = str(EmitLoopError(cb, (2,), RuntimeError("test")))
+    assert "an error occurred in callback \"setattr" in m
+
+    cb = weak_callback(t.__setitem__, "x")
+    m = str(EmitLoopError(cb, (2,), RuntimeError("test")))
+    assert '.T.__setitem__' in m

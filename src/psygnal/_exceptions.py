@@ -36,7 +36,7 @@ class EmitLoopError(Exception):
         if isinstance(cb, WeakCallback):
             cb_name = cb.slot_repr()
         else:
-            cb_name = cb.__qualname__
+            cb_name = getattr(cb, "__qualname__", repr(cb))
         super().__init__(
             MSG.format(
                 sig=sig_name,
