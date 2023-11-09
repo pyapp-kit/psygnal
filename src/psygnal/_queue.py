@@ -95,4 +95,4 @@ def emit_queued(thread: Thread | None = None) -> None:
         try:
             cb(args)
         except Exception as e:  # pragma: no cover
-            raise EmitLoopError(slot_repr=repr(cb), args=args, exc=e) from e
+            raise EmitLoopError(cb=cb, args=args, exc=e) from e

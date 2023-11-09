@@ -990,7 +990,7 @@ class SignalInstance:
                         caller.cb(args)
                     except Exception as e:
                         raise EmitLoopError(
-                            slot_repr=repr(caller), args=args, exc=e
+                            cb=caller, args=args, exc=e, signal=self
                         ) from e
 
         return None
