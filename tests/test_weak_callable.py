@@ -209,8 +209,8 @@ def test_cb_raises() -> None:
     t = T()
     cb = weak_callback(setattr, t, "x")
     m = str(EmitLoopError(cb, (2,), RuntimeError("test")))
-    assert "an error occurred in callback \"setattr" in m
+    assert 'an error occurred in callback "setattr' in m
 
     cb = weak_callback(t.__setitem__, "x")
     m = str(EmitLoopError(cb, (2,), RuntimeError("test")))
-    assert '.T.__setitem__' in m
+    assert ".T.__setitem__" in m
