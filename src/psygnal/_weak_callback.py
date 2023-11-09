@@ -188,7 +188,7 @@ class WeakCallback(Generic[_R]):
         on_ref_error: RefErrorChoice = "warn",
     ) -> None:
         self._key: str = WeakCallback.object_key(obj)
-        self._obj_module: str = getattr(obj, "__module__", "")
+        self._obj_module: str = getattr(obj, "__module__", None) or ""
         self._obj_qualname: str = getattr(obj, "__qualname__", "")
         self._object_repr: str = WeakCallback.object_repr(obj)
         self._max_args: int | None = max_args
