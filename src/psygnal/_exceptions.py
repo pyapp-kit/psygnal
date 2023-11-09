@@ -31,10 +31,10 @@ class EmitLoopError(Exception):
             sig_name = ""
         else:
             inst_class = signal.instance.__class__
-            mod = getattr(inst_class, "__module__", '')
+            mod = getattr(inst_class, "__module__", "")
             sig_name = f"{mod}.{inst_class.__qualname__}.{signal.name}"
         if isinstance(cb, WeakCallback):
-            cb_name = cb.slot_qualname()
+            cb_name = cb.slot_repr()
         else:
             cb_name = cb.__qualname__
         super().__init__(
