@@ -8,9 +8,9 @@ if TYPE_CHECKING:
     from ._signal import SignalInstance
 
 MSG = """
-An error occurred in callback {cb!r} connected to psygnal.SignalInstance {sig!r}.
+While emitting signal {sig!r}, an error occurred in callback {cb!r}.
 The args passed to the callback were: {args!r}
-This is not a bug in psygnal.  See {err} above for details.
+This is not a bug in psygnal.  See {err!r} above for details.
 """
 
 
@@ -30,15 +30,17 @@ class EmitLoopError(Exception):
         if signal is None:
             sig_name = ""
         else:
-            sig_name = f"{signal.instance.__class__.__qualname__}.{signal.name}"
+            inst_class = signal.instance.__class__
+            mod = getattr(inst_class, "__module__", '')
+            sig_name = f"{mod}.{inst_class.__qualname__}.{signal.name}"
         if isinstance(cb, WeakCallback):
             cb_name = cb.slot_qualname()
         else:
             cb_name = cb.__qualname__
         super().__init__(
             MSG.format(
-                cb=cb_name,
                 sig=sig_name,
+                cb=cb_name,
                 args=args,
                 err=exc.__class__.__name__,
             )

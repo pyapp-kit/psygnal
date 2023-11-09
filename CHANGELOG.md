@@ -1,6 +1,23 @@
 # Changelog
 
-## [v0.9.3](https://github.com/pyapp-kit/psygnal/tree/v0.9.3) (2023-08-14)
+## [v0.9.4](https://github.com/pyapp-kit/psygnal/tree/v0.9.4) (2023-09-19)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.3...v0.9.4)
+
+**Implemented enhancements:**
+
+- perf: don't compare before/after values in evented dataclass/model when no signals connected [\#235](https://github.com/pyapp-kit/psygnal/pull/235) ([tlambert03](https://github.com/tlambert03))
+
+**Fixed bugs:**
+
+- fix: emission of events from root validators and extraneous emission of dependent fields [\#234](https://github.com/pyapp-kit/psygnal/pull/234) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- ci\(dependabot\): bump actions/checkout from 3 to 4 [\#231](https://github.com/pyapp-kit/psygnal/pull/231) ([dependabot[bot]](https://github.com/apps/dependabot))
+- test: python 3.12 [\#225](https://github.com/pyapp-kit/psygnal/pull/225) ([tlambert03](https://github.com/tlambert03))
+
+## [v0.9.3](https://github.com/pyapp-kit/psygnal/tree/v0.9.3) (2023-08-15)
 
 [Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.2...v0.9.3)
 
@@ -10,6 +27,7 @@
 
 **Merged pull requests:**
 
+- build: restrict py versions on cibuildwheel [\#229](https://github.com/pyapp-kit/psygnal/pull/229) ([tlambert03](https://github.com/tlambert03))
 - ci\(dependabot\): bump pypa/cibuildwheel from 2.14.1 to 2.15.0 [\#227](https://github.com/pyapp-kit/psygnal/pull/227) ([dependabot[bot]](https://github.com/apps/dependabot))
 
 ## [v0.9.2](https://github.com/pyapp-kit/psygnal/tree/v0.9.2) (2023-08-12)

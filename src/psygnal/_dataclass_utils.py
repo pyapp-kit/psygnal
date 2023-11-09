@@ -182,7 +182,7 @@ def iter_fields(
                     yield field_name, p_field.annotation
         else:
             for p_field in cls.__fields__.values():  # type: ignore [attr-defined]
-                if p_field.field_info.allow_mutation or not exclude_frozen:  # type: ignore  # noqa
+                if p_field.field_info.allow_mutation or not exclude_frozen:  # type: ignore
                     yield p_field.name, p_field.outer_type_  # type: ignore
         return
 
