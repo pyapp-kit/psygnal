@@ -188,6 +188,8 @@ class WeakCallback(Generic[_R]):
         on_ref_error: RefErrorChoice = "warn",
     ) -> None:
         self._key: str = WeakCallback.object_key(obj)
+        self._obj_module: str = getattr(obj, "__module__", None) or ""
+        self._obj_qualname: str = getattr(obj, "__qualname__", "")
         self._object_repr: str = WeakCallback.object_repr(obj)
         self._max_args: int | None = max_args
         self._alive: bool = True
@@ -236,6 +238,9 @@ class WeakCallback(Generic[_R]):
                 return obj
 
             return _strong_ref
+
+    def slot_repr(self) -> str:
+        return f"{self._obj_module}.{self._obj_qualname}"
 
     @staticmethod
     def object_key(obj: Any) -> str:
@@ -394,9 +399,13 @@ class WeakMethod(WeakCallback):
         self._func_ref = self._try_ref(obj.__func__, finalize)
         self._args = args
         self._kwargs = kwargs or {}
-
         if args:
             self._object_repr = f"{self._object_repr}{(*args,)!r}".replace(")", " ...)")
+
+    def slot_repr(self) -> str:
+        obj = self._obj_ref()
+        func_name = getattr(self._func_ref(), "__name__", "<method>")
+        return f"{self._obj_module}.{obj.__class__.__qualname__}.{func_name}"
 
     def cb(self, args: tuple[Any, ...] = ()) -> None:
         obj = self._obj_ref()
@@ -442,9 +451,12 @@ class WeakBuiltin(WeakCallback):
         self._obj_ref = self._try_ref(obj.__self__, finalize)
         self._func_name = obj.__name__
         self._args = args
-
         if args:
             self._object_repr = f"{self._object_repr}{(*args,)!r}".replace(")", " ...)")
+
+    def slot_repr(self) -> str:
+        obj = self._obj_ref()
+        return f"{obj.__class__.__qualname__}.{self._func_name}"
 
     def cb(self, args: tuple[Any, ...] = ()) -> None:
         func = getattr(self._obj_ref(), self._func_name, None)
@@ -474,8 +486,11 @@ class WeakSetattr(WeakCallback):
         self._key += f".__setattr__({attr!r})"
         self._obj_ref = self._try_ref(obj, finalize)
         self._attr = attr
-
         self._object_repr += f".__setattr__({attr!r}, ...)"
+
+    def slot_repr(self) -> str:
+        obj = self._obj_ref()
+        return f"setattr({obj.__class__.__qualname__}, {self._attr!r}, ...)"
 
     def cb(self, args: tuple[Any, ...] = ()) -> None:
         obj = self._obj_ref()
@@ -510,8 +525,11 @@ class WeakSetitem(WeakCallback):
         self._key += f".__setitem__({key!r})"
         self._obj_ref = self._try_ref(obj, finalize)
         self._itemkey = key
-
         self._object_repr += f".__setitem__({key!r}, ...)"
+
+    def slot_repr(self) -> str:
+        obj = self._obj_ref()
+        return f"{obj.__class__.__qualname__}.__setitem__({self._itemkey!r}, ...)"
 
     def cb(self, args: tuple[Any, ...] = ()) -> None:
         obj = self._obj_ref()
