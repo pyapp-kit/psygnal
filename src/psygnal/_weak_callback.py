@@ -240,7 +240,7 @@ class WeakCallback(Generic[_R]):
             return _strong_ref
 
     def slot_qualname(self) -> str:
-        return f'{self._obj_module}.{self._obj_qualname}'
+        return f"{self._obj_module}.{self._obj_qualname}"
 
     @staticmethod
     def object_key(obj: Any) -> str:
