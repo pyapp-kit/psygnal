@@ -1,5 +1,20 @@
 # Changelog
 
+## [v0.9.5](https://github.com/pyapp-kit/psygnal/tree/v0.9.5) (2023-11-13)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.4...v0.9.5)
+
+**Implemented enhancements:**
+
+- feat: better repr for WeakCallback objects [\#236](https://github.com/pyapp-kit/psygnal/pull/236) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- fix: fix py37 build [\#243](https://github.com/pyapp-kit/psygnal/pull/243) ([tlambert03](https://github.com/tlambert03))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.16.1 to 2.16.2 [\#240](https://github.com/pyapp-kit/psygnal/pull/240) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.15.0 to 2.16.1 [\#238](https://github.com/pyapp-kit/psygnal/pull/238) ([dependabot[bot]](https://github.com/apps/dependabot))
+- refactor: make EmitLoop error message clearer [\#232](https://github.com/pyapp-kit/psygnal/pull/232) ([tlambert03](https://github.com/tlambert03))
+
 ## [v0.9.4](https://github.com/pyapp-kit/psygnal/tree/v0.9.4) (2023-09-19)
 
 [Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.3...v0.9.4)
