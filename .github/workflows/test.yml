@@ -73,13 +73,13 @@ jobs:
       dependency-repo: pyapp-kit/magicgui
       dependency-ref: ${{ matrix.dependency-version }}
       dependency-extras: 'testing'
-      qt: ${{ matrix.qt }}
+      qt: "pyside2"
       python-version: "3.10"
+      # pytest-args: --ignore typesafety
     strategy:
       fail-fast: false
       matrix:
-        dependency-version: ["", "v0.6.0"]
-        qt: ["pyside2"]
+        dependency-version: ["", "v0.7.0"]
 
   typing:
     runs-on: ubuntu-latest
