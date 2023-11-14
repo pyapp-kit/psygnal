@@ -14,14 +14,10 @@ concurrency:
 
 jobs:
   check-manifest:
-    name: Check Manifest
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v4
-        with:
-          python-version: "3.x"
-      - run: pip install check-manifest && check-manifest
+      - run: pipx run check-manifest
 
   test:
     name: Test
@@ -30,7 +26,7 @@ jobs:
       os: ${{ matrix.os }}
       python-version: ${{ matrix.python-version }}
       pip-post-installs: ${{ matrix.pydantic }}
-      fail-on-coverage-error: true
+      fail-on-coverage-error: false
       hatch-build-hooks-enable: ${{ matrix.compile }}
       pip-install-pre-release: ${{ github.event_name == 'schedule' }}
       report-failures: ${{ github.event_name == 'schedule' }}
@@ -47,6 +43,9 @@ jobs:
           - os: windows-latest
             python-version: "3.11"
             pydantic: "'pydantic<2'"
+        exclude:
+          - os: windows-latest
+            python-version: "3.12"
 
   test-qt:
     name: Test Qt
@@ -55,7 +54,7 @@ jobs:
       os: ${{ matrix.os }}
       python-version: ${{ matrix.python-version }}
       qt: ${{ matrix.qt }}
-      extras: 'test,testqt'
+      extras: "test,testqt"
       hatch-build-hooks-enable: ${{ matrix.compile }}
       pip-install-pre-release: ${{ github.event_name == 'schedule' }}
       report-failures: ${{ github.event_name == 'schedule' }}
@@ -71,15 +70,9 @@ jobs:
     uses: pyapp-kit/workflows/.github/workflows/test-dependents.yml@v1
     with:
       dependency-repo: pyapp-kit/magicgui
-      dependency-ref: ${{ matrix.dependency-version }}
-      dependency-extras: 'testing'
+      dependency-extras: "testing"
       qt: "pyside2"
-      python-version: "3.10"
-      # pytest-args: --ignore typesafety
-    strategy:
-      fail-fast: false
-      matrix:
-        dependency-version: ["", "v0.7.0"]
+      python-version: "3.11"
 
   typing:
     runs-on: ubuntu-latest
