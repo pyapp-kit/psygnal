@@ -38,7 +38,7 @@ jobs:
         compile: [true, false]
         include:
           - os: ubuntu-latest
-            python-version: "3.11"
+            python-version: "3.12"
             pydantic: "'pydantic<2'"
           - os: windows-latest
             python-version: "3.11"
@@ -46,6 +46,10 @@ jobs:
         exclude:
           - os: windows-latest
             python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.7"
+          - os: macos-latest
+            python-version: "3.7"
 
   test-qt:
     name: Test Qt
