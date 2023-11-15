@@ -72,7 +72,7 @@ jobs:
       dependency-repo: pyapp-kit/magicgui
       dependency-extras: "testing"
       qt: "pyside2"
-      python-version: "3.11"
+      python-version: "3.10"
 
   typing:
     runs-on: ubuntu-latest
