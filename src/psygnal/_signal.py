@@ -492,10 +492,6 @@ class SignalInstance:
                         extra = f"- Slot types {slot_sig} do not match types in signal."
                         self._raise_connection_error(slot, extra)
 
-                # this type ignore could be fixed with ParamSpec, but that's not yet
-                # supported by mypyc.  we need cb to be a WeakCallback[R], but we can't
-                # preserve the full typing information of the callback without using
-                # Callable[ParamSpec, R] or a general TypeVar('F', bound=Callable).
                 cb = weak_callback(
                     slot,
                     max_args=max_args,
