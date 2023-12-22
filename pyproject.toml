@@ -193,6 +193,10 @@ ignore_errors = true
 module = ["wrapt", "msgspec"]
 ignore_missing_imports = true
 
+[[tool.mypy.overrides]]
+module = ["psygnal._signal"]
+warn_unused_ignores = false
+
 # https://coverage.readthedocs.io/en/6.4/config.html
 [tool.coverage.report]
 exclude_lines = [
