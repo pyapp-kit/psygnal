@@ -1,8 +1,77 @@
 # Changelog
 
-## [0.9.1](https://github.com/pyapp-kit/psygnal/tree/0.9.1) (2023-05-29)
+## [v0.9.5](https://github.com/pyapp-kit/psygnal/tree/v0.9.5) (2023-11-13)
 
-[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.0...0.9.1)
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.4...v0.9.5)
+
+**Implemented enhancements:**
+
+- feat: better repr for WeakCallback objects [\#236](https://github.com/pyapp-kit/psygnal/pull/236) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- fix: fix py37 build [\#243](https://github.com/pyapp-kit/psygnal/pull/243) ([tlambert03](https://github.com/tlambert03))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.16.1 to 2.16.2 [\#240](https://github.com/pyapp-kit/psygnal/pull/240) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.15.0 to 2.16.1 [\#238](https://github.com/pyapp-kit/psygnal/pull/238) ([dependabot[bot]](https://github.com/apps/dependabot))
+- refactor: make EmitLoop error message clearer [\#232](https://github.com/pyapp-kit/psygnal/pull/232) ([tlambert03](https://github.com/tlambert03))
+
+## [v0.9.4](https://github.com/pyapp-kit/psygnal/tree/v0.9.4) (2023-09-19)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.3...v0.9.4)
+
+**Implemented enhancements:**
+
+- perf: don't compare before/after values in evented dataclass/model when no signals connected [\#235](https://github.com/pyapp-kit/psygnal/pull/235) ([tlambert03](https://github.com/tlambert03))
+
+**Fixed bugs:**
+
+- fix: emission of events from root validators and extraneous emission of dependent fields [\#234](https://github.com/pyapp-kit/psygnal/pull/234) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- ci\(dependabot\): bump actions/checkout from 3 to 4 [\#231](https://github.com/pyapp-kit/psygnal/pull/231) ([dependabot[bot]](https://github.com/apps/dependabot))
+- test: python 3.12 [\#225](https://github.com/pyapp-kit/psygnal/pull/225) ([tlambert03](https://github.com/tlambert03))
+
+## [v0.9.3](https://github.com/pyapp-kit/psygnal/tree/v0.9.3) (2023-08-15)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.2...v0.9.3)
+
+**Fixed bugs:**
+
+- fix: fix signature inspection on debounced/throttled, update typing and wrapped [\#228](https://github.com/pyapp-kit/psygnal/pull/228) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- build: restrict py versions on cibuildwheel [\#229](https://github.com/pyapp-kit/psygnal/pull/229) ([tlambert03](https://github.com/tlambert03))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.14.1 to 2.15.0 [\#227](https://github.com/pyapp-kit/psygnal/pull/227) ([dependabot[bot]](https://github.com/apps/dependabot))
+
+## [v0.9.2](https://github.com/pyapp-kit/psygnal/tree/v0.9.2) (2023-08-12)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.1...v0.9.2)
+
+**Fixed bugs:**
+
+- fix: add deepcopy method for mypyc support, don't copy weakly connected slots [\#222](https://github.com/pyapp-kit/psygnal/pull/222) ([tlambert03](https://github.com/tlambert03))
+- Fix imports of typing extensions [\#221](https://github.com/pyapp-kit/psygnal/pull/221) ([tlambert03](https://github.com/tlambert03))
+
+**Tests & CI:**
+
+- ci: fix linux wheels [\#226](https://github.com/pyapp-kit/psygnal/pull/226) ([tlambert03](https://github.com/tlambert03))
+- ci: change concurrency [\#224](https://github.com/pyapp-kit/psygnal/pull/224) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- build: remove setuppy [\#223](https://github.com/pyapp-kit/psygnal/pull/223) ([tlambert03](https://github.com/tlambert03))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.13.1 to 2.14.1 [\#218](https://github.com/pyapp-kit/psygnal/pull/218) ([dependabot[bot]](https://github.com/apps/dependabot))
+- fix: fix duplicated derived events [\#216](https://github.com/pyapp-kit/psygnal/pull/216) ([tlambert03](https://github.com/tlambert03))
+- feat: support pydantic v2 [\#214](https://github.com/pyapp-kit/psygnal/pull/214) ([tlambert03](https://github.com/tlambert03))
+- ci\(pre-commit.ci\): autoupdate [\#213](https://github.com/pyapp-kit/psygnal/pull/213) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.13.0 to 2.13.1 [\#212](https://github.com/pyapp-kit/psygnal/pull/212) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(pre-commit.ci\): autoupdate [\#211](https://github.com/pyapp-kit/psygnal/pull/211) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+
+## [v0.9.1](https://github.com/pyapp-kit/psygnal/tree/v0.9.1) (2023-05-29)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.0...v0.9.1)
 
 **Implemented enhancements:**
 

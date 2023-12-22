@@ -5,9 +5,10 @@ from threading import Thread, current_thread, main_thread
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, DefaultDict, Tuple
 
 if TYPE_CHECKING:
+    import collections
+
     from typing_extensions import Literal
 
-import collections
 
 from ._exceptions import EmitLoopError
 from ._weak_callback import WeakCallback
@@ -94,4 +95,4 @@ def emit_queued(thread: Thread | None = None) -> None:
         try:
             cb(args)
         except Exception as e:  # pragma: no cover
-            raise EmitLoopError(slot_repr=repr(cb), args=args, exc=e) from e
+            raise EmitLoopError(cb=cb, args=args, exc=e) from e

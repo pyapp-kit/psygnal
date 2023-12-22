@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     PackageNotFoundError = Exception
-    from ._evented_model_v1 import EventedModel
+    from ._evented_model_v1 import EventedModel  # noqa: TCH004
 
     def version(package: str) -> str:
         """Return version."""

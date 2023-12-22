@@ -2,7 +2,7 @@
 
 [![License](https://img.shields.io/pypi/l/psygnal.svg?color=green)](https://github.com/pyapp-kit/psygnal/raw/master/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/psygnal.svg?color=green)](https://pypi.org/project/psygnal)
-![Conda](https://img.shields.io/conda/v/conda-forge/psygnal)
+[![Conda](https://img.shields.io/conda/v/conda-forge/psygnal)](https://github.com/conda-forge/psygnal-feedstock)
 [![Python Version](https://img.shields.io/pypi/pyversions/psygnal.svg?color=green)](https://python.org)
 [![CI](https://github.com/pyapp-kit/psygnal/actions/workflows/test.yml/badge.svg)](https://github.com/pyapp-kit/psygnal/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/pyapp-kit/psygnal/branch/main/graph/badge.svg?token=qGnz9GXpEb)](https://codecov.io/gh/pyapp-kit/psygnal)
@@ -41,7 +41,7 @@ Here is a simple example of using psygnal:
 from psygnal import Signal
 
 class MyObject:
-    # define one or signals as class attributes
+    # define one or more signals as class attributes
     value_changed = Signal(str)
 
 # create an instance

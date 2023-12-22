@@ -2,139 +2,87 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request: {}
   workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * 0" # run once a week
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check-manifest:
-    name: Check Manifest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
-        with:
-          python-version: "3.x"
-      - run: pip install check-manifest && check-manifest
+      - uses: actions/checkout@v4
+      - run: pipx run check-manifest
 
-  test-linux:
-    name: py${{ matrix.python-version }} on ${{ matrix.platform }} ${{ matrix.backend }} ${{ matrix.pydantic }}
-    runs-on: ${{ matrix.platform }}
-
+  test:
+    name: Test
+    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v1
+    with:
+      os: ${{ matrix.os }}
+      python-version: ${{ matrix.python-version }}
+      pip-post-installs: ${{ matrix.pydantic }}
+      fail-on-coverage-error: false
+      hatch-build-hooks-enable: ${{ matrix.compile }}
+      pip-install-pre-release: ${{ github.event_name == 'schedule' }}
+      report-failures: ${{ github.event_name == 'schedule' }}
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11"]
-        platform: [ubuntu-latest, macos-latest, windows-latest]
-        backend: [""]
+        python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        compile: [true, false]
         include:
-          - platform: ubuntu-latest
-            python-version: "3.10"
-            backend: "PyQt5"
-          - platform: macos-latest
-            python-version: "3.10"
-            backend: "PyQt6"
-          - platform: ubuntu-latest
-            python-version: "3.10"
-            backend: "PySide2"
-          - platform: macos-latest
-            python-version: "3.10"
-            backend: "PySide6"
-          - platform: ubuntu-latest
+          - os: ubuntu-latest
+            python-version: "3.12"
+            pydantic: "'pydantic<2'"
+          - os: windows-latest
             python-version: "3.11"
-            pydantic: "pydantic<2"
-          - platform: windows-latest
-            python-version: "3.11"
-            pydantic: "pydantic<2"
+            pydantic: "'pydantic<2'"
+        exclude:
+          - os: windows-latest
+            python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.7"
+          - os: macos-latest
+            python-version: "3.7"
 
-    steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.11.0
-        with:
-          access_token: ${{ github.token }}
-
-      - uses: actions/checkout@v3
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - uses: tlambert03/setup-qt-libs@v1.4
-        if: matrix.backend != ''
-      - name: Install ${{ matrix.backend }}
-        run: |
-          python -m pip install -e .[testqt]
-          python -m pip install ${{ matrix.backend }}
-        if: matrix.backend != ''
-
-      - name: install
-        run: |
-          python -m pip install -U pip
-          python -m pip install -e .[test]
-          python -c "import sys, psygnal; sys.exit(1 if psygnal._compiled else 0)"
-
-      - name: downgrade pydantic
-        if: matrix.pydantic != ''
-        run: python -m pip install "${{ matrix.pydantic }}"
-
-      - name: test uncompiled
-        uses: aganders3/headless-gui@v1
-        with:
-          run: pytest --color=yes --cov=psygnal --cov-report=xml
-
-      - name: compile and retest
-        run: |
-          python -m pip install -e .
-          python -c "import sys, psygnal; sys.exit(0 if psygnal._compiled else 1)"
-        env:
-          HATCH_BUILD_HOOKS_ENABLE: "1"
-
-      - name: test compiled
-        uses: aganders3/headless-gui@v1
-        with:
-          run: pytest --color=yes --cov=psygnal --cov-report=xml --cov-append
-
-      - uses: codecov/codecov-action@v3
-        with:
-          fail_ci_if_error: true
-          verbose: true
+  test-qt:
+    name: Test Qt
+    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v1
+    with:
+      os: ${{ matrix.os }}
+      python-version: ${{ matrix.python-version }}
+      qt: ${{ matrix.qt }}
+      extras: "test,testqt"
+      hatch-build-hooks-enable: ${{ matrix.compile }}
+      pip-install-pre-release: ${{ github.event_name == 'schedule' }}
+      report-failures: ${{ github.event_name == 'schedule' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10"]
+        os: [macos-latest, windows-latest]
+        qt: [PyQt5, PyQt6, PySide2, PySide6]
+        compile: [true, false]
 
   test-magicgui:
-    name: test magicgui
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          path: psygnal
-
-      - uses: actions/checkout@v3
-        with:
-          repository: pyapp-kit/magicgui
-          path: magicgui
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: "3.10"
-      - uses: tlambert03/setup-qt-libs@v1
-      - name: install
-        run: |
-          python -m pip install -U pip
-          pip install -e magicgui[testing,pyside2]
-          pip install -e psygnal
-
-      - name: test magicgui
-        uses: aganders3/headless-gui@v1
-        with:
-          run: python -m pytest magicgui/tests -v --color=yes
+    uses: pyapp-kit/workflows/.github/workflows/test-dependents.yml@v1
+    with:
+      dependency-repo: pyapp-kit/magicgui
+      dependency-extras: "testing"
+      qt: "pyside2"
+      python-version: "3.10"
 
   typing:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.x"
       - name: install
@@ -148,8 +96,8 @@ jobs:
   benchmarks:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-python@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
@@ -161,6 +109,6 @@ jobs:
           HATCH_BUILD_HOOKS_ENABLE: "1"
 
       - name: Run benchmarks
-        uses: CodSpeedHQ/action@v1
+        uses: CodSpeedHQ/action@v2
         with:
           run: pytest --codspeed -v --color=yes

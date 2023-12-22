@@ -34,17 +34,13 @@ else:
     from pydantic import BaseModel, PrivateAttr, utils
     from pydantic.fields import Field, FieldInfo
 
-    try:
-        from typing_extensions import dataclass_transform
-    except ImportError:  # pragma: no cover
-
-        def dataclass_transform(*args, **kwargs):
-            return lambda a: a
+    def dataclass_transform(*args, **kwargs):
+        return lambda a: a
 
 
 _NULL = object()
 ALLOW_PROPERTY_SETTERS = "allow_property_setters"
-PROPERTY_DEPENDENCIES = "property_dependencies"
+FIELD_DEPENDENCIES = "field_dependencies"
 GUESS_PROPERTY_DEPENDENCIES = "guess_property_dependencies"
 
 
@@ -118,7 +114,7 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
 
         cls.__eq_operators__ = {}
         signals = {}
-        fields: Dict[str, "ModelField"] = cls.__fields__
+        fields: Dict[str, ModelField] = cls.__fields__
         for n, f in fields.items():
             cls.__eq_operators__[n] = _pick_equality_operator(f.type_)
             if f.field_info.allow_mutation:
@@ -189,16 +185,26 @@ def _get_field_dependents(cls: "EventedModel") -> Dict[str, Set[str]]:
     """
     deps: Dict[str, Set[str]] = {}
 
-    cfg_deps = getattr(cls.__config__, PROPERTY_DEPENDENCIES, {})  # sourcery skip
+    cfg_deps = getattr(cls.__config__, FIELD_DEPENDENCIES, {})  # sourcery skip
+    if not cfg_deps:
+        cfg_deps = getattr(cls.__config__, "property_dependencies", {})
+        if cfg_deps:
+            warnings.warn(
+                "The 'property_dependencies' configuration key is deprecated. "
+                "Use 'field_dependencies' instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
     if cfg_deps:
         if not isinstance(cfg_deps, dict):  # pragma: no cover
             raise TypeError(
                 f"Config property_dependencies must be a dict, not {cfg_deps!r}"
             )
         for prop, fields in cfg_deps.items():
-            if prop not in cls.__property_setters__:
+            if prop not in {*cls.__fields__, *cls.__property_setters__}:
                 raise ValueError(
-                    "Fields with dependencies must be property.setters."
+                    "Fields with dependencies must be fields or property.setters."
                     f"{prop!r} is not."
                 )
             for field in fields:
@@ -346,23 +352,45 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
             # fallback to default behavior
             return self._super_setattr_(name, value)
 
-        # grab current value
+        # if there are no listeners, we can just set the value without emitting
+        # so first check if there are any listeners for this field or any of its
+        # dependent properties.
+        # note that ALL signals will have at least one listener simply by nature of
+        # being in the `self._events` SignalGroup.
+        signal_instance: SignalInstance = getattr(self._events, name)
+        deps_with_callbacks = {
+            dep_name
+            for dep_name in self.__field_dependents__.get(name, ())
+            if len(getattr(self._events, dep_name)) > 1
+        }
+        if (
+            len(signal_instance) < 2  # the signal itself has no listeners
+            and not deps_with_callbacks  # no dependent properties with listeners
+            and not len(self._events)  # no listeners on the SignalGroup
+        ):
+            return self._super_setattr_(name, value)
+
+        # grab the current value and those of any dependent properties
+        # so that we can check if they have changed after setting the value
         before = getattr(self, name, object())
+        deps_before: Dict[str, Any] = {
+            dep: getattr(self, dep) for dep in deps_with_callbacks
+        }
 
         # set value using original setter
-        signal_instance: SignalInstance = getattr(self._events, name)
         with signal_instance.blocked():
             self._super_setattr_(name, value)
 
-        # if different we emit the event with new value
+        # if the value has changed we emit the event with new value
         after = getattr(self, name)
-
         if not _check_field_equality(type(self), name, after, before):
             signal_instance.emit(after)  # emit event
 
-            # emit events for any dependent computed property setters as well
-            for dep in self.__field_dependents__.get(name, ()):
-                getattr(self.events, dep).emit(getattr(self, dep))
+            # also emit events for any dependent attributes that have changed as well
+            for dep, before_val in deps_before.items():
+                after_val = getattr(self, dep)
+                if not _check_field_equality(type(self), dep, after_val, before_val):
+                    getattr(self._events, dep).emit(after_val)
 
     # expose the private SignalGroup publically
     @property

@@ -29,7 +29,13 @@ from typing_extensions import get_args, get_origin
 
 from ._exceptions import EmitLoopError
 from ._queue import QueuedCallback
-from ._weak_callback import WeakCallback, _WeakSetattr, _WeakSetitem, weak_callback
+from ._weak_callback import (
+    StrongFunction,
+    WeakCallback,
+    WeakSetattr,
+    WeakSetitem,
+    weak_callback,
+)
 
 if TYPE_CHECKING:
     from typing_extensions import Literal
@@ -290,15 +296,7 @@ class SignalInstance:
         check_types_on_connect: bool = False,
     ) -> None:
         self._name = name
-        if instance is None:
-            self._instance: Callable = lambda: None
-        else:
-            try:
-                self._instance = weakref.ref(instance)
-            except TypeError:
-                # fall back to strong reference if instance is not weak-referenceable
-                self._instance = lambda: instance
-
+        self._instance: Callable = self._instance_ref(instance)
         self._args_queue: list[Any] = []  # filled when paused
 
         if isinstance(signature, (list, tuple)):
@@ -317,6 +315,17 @@ class SignalInstance:
         self._is_paused: bool = False
         self._lock = threading.RLock()
 
+    @staticmethod
+    def _instance_ref(instance: Any) -> Callable[[], Any]:
+        if instance is None:
+            return lambda: None
+
+        try:
+            return weakref.ref(instance)
+        except TypeError:
+            # fall back to strong reference if instance is not weak-referenceable
+            return lambda: instance
+
     @property
     def signature(self) -> Signature:
         """Signature supported by this `SignalInstance`."""
@@ -334,7 +343,7 @@ class SignalInstance:
 
     def __repr__(self) -> str:
         """Return repr."""
-        name = f" {self.name!r}" if self.name else ""
+        name = f" {self._name!r}" if self._name else ""
         instance = f" on {self.instance!r}" if self.instance is not None else ""
         return f"<{type(self).__name__}{name}{instance}>"
 
@@ -483,11 +492,7 @@ class SignalInstance:
                         extra = f"- Slot types {slot_sig} do not match types in signal."
                         self._raise_connection_error(slot, extra)
 
-                # this type ignore could be fixed with ParamSpec, but that's not yet
-                # supported by mypyc.  we need cb to be a WeakCallback[R], but we can't
-                # preserve the full typing information of the callback without using
-                # Callable[ParamSpec, R] or a general TypeVar('F', bound=Callable).
-                cb = weak_callback(  # type: ignore [var-annotated]
+                cb = weak_callback(
                     slot,
                     max_args=max_args,
                     finalize=self._try_discard,
@@ -588,7 +593,7 @@ class SignalInstance:
             raise AttributeError(f"Object {obj} has no attribute {attr!r}")
 
         with self._lock:
-            caller = _WeakSetattr(
+            caller = WeakSetattr(
                 obj,
                 attr,
                 max_args=maxargs,
@@ -621,7 +626,7 @@ class SignalInstance:
         """
         # sourcery skip: merge-nested-ifs, use-next
         with self._lock:
-            cb = _WeakSetattr(obj, attr, on_ref_error="ignore")
+            cb = WeakSetattr(obj, attr, on_ref_error="ignore")
             self._try_discard(cb, missing_ok)
 
     def connect_setitem(
@@ -692,7 +697,7 @@ class SignalInstance:
             raise TypeError(f"Object {obj} does not support __setitem__")
 
         with self._lock:
-            caller = _WeakSetitem(
+            caller = WeakSetitem(
                 obj,  # type: ignore
                 key,
                 max_args=maxargs,
@@ -729,7 +734,7 @@ class SignalInstance:
 
         # sourcery skip: merge-nested-ifs, use-next
         with self._lock:
-            caller = _WeakSetitem(obj, key, on_ref_error="ignore")
+            caller = WeakSetitem(obj, key, on_ref_error="ignore")
             self._try_discard(caller, missing_ok)
 
     def _check_nargs(
@@ -981,7 +986,7 @@ class SignalInstance:
                         caller.cb(args)
                     except Exception as e:
                         raise EmitLoopError(
-                            slot_repr=repr(caller), args=args, exc=e
+                            cb=caller, args=args, exc=e, signal=self
                         ) from e
 
         return None
@@ -1106,21 +1111,34 @@ class SignalInstance:
         """Return dict of current state, for pickle."""
         attrs = (
             "_signature",
-            "_instance",
             "_name",
-            "_slots",
             "_is_blocked",
             "_is_paused",
             "_args_queue",
-            "_lock",
             "_check_nargs_on_connect",
             "_check_types_on_connect",
-            "__weakref__",
         )
+        dd = {slot: getattr(self, slot) for slot in attrs}
+        dd["_instance"] = self._instance()
+        dd["_slots"] = [x for x in self._slots if isinstance(x, StrongFunction)]
+        if len(self._slots) > len(dd["_slots"]):
+            warnings.warn(
+                "Pickling a SignalInstance does not copy connected weakly referenced "
+                "slots.",
+                stacklevel=2,
+            )
 
-        d = {slot: getattr(self, slot) for slot in attrs}
-        d.pop("_lock", None)
-        return d
+        return dd
+
+    def __setstate__(self, state: dict) -> None:
+        """Restore state from pickle."""
+        # don't use __dict__, mypyc doesn't have it
+        for k, v in state.items():
+            if k == "_instance":
+                self._instance = self._instance_ref(v)
+            else:
+                setattr(self, k, v)
+        self._lock = threading.RLock()
 
 
 class _SignalBlocker:

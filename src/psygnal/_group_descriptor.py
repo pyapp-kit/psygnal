@@ -18,13 +18,13 @@ from typing import (
     overload,
 )
 
-from typing_extensions import Literal
-
 from ._dataclass_utils import iter_fields
 from ._group import SignalGroup
 from ._signal import Signal
 
 if TYPE_CHECKING:
+    from typing_extensions import Literal
+
     from ._signal import SignalInstance
 
 
@@ -247,9 +247,10 @@ def evented_setattr(
             if name == signal_group_name:
                 return super_setattr(self, name, value)
 
-            group = getattr(self, signal_group_name, None)
-            signal = cast("SignalInstance | None", getattr(group, name, None))
-            if signal is None:
+            group: SignalGroup | None = getattr(self, signal_group_name, None)
+            signal: SignalInstance | None = getattr(group, name, None)
+            # don't emit if the signal doesn't exist or has no listeners
+            if group is None or signal is None or len(signal) < 2 and not len(group):
                 return super_setattr(self, name, value)
 
             with _changes_emitted(self, name, signal):
@@ -422,8 +423,10 @@ class SignalGroupDescriptor:
 
             # clean up the cache when the instance is deleted
             with contextlib.suppress(TypeError):
-                # mypy says too many attributes for weakref.finalize, but it's wrong.
-                weakref.finalize(instance, self._instance_map.pop, obj_id, None)  # type: ignore [call-arg]  # noqa
+                # on 3.7 this is type error, above it's not... but mypy yells about
+                # type ignore on 3.8+, so we do this funny business instead.
+                args = (instance, self._instance_map.pop, obj_id, None)
+                weakref.finalize(*args)  # type: ignore
 
         return self._instance_map[obj_id]
 
