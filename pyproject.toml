@@ -200,6 +200,7 @@ ignore_errors = true
 module = ["wrapt", "msgspec"]
 ignore_missing_imports = true
 
+# remove when dropping python 3.7
 [[tool.mypy.overrides]]
 module = ["psygnal._signal"]
 warn_unused_ignores = false
