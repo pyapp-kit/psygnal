@@ -492,7 +492,7 @@ class SignalInstance:
                         extra = f"- Slot types {slot_sig} do not match types in signal."
                         self._raise_connection_error(slot, extra)
 
-                cb = weak_callback(
+                cb = weak_callback(  # type: ignore
                     slot,
                     max_args=max_args,
                     finalize=self._try_discard,
