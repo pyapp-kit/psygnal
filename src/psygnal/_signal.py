@@ -492,6 +492,8 @@ class SignalInstance:
                         extra = f"- Slot types {slot_sig} do not match types in signal."
                         self._raise_connection_error(slot, extra)
 
+                # this type ignore is only needed to build mypyc on pythong 3.7
+                # can be removed when we drop support for 3.7
                 cb = weak_callback(  # type: ignore
                     slot,
                     max_args=max_args,
