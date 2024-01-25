@@ -31,6 +31,7 @@ from psygnal.utils import iter_signal_instances
 
 _T = TypeVar("_T")
 Index = Union[int, slice]
+_Cls = TypeVar("_Cls", bound="EventedList")
 
 
 class ListEvents(SignalGroup):
@@ -200,13 +201,16 @@ class EventedList(MutableSequence[_T]):
         if self._child_events:
             self._disconnect_child_emitters(self[index])
 
-    def __newlike__(self, iterable: Iterable[_T]) -> EventedList[_T]:
+    def __newlike__(self: _Cls, iterable: Iterable[_T]) -> _Cls:
         """Return new instance of same class."""
         return self.__class__(iterable)
 
-    def copy(self) -> EventedList[_T]:
+    def copy(self: _Cls) -> _Cls:
         """Return a shallow copy of the list."""
         return self.__newlike__(self)
+
+    def __copy__(self: _Cls) -> _Cls:
+        return self.copy()
 
     def __add__(self, other: Iterable[_T]) -> EventedList[_T]:
         """Add other to self, return new object."""

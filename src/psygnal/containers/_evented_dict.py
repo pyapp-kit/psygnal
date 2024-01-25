@@ -21,6 +21,7 @@ _K = TypeVar("_K")
 _V = TypeVar("_V")
 TypeOrSequenceOfTypes = Union[Type[_V], Sequence[Type[_V]]]
 DictArg = Union[Mapping[_K, _V], Iterable[Tuple[_K, _V]]]
+_Cls = TypeVar("_Cls", bound="TypedMutableMapping")
 
 
 class TypedMutableMapping(MutableMapping[_K, _V]):
@@ -76,18 +77,19 @@ class TypedMutableMapping(MutableMapping[_K, _V]):
             )
         return value
 
-    def __newlike__(
-        self, mapping: MutableMapping[_K, _V]
-    ) -> "TypedMutableMapping[_K, _V]":
+    def __newlike__(self: _Cls, mapping: MutableMapping[_K, _V]) -> _Cls:
         new = self.__class__()
         # separating this allows subclasses to omit these from their `__init__`
         new._basetypes = self._basetypes
         new.update(mapping)
         return new
 
-    def copy(self) -> "TypedMutableMapping[_K, _V]":
+    def copy(self: _Cls) -> _Cls:
         """Return a shallow copy of the dictionary."""
         return self.__newlike__(self)
+
+    def __copy__(self: _Cls) -> _Cls:
+        return self.copy()
 
 
 class DictEvents(SignalGroup):

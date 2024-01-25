@@ -90,9 +90,7 @@ class _BaseMutableSet(MutableSet[_T]):
     # -------- To match set API
 
     def __copy__(self: _Cls) -> _Cls:
-        inst = self.__class__.__new__(self.__class__)
-        inst.__dict__.update(self.__dict__)
-        return inst
+        return self.copy()
 
     def copy(self: _Cls) -> _Cls:
         return self.__class__(self)
