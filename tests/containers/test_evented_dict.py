@@ -1,3 +1,4 @@
+from copy import copy
 from unittest.mock import Mock
 
 import pytest
@@ -111,3 +112,12 @@ def test_dict_remove_events(test_dict):
     test_dict.pop("C")
     test_dict.events.removing.emit.assert_called_with("C")
     test_dict.events.removed.emit.assert_called_with("C", 3)
+
+
+def test_copy_no_sync():
+    d1 = EventedDict({1: 1, 2: 2, 3: 3})
+    d2 = copy(d1)
+    d1[4] = 4
+    d1[3] = 4
+    assert len(d2) == 3
+    assert d2[3] == 3
