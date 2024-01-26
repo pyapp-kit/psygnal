@@ -7,6 +7,7 @@ from typing import (
     Mapping,
     MutableMapping,
     Optional,
+    Self,
     Sequence,
     Tuple,
     Type,
@@ -21,7 +22,6 @@ _K = TypeVar("_K")
 _V = TypeVar("_V")
 TypeOrSequenceOfTypes = Union[Type[_V], Sequence[Type[_V]]]
 DictArg = Union[Mapping[_K, _V], Iterable[Tuple[_K, _V]]]
-_Cls = TypeVar("_Cls", bound="TypedMutableMapping")
 
 
 class TypedMutableMapping(MutableMapping[_K, _V]):
@@ -77,18 +77,18 @@ class TypedMutableMapping(MutableMapping[_K, _V]):
             )
         return value
 
-    def __newlike__(self: _Cls, mapping: MutableMapping[_K, _V]) -> _Cls:
+    def __newlike__(self, mapping: MutableMapping[_K, _V]) -> Self:
         new = self.__class__()
         # separating this allows subclasses to omit these from their `__init__`
         new._basetypes = self._basetypes
         new.update(mapping)
         return new
 
-    def copy(self: _Cls) -> _Cls:
+    def copy(self) -> Self:
         """Return a shallow copy of the dictionary."""
         return self.__newlike__(self)
 
-    def __copy__(self: _Cls) -> _Cls:
+    def __copy__(self) -> "Self":
         return self.copy()
 
 
@@ -174,4 +174,4 @@ class EventedDict(TypedMutableMapping[_K, _V]):
         self.events.removed.emit(key, item)
 
     def __repr__(self) -> str:
-        return f"EventedDict({super().__repr__()})"
+        return f"{self.__class__.__name__}({super().__repr__()})"

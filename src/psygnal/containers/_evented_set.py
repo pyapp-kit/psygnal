@@ -6,10 +6,11 @@ from typing import TYPE_CHECKING, Any, Iterable, Iterator, MutableSet, TypeVar
 from psygnal import Signal, SignalGroup
 
 if TYPE_CHECKING:
+    from typing import Self
+
     from typing_extensions import Final
 
 _T = TypeVar("_T")
-_Cls = TypeVar("_Cls", bound="_BaseMutableSet")
 
 
 class BailType:
@@ -89,13 +90,13 @@ class _BaseMutableSet(MutableSet[_T]):
 
     # -------- To match set API
 
-    def __copy__(self: _Cls) -> _Cls:
+    def __copy__(self) -> Self:
         return self.copy()
 
-    def copy(self: _Cls) -> _Cls:
+    def copy(self) -> Self:
         return self.__class__(self)
 
-    def difference(self: _Cls, *s: Iterable[_T]) -> _Cls:
+    def difference(self, *s: Iterable[_T]) -> Self:
         """Return the difference of two or more sets as a new set.
 
         (i.e. all elements that are in this set but not the others.)
@@ -108,7 +109,7 @@ class _BaseMutableSet(MutableSet[_T]):
         for i in chain(*s):
             self.discard(i)
 
-    def intersection(self: _Cls, *s: Iterable[_T]) -> _Cls:
+    def intersection(self, *s: Iterable[_T]) -> Self:
         """Return the intersection of two sets as a new set.
 
         (i.e. all elements that are in both sets.)
@@ -131,7 +132,7 @@ class _BaseMutableSet(MutableSet[_T]):
         """Report whether this set contains another set."""
         return set(self).issuperset(__s)
 
-    def symmetric_difference(self: _Cls, __s: Iterable[_T]) -> _Cls:
+    def symmetric_difference(self, __s: Iterable[_T]) -> Self:
         """Return the symmetric difference of two sets as a new set.
 
         (i.e. all elements that are in exactly one of the sets.)
@@ -148,7 +149,7 @@ class _BaseMutableSet(MutableSet[_T]):
         for i in __s:
             self.discard(i) if i in self else self.add(i)
 
-    def union(self: _Cls, *s: Iterable[_T]) -> _Cls:
+    def union(self, *s: Iterable[_T]) -> Self:
         """Return the union of sets as a new set.
 
         (i.e. all elements that are in either set.)
