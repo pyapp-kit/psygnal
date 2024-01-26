@@ -1,19 +1,22 @@
 """Dict that emits events when altered."""
 
 from typing import (
+    TYPE_CHECKING,
     Dict,
     Iterable,
     Iterator,
     Mapping,
     MutableMapping,
     Optional,
-    Self,
     Sequence,
     Tuple,
     Type,
     TypeVar,
     Union,
 )
+
+if TYPE_CHECKING:
+    from typing import Self
 
 from psygnal._group import SignalGroup
 from psygnal._signal import Signal
@@ -77,14 +80,14 @@ class TypedMutableMapping(MutableMapping[_K, _V]):
             )
         return value
 
-    def __newlike__(self, mapping: MutableMapping[_K, _V]) -> Self:
+    def __newlike__(self, mapping: MutableMapping[_K, _V]) -> "Self":
         new = self.__class__()
         # separating this allows subclasses to omit these from their `__init__`
         new._basetypes = self._basetypes
         new.update(mapping)
         return new
 
-    def copy(self) -> Self:
+    def copy(self) -> "Self":
         """Return a shallow copy of the dictionary."""
         return self.__newlike__(self)
 
