@@ -1,13 +1,12 @@
 """Dict that emits events when altered."""
+from __future__ import annotations
 
 from typing import (
     TYPE_CHECKING,
-    Dict,
     Iterable,
     Iterator,
     Mapping,
     MutableMapping,
-    Optional,
     Sequence,
     Tuple,
     Type,
@@ -42,13 +41,13 @@ class TypedMutableMapping(MutableMapping[_K, _V]):
 
     def __init__(
         self,
-        data: Optional[DictArg] = None,
+        data: DictArg | None = None,
         *,
         basetype: TypeOrSequenceOfTypes = (),
         **kwargs: _V,
     ):
-        self._dict: Dict[_K, _V] = {}
-        self._basetypes: Tuple[Type[_V], ...] = (
+        self._dict: dict[_K, _V] = {}
+        self._basetypes: tuple[type[_V], ...] = (
             tuple(basetype) if isinstance(basetype, Sequence) else (basetype,)
         )
         self.update({} if data is None else data, **kwargs)
@@ -80,18 +79,18 @@ class TypedMutableMapping(MutableMapping[_K, _V]):
             )
         return value
 
-    def __newlike__(self, mapping: MutableMapping[_K, _V]) -> "Self":
+    def __newlike__(self, mapping: MutableMapping[_K, _V]) -> Self:
         new = self.__class__()
         # separating this allows subclasses to omit these from their `__init__`
         new._basetypes = self._basetypes
         new.update(mapping)
         return new
 
-    def copy(self) -> "Self":
+    def copy(self) -> Self:
         """Return a shallow copy of the dictionary."""
         return self.__newlike__(self)
 
-    def __copy__(self) -> "Self":
+    def __copy__(self) -> Self:
         return self.copy()
 
 
@@ -150,7 +149,7 @@ class EventedDict(TypedMutableMapping[_K, _V]):
 
     def __init__(
         self,
-        data: Optional[DictArg] = None,
+        data: DictArg | None = None,
         *,
         basetype: TypeOrSequenceOfTypes = (),
         **kwargs: _V,
