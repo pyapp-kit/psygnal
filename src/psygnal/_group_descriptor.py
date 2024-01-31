@@ -194,10 +194,7 @@ class _changes_emitted:
     def __exit__(self, *args: Any) -> None:
         new: Any = getattr(self.obj, self.field, _NULL)
         if not _check_field_equality(type(self.obj), self.field, self._prev, new):
-            if self.emit_old_value:
-                self.signal.emit(new, self._prev)
-            else:
-                self.signal.emit(new)
+            self.signal.emit(new, self._prev)
 
 
 SetAttr = Callable[[Any, str, Any], None]
