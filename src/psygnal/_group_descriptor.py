@@ -146,6 +146,7 @@ def _build_dataclass_signal_group(
     _equality_operators = dict(equality_operators) if equality_operators else {}
     signals = {}
     eq_map = _get_eq_operator_map(cls)
+    # create a Signal for each field in the dataclass
     for name, type_ in iter_fields(cls):
         if name in _equality_operators:
             if not callable(_equality_operators[name]):  # pragma: no cover
@@ -153,9 +154,10 @@ def _build_dataclass_signal_group(
             eq_map[name] = _equality_operators[name]
         else:
             eq_map[name] = _pick_equality_operator(type_)
-        sig = Signal(object if type_ is None else type_)
+        field_type = object if type_ is None else type_
+        signals[name] = sig = Signal(field_type)
+        # patch in our custom SignalInstance class with maxargs=1 on connect_setattr
         sig._signal_instance_class = _DataclassFieldSignalInstance
-        signals[name] = sig
 
     return type(f"{cls.__name__}SignalGroup", (SignalGroup,), signals)
 
