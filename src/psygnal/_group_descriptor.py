@@ -176,13 +176,7 @@ def get_evented_namespace(obj: object) -> str | None:
 
 
 class _changes_emitted:
-    def __init__(
-        self,
-        obj: object,
-        field: str,
-        signal: SignalInstance,
-        emit_old_value: bool = False,
-    ) -> None:
+    def __init__(self, obj: object, field: str, signal: SignalInstance) -> None:
         self.obj = obj
         self.field = field
         self.signal = signal
@@ -201,25 +195,19 @@ SetAttr = Callable[[Any, str, Any], None]
 
 
 @overload
-def evented_setattr(
-    signal_group_name: str, super_setattr: SetAttr, emit_old_value: bool = False
-) -> SetAttr:
+def evented_setattr(signal_group_name: str, super_setattr: SetAttr) -> SetAttr:
     ...
 
 
 @overload
 def evented_setattr(
-    signal_group_name: str,
-    super_setattr: Literal[None] | None = None,
-    emit_old_value: bool = False,
+    signal_group_name: str, super_setattr: Literal[None] | None = None
 ) -> Callable[[SetAttr], SetAttr]:
     ...
 
 
 def evented_setattr(
-    signal_group_name: str,
-    super_setattr: SetAttr | None = None,
-    emit_old_value: bool = False,
+    signal_group_name: str, super_setattr: SetAttr | None = None
 ) -> SetAttr | Callable[[SetAttr], SetAttr]:
     """Create a new __setattr__ method that emits events when fields change.
 
