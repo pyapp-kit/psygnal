@@ -116,6 +116,7 @@ class Signal:
         self.description = description
         self._check_nargs_on_connect = check_nargs_on_connect
         self._check_types_on_connect = check_types_on_connect
+        self._signal_instance_class: type[SignalInstance] = SignalInstance
 
         if types and isinstance(types[0], Signature):
             self._signature = types[0]
@@ -171,7 +172,7 @@ class Signal:
         if instance is None:
             return self
         name = cast("str", self._name)
-        signal_instance = SignalInstance(
+        signal_instance = self._signal_instance_class(
             self.signature,
             instance=instance,
             name=name,

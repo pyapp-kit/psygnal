@@ -186,3 +186,29 @@ def test_no_getattr_on_non_evented_fields() -> None:
     b_mock.assert_not_called()  # getter shouldn't have been called
     assert foo.b == 1
     b_mock.assert_called_once_with(1)  # getter should have been called only once
+
+
+def test_evented_field_connect_setattr() -> None:
+    """Test that using connect_setattr"""
+
+    @dataclass
+    class Foo:
+        a: int
+        events: ClassVar = SignalGroupDescriptor()
+
+    class Bar:
+        x = 1
+        y = 1
+
+    foo = Foo(a=1)
+    bar = Bar()
+
+    foo.events.a.connect_setattr(bar, "x")
+    foo.events.a.connect_setattr(bar, "y", maxargs=None)
+    foo.events.a.emit(2, 1)
+
+    assert bar.x == 2  # this is likely the desired outcome
+    # this is a bit of a gotcha, but it's the expected behavior
+    # when using connect_setattr with maxargs=None
+    # remove this test if/when we change maxargs to default to 1 on SignalInstance
+    assert bar.y == (2, 1)  # type: ignore
