@@ -45,7 +45,7 @@ def _check_events(cls, events_ns="events"):
     assert obj.bar == 1
     obj.bar = 2
     assert obj.bar == 2
-    mock.assert_called_once_with(2)
+    mock.assert_called_once_with(2, 1)
 
     mock.reset_mock()
     obj.baz = "3"
