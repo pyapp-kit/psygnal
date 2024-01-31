@@ -32,7 +32,6 @@ def evented(
     equality_operators: Optional[Dict[str, EqOperator]] = None,
     warn_on_no_fields: bool = ...,
     cache_on_instance: bool = ...,
-    emit_old_value: bool = ...,
 ) -> T:
     ...
 
@@ -45,7 +44,6 @@ def evented(
     equality_operators: Optional[Dict[str, EqOperator]] = None,
     warn_on_no_fields: bool = ...,
     cache_on_instance: bool = ...,
-    emit_old_value: bool = ...,
 ) -> Callable[[T], T]:
     ...
 
@@ -57,7 +55,6 @@ def evented(
     equality_operators: Optional[Dict[str, EqOperator]] = None,
     warn_on_no_fields: bool = True,
     cache_on_instance: bool = True,
-    emit_old_value: bool = False,
 ) -> Union[Callable[[T], T], T]:
     """A decorator to add events to a dataclass.
 
@@ -97,9 +94,6 @@ def evented(
         access, but means that the owner instance will no longer be pickleable.  If
         `False`, the SignalGroup instance will *still* be cached, but not on the
         instance itself.
-    emit_old_value: bool
-        When the field is mutated, emit two parameters, the new value and the old value, by
-        default False
 
     Returns
     -------
@@ -134,7 +128,6 @@ def evented(
             equality_operators=equality_operators,
             warn_on_no_fields=warn_on_no_fields,
             cache_on_instance=cache_on_instance,
-            emit_old_value=emit_old_value,
         )
         # as a decorator, this will have already been called
         descriptor.__set_name__(cls, events_namespace)

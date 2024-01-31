@@ -180,7 +180,6 @@ class _changes_emitted:
         self.obj = obj
         self.field = field
         self.signal = signal
-        self.emit_old_value = emit_old_value
 
     def __enter__(self) -> None:
         self._prev = getattr(self.obj, self.field, _NULL)
@@ -236,9 +235,6 @@ def evented_setattr(
         default "_psygnal_group_".
     super_setattr: Callable
         The original __setattr__ method for the class.
-    emit_old_value: bool
-        When the field is mutated, emit two parameters, the new value and the old value, by
-        default False
     """
 
     def _inner(super_setattr: SetAttr) -> SetAttr:
@@ -257,7 +253,7 @@ def evented_setattr(
             if group is None or signal is None or len(signal) < 2 and not len(group):
                 return super_setattr(self, name, value)
 
-            with _changes_emitted(self, name, signal, emit_old_value):
+            with _changes_emitted(self, name, signal):
                 super_setattr(self, name, value)
 
         setattr(_setattr_and_emit_, PATCHED_BY_PSYGNAL, True)
@@ -331,9 +327,6 @@ class SignalGroupDescriptor:
         events when fields change.  If `False`, no `__setattr__` method will be
         created.  (This will prevent signal emission, and assumes you are using a
         different mechanism to emit signals when fields change.)
-    emit_old_value: bool
-        When the field is mutated, emit two parameters, the new value and the old value, by
-        default False
 
     Examples
     --------
@@ -362,7 +355,6 @@ class SignalGroupDescriptor:
         warn_on_no_fields: bool = True,
         cache_on_instance: bool = True,
         patch_setattr: bool = True,
-        emit_old_value: bool = False,
     ):
         self._signal_group = signal_group_class
         self._name: str | None = None
@@ -370,7 +362,6 @@ class SignalGroupDescriptor:
         self._warn_on_no_fields = warn_on_no_fields
         self._cache_on_instance = cache_on_instance
         self._patch_setattr = patch_setattr
-        self._emit_old_value = emit_old_value
 
     def __set_name__(self, owner: type, name: str) -> None:
         """Called when this descriptor is added to class `owner` as attribute `name`."""
@@ -389,7 +380,7 @@ class SignalGroupDescriptor:
         try:
             # assign a new __setattr__ method to the class
             owner.__setattr__ = evented_setattr(  # type: ignore
-                self._name, owner.__setattr__, self._emit_old_value  # type: ignore
+                self._name, owner.__setattr__  # type: ignore
             )
         except Exception as e:  # pragma: no cover
             # not sure what might cause this ... but it will have consequences
