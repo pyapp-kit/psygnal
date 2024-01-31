@@ -46,7 +46,7 @@ jobs:
 
       - name: Restore previous results
         if: github.event_name != 'pull_request'
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: .asv
           key: asv-${{ runner.os }}

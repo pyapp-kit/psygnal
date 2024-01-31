@@ -1,3 +1,4 @@
+from copy import copy
 from unittest.mock import Mock, call
 
 import pytest
@@ -133,3 +134,10 @@ def test_repr(test_set):
         assert repr(test_set) == "EventedOrderedSet((0, 1, 2, 3, 4))"
     else:
         assert repr(test_set) == "EventedSet({0, 1, 2, 3, 4})"
+
+
+def test_copy_no_sync():
+    s1 = EventedSet([1, 2, 3])
+    s2 = copy(s1)
+    s1.add(4)
+    assert len(s2) == 3
