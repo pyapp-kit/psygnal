@@ -397,7 +397,7 @@ class SignalGroupDescriptor:
         try:
             # assign a new __setattr__ method to the class
             owner.__setattr__ = evented_setattr(  # type: ignore
-                self._name,
+                cast(str, self._name),
                 owner.__setattr__,  # type: ignore
             )
         except Exception as e:  # pragma: no cover
