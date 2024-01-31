@@ -1,18 +1,21 @@
 """Dict that emits events when altered."""
+from __future__ import annotations
 
 from typing import (
-    Dict,
+    TYPE_CHECKING,
     Iterable,
     Iterator,
     Mapping,
     MutableMapping,
-    Optional,
     Sequence,
     Tuple,
     Type,
     TypeVar,
     Union,
 )
+
+if TYPE_CHECKING:
+    from typing import Self
 
 from psygnal._group import SignalGroup
 from psygnal._signal import Signal
@@ -38,13 +41,13 @@ class TypedMutableMapping(MutableMapping[_K, _V]):
 
     def __init__(
         self,
-        data: Optional[DictArg] = None,
+        data: DictArg | None = None,
         *,
         basetype: TypeOrSequenceOfTypes = (),
         **kwargs: _V,
     ):
-        self._dict: Dict[_K, _V] = {}
-        self._basetypes: Tuple[Type[_V], ...] = (
+        self._dict: dict[_K, _V] = {}
+        self._basetypes: tuple[type[_V], ...] = (
             tuple(basetype) if isinstance(basetype, Sequence) else (basetype,)
         )
         self.update({} if data is None else data, **kwargs)
@@ -76,18 +79,19 @@ class TypedMutableMapping(MutableMapping[_K, _V]):
             )
         return value
 
-    def __newlike__(
-        self, mapping: MutableMapping[_K, _V]
-    ) -> "TypedMutableMapping[_K, _V]":
+    def __newlike__(self, mapping: MutableMapping[_K, _V]) -> Self:
         new = self.__class__()
         # separating this allows subclasses to omit these from their `__init__`
         new._basetypes = self._basetypes
         new.update(mapping)
         return new
 
-    def copy(self) -> "TypedMutableMapping[_K, _V]":
+    def copy(self) -> Self:
         """Return a shallow copy of the dictionary."""
         return self.__newlike__(self)
+
+    def __copy__(self) -> Self:
+        return self.copy()
 
 
 class DictEvents(SignalGroup):
@@ -145,7 +149,7 @@ class EventedDict(TypedMutableMapping[_K, _V]):
 
     def __init__(
         self,
-        data: Optional[DictArg] = None,
+        data: DictArg | None = None,
         *,
         basetype: TypeOrSequenceOfTypes = (),
         **kwargs: _V,
@@ -172,4 +176,4 @@ class EventedDict(TypedMutableMapping[_K, _V]):
         self.events.removed.emit(key, item)
 
     def __repr__(self) -> str:
-        return f"EventedDict({super().__repr__()})"
+        return f"{self.__class__.__name__}({super().__repr__()})"

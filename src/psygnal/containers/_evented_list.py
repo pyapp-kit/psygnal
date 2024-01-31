@@ -23,7 +23,16 @@ cover this in test_evented_list.py)
 """
 from __future__ import annotations  # pragma: no cover
 
-from typing import Any, Iterable, MutableSequence, TypeVar, Union, cast, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Iterable,
+    MutableSequence,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 
 from psygnal._group import EmissionInfo, SignalGroup
 from psygnal._signal import Signal, SignalInstance
@@ -31,6 +40,9 @@ from psygnal.utils import iter_signal_instances
 
 _T = TypeVar("_T")
 Index = Union[int, slice]
+
+if TYPE_CHECKING:
+    from typing import Self
 
 
 class ListEvents(SignalGroup):
@@ -133,10 +145,10 @@ class EventedList(MutableSequence[_T]):
         ...
 
     @overload
-    def __getitem__(self, key: slice) -> EventedList[_T]:
+    def __getitem__(self, key: slice) -> Self:
         ...
 
-    def __getitem__(self, key: Index) -> _T | EventedList[_T]:
+    def __getitem__(self, key: Index) -> _T | Self:
         """Return self[key]."""
         result = self._data[key]
         return self.__newlike__(result) if isinstance(result, list) else result
@@ -200,21 +212,24 @@ class EventedList(MutableSequence[_T]):
         if self._child_events:
             self._disconnect_child_emitters(self[index])
 
-    def __newlike__(self, iterable: Iterable[_T]) -> EventedList[_T]:
+    def __newlike__(self, iterable: Iterable[_T]) -> Self:
         """Return new instance of same class."""
         return self.__class__(iterable)
 
-    def copy(self) -> EventedList[_T]:
+    def copy(self) -> Self:
         """Return a shallow copy of the list."""
         return self.__newlike__(self)
 
-    def __add__(self, other: Iterable[_T]) -> EventedList[_T]:
+    def __copy__(self) -> Self:
+        return self.copy()
+
+    def __add__(self, other: Iterable[_T]) -> Self:
         """Add other to self, return new object."""
         copy = self.copy()
         copy.extend(other)
         return copy
 
-    def __iadd__(self, other: Iterable[_T]) -> EventedList[_T]:
+    def __iadd__(self, other: Iterable[_T]) -> Self:
         """Add other to self in place (self += other)."""
         self.extend(other)
         return self

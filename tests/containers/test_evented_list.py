@@ -1,4 +1,5 @@
 import os
+from copy import copy
 from typing import List, cast
 from unittest.mock import Mock, call
 
@@ -369,3 +370,10 @@ def test_child_events_groups():
     # attribute on signal instances.
     assert e_obj.events.test2.instance.instance == e_obj
     mock.assert_has_calls(expected)
+
+
+def test_copy_no_sync():
+    l1 = EventedList([1, 2, 3])
+    l2 = copy(l1)
+    l1.append(4)
+    assert len(l2) == 3
