@@ -20,12 +20,13 @@ from typing import (
 
 from ._dataclass_utils import iter_fields
 from ._group import SignalGroup
-from ._signal import Signal
+from ._signal import Signal, SignalInstance
 
 if TYPE_CHECKING:
+    from _weakref import ref as ref
     from typing_extensions import Literal
 
-    from ._signal import SignalInstance
+    from psygnal._weak_callback import RefErrorChoice, WeakCallback
 
 
 __all__ = ["is_evented", "get_evented_namespace", "SignalGroupDescriptor"]
@@ -125,6 +126,18 @@ def _pick_equality_operator(type_: type | None) -> EqOperator:
     return operator.eq
 
 
+class _DataclassFieldSignalInstance(SignalInstance):
+    def connect_setattr(
+        self,
+        obj: ref | object,
+        attr: str,
+        maxargs: int | None = 1,
+        *,
+        on_ref_error: RefErrorChoice = "warn",
+    ) -> WeakCallback[None]:
+        return super().connect_setattr(obj, attr, maxargs, on_ref_error=on_ref_error)
+
+
 @lru_cache(maxsize=None)
 def _build_dataclass_signal_group(
     cls: type, equality_operators: Iterable[tuple[str, EqOperator]] | None = None
@@ -133,6 +146,7 @@ def _build_dataclass_signal_group(
     _equality_operators = dict(equality_operators) if equality_operators else {}
     signals = {}
     eq_map = _get_eq_operator_map(cls)
+    # create a Signal for each field in the dataclass
     for name, type_ in iter_fields(cls):
         if name in _equality_operators:
             if not callable(_equality_operators[name]):  # pragma: no cover
@@ -141,7 +155,9 @@ def _build_dataclass_signal_group(
         else:
             eq_map[name] = _pick_equality_operator(type_)
         field_type = object if type_ is None else type_
-        signals[name] = Signal(field_type, field_type)
+        signals[name] = sig = Signal(field_type, field_type)
+        # patch in our custom SignalInstance class with maxargs=1 on connect_setattr
+        sig._signal_instance_class = _DataclassFieldSignalInstance
 
     return type(f"{cls.__name__}SignalGroup", (SignalGroup,), signals)
 
@@ -381,7 +397,8 @@ class SignalGroupDescriptor:
         try:
             # assign a new __setattr__ method to the class
             owner.__setattr__ = evented_setattr(  # type: ignore
-                self._name, owner.__setattr__  # type: ignore
+                cast(str, self._name),
+                owner.__setattr__,  # type: ignore
             )
         except Exception as e:  # pragma: no cover
             # not sure what might cause this ... but it will have consequences
