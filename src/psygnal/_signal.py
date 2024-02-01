@@ -529,7 +529,7 @@ class SignalInstance:
         self,
         obj: weakref.ref | object,
         attr: str,
-        maxargs: int | None = _NULL,  # type: ignore
+        maxargs: int | None | object = _NULL,
         *,
         on_ref_error: RefErrorChoice = "warn",
     ) -> WeakCallback[None]:
@@ -609,7 +609,7 @@ class SignalInstance:
             caller = WeakSetattr(
                 obj,
                 attr,
-                max_args=maxargs,
+                max_args=cast("int | None", maxargs),
                 finalize=self._try_discard,
                 on_ref_error=on_ref_error,
             )
@@ -646,7 +646,7 @@ class SignalInstance:
         self,
         obj: weakref.ref | object,
         key: str,
-        maxargs: int | None = _NULL,  # type: ignore
+        maxargs: int | None | object = _NULL,
         *,
         on_ref_error: RefErrorChoice = "warn",
     ) -> WeakCallback[None]:
@@ -723,7 +723,7 @@ class SignalInstance:
             caller = WeakSetitem(
                 obj,  # type: ignore
                 key,
-                max_args=maxargs,
+                max_args=cast("int | None", maxargs),
                 finalize=self._try_discard,
                 on_ref_error=on_ref_error,
             )

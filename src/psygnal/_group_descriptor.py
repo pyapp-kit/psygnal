@@ -131,7 +131,7 @@ class _DataclassFieldSignalInstance(SignalInstance):
         self,
         obj: ref | object,
         attr: str,
-        maxargs: int | None = 1,
+        maxargs: int | None | object = 1,
         *,
         on_ref_error: RefErrorChoice = "warn",
     ) -> WeakCallback[None]:
