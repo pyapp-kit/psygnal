@@ -140,7 +140,8 @@ def _build_dataclass_signal_group(
             eq_map[name] = _equality_operators[name]
         else:
             eq_map[name] = _pick_equality_operator(type_)
-        signals[name] = Signal(object if type_ is None else type_)
+        field_type = object if type_ is None else type_
+        signals[name] = Signal(field_type, field_type)
 
     return type(f"{cls.__name__}SignalGroup", (SignalGroup,), signals)
 
