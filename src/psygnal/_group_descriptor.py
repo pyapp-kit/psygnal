@@ -261,6 +261,11 @@ def evented_setattr(
         default "_psygnal_group_".
     super_setattr: Callable
         The original __setattr__ method for the class.
+    signal_suffix : str, optional
+        a suffix to append to the field names to find the signal in the SignalGroup
+        attributes. For instance, if the group is called "events" and
+        `signal_suffix="_changed"`, the signal for the field `field` that is emitted is
+        `self.events.field_changed`, instead of the default `self.events.field`.
     """
 
     def _inner(super_setattr: SetAttr) -> SetAttr:
