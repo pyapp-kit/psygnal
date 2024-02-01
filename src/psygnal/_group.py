@@ -122,7 +122,9 @@ class SignalGroup(SignalInstance):
     @property
     def signals(self) -> dict[str, SignalInstance]:
         """Return {name -> SignalInstance} map of all signal instances in this group."""
-        return {n: getattr(self, n) for n in type(self)._signals_}
+        sigs = {n: getattr(self, n) for n in type(self)._signals_}
+        # Make sure we grab SignalInstance's and not attributes with name conflict
+        return {n: sig for n, sig in sigs.items() if isinstance(sig, SignalInstance)}
 
     @classmethod
     def is_uniform(cls) -> bool:

@@ -280,7 +280,7 @@ def evented_setattr(
 
             sig_name = f"{name}{signal_suffix}"
             group: SignalGroup | None = getattr(self, signal_group_name, None)
-            signal: SignalInstance | None = getattr(group, sig_name, None)
+            signal: SignalInstance | None = group.signals.get(sig_name, None)
             # don't emit if the signal doesn't exist or has no listeners
             if group is None or signal is None or len(signal) < 2 and not len(group):
                 return super_setattr(self, name, value)
