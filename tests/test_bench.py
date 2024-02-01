@@ -24,6 +24,7 @@ CALLBACK_TYPES = [
     "print",
 ]
 
+
 # fmt: off
 class Emitter:
     one_int = Signal(int)
@@ -221,6 +222,9 @@ def test_dataclass_setattr(type_: str, benchmark: Callable) -> None:
         foo.e = (2, "hello")
 
     benchmark(_doit)
-    for newval, attr in zip([2, "hello", False, 2.0, (2, "hello")], "abcde"):
-        mock.assert_any_call(EmissionInfo(getattr(foo.events, attr), (newval,)))
-        assert getattr(foo, attr) == newval
+    for emitted, attr in zip(
+        [(2, 1), ("hello", "hi"), (False, True), (2.0, 1.0), ((2, "hello"), (1, "hi"))],
+        "abcde",
+    ):
+        mock.assert_any_call(EmissionInfo(getattr(foo.events, attr), emitted))
+        assert getattr(foo, attr) == emitted[0]

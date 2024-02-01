@@ -126,7 +126,7 @@ def test_no_patching(patch_setattr: bool) -> None:
     foo._events.a.connect(mock)
     foo.a = 2
     if patch_setattr:
-        mock.assert_called_once_with(2)
+        mock.assert_called_once_with(2, 1)
     else:
         mock.assert_not_called()
 
@@ -142,7 +142,8 @@ def test_direct_patching() -> None:
 
         @_group_descriptor.evented_setattr("_events")
         def __setattr__(self, __name: str, __value: Any) -> None:
-            mock1(__name, __value)
+            old = getattr(self, __name, None)
+            mock1(__name, __value, old)
             super().__setattr__(__name, __value)
 
     assert _group_descriptor.is_evented(Foo.__setattr__)
@@ -154,8 +155,8 @@ def test_direct_patching() -> None:
     mock = Mock()
     foo._events.a.connect(mock)
     foo.a = 2
-    mock.assert_called_once_with(2)  # confirm no double event emission
-    mock1.assert_called_with("a", 2)
+    mock.assert_called_once_with(2, 1)  # confirm no double event emission
+    mock1.assert_called_with("a", 2, 1)
 
 
 def test_no_getattr_on_non_evented_fields() -> None:
@@ -180,7 +181,7 @@ def test_no_getattr_on_non_evented_fields() -> None:
     foo = Foo(a=1)
     foo.events.a.connect(a_mock)
     foo.a = 2
-    a_mock.assert_called_once_with(2)
+    a_mock.assert_called_once_with(2, 1)
 
     foo.b = 1
     b_mock.assert_not_called()  # getter shouldn't have been called

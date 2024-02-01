@@ -155,7 +155,7 @@ def _build_dataclass_signal_group(
         else:
             eq_map[name] = _pick_equality_operator(type_)
         field_type = object if type_ is None else type_
-        signals[name] = sig = Signal(field_type)
+        signals[name] = sig = Signal(field_type, field_type)
         # patch in our custom SignalInstance class with maxargs=1 on connect_setattr
         sig._signal_instance_class = _DataclassFieldSignalInstance
 
@@ -204,7 +204,7 @@ class _changes_emitted:
     def __exit__(self, *args: Any) -> None:
         new: Any = getattr(self.obj, self.field, _NULL)
         if not _check_field_equality(type(self.obj), self.field, self._prev, new):
-            self.signal.emit(new)
+            self.signal.emit(new, self._prev)
 
 
 SetAttr = Callable[[Any, str, Any], None]
