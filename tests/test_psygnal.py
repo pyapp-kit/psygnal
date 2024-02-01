@@ -256,9 +256,11 @@ def test_slot_types(type_: str) -> None:
     obj = MyObj()
 
     if type_ == "setattr":
-        signal.connect_setattr(obj, "x")
+        with pytest.warns(FutureWarning, match="The default value of maxargs"):
+            signal.connect_setattr(obj, "x")
     elif type_ == "setitem":
-        signal.connect_setitem(obj, "x")
+        with pytest.warns(FutureWarning, match="The default value of maxargs"):
+            signal.connect_setitem(obj, "x")
     elif type_ == "function":
         signal.connect(f_int)
 
@@ -717,9 +719,11 @@ def test_property_connect():
 
     a = A()
     emitter = Emitter()
-    emitter.one_int.connect_setattr(a, "x")
+
+    emitter.one_int.connect_setattr(a, "x", maxargs=1)
     assert len(emitter.one_int) == 1
-    emitter.two_int.connect_setattr(a, "x")
+    with pytest.warns(FutureWarning, match="The default value of maxargs"):
+        emitter.two_int.connect_setattr(a, "x")
     assert len(emitter.two_int) == 1
     emitter.one_int.emit(1)
     assert a.li == [1]
@@ -736,7 +740,7 @@ def test_property_connect():
     emitter.two_int.disconnect(s, missing_ok=False)
 
     with pytest.raises(AttributeError):
-        emitter.one_int.connect_setattr(a, "y")
+        emitter.one_int.connect_setattr(a, "y", maxargs=None)
 
 
 def test_connect_setitem():
@@ -752,7 +756,8 @@ def test_connect_setitem():
 
     t = T()
     my_obj = SupportsItem()
-    t.sig.connect_setitem(my_obj, "x")
+    with pytest.warns(FutureWarning, match="The default value of maxargs"):
+        t.sig.connect_setitem(my_obj, "x")
     t.sig.emit(5)
     assert my_obj._dict == {"x": 5}
     t.sig.disconnect_setitem(my_obj, "x")
@@ -761,7 +766,7 @@ def test_connect_setitem():
 
     obj = object()
     with pytest.raises(TypeError, match="does not support __setitem__"):
-        t.sig.connect_setitem(obj, "x")
+        t.sig.connect_setitem(obj, "x", maxargs=1)
 
     with pytest.raises(TypeError):
         t.sig.disconnect_setitem(obj, "x", missing_ok=False)
