@@ -140,7 +140,9 @@ class _DataclassFieldSignalInstance(SignalInstance):
 
 @lru_cache(maxsize=None)
 def _build_dataclass_signal_group(
-    cls: type, equality_operators: Iterable[tuple[str, EqOperator]] | None = None, signal_suffix: str = ""
+    cls: type,
+    equality_operators: Iterable[tuple[str, EqOperator]] | None = None,
+    signal_suffix: str = "",
 ) -> type[SignalGroup]:
     """Build a SignalGroup with events for each field in a dataclass."""
     _equality_operators = dict(equality_operators) if equality_operators else {}
@@ -220,13 +222,17 @@ def evented_setattr(
 
 @overload
 def evented_setattr(
-    signal_group_name: str, super_setattr: Literal[None] | None = None, signal_suffix: str = ""
+    signal_group_name: str,
+    super_setattr: Literal[None] | None = None,
+    signal_suffix: str = "",
 ) -> Callable[[SetAttr], SetAttr]:
     ...
 
 
 def evented_setattr(
-    signal_group_name: str, super_setattr: SetAttr | None = None, signal_suffix: str = ""
+    signal_group_name: str,
+    super_setattr: SetAttr | None = None,
+    signal_suffix: str = "",
 ) -> SetAttr | Callable[[SetAttr], SetAttr]:
     """Create a new __setattr__ method that emits events when fields change.
 
@@ -461,7 +467,9 @@ class SignalGroupDescriptor:
         return self._instance_map[obj_id]
 
     def _create_group(self, owner: type) -> type[SignalGroup]:
-        Group = self._signal_group or _build_dataclass_signal_group(owner, self._eqop, self._signal_suffix)
+        Group = self._signal_group or _build_dataclass_signal_group(
+            owner, self._eqop, self._signal_suffix
+        )
         if self._warn_on_no_fields and not Group._signals_:
             warnings.warn(
                 f"No mutable fields found on class {owner}: no events will be "
