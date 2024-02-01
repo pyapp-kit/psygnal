@@ -178,7 +178,7 @@ def _build_dataclass_signal_group(
         # Convert and validate private fields
         if alias_private_fields is not None and name.startswith("_"):
             if alias_private_fields:
-                name = name.removeprefix("_")
+                name = name.lstrip("_")
             else:
                 continue
 
