@@ -29,6 +29,7 @@ __all__ = [
     "EventedModel",
     "get_evented_namespace",
     "is_evented",
+    "PSYGNAL_METADATA",
     "Signal",
     "SignalGroup",
     "SignalGroupDescriptor",
@@ -48,6 +49,7 @@ if os.getenv("PSYGNAL_UNCOMPILED"):
         stacklevel=2,
     )
 
+from ._dataclass_utils import PSYGNAL_METADATA
 from ._evented_decorator import evented
 from ._exceptions import EmitLoopError
 from ._group import EmissionInfo, SignalGroup
