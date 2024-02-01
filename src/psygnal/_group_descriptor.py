@@ -142,20 +142,54 @@ class _DataclassFieldSignalInstance(SignalInstance):
 def _build_dataclass_signal_group(
     cls: type,
     equality_operators: Iterable[tuple[str, EqOperator]] | None = None,
+    alias_private_fields: bool | dict | None = None,
     signal_suffix: str = "",
 ) -> type[SignalGroup]:
-    """Build a SignalGroup with events for each field in a dataclass."""
+    """Build a SignalGroup with events for each field in a dataclass.
+
+    Parameters
+    ----------
+    cls : type
+        the dataclass to look for the fields to connect with signals.
+    equality_operators: Iterable[tuple[str, EqOperator]] | None
+        If defined, a mapping of field name and equality operator to use to compare if
+        each field was modified after being set.
+        Default to None
+    alias_private_fields : bool | None, optional
+        If True, transform the private fields in aliases without the leading "_" to
+        create the signal names. These signals will be emitted by a change in the
+        aliased attribute name.
+        If False, skip private fields altogether, do not create signals associated with
+        them.
+        If None, the private fields name are passed as-is.
+        Default to None
+    signal_suffix : str, optional
+        a suffix to append to the field names to find the signal in the SignalGroup
+        attributes. For instance, if the group is called "events" and
+        `signal_suffix="_changed"`, the signal for the field `field` that is emitted is
+        `self.events.field_changed`, instead of the default `self.events.field`.
+
+    """
     _equality_operators = dict(equality_operators) if equality_operators else {}
     signals = {}
     eq_map = _get_eq_operator_map(cls)
     # create a Signal for each field in the dataclass
     for name, type_ in iter_fields(cls):
+        # Convert and validate private fields
+        if alias_private_fields is not None and name.startswith("_"):
+            if alias_private_fields:
+                name = name.removeprefix("_")
+            else:
+                continue
+
+        # Equality operator
         if name in _equality_operators:
             if not callable(_equality_operators[name]):  # pragma: no cover
                 raise TypeError("EqOperator must be callable")
             eq_map[name] = _equality_operators[name]
         else:
             eq_map[name] = _pick_equality_operator(type_)
+
         sig_name = f"{name}{signal_suffix}"
         field_type = object if type_ is None else type_
         signals[sig_name] = sig = Signal(field_type, field_type)
@@ -359,6 +393,14 @@ class SignalGroupDescriptor:
         events when fields change.  If `False`, no `__setattr__` method will be
         created.  (This will prevent signal emission, and assumes you are using a
         different mechanism to emit signals when fields change.)
+    alias_private_fields : bool | None, optional
+        If True, transform the private fields in aliases without the leading "_" to
+        create the signal names. These signals will be emitted by a change in the
+        aliased attribute name.
+        If False, skip private fields altogether, do not create signals associated with
+        them.
+        If None, the private fields name are passed as-is.
+        Default to None
     signal_suffix : str, optional
         a suffix to append to the field names in `self.events` namespace.
         For instance, if `signal_suffix="_changed"`, the signal for the field `field`
@@ -392,6 +434,7 @@ class SignalGroupDescriptor:
         warn_on_no_fields: bool = True,
         cache_on_instance: bool = True,
         patch_setattr: bool = True,
+        alias_private_fields: bool | dict = False,
         signal_suffix: str = "",
     ):
         self._signal_group = signal_group_class
@@ -400,6 +443,7 @@ class SignalGroupDescriptor:
         self._warn_on_no_fields = warn_on_no_fields
         self._cache_on_instance = cache_on_instance
         self._patch_setattr = patch_setattr
+        self._alias_private_fields = alias_private_fields
         self._signal_suffix = signal_suffix
 
     def __set_name__(self, owner: type, name: str) -> None:
@@ -473,7 +517,10 @@ class SignalGroupDescriptor:
 
     def _create_group(self, owner: type) -> type[SignalGroup]:
         Group = self._signal_group or _build_dataclass_signal_group(
-            owner, self._eqop, self._signal_suffix
+            owner,
+            equality_operators=self._eqop,
+            alias_private_fields=self._alias_private_fields,
+            signal_suffix=self._signal_suffix,
         )
         if self._warn_on_no_fields and not Group._signals_:
             warnings.warn(
