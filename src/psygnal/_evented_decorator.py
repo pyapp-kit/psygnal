@@ -32,6 +32,7 @@ def evented(
     equality_operators: Optional[Dict[str, EqOperator]] = None,
     warn_on_no_fields: bool = ...,
     cache_on_instance: bool = ...,
+    signal_suffix: str = ...,
 ) -> T:
     ...
 
@@ -44,6 +45,7 @@ def evented(
     equality_operators: Optional[Dict[str, EqOperator]] = None,
     warn_on_no_fields: bool = ...,
     cache_on_instance: bool = ...,
+    signal_suffix: str = ...,
 ) -> Callable[[T], T]:
     ...
 
@@ -55,6 +57,7 @@ def evented(
     equality_operators: Optional[Dict[str, EqOperator]] = None,
     warn_on_no_fields: bool = True,
     cache_on_instance: bool = True,
+    signal_suffix: str = "",
 ) -> Union[Callable[[T], T], T]:
     """A decorator to add events to a dataclass.
 
@@ -94,6 +97,11 @@ def evented(
         access, but means that the owner instance will no longer be pickleable.  If
         `False`, the SignalGroup instance will *still* be cached, but not on the
         instance itself.
+    signal_suffix : str, optional
+        a suffix to append to the field names in `self.events` namespace.
+        For instance, if `signal_suffix="_changed"`, the signal for the field `field`
+        is accessed with `self.events.field_changed`, instead of the default
+        `self.events.field`.
 
     Returns
     -------
@@ -128,6 +136,7 @@ def evented(
             equality_operators=equality_operators,
             warn_on_no_fields=warn_on_no_fields,
             cache_on_instance=cache_on_instance,
+            signal_suffix=signal_suffix,
         )
         # as a decorator, this will have already been called
         descriptor.__set_name__(cls, events_namespace)

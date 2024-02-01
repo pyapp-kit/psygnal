@@ -140,7 +140,7 @@ class _DataclassFieldSignalInstance(SignalInstance):
 
 @lru_cache(maxsize=None)
 def _build_dataclass_signal_group(
-    cls: type, equality_operators: Iterable[tuple[str, EqOperator]] | None = None
+    cls: type, equality_operators: Iterable[tuple[str, EqOperator]] | None = None, signal_suffix: str = ""
 ) -> type[SignalGroup]:
     """Build a SignalGroup with events for each field in a dataclass."""
     _equality_operators = dict(equality_operators) if equality_operators else {}
@@ -154,8 +154,9 @@ def _build_dataclass_signal_group(
             eq_map[name] = _equality_operators[name]
         else:
             eq_map[name] = _pick_equality_operator(type_)
+        sig_name = f"{name}{signal_suffix}"
         field_type = object if type_ is None else type_
-        signals[name] = sig = Signal(field_type, field_type)
+        signals[sig_name] = sig = Signal(field_type, field_type)
         # patch in our custom SignalInstance class with maxargs=1 on connect_setattr
         sig._signal_instance_class = _DataclassFieldSignalInstance
 
@@ -211,19 +212,21 @@ SetAttr = Callable[[Any, str, Any], None]
 
 
 @overload
-def evented_setattr(signal_group_name: str, super_setattr: SetAttr) -> SetAttr:
+def evented_setattr(
+    signal_group_name: str, super_setattr: SetAttr, signal_suffix: str = ""
+) -> SetAttr:
     ...
 
 
 @overload
 def evented_setattr(
-    signal_group_name: str, super_setattr: Literal[None] | None = None
+    signal_group_name: str, super_setattr: Literal[None] | None = None, signal_suffix: str = ""
 ) -> Callable[[SetAttr], SetAttr]:
     ...
 
 
 def evented_setattr(
-    signal_group_name: str, super_setattr: SetAttr | None = None
+    signal_group_name: str, super_setattr: SetAttr | None = None, signal_suffix: str = ""
 ) -> SetAttr | Callable[[SetAttr], SetAttr]:
     """Create a new __setattr__ method that emits events when fields change.
 
@@ -264,8 +267,9 @@ def evented_setattr(
             if name == signal_group_name:
                 return super_setattr(self, name, value)
 
+            sig_name = f"{name}{signal_suffix}"
             group: SignalGroup | None = getattr(self, signal_group_name, None)
-            signal: SignalInstance | None = getattr(group, name, None)
+            signal: SignalInstance | None = getattr(group, sig_name, None)
             # don't emit if the signal doesn't exist or has no listeners
             if group is None or signal is None or len(signal) < 2 and not len(group):
                 return super_setattr(self, name, value)
@@ -344,6 +348,11 @@ class SignalGroupDescriptor:
         events when fields change.  If `False`, no `__setattr__` method will be
         created.  (This will prevent signal emission, and assumes you are using a
         different mechanism to emit signals when fields change.)
+    signal_suffix : str, optional
+        a suffix to append to the field names in `self.events` namespace.
+        For instance, if `signal_suffix="_changed"`, the signal for the field `field`
+        is accessed with `self.events.field_changed`, instead of the default
+        `self.events.field`.
 
     Examples
     --------
@@ -372,6 +381,7 @@ class SignalGroupDescriptor:
         warn_on_no_fields: bool = True,
         cache_on_instance: bool = True,
         patch_setattr: bool = True,
+        signal_suffix: str = "",
     ):
         self._signal_group = signal_group_class
         self._name: str | None = None
@@ -379,6 +389,7 @@ class SignalGroupDescriptor:
         self._warn_on_no_fields = warn_on_no_fields
         self._cache_on_instance = cache_on_instance
         self._patch_setattr = patch_setattr
+        self._signal_suffix = signal_suffix
 
     def __set_name__(self, owner: type, name: str) -> None:
         """Called when this descriptor is added to class `owner` as attribute `name`."""
@@ -399,6 +410,7 @@ class SignalGroupDescriptor:
             owner.__setattr__ = evented_setattr(  # type: ignore
                 cast(str, self._name),
                 owner.__setattr__,  # type: ignore
+                self._signal_suffix,
             )
         except Exception as e:  # pragma: no cover
             # not sure what might cause this ... but it will have consequences
@@ -449,7 +461,7 @@ class SignalGroupDescriptor:
         return self._instance_map[obj_id]
 
     def _create_group(self, owner: type) -> type[SignalGroup]:
-        Group = self._signal_group or _build_dataclass_signal_group(owner, self._eqop)
+        Group = self._signal_group or _build_dataclass_signal_group(owner, self._eqop, self._signal_suffix)
         if self._warn_on_no_fields and not Group._signals_:
             warnings.warn(
                 f"No mutable fields found on class {owner}: no events will be "
