@@ -113,7 +113,7 @@ class SignalGroup(SignalInstance):
             name=name or self.__class__.__name__,
         )
         self._sig_was_blocked: dict[str, bool] = {}
-        for _, sig in self.signals.items():
+        for sig in self.signals.values():
             sig.connect(self._slot_relay, check_nargs=False, check_types=False)
 
     def __len__(self) -> int:
@@ -122,7 +122,19 @@ class SignalGroup(SignalInstance):
     @property
     def signals(self) -> dict[str, SignalInstance]:
         """Return {name -> SignalInstance} map of all signal instances in this group."""
-        return {n: getattr(self, n) for n in type(self)._signals_}
+        # Here we convert all of the `Signal`s defined at the class level
+        # into `SignalInstance`.
+        # (these signals were previously collected in `__init_subclass__`)
+        # However, it's a bit more complicated in order to avoid name conflicts.
+        # Rather than using the normal descritor protocol with `getattr(self, name)`,
+        # we *directly* use the `__get__` method of the descriptor, just in case
+        # the signal name conflicts with a method or attribute on this SignalGroup.
+        # this means that signal names will always take priority over other attributes
+        # in a signal group
+        cls = type(self)
+        return {
+            name: signal.__get__(self, cls) for name, signal in cls._signals_.items()
+        }
 
     @classmethod
     def is_uniform(cls) -> bool:
@@ -243,11 +255,15 @@ class SignalGroup(SignalInstance):
 
     def __repr__(self) -> str:
         """Return repr(self)."""
-        name = f" {self._name!r}" if self._name else ""
+        # avoid recursion error
+        if "_name" not in type(self)._signals_:
+            name = f" {self._name!r}" if self._name else ""
+        else:
+            name = ""
         instance = f" on {self.instance!r}" if self.instance else ""
         nsignals = len(self.signals)
-        signals = f"{nsignals} signals" if nsignals > 1 else ""
-        return f"<SignalGroup{name} with {signals}{instance}>"
+        signals = f" with {nsignals} signals" if nsignals > 0 else ""
+        return f"<SignalGroup{name}{signals}{instance}>"
 
 
 def _is_uniform(signals: Iterable[Signal]) -> bool:
