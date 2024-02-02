@@ -142,7 +142,7 @@ class _DataclassFieldSignalInstance(SignalInstance):
 def _build_dataclass_signal_group(
     cls: type,
     equality_operators: Iterable[tuple[str, EqOperator]] | None = None,
-    alias_private_fields: bool | None = None,
+    alias_private_fields: bool | dict | None = None,
     signal_suffix: str = "",
 ) -> type[SignalGroup]:
     """Build a SignalGroup with events for each field in a dataclass.
@@ -436,7 +436,7 @@ class SignalGroupDescriptor:
         warn_on_no_fields: bool = True,
         cache_on_instance: bool = True,
         patch_setattr: bool = True,
-        alias_private_fields: bool | None = False,
+        alias_private_fields: bool | dict = False,
         signal_suffix: str = "",
     ):
         self._signal_group = signal_group_class
