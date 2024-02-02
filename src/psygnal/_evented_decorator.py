@@ -57,7 +57,6 @@ def evented(
     equality_operators: Optional[Dict[str, EqOperator]] = None,
     warn_on_no_fields: bool = True,
     cache_on_instance: bool = True,
-    alias_private_fields: Optional[bool] = None,
     signal_suffix: str = "",
 ) -> Union[Callable[[T], T], T]:
     """A decorator to add events to a dataclass.
@@ -98,14 +97,6 @@ def evented(
         access, but means that the owner instance will no longer be pickleable.  If
         `False`, the SignalGroup instance will *still* be cached, but not on the
         instance itself.
-    alias_private_fields : Optional[bool], optional
-        If True, transform the private fields in aliases without the leading "_" to
-        create the signal names. These signals will be emitted by a change in the
-        aliased attribute name.
-        If False, skip private fields altogether, do not create signals associated with
-        them.
-        If None, the private fields name are passed as-is.
-        Default to None
     signal_suffix : str, optional
         a suffix to append to the field names in `self.events` namespace.
         For instance, if `signal_suffix="_changed"`, the signal for the field `field`
@@ -145,7 +136,6 @@ def evented(
             equality_operators=equality_operators,
             warn_on_no_fields=warn_on_no_fields,
             cache_on_instance=cache_on_instance,
-            alias_private_fields=alias_private_fields,
             signal_suffix=signal_suffix,
         )
         # as a decorator, this will have already been called
