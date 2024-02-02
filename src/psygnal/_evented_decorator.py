@@ -32,7 +32,6 @@ def evented(
     equality_operators: Optional[Dict[str, EqOperator]] = None,
     warn_on_no_fields: bool = ...,
     cache_on_instance: bool = ...,
-    alias_private_fields: Optional[bool] = ...,
     signal_suffix: str = ...,
 ) -> T:
     ...
@@ -46,7 +45,6 @@ def evented(
     equality_operators: Optional[Dict[str, EqOperator]] = None,
     warn_on_no_fields: bool = ...,
     cache_on_instance: bool = ...,
-    alias_private_fields: Optional[bool] = ...,
     signal_suffix: str = ...,
 ) -> Callable[[T], T]:
     ...
