@@ -1,4 +1,5 @@
 """Containers backed by psygnal events."""
+
 from typing import TYPE_CHECKING, Any
 
 from ._evented_dict import EventedDict

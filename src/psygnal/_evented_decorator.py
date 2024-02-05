@@ -32,8 +32,7 @@ def evented(
     equality_operators: Optional[Dict[str, EqOperator]] = None,
     warn_on_no_fields: bool = ...,
     cache_on_instance: bool = ...,
-) -> T:
-    ...
+) -> T: ...
 
 
 @overload
@@ -44,8 +43,7 @@ def evented(
     equality_operators: Optional[Dict[str, EqOperator]] = None,
     warn_on_no_fields: bool = ...,
     cache_on_instance: bool = ...,
-) -> Callable[[T], T]:
-    ...
+) -> Callable[[T], T]: ...
 
 
 def evented(

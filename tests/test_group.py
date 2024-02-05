@@ -188,8 +188,7 @@ def test_weakref():
     """Make sure that the group doesn't keep a strong reference to the instance."""
     import gc
 
-    class T:
-        ...
+    class T: ...
 
     obj = T()
     group = MyGroup(obj)
@@ -203,8 +202,7 @@ def test_group_deepcopy():
     from copy import deepcopy
 
     class T:
-        def method(self):
-            ...
+        def method(self): ...
 
     obj = T()
     group = MyGroup(obj)

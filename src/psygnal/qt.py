@@ -5,6 +5,7 @@ will monitor "queued" signals and invoke their callbacks.  This is useful when
 psygnal is used in a Qt application, and you'd like to emit signals from a thread
 but have their callbacks invoked in the main thread.
 """
+
 from __future__ import annotations
 
 from threading import Thread, current_thread

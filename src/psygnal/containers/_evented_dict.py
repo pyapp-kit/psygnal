@@ -1,4 +1,5 @@
 """Dict that emits events when altered."""
+
 from __future__ import annotations
 
 from typing import (

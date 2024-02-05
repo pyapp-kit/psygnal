@@ -140,12 +140,14 @@ class Signal:
             self._name = name
 
     @overload
-    def __get__(self, instance: None, owner: type[Any] | None = None) -> Signal:
-        ...  # pragma: no cover
+    def __get__(
+        self, instance: None, owner: type[Any] | None = None
+    ) -> Signal: ...  # pragma: no cover
 
     @overload
-    def __get__(self, instance: Any, owner: type[Any] | None = None) -> SignalInstance:
-        ...  # pragma: no cover
+    def __get__(
+        self, instance: Any, owner: type[Any] | None = None
+    ) -> SignalInstance: ...  # pragma: no cover
 
     def __get__(
         self, instance: Any, owner: type[Any] | None = None
@@ -358,8 +360,7 @@ class SignalInstance:
         unique: bool | str = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
-    ) -> Callable[[F], F]:
-        ...  # pragma: no cover
+    ) -> Callable[[F], F]: ...  # pragma: no cover
 
     @overload
     def connect(
@@ -372,8 +373,7 @@ class SignalInstance:
         unique: bool | str = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
-    ) -> F:
-        ...  # pragma: no cover
+    ) -> F: ...  # pragma: no cover
 
     def connect(
         self,
@@ -844,8 +844,7 @@ class SignalInstance:
         check_nargs: bool = False,
         check_types: bool = False,
         asynchronous: Literal[False] = False,
-    ) -> None:
-        ...  # pragma: no cover
+    ) -> None: ...  # pragma: no cover
 
     @overload
     def emit(
@@ -951,8 +950,7 @@ class SignalInstance:
         check_nargs: bool = False,
         check_types: bool = False,
         asynchronous: Literal[False] = False,
-    ) -> None:
-        ...  # pragma: no cover
+    ) -> None: ...  # pragma: no cover
 
     @overload
     def __call__(

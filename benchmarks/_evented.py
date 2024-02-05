@@ -1,5 +1,6 @@
 """This script isn't run by asv... but can be run directly to see how
 evented dataclasses compare to non-evented dataclasses."""
+
 import timeit
 from dataclasses import dataclass
 from typing import ClassVar

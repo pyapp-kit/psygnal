@@ -125,8 +125,7 @@ def test_decorator():
         raise err
 
     @emitter.one_int.connect(check_nargs=False)
-    def bad_cb(a, b, c):
-        ...
+    def bad_cb(a, b, c): ...
 
     with pytest.raises(EmitLoopError) as e:
         emitter.one_int.emit(1)
@@ -553,15 +552,13 @@ def test_checking_off():
 
     # the no_check signal was instantiated with check_[nargs/types] = False
     @e.no_check.connect
-    def bad_in_many_ways(x: int, y, z):
-        ...
+    def bad_in_many_ways(x: int, y, z): ...
 
 
 def test_keyword_only_not_allowed():
     e = Emitter()
 
-    def f(a: int, *, b: int):
-        ...
+    def f(a: int, *, b: int): ...
 
     with pytest.raises(ValueError) as er:
         e.two_int.connect(f)

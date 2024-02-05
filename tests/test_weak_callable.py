@@ -114,8 +114,7 @@ def test_weak_callable_equality() -> None:
     """Slot callers should be equal only if they represent the same bound-method."""
 
     class T:
-        def x(self):
-            ...
+        def x(self): ...
 
     t1 = T()
     t2 = T()
@@ -150,8 +149,7 @@ def test_nonreferencable() -> None:
     class T:
         __slots__ = ("x",)
 
-        def method(self) -> None:
-            ...
+        def method(self) -> None: ...
 
     t = T()
     with pytest.warns(UserWarning, match="failed to create weakref"):
@@ -167,8 +165,7 @@ def test_nonreferencable() -> None:
 
 @pytest.mark.parametrize("strong", [True, False])
 def test_deref(strong: bool) -> None:
-    def func(x):
-        ...
+    def func(x): ...
 
     p = partial(func, 1)
     cb = weak_callback(p, strong_func=strong)

@@ -506,8 +506,7 @@ class WeakSetattr(WeakCallback):
 
 
 class SupportsSetitem(Protocol):
-    def __setitem__(self, key: Any, value: Any) -> None:
-        ...
+    def __setitem__(self, key: Any, value: Any) -> None: ...
 
 
 class WeakSetitem(WeakCallback):
