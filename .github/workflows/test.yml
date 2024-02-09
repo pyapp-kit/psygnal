@@ -30,6 +30,7 @@ jobs:
       hatch-build-hooks-enable: ${{ matrix.compile }}
       pip-install-pre-release: ${{ github.event_name == 'schedule' }}
       report-failures: ${{ github.event_name == 'schedule' }}
+    secrets: inherit
     strategy:
       fail-fast: false
       matrix:
@@ -62,6 +63,7 @@ jobs:
       hatch-build-hooks-enable: ${{ matrix.compile }}
       pip-install-pre-release: ${{ github.event_name == 'schedule' }}
       report-failures: ${{ github.event_name == 'schedule' }}
+    secrets: inherit
     strategy:
       fail-fast: false
       matrix:
