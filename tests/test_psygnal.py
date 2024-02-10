@@ -846,12 +846,7 @@ def test_emit_loop_exceptions():
         "f_any_assigned",
         "partial",
         "partial_kwargs",
-        pytest.param(
-            "partial",
-            marks=pytest.mark.xfail(
-                sys.version_info < (3, 8), reason="no idea why this fails on 3.7"
-            ),
-        ),
+        "partial",
     ],
 )
 def test_weakref_disconnect(slot):
