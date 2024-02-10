@@ -1,5 +1,4 @@
 import gc
-import sys
 import time
 from contextlib import suppress
 from functools import partial, wraps
