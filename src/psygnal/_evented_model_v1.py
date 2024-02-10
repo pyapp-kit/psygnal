@@ -15,7 +15,7 @@ from typing import (
     no_type_check,
 )
 
-from ._group import SignalGroup
+from ._group2 import SignalGroup
 from ._group_descriptor import _check_field_equality, _pick_equality_operator
 from ._signal import Signal, SignalInstance
 

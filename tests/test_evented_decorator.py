@@ -16,12 +16,12 @@ except ImportError:
 
 
 from psygnal import (
-    SignalGroup,
     SignalGroupDescriptor,
     evented,
     get_evented_namespace,
     is_evented,
 )
+from psygnal._group2 import SignalGroup
 
 decorated_or_descriptor = pytest.mark.parametrize(
     "decorator", [True, False], ids=["decorator", "descriptor"]
@@ -38,7 +38,7 @@ def _check_events(cls, events_ns="events"):
 
     events = getattr(obj, events_ns)
     assert isinstance(events, SignalGroup)
-    assert set(events.signals) == {"bar", "baz", "qux"}
+    assert set(events._signals_) == {"bar", "baz", "qux"}
 
     mock = Mock()
     events.bar.connect(mock)
