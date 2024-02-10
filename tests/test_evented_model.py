@@ -90,7 +90,6 @@ def test_evented_model():
     name_mock.assert_not_called()
 
 
-@pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8 or higher")
 def test_evented_model_array_updates():
     """Test updating an evented pydantic model with an array."""
 

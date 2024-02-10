@@ -24,11 +24,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dynamic = ["version"]
-dependencies = [
-    "typing-extensions >=3.7.4.2",
-    "mypy_extensions",
-    "importlib_metadata ; python_version < '3.8'",
-]
+dependencies = ["typing-extensions >=3.7.4.2", "mypy_extensions"]
 
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
@@ -195,8 +191,7 @@ module = ["numpy.*", "wrapt", "pydantic.*"]
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-# msgspec is only available on Python 3.8+ ... so we need to ignore it
-module = ["wrapt", "msgspec"]
+module = ["wrapt"]
 ignore_missing_imports = true
 
 # https://coverage.readthedocs.io/en/6.4/config.html
