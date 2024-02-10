@@ -772,9 +772,8 @@ class SignalInstance:
                 ) from e
             raise
 
-        n_spec_params = len(spec.parameters)
         # if `slot` requires more arguments than we will provide, raise.
-        if minargs > n_spec_params:
+        if minargs > (n_spec_params := len(spec.parameters)):
             extra = (
                 f"- Slot requires at least {minargs} positional "
                 f"arguments, but spec only provides {n_spec_params}"
