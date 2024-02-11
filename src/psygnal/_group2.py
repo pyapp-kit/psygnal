@@ -11,6 +11,8 @@ from typing import (
     NamedTuple,
 )
 
+from mypy_extensions import mypyc_attr
+
 from psygnal._signal import Signal, SignalInstance, _SignalBlocker
 
 
@@ -34,7 +36,7 @@ class SignalRelay(SignalInstance):
         self._group = group
         super().__init__(signature=(EmissionInfo,), instance=instance)
         self._sig_was_blocked: dict[str, bool] = {}
-        for sig in group.values():
+        for sig in group._psygnal_instances.values():
             sig.connect(self._slot_relay, check_nargs=False, check_types=False)
 
     def _slot_relay(self, *args: Any) -> None:
@@ -150,16 +152,20 @@ class SignalRelay(SignalInstance):
         super().disconnect(slot, missing_ok)
 
 
+@mypyc_attr(allow_interpreted_subclasses=True)
 class SignalGroup(Mapping[str, SignalInstance]):
-    _signals_: Mapping[str, Signal]
+    _signals_: ClassVar[Mapping[str, Signal]]
     _uniform: ClassVar[bool] = False
 
-    def __init__(self, instance: Any = None) -> None:
+    all: SignalRelay  # but, can be modified at instantiation
+
+    def __init__(self, instance: Any = None, relay_name: str = "all") -> None:
         cls = type(self)
         self._psygnal_instances: dict[str, SignalInstance] = {
             name: signal.__get__(self, cls) for name, signal in cls._signals_.items()
         }
         self._psygnal_relay = SignalRelay(self, instance)
+        setattr(self, relay_name, self._psygnal_relay)
 
     def __init_subclass__(cls, strict: bool = False) -> None:
         """Finds all Signal instances on the class and add them to `cls._signals_`."""

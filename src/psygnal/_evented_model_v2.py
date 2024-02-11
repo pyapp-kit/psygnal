@@ -19,7 +19,7 @@ from pydantic import BaseModel, ConfigDict, PrivateAttr
 from pydantic._internal import _model_construction, _utils
 from pydantic.fields import Field, FieldInfo
 
-from ._group import SignalGroup
+from ._group2 import SignalGroup
 from ._group_descriptor import _check_field_equality, _pick_equality_operator
 from ._signal import Signal, SignalInstance
 
@@ -333,7 +333,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         if (
             name == "_events"
             or not hasattr(self, "_events")
-            or name not in self._events.signals
+            or name not in self._events
         ):  # can happen on init
             # fallback to default behavior
             return self._super_setattr_(name, value)
@@ -419,7 +419,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         if not isinstance(values, dict):  # pragma: no cover
             raise TypeError(f"values must be a dict or BaseModel. got {type(values)}")
 
-        with self.events.paused():  # TODO: reduce?
+        with self.events.all.paused():  # TODO: reduce?
             for key, value in values.items():
                 field = getattr(self, key)
                 if isinstance(field, EventedModel) and recurse:

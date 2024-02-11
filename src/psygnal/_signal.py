@@ -40,7 +40,7 @@ from ._weak_callback import (
 if TYPE_CHECKING:
     from typing_extensions import Literal
 
-    from ._group import EmissionInfo
+    from ._group2 import EmissionInfo
     from ._weak_callback import RefErrorChoice
 
     ReducerFunc = Callable[[tuple, tuple], tuple]
@@ -924,7 +924,7 @@ class SignalInstance:
             return None
 
         if SignalInstance._debug_hook is not None:
-            from ._group import EmissionInfo
+            from ._group2 import EmissionInfo
 
             SignalInstance._debug_hook(EmissionInfo(self, args))
 
