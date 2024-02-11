@@ -161,6 +161,10 @@ class SignalGroup(Mapping[str, SignalInstance]):
 
     def __init__(self, instance: Any = None, relay_name: str = "all") -> None:
         cls = type(self)
+        if not hasattr(cls, "_signals_"):
+            raise TypeError(
+                "Cannot instantiate SignalGroup directly.  Use a subclass instead."
+            )
         self._psygnal_instances: dict[str, SignalInstance] = {
             name: signal.__get__(self, cls) for name, signal in cls._signals_.items()
         }
@@ -207,7 +211,7 @@ class SignalGroup(Mapping[str, SignalInstance]):
         name = self.__class__.__name__
         instance = ""
         nsignals = len(self)
-        signals = f"{nsignals} signals" if nsignals > 1 else ""
+        signals = f"{nsignals} signals"
         return f"<SignalGroup {name!r} with {signals}{instance}>"
 
     @classmethod
