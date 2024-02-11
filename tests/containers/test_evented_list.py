@@ -352,7 +352,11 @@ def test_child_events_groups():
     assert root == [e_obj]
     e_obj.events.test2.emit("hi")
 
-    assert mock.call_count == 3
+    assert [c[0][0].signal.name for c in mock.call_args_list] == [
+        "inserting",
+        "inserted",
+        "child_event",
+    ]
 
     # when an object in the list owns an emitter group, then any emitter in that group
     # will also be detected, and child_event will emit (index, sub-emitter, args)

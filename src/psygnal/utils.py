@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Callable, Generator, Iterator
 from warnings import warn
 
-from ._group import EmissionInfo
+from ._group2 import EmissionInfo, SignalGroup
 from ._signal import SignalInstance
 
 __all__ = ["monitor_events", "iter_signal_instances"]
@@ -103,6 +103,8 @@ def iter_signal_instances(
             attr = getattr(obj, n)
             if isinstance(attr, SignalInstance):
                 yield attr
+            if isinstance(attr, SignalGroup):
+                yield attr._psygnal_relay
 
 
 _COMPILED_EXTS = (".so", ".pyd")
