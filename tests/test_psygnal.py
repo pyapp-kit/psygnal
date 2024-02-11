@@ -398,14 +398,14 @@ def test_group_weakref(slot):
     # simply by nature of being in a group, sig1 will have a callback
     assert len(emitter.sig1) == 1
     # but the group itself doesn't have any
-    assert len(emitter) == 0
+    assert len(emitter._psygnal_relay) == 0
 
     # connecting something to the group adds to the group connections
     emitter.connect(
         partial(obj.f_int_int, 1) if slot == "partial" else getattr(obj, slot)
     )
     assert len(emitter.sig1) == 1
-    assert len(emitter) == 1
+    assert len(emitter._psygnal_relay) == 1
 
     emitter.sig1.emit(1)
     assert len(emitter.sig1) == 1
@@ -413,7 +413,7 @@ def test_group_weakref(slot):
     gc.collect()
     emitter.sig1.emit(1)  # this should trigger deletion, so would emitter.emit()
     assert len(emitter.sig1) == 1
-    assert len(emitter) == 0  # it's been cleaned up
+    assert len(emitter._psygnal_relay) == 0  # it's been cleaned up
 
 
 # def test_norm_slot():

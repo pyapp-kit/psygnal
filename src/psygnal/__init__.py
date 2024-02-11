@@ -60,7 +60,7 @@ if os.getenv("PSYGNAL_UNCOMPILED"):
 
 from ._evented_decorator import evented
 from ._exceptions import EmitLoopError
-from ._group import EmissionInfo, SignalGroup
+from ._group2 import EmissionInfo, SignalGroup
 from ._group_descriptor import (
     SignalGroupDescriptor,
     get_evented_namespace,

@@ -213,4 +213,4 @@ def test_group_deepcopy():
     with pytest.warns(UserWarning, match="does not copy connected weakly"):
         group2 = deepcopy(group)
 
-    assert not len(group2)
+    assert not len(group2._psygnal_relay)
