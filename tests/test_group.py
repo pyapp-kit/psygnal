@@ -208,6 +208,8 @@ def test_group_deepcopy():
 
     obj = T()
     group = MyGroup(obj)
+    assert deepcopy(group) is not group  # but no warning
+
     group.connect(obj.method)
 
     with pytest.warns(UserWarning, match="does not copy connected weakly"):
