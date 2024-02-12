@@ -162,9 +162,11 @@ class SignalGroup(Mapping[str, SignalInstance]):
     _signals_: ClassVar[Mapping[str, Signal]]
     _uniform: ClassVar[bool] = False
 
-    all: SignalRelay  # but, can be modified at instantiation
+    # see comment in __init__.  This type annotation can be overriden by subclass
+    # to change the public name of the SignalRelay attribute
+    all: SignalRelay
 
-    def __init__(self, instance: Any = None, relay_name: str = "all") -> None:
+    def __init__(self, instance: Any = None) -> None:
         cls = type(self)
         if not hasattr(cls, "_signals_"):
             raise TypeError(
@@ -174,6 +176,17 @@ class SignalGroup(Mapping[str, SignalInstance]):
             name: signal.__get__(self, cls) for name, signal in cls._signals_.items()
         }
         self._psygnal_relay = SignalRelay(self, instance)
+
+        # determine the public name of the signal relay.
+        # by default, this is "all", but it can be overridden by the user by creating
+        # a new name for the SignalRelay annotation on a subclass of SignalGroup
+        # e.g. `my_name: SignalRelay`
+        relay_name = "all"
+        for base in cls.__mro__:
+            for key, val in getattr(base, "__annotations__", {}).items():
+                if val is SignalRelay:
+                    relay_name = key
+                    break
         setattr(self, relay_name, self._psygnal_relay)
 
     def __init_subclass__(cls, strict: bool = False) -> None:
