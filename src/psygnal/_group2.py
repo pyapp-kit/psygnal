@@ -50,11 +50,6 @@ class SignalRelay(SignalInstance):
             info = EmissionInfo(emitter, args)
             self._run_emit_loop((info,))
 
-    def __getstate__(self) -> dict:
-        dd = super().__getstate__()
-        dd["_group"] = self._group
-        return dd
-
     def connect_direct(
         self,
         slot: Callable | None = None,
@@ -175,7 +170,7 @@ class SignalGroup:
 
     def __init__(self, instance: Any = None) -> None:
         cls = type(self)
-        if not hasattr(cls, "_signals_"):
+        if not hasattr(cls, "_signals_"):  # pragma: no cover
             raise TypeError(
                 "Cannot instantiate SignalGroup directly.  Use a subclass instead."
             )

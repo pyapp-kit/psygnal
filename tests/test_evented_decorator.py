@@ -38,7 +38,7 @@ def _check_events(cls, events_ns="events"):
 
     events = getattr(obj, events_ns)
     assert isinstance(events, SignalGroup)
-    assert set(events._signals_) == {"bar", "baz", "qux"}
+    assert set(events) == {"bar", "baz", "qux"}
 
     mock = Mock()
     events.bar.connect(mock)
