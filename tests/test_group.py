@@ -1,3 +1,4 @@
+from copy import deepcopy
 from unittest.mock import Mock, call
 
 import pytest
@@ -199,9 +200,7 @@ def test_weakref():
     assert group.instance is None
 
 
-def test_group_deepcopy():
-    from copy import deepcopy
-
+def test_group_deepcopy() -> None:
     class T:
         def method(self):
             ...
@@ -212,7 +211,20 @@ def test_group_deepcopy():
 
     group.connect(obj.method)
 
-    with pytest.warns(UserWarning, match="does not copy connected weakly"):
-        group2 = deepcopy(group)
+    # with pytest.warns(UserWarning, match="does not copy connected weakly"):
+    group2 = deepcopy(group)
 
     assert not len(group2._psygnal_relay)
+    mock = Mock()
+    mock2 = Mock()
+    group.connect(mock)
+    group2.connect(mock2)
+
+    group2.sig1.emit(1)
+    mock.assert_not_called()
+    mock2.assert_called_with(EmissionInfo(group2.sig1, (1,)))
+
+    mock2.reset_mock()
+    group.sig1.emit(1)
+    mock.assert_called_with(EmissionInfo(group.sig1, (1,)))
+    mock2.assert_not_called()

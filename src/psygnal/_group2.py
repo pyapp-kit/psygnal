@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from typing import (
     Any,
     Callable,
@@ -36,10 +37,8 @@ class SignalRelay(SignalInstance):
         self._group = group
         super().__init__(signature=(EmissionInfo,), instance=instance)
         self._sig_was_blocked: dict[str, bool] = {}
-        import warnings
 
-        # silence any warnings about failed weakrefs
-
+        # silence any warnings about failed weakrefs (will occur in compiled version)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             for sig in group._psygnal_instances.values():
@@ -50,6 +49,11 @@ class SignalRelay(SignalInstance):
         if emitter:
             info = EmissionInfo(emitter, args)
             self._run_emit_loop((info,))
+
+    def __getstate__(self) -> dict:
+        dd = super().__getstate__()
+        dd["_group"] = self._group
+        return dd
 
     def connect_direct(
         self,
@@ -184,13 +188,13 @@ class SignalGroup:
         # by default, this is "all", but it can be overridden by the user by creating
         # a new name for the SignalRelay annotation on a subclass of SignalGroup
         # e.g. `my_name: SignalRelay`
-        relay_name = "all"
+        self._psygnal_relay_name = "all"
         for base in cls.__mro__:
             for key, val in getattr(base, "__annotations__", {}).items():
                 if val is SignalRelay:
-                    relay_name = key
+                    self._psygnal_relay_name = key
                     break
-        setattr(self, relay_name, self._psygnal_relay)
+        setattr(self, self._psygnal_relay_name, self._psygnal_relay)
 
     def __init_subclass__(cls, strict: bool = False) -> None:
         """Finds all Signal instances on the class and add them to `cls._signals_`."""
@@ -215,7 +219,7 @@ class SignalGroup:
                 return self._psygnal_instances[name]
             if name != "_psygnal_relay" and hasattr(self._psygnal_relay, name):
                 #   TODO: add deprecation warning and redirect to `self.all`
-                return getattr(self._psygnal_relay, name)  # type: ignore
+                return getattr(self._psygnal_relay, name)
         raise AttributeError(f"{type(self).__name__!r} has no attribute {name!r}")
 
     @property
@@ -245,6 +249,10 @@ class SignalGroup:
         """Return true if all signals in the group have the same signature."""
         # TODO: Deprecate this method
         return cls._uniform
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> SignalGroup:
+        # TODO: should we also copy connections?
+        return type(self)(instance=self._psygnal_relay.instance)
 
 
 def _is_uniform(signals: Iterable[Signal]) -> bool:
