@@ -366,7 +366,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         if (
             len(signal_instance) < 2  # the signal itself has no listeners
             and not deps_with_callbacks  # no dependent properties with listeners
-            and not len(self._events)  # no listeners on the SignalGroup
+            and not len(self._events._psygnal_relay)  # no listeners on the SignalGroup
         ):
             return self._super_setattr_(name, value)
 

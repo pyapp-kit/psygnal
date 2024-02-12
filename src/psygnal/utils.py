@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Callable, Generator, Iterator
 from warnings import warn
 
-from ._group2 import EmissionInfo, SignalGroup
+from ._group2 import EmissionInfo, SignalGroup, SignalRelay
 from ._signal import SignalInstance
 
 __all__ = ["monitor_events", "iter_signal_instances"]
@@ -58,6 +58,10 @@ def monitor_events(
             )
         disconnectors = set()
         for siginst in iter_signal_instances(obj, include_private_attrs):
+            if isinstance(siginst, SignalRelay):
+                # TODO: ... but why?
+                continue
+
             if _old_api:
 
                 def _report(*args: Any, signal: SignalInstance = siginst) -> None:
