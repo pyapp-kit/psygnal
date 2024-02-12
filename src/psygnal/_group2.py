@@ -36,8 +36,13 @@ class SignalRelay(SignalInstance):
         self._group = group
         super().__init__(signature=(EmissionInfo,), instance=instance)
         self._sig_was_blocked: dict[str, bool] = {}
-        for sig in group._psygnal_instances.values():
-            sig.connect(self._slot_relay, check_nargs=False, check_types=False)
+        import warnings
+        # silence any warnings about failed weakrefs
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for sig in group._psygnal_instances.values():
+                sig.connect(self._slot_relay, check_nargs=False, check_types=False)
 
     def _slot_relay(self, *args: Any) -> None:
         emitter = Signal.current_emitter()
@@ -186,16 +191,21 @@ class SignalGroup(Mapping[str, SignalInstance]):
             )
         super().__init_subclass__()
 
-    def __getattr__(self, name: str) -> Signal:
-        if name in self._signals_:
-            return self._signals_[name]
-        if name == "signals":  # for backwards compatibility
-            # TODO: add deprecation warning
-            return self._psygnal_instances  # type: ignore
-        if name != "_psygnal_relay" and hasattr(self._psygnal_relay, name):
-            # TODO: add deprecation warning and redirect to `self.all`
-            return getattr(self._psygnal_relay, name)  # type: ignore
+    # TODO: change type hint after completing deprecation of direct access to
+    # names on SignalRelay object
+    def __getattr__(self, name: str) -> Any:
+        if name != "_psygnal_instances":
+            if name in self._psygnal_instances:
+                return self._psygnal_instances[name]
+            if name != "_psygnal_relay" and hasattr(self._psygnal_relay, name):
+                #   TODO: add deprecation warning and redirect to `self.all`
+                return getattr(self._psygnal_relay, name)  # type: ignore
         raise AttributeError(f"{type(self).__name__!r} has no attribute {name!r}")
+
+    @property
+    def signals(self) -> Mapping[str, SignalInstance]:
+        # TODO: deprecate this property
+        return self._psygnal_instances
 
     def __len__(self) -> int:
         return len(self._signals_)
