@@ -130,8 +130,7 @@ class SignalGroup(SignalInstance):
         return cls._uniform
 
     def _slot_relay(self, *args: Any) -> None:
-        emitter = Signal.current_emitter()
-        if emitter:
+        if emitter := Signal.current_emitter():
             info = EmissionInfo(emitter, args)
             self._run_emit_loop((info,))
 
