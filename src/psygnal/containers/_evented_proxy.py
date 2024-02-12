@@ -82,8 +82,7 @@ class EventedObjectProxy(ObjectProxy, Generic[T]):
     def __setattr__(self, name: str, value: None) -> None:
         before = getattr(self, name, _UNSET)
         super().__setattr__(name, value)
-        after = getattr(self, name, _UNSET)
-        if before is not after:
+        if before is not (after := getattr(self, name, _UNSET)):
             self.events.attribute_set(name, after)
 
     def __delattr__(self, name: str) -> None:
@@ -93,8 +92,7 @@ class EventedObjectProxy(ObjectProxy, Generic[T]):
     def __setitem__(self, key: Any, value: Any) -> None:
         before = self[key]
         super().__setitem__(key, value)
-        after = self[key]
-        if before is not after:
+        if before is not (after := self[key]):
             self.events.item_set(key, after)
 
     def __delitem__(self, key: Any) -> None:

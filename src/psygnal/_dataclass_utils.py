@@ -168,8 +168,7 @@ def iter_fields(
     """
     # generally opting for speed here over public API
 
-    dclass_fields = getattr(cls, "__dataclass_fields__", None)
-    if dclass_fields is not None:
+    if (dclass_fields := getattr(cls, "__dataclass_fields__", None)) is not None:
         for d_field in dclass_fields.values():
             if d_field._field_type is dataclasses._FIELD:  # type: ignore [attr-defined]
                 yield d_field.name, d_field.type
@@ -186,8 +185,7 @@ def iter_fields(
                     yield p_field.name, p_field.outer_type_  # type: ignore
         return
 
-    attrs_fields = getattr(cls, "__attrs_attrs__", None)
-    if attrs_fields is not None:
+    if (attrs_fields := getattr(cls, "__attrs_attrs__", None)) is not None:
         for a_field in attrs_fields:
             yield a_field.name, a_field.type
         return
