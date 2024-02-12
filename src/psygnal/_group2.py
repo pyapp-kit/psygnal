@@ -37,6 +37,7 @@ class SignalRelay(SignalInstance):
         super().__init__(signature=(EmissionInfo,), instance=instance)
         self._sig_was_blocked: dict[str, bool] = {}
         import warnings
+
         # silence any warnings about failed weakrefs
 
         with warnings.catch_warnings():
