@@ -95,8 +95,8 @@ class SignalRelay(SignalInstance):
         """
 
         def _inner(slot: Callable) -> Callable:
-            for sig in self._group.values():
-                sig.connect(
+            for sig in self._group:
+                self._group[sig].connect(
                     slot,
                     check_nargs=check_nargs,
                     check_types=check_types,
@@ -110,7 +110,8 @@ class SignalRelay(SignalInstance):
     def block(self, exclude: Iterable[str | SignalInstance] = ()) -> None:
         """Block this signal and all emitters from emitting."""
         super().block()
-        for k, v in self._group.items():
+        for k in self._group:
+            v = self._group[k]
             if exclude and v in exclude or k in exclude:
                 continue
             self._sig_was_blocked[k] = v._is_blocked
@@ -119,9 +120,9 @@ class SignalRelay(SignalInstance):
     def unblock(self) -> None:
         """Unblock this signal and all emitters, allowing them to emit."""
         super().unblock()
-        for k, v in self._group.items():
+        for k in self._group:
             if not self._sig_was_blocked.pop(k, False):
-                v.unblock()
+                self._group[k].unblock()
 
     def blocked(
         self, exclude: Iterable[str | SignalInstance] = ()
@@ -153,13 +154,14 @@ class SignalRelay(SignalInstance):
         ValueError
             If `slot` is not connected and `missing_ok` is False.
         """
-        for signal in self._group.values():
-            signal.disconnect(slot, missing_ok)
+        for signal in self._group:
+            self._group[signal].disconnect(slot, missing_ok)
         super().disconnect(slot, missing_ok)
 
 
 @mypyc_attr(allow_interpreted_subclasses=True)
-class SignalGroup(Mapping[str, SignalInstance]):
+# class SignalGroup(Mapping[str, SignalInstance]):
+class SignalGroup:
     _signals_: ClassVar[Mapping[str, Signal]]
     _uniform: ClassVar[bool] = False
 
