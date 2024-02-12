@@ -493,9 +493,7 @@ class SignalInstance:
                         extra = f"- Slot types {slot_sig} do not match types in signal."
                         self._raise_connection_error(slot, extra)
 
-                # this type ignore is only needed to build mypyc on pythong 3.7
-                # can be removed when we drop support for 3.7
-                cb = weak_callback(  # type: ignore
+                cb = weak_callback(
                     slot,
                     max_args=max_args,
                     finalize=self._try_discard,
@@ -774,9 +772,8 @@ class SignalInstance:
                 ) from e
             raise
 
-        n_spec_params = len(spec.parameters)
         # if `slot` requires more arguments than we will provide, raise.
-        if minargs > n_spec_params:
+        if minargs > (n_spec_params := len(spec.parameters)):
             extra = (
                 f"- Slot requires at least {minargs} positional "
                 f"arguments, but spec only provides {n_spec_params}"

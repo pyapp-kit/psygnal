@@ -8,7 +8,7 @@ build-backend = "hatchling.build"
 name = "psygnal"
 description = "Fast python callback/event system modeled after Qt Signals"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 license = { text = "BSD 3-Clause License" }
 authors = [{ name = "Talley Lambert", email = "talley.lambert@gmail.com" }]
 classifiers = [
@@ -16,7 +16,6 @@ classifiers = [
     "License :: OSI Approved :: BSD License",
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -25,11 +24,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dynamic = ["version"]
-dependencies = [
-    "typing-extensions >=3.7.4.2",
-    "mypy_extensions",
-    "importlib_metadata ; python_version < '3.8'",
-]
+dependencies = ["typing-extensions >=3.7.4.2", "mypy_extensions"]
 
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
@@ -122,7 +117,7 @@ exclude = [
 [tool.cibuildwheel]
 # Skip 32-bit builds & PyPy wheels on all platforms
 skip = ["*-manylinux_i686", "*-musllinux_i686", "*-win32", "pp*"]
-build = ["cp37-*", "cp38-*", "cp39-*", "cp310-*", "cp311-*"]
+build = ["cp38-*", "cp39-*", "cp310-*", "cp311-*", "cp312-*"]
 test-extras = ["test"]
 test-command = "pytest {project}/tests -v"
 test-skip = "*-musllinux*"
@@ -196,14 +191,8 @@ module = ["numpy.*", "wrapt", "pydantic.*"]
 ignore_errors = true
 
 [[tool.mypy.overrides]]
-# msgspec is only available on Python 3.8+ ... so we need to ignore it
-module = ["wrapt", "msgspec"]
+module = ["wrapt"]
 ignore_missing_imports = true
-
-# remove when dropping python 3.7
-[[tool.mypy.overrides]]
-module = ["psygnal._signal"]
-warn_unused_ignores = false
 
 # https://coverage.readthedocs.io/en/6.4/config.html
 [tool.coverage.report]
