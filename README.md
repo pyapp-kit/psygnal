@@ -101,10 +101,20 @@ https://codspeed.io/pyapp-kit/psygnal
 
 ## Developers
 
+### Compiling
+
+While `psygnal` is a pure python package, it is compiled with mypyc to increase
+performance.  To test the compiled version locally, you can run:
+
+```bash
+make build
+```
+
+(which is just an alias for `HATCH_BUILD_HOOKS_ENABLE=1 pip install -e .`)
+
 ### Debugging
 
-While `psygnal` is a pure python module, it is compiled with mypyc to increase
-performance.  To disable all compiled files and run the pure python version,
+ To disable all compiled files and run the pure python version,
 you may run:
 
 ```bash
