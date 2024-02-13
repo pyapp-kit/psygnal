@@ -212,7 +212,7 @@ def test_dataclass_setattr(type_: str, benchmark: Callable) -> None:
     Foo = _get_dataclass(type_)
     foo = Foo(a=1, b="hi", c=True, d=1.0, e=(1, "hi"))
     mock = Mock()
-    foo.events.connect(mock)
+    foo.events._psygnal_relay.connect(mock)
 
     def _doit() -> None:
         foo.a = 2
