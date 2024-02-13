@@ -333,6 +333,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         # but if we don't use `ClassVar`, then the `dataclass_transform` decorator
         # will add _events: SignalGroup to the __init__ signature, for *all* user models
         _model_self_._events = Group(_model_self_)  # type: ignore [misc]
+        _model_self_._event_names = set(_model_self_._events)  # for setattr performance
 
     def _super_setattr_(self, name: str, value: Any) -> None:
         # pydantic will raise a ValueError if extra fields are not allowed
@@ -345,9 +346,9 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
 
     def __setattr__(self, name: str, value: Any) -> None:
         if (
-            name == "_events"
-            or not hasattr(self, "_events")  # can happen on init
-            or name not in self._events
+            name == "_event_names"
+            or not hasattr(self, "_event_names")
+            or name not in self._event_names
         ):
             # fallback to default behavior
             return self._super_setattr_(name, value)
