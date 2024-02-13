@@ -67,11 +67,11 @@ def test_signal_group_connect(direct: bool):
     group = MyGroup()
     if direct:
         # the callback wants the emitted arguments directly
-        group.connect_direct(mock)
+        group.all.connect_direct(mock)
     else:
         # the callback will receive an EmissionInfo tuple
         # (SignalInstance, arg_tuple)
-        group.connect(mock)
+        group.all.connect(mock)
     group.sig1.emit(1)
     group.sig2.emit("hi")
 
@@ -89,14 +89,14 @@ def test_signal_group_connect(direct: bool):
 
 
 def test_signal_group_connect_no_args():
-    """Test that group.connect can take a callback that wants no args"""
+    """Test that group.all.connect can take a callback that wants no args"""
     group = MyGroup()
     count = []
 
     def my_slot() -> None:
         count.append(1)
 
-    group.connect(my_slot)
+    group.all.connect(my_slot)
     group.sig1.emit(1)
     group.sig2.emit("hi")
     assert len(count) == 2
@@ -108,7 +108,7 @@ def test_group_blocked():
     mock1 = Mock()
     mock2 = Mock()
 
-    group.connect(mock1)
+    group.all.connect(mock1)
     group.sig1.connect(mock2)
     group.sig1.emit(1)
 
@@ -121,7 +121,7 @@ def test_group_blocked():
     group.sig2.block()
     assert group.sig2._is_blocked
 
-    with group.blocked():
+    with group.all.blocked():
         group.sig1.emit(1)
         assert group.sig1._is_blocked
 
@@ -143,7 +143,7 @@ def test_group_blocked_exclude():
     group.sig1.connect(mock1)
     group.sig2.connect(mock2)
 
-    with group.blocked(exclude=("sig2",)):
+    with group.all.blocked(exclude=("sig2",)):
         group.sig1.emit(1)
         group.sig2.emit("hi")
     mock1.assert_not_called()
@@ -160,7 +160,7 @@ def test_group_disconnect_single_slot():
     group.sig1.connect(mock1)
     group.sig2.connect(mock2)
 
-    group.disconnect(mock1)
+    group.all.disconnect(mock1)
     group.sig1.emit()
     mock1.assert_not_called()
 
@@ -178,7 +178,7 @@ def test_group_disconnect_all_slots():
     group.sig1.connect(mock1)
     group.sig2.connect(mock2)
 
-    group.disconnect()
+    group.all.disconnect()
     group.sig1.emit()
     group.sig2.emit()
 
@@ -195,10 +195,10 @@ def test_weakref():
 
     obj = T()
     group = MyGroup(obj)
-    assert group.instance is obj
+    assert group.all.instance is obj
     del obj
     gc.collect()
-    assert group.instance is None
+    assert group.all.instance is None
 
 
 def test_group_deepcopy() -> None:
@@ -210,7 +210,7 @@ def test_group_deepcopy() -> None:
     group = MyGroup(obj)
     assert deepcopy(group) is not group  # but no warning
 
-    group.connect(obj.method)
+    group.all.connect(obj.method)
 
     # with pytest.warns(UserWarning, match="does not copy connected weakly"):
     group2 = deepcopy(group)
@@ -218,8 +218,8 @@ def test_group_deepcopy() -> None:
     assert not len(group2._psygnal_relay)
     mock = Mock()
     mock2 = Mock()
-    group.connect(mock)
-    group2.connect(mock2)
+    group.all.connect(mock)
+    group2.all.connect(mock2)
 
     group2.sig1.emit(1)
     mock.assert_not_called()

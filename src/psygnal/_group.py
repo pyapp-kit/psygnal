@@ -25,6 +25,8 @@ from mypy_extensions import mypyc_attr
 
 from psygnal._signal import Signal, SignalInstance, _SignalBlocker
 
+__all__ = ["EmissionInfo", "SignalGroup"]
+
 
 class EmissionInfo(NamedTuple):
     """Tuple containing information about an emission event.
@@ -42,20 +44,23 @@ class EmissionInfo(NamedTuple):
 class SignalRelay(SignalInstance):
     """Special SignalInstance that can be used to connect to all signals in a group."""
 
-    def __init__(self, group: SignalGroup, instance: Any = None) -> None:
-        self._group = group
+    def __init__(
+        self, signals: Mapping[str, SignalInstance], instance: Any = None
+    ) -> None:
         super().__init__(signature=(EmissionInfo,), instance=instance)
+        self._signals = signals
         self._sig_was_blocked: dict[str, bool] = {}
 
         # silence any warnings about failed weakrefs (will occur in compiled version)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            for sig in group._psygnal_instances.values():
-                sig.connect(self._slot_relay, check_nargs=False, check_types=False)
+            for sig in signals.values():
+                sig.connect(
+                    self._slot_relay, check_nargs=False, check_types=False, unique=True
+                )
 
     def _slot_relay(self, *args: Any) -> None:
-        emitter = Signal.current_emitter()
-        if emitter:
+        if emitter := Signal.current_emitter():
             info = EmissionInfo(emitter, args)
             self._run_emit_loop((info,))
 
@@ -103,8 +108,8 @@ class SignalRelay(SignalInstance):
         """
 
         def _inner(slot: Callable) -> Callable:
-            for sig in self._group:
-                self._group[sig].connect(
+            for sig in self._signals:
+                self._signals[sig].connect(
                     slot,
                     check_nargs=check_nargs,
                     check_types=check_types,
@@ -118,8 +123,8 @@ class SignalRelay(SignalInstance):
     def block(self, exclude: Iterable[str | SignalInstance] = ()) -> None:
         """Block this signal and all emitters from emitting."""
         super().block()
-        for k in self._group:
-            v = self._group[k]
+        for k in self._signals:
+            v = self._signals[k]
             if exclude and v in exclude or k in exclude:
                 continue
             self._sig_was_blocked[k] = v._is_blocked
@@ -128,9 +133,9 @@ class SignalRelay(SignalInstance):
     def unblock(self) -> None:
         """Unblock this signal and all emitters, allowing them to emit."""
         super().unblock()
-        for k in self._group:
+        for k in self._signals:
             if not self._sig_was_blocked.pop(k, False):
-                self._group[k].unblock()
+                self._signals[k].unblock()
 
     def blocked(
         self, exclude: Iterable[str | SignalInstance] = ()
@@ -162,8 +167,8 @@ class SignalRelay(SignalInstance):
         ValueError
             If `slot` is not connected and `missing_ok` is False.
         """
-        for signal in self._group:
-            self._group[signal].disconnect(slot, missing_ok)
+        for signal in self._signals:
+            self._signals[signal].disconnect(slot, missing_ok)
         super().disconnect(slot, missing_ok)
 
 
@@ -186,7 +191,7 @@ class SignalGroup:
         self._psygnal_instances: dict[str, SignalInstance] = {
             name: signal.__get__(self, cls) for name, signal in cls._signals_.items()
         }
-        self._psygnal_relay = SignalRelay(self, instance)
+        self._psygnal_relay = SignalRelay(self._psygnal_instances, instance)
 
         # determine the public name of the signal relay.
         # by default, this is "all", but it can be overridden by the user by creating
@@ -222,7 +227,14 @@ class SignalGroup:
             if name in self._psygnal_instances:
                 return self._psygnal_instances[name]
             if name != "_psygnal_relay" and hasattr(self._psygnal_relay, name):
-                #   TODO: add deprecation warning and redirect to `self.all`
+                warnings.warn(
+                    f"Accessing SignalInstance attribute {name!r} on a SignalGroup is "
+                    f"deprecated. Access it on the {self._psygnal_relay_name!r} "
+                    f"attribute instead. e.g. `group.{self._psygnal_relay_name}.{name}`"
+                    ". This will be an error in a future version.",
+                    FutureWarning,
+                    stacklevel=2,
+                )
                 return getattr(self._psygnal_relay, name)
         raise AttributeError(f"{type(self).__name__!r} has no attribute {name!r}")
 
@@ -251,11 +263,14 @@ class SignalGroup:
     @classmethod
     def is_uniform(cls) -> bool:
         """Return true if all signals in the group have the same signature."""
-        # TODO: Deprecate this method
+        # TODO: Deprecate this method?
         return cls._uniform
 
     def __deepcopy__(self, memo: dict[int, Any]) -> SignalGroup:
-        # TODO: should we also copy connections?
+        # TODO:
+        # This really isn't a deep copy. Should we also copy connections?
+        # a working deepcopy is important for pydantic support, but in most cases
+        # it will be a group without any signals connected
         return type(self)(instance=self._psygnal_relay.instance)
 
 

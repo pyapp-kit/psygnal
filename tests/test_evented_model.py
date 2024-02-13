@@ -175,7 +175,7 @@ def test_evented_model_da_array_equality():
     assert model1 == model2
 
 
-def test_values_updated():
+def test_values_updated() -> None:
     class User(EventedModel):
         """Demo evented model.
 
@@ -201,7 +201,17 @@ def test_values_updated():
     user1_events = Mock()
     u1_id_events = Mock()
     u2_id_events = Mock()
-    user1.events.connect(user1_events)
+
+    with pytest.warns(
+        FutureWarning,
+        match="Accessing SignalInstance attribute 'connect' on a SignalGroup "
+        "is deprecated",
+    ):
+        user1.events.connect(user1_events)
+        user1.events.connect(user1_events)
+
+    user1.events.id.connect(u1_id_events)
+    user2.events.id.connect(u2_id_events)
     user1.events.id.connect(u1_id_events)
     user2.events.id.connect(u2_id_events)
 
@@ -837,7 +847,7 @@ def test_connect_only_to_events() -> None:
     check_mock.assert_not_called()
     mock1.assert_not_called()
 
-    m.events.connect(mock1)
+    m.events.all.connect(mock1)
     with patch.object(
         model_module,
         "_check_field_equality",

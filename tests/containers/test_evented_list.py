@@ -313,7 +313,7 @@ def test_child_events():
     e_obj = E()
     root: EventedList[E] = EventedList(child_events=True)
     mock = Mock()
-    root.events.connect(mock)
+    root.events.all.connect(mock)
     root.append(e_obj)
     assert len(e_obj.test) == 1
     assert root == [e_obj]
@@ -347,7 +347,7 @@ def test_child_events_groups():
     e_obj = E()
     root: EventedList[E] = EventedList(child_events=True)
     mock = Mock()
-    root.events.connect(mock)
+    root.events.all.connect(mock)
     root.append(e_obj)
     assert root == [e_obj]
     e_obj.events.test2.emit("hi")
@@ -372,7 +372,7 @@ def test_child_events_groups():
 
     # note that we can get back to the actual object in the list using the .instance
     # attribute on signal instances.
-    assert e_obj.events.test2.instance.instance == e_obj
+    assert e_obj.events.test2.instance.all.instance == e_obj
     mock.assert_has_calls(expected)
 
 
