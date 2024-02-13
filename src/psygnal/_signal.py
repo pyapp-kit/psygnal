@@ -1120,19 +1120,7 @@ class SignalInstance:
         )
         dd = {slot: getattr(self, slot) for slot in attrs}
         dd["_instance"] = self._instance()
-        dd["_slots"] = [
-            x
-            for x in self._slots
-            if (
-                isinstance(x, StrongFunction)
-                # HACK
-                # this is a hack to retain the ability of a deep-copied signal group
-                # to connect to all signals in the group.
-                # reconsider this mechanism.  It could also be achieved more directly
-                # as a special __deepcopy__ method on SignalGroup
-                or getattr(x, "_obj_qualname", None) == "SignalRelay._slot_relay"
-            )
-        ]
+        dd["_slots"] = [x for x in self._slots if isinstance(x, StrongFunction)]
         if len(self._slots) > len(dd["_slots"]):
             warnings.warn(
                 "Pickling a SignalInstance does not copy connected weakly referenced "
