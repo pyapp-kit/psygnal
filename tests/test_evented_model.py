@@ -202,13 +202,8 @@ def test_values_updated() -> None:
     u1_id_events = Mock()
     u2_id_events = Mock()
 
-    with pytest.warns(
-        FutureWarning,
-        match="Accessing SignalInstance attribute 'connect' on a SignalGroup "
-        "is deprecated",
-    ):
-        user1.events.connect(user1_events)
-        user1.events.connect(user1_events)
+    user1.events.connect(user1_events)
+    user1.events.connect(user1_events)
 
     user1.events.id.connect(u1_id_events)
     user2.events.id.connect(u2_id_events)

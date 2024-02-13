@@ -67,7 +67,13 @@ def test_signal_group_connect(direct: bool):
     group = MyGroup()
     if direct:
         # the callback wants the emitted arguments directly
-        group.all.connect_direct(mock)
+
+        with pytest.warns(
+            FutureWarning,
+            match="Accessing SignalInstance attribute 'connect_direct' on a SignalGroup"
+            " is deprecated",
+        ):
+            group.connect_direct(mock)
     else:
         # the callback will receive an EmissionInfo tuple
         # (SignalInstance, arg_tuple)
