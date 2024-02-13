@@ -1,7 +1,7 @@
 """These utilities may help when using signals and evented objects."""
 from __future__ import annotations
 
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from functools import partial
 from pathlib import Path
 from typing import Any, Callable, Generator, Iterator
@@ -104,11 +104,12 @@ def iter_signal_instances(
     """
     for n in dir(obj):
         if include_private_attrs or not n.startswith("_"):
-            attr = getattr(obj, n)
-            if isinstance(attr, SignalInstance):
-                yield attr
-            if isinstance(attr, SignalGroup):
-                yield attr._psygnal_relay
+            with suppress(AttributeError, FutureWarning):
+                attr = getattr(obj, n)
+                if isinstance(attr, SignalInstance):
+                    yield attr
+                if isinstance(attr, SignalGroup):
+                    yield attr._psygnal_relay
 
 
 _COMPILED_EXTS = (".so", ".pyd")

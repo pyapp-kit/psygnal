@@ -81,10 +81,10 @@ def test_descriptor_inherits(type_: str) -> None:
         # the patching of __setattr__ should only happen once
         # and it will happen only on the first access of .events
         mock_decorator.assert_not_called()
-        assert set(base.events.signals) == {"a"}
-        assert set(foo.events.signals) == {"a", "b"}
-        assert set(bar.events.signals) == {"a", "b", "c"}
-        assert set(bar2.events.signals) == {"a", "b", "c"}
+        assert set(base.events) == {"a"}
+        assert set(foo.events) == {"a", "b"}
+        assert set(bar.events) == {"a", "b", "c"}
+        assert set(bar2.events) == {"a", "b", "c"}
         if not _compiled:  # can't patch otherwise
             assert mock_decorator.call_count == 1
 

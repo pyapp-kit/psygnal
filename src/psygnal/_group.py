@@ -25,7 +25,7 @@ from mypy_extensions import mypyc_attr
 
 from psygnal._signal import Signal, SignalInstance, _SignalBlocker
 
-__all__ = ["EmissionInfo", "SignalGroup"]
+__all__ = ["EmissionInfo", "SignalGroup", "SignalRelay"]
 
 
 class EmissionInfo(NamedTuple):
@@ -75,7 +75,7 @@ class SignalRelay(SignalInstance):
     ) -> Callable[[Callable], Callable] | Callable:
         """Connect `slot` to be called whenever *any* Signal in this group is emitted.
 
-        Params are the same as {meth}`~psygnal.SignalInstance.connect`.  It's probably
+        Params are the same as `psygnal.SignalInstance.connect`.  It's probably
         best to check whether `self.is_uniform()`
 
         Parameters
@@ -84,14 +84,14 @@ class SignalRelay(SignalInstance):
             A callable to connect to this signal.  If the callable accepts less
             arguments than the signature of this slot, then they will be discarded when
             calling the slot.
-        check_nargs : Optional[bool]
+        check_nargs : bool | None
             If `True` and the provided `slot` requires more positional arguments than
             the signature of this Signal, raise `TypeError`. by default `True`.
-        check_types : Optional[bool]
+        check_types : bool | None
             If `True`, An additional check will be performed to make sure that types
             declared in the slot signature are compatible with the signature
             declared by this signal, by default `False`.
-        unique : Union[bool, str]
+        unique : bool | str
             If `True`, returns without connecting if the slot has already been
             connected.  If the literal string "raise" is passed to `unique`, then a
             `ValueError` will be raised if the slot is already connected.
@@ -172,11 +172,23 @@ class SignalRelay(SignalInstance):
         super().disconnect(slot, missing_ok)
 
 
+# NOTE
+# To developers. Avoid adding public names to this class, as it is intended to be
+# a container for user-determined names.  If names must be added, try to prefix
+# with "psygnal_" to avoid conflicts with user-defined names.
 @mypyc_attr(allow_interpreted_subclasses=True)
-# class SignalGroup(Mapping[str, SignalInstance]):
 class SignalGroup:
-    _signals_: ClassVar[Mapping[str, Signal]]
-    _uniform: ClassVar[bool] = False
+    """A collection of signals that can be connected to as a single unit.
+
+    Parameters
+    ----------
+    instance : Any, optional
+        An object to which this SignalGroup is bound, by default None
+    """
+
+    _psygnal_signals: ClassVar[Mapping[str, Signal]]
+    _psygnal_instances: dict[str, SignalInstance]
+    _psygnal_uniform: ClassVar[bool] = False
 
     # see comment in __init__.  This type annotation can be overriden by subclass
     # to change the public name of the SignalRelay attribute
@@ -184,12 +196,13 @@ class SignalGroup:
 
     def __init__(self, instance: Any = None) -> None:
         cls = type(self)
-        if not hasattr(cls, "_signals_"):  # pragma: no cover
+        if not hasattr(cls, "_psygnal_signals"):  # pragma: no cover
             raise TypeError(
                 "Cannot instantiate SignalGroup directly.  Use a subclass instead."
             )
         self._psygnal_instances: dict[str, SignalInstance] = {
-            name: signal.__get__(self, cls) for name, signal in cls._signals_.items()
+            name: signal.__get__(self, cls)
+            for name, signal in cls._psygnal_signals.items()
         }
         self._psygnal_relay = SignalRelay(self._psygnal_instances, instance)
 
@@ -207,14 +220,14 @@ class SignalGroup:
 
     def __init_subclass__(cls, strict: bool = False) -> None:
         """Finds all Signal instances on the class and add them to `cls._signals_`."""
-        cls._signals_ = {
+        cls._psygnal_signals = {
             k: val
             for k, val in getattr(cls, "__dict__", {}).items()
             if isinstance(val, Signal)
         }
 
-        cls._uniform = _is_uniform(cls._signals_.values())
-        if strict and not cls._uniform:
+        cls._psygnal_uniform = _is_uniform(cls._psygnal_signals.values())
+        if strict and not cls._psygnal_uniform:
             raise TypeError(
                 "All Signals in a strict SignalGroup must have the same signature"
             )
@@ -241,30 +254,34 @@ class SignalGroup:
     @property
     def signals(self) -> Mapping[str, SignalInstance]:
         # TODO: deprecate this property
+        warnings.warn(
+            "Accessing the `signals` property on a SignalGroup is deprecated. "
+            "Use __iter__ to iterate over all signal names, and __getitem__ or getattr "
+            "to access signal instances. This will be an error in a future.",
+            FutureWarning,
+            stacklevel=2,
+        )
         return self._psygnal_instances
 
     def __len__(self) -> int:
-        return len(self._signals_)
+        return len(self._psygnal_signals)
 
     def __getitem__(self, item: str) -> SignalInstance:
         return self._psygnal_instances[item]
 
     def __iter__(self) -> Iterator[str]:
-        return iter(self._signals_)
+        return iter(self._psygnal_signals)
 
     def __repr__(self) -> str:
         """Return repr(self)."""
         name = self.__class__.__name__
-        instance = ""
-        nsignals = len(self)
-        signals = f"{nsignals} signals"
-        return f"<SignalGroup {name!r} with {signals}{instance}>"
+        return f"<SignalGroup {name!r} with {len(self)} signals>"
 
     @classmethod
     def is_uniform(cls) -> bool:
         """Return true if all signals in the group have the same signature."""
-        # TODO: Deprecate this method?
-        return cls._uniform
+        # TODO: Deprecate this meth?
+        return cls._psygnal_uniform
 
     def __deepcopy__(self, memo: dict[int, Any]) -> SignalGroup:
         # TODO:

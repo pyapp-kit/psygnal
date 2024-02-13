@@ -17,8 +17,8 @@ def test_signal_group():
     assert not MyGroup.is_uniform()
     group = MyGroup()
     assert not group.is_uniform()
-    assert isinstance(group.signals, dict)
-    assert group.signals == {"sig1": group.sig1, "sig2": group.sig2}
+    assert list(group) == ["sig1", "sig2"]  # testing __iter__
+    assert group.sig1 is group["sig1"]
 
     assert repr(group) == "<SignalGroup 'MyGroup' with 2 signals>"
 
@@ -33,8 +33,7 @@ def test_uniform_group():
     assert MyStrictGroup.is_uniform()
     group = MyStrictGroup()
     assert group.is_uniform()
-    assert isinstance(group.signals, dict)
-    assert set(group.signals) == {"sig1", "sig2"}
+    assert set(group) == {"sig1", "sig2"}
 
     with pytest.raises(TypeError) as e:
 

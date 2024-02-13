@@ -447,7 +447,7 @@ class SignalGroupDescriptor:
 
     def _create_group(self, owner: type) -> type[SignalGroup]:
         Group = self._signal_group or _build_dataclass_signal_group(owner, self._eqop)
-        if self._warn_on_no_fields and not Group._signals_:
+        if self._warn_on_no_fields and not Group._psygnal_signals:
             warnings.warn(
                 f"No mutable fields found on class {owner}: no events will be "
                 "emitted. (Is this a dataclass, attrs, msgspec, or pydantic model?)",

@@ -70,11 +70,12 @@ def test_evented_model():
 
     # test event system
     assert isinstance(user.events, SignalGroup)
-    assert "id" in user.events.signals
-    assert "name" in user.events.signals
+    with pytest.warns(FutureWarning):
+        assert "id" in user.events.signals
+        assert "name" in user.events.signals
 
     # ClassVars are excluded from events
-    assert "age" not in user.events.signals
+    assert "age" not in user.events
 
     id_mock = Mock()
     name_mock = Mock()
@@ -202,8 +203,8 @@ def test_values_updated() -> None:
     u1_id_events = Mock()
     u2_id_events = Mock()
 
-    user1.events.connect(user1_events)
-    user1.events.connect(user1_events)
+    user1.events.all.connect(user1_events)
+    user1.events.all.connect(user1_events)
 
     user1.events.id.connect(u1_id_events)
     user2.events.id.connect(u2_id_events)
@@ -527,7 +528,7 @@ def test_evented_model_with_property_setters():
 
 def test_evented_model_with_property_setters_events():
     t = T()
-    assert "c" in t.events.signals  # the setter has an event
+    assert "c" in t.events  # the setter has an event
     mock_a = Mock()
     mock_b = Mock()
     mock_c = Mock()
