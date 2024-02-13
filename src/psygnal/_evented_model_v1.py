@@ -433,7 +433,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         if not isinstance(values, dict):  # pragma: no cover
             raise TypeError(f"values must be a dict or BaseModel. got {type(values)}")
 
-        with self.events.all.paused():  # TODO: reduce?
+        with self.events._psygnal_relay.paused():  # TODO: reduce?
             for key, value in values.items():
                 field = getattr(self, key)
                 if isinstance(field, EventedModel) and recurse:
