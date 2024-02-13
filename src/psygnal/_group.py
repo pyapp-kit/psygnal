@@ -184,6 +184,14 @@ class SignalGroup:
     ----------
     instance : Any, optional
         An object to which this SignalGroup is bound, by default None
+
+    Attributes
+    ----------
+    all : SignalRelay
+        A special SignalRelay instance that can be used to connect to all signals in
+        this group.  The name of this attribute can be overridden by the user by
+        creating a new name for the SignalRelay annotation on a subclass of SignalGroup
+        e.g. `my_name: SignalRelay`
     """
 
     _psygnal_signals: ClassVar[Mapping[str, Signal]]
