@@ -9,7 +9,7 @@ except ImportError as e:
         f"{e}. Please `pip install psygnal[proxy]` to use EventedObjectProxies"
     ) from e
 
-from psygnal._group2 import SignalGroup
+from psygnal._group import SignalGroup
 from psygnal._signal import Signal
 
 T = TypeVar("T")

@@ -19,7 +19,7 @@ from typing import (
 )
 
 from ._dataclass_utils import iter_fields
-from ._group2 import SignalGroup
+from ._group import SignalGroup
 from ._signal import Signal, SignalInstance
 
 if TYPE_CHECKING:

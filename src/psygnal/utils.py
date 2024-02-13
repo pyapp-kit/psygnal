@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Callable, Generator, Iterator
 from warnings import warn
 
-from ._group2 import EmissionInfo, SignalGroup, SignalRelay
+from ._group import EmissionInfo, SignalGroup, SignalRelay
 from ._signal import SignalInstance
 
 __all__ = ["monitor_events", "iter_signal_instances"]

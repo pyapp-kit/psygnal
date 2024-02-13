@@ -16,7 +16,7 @@ import pydantic.version
 from pydantic import BaseModel
 
 from psygnal import EmissionInfo, EventedModel
-from psygnal._group2 import SignalGroup
+from psygnal._group import SignalGroup
 
 PYDANTIC_V2 = pydantic.version.VERSION.startswith("2")
 

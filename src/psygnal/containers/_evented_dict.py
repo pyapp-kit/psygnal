@@ -17,7 +17,7 @@ from typing import (
 if TYPE_CHECKING:
     from typing import Self
 
-from psygnal._group2 import SignalGroup
+from psygnal._group import SignalGroup
 from psygnal._signal import Signal
 
 _K = TypeVar("_K")

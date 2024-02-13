@@ -5,7 +5,7 @@ import pytest
 from typing_extensions import Annotated
 
 from psygnal import EmissionInfo, Signal, SignalGroup
-from psygnal._group2 import SignalRelay
+from psygnal._group import SignalRelay
 
 
 class MyGroup(SignalGroup):

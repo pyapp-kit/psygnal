@@ -34,7 +34,7 @@ from typing import (
     overload,
 )
 
-from psygnal._group2 import EmissionInfo, SignalGroup, SignalRelay
+from psygnal._group import EmissionInfo, SignalGroup, SignalRelay
 from psygnal._signal import Signal, SignalInstance
 from psygnal.utils import iter_signal_instances
 

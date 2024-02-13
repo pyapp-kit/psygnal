@@ -21,7 +21,7 @@ from psygnal import (
     get_evented_namespace,
     is_evented,
 )
-from psygnal._group2 import SignalGroup
+from psygnal._group import SignalGroup
 
 decorated_or_descriptor = pytest.mark.parametrize(
     "decorator", [True, False], ids=["decorator", "descriptor"]

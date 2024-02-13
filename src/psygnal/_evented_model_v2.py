@@ -19,7 +19,7 @@ from pydantic import BaseModel, ConfigDict, PrivateAttr
 from pydantic._internal import _model_construction, _utils
 from pydantic.fields import Field, FieldInfo
 
-from ._group2 import SignalGroup
+from ._group import SignalGroup
 from ._group_descriptor import _check_field_equality, _pick_equality_operator
 from ._signal import Signal, SignalInstance
 
