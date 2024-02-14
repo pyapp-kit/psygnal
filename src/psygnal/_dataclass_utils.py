@@ -45,13 +45,11 @@ class DataClassType:
 
 
 @overload
-def is_dataclass(obj: type) -> TypeGuard[type[DataClassType]]:
-    ...
+def is_dataclass(obj: type) -> TypeGuard[type[DataClassType]]: ...
 
 
 @overload
-def is_dataclass(obj: object) -> TypeGuard[DataClassType]:
-    ...
+def is_dataclass(obj: object) -> TypeGuard[DataClassType]: ...
 
 
 def is_dataclass(obj: object) -> TypeGuard[DataClassType]:
@@ -65,13 +63,11 @@ def is_dataclass(obj: object) -> TypeGuard[DataClassType]:
 
 
 @overload
-def is_attrs_class(obj: type) -> TypeGuard[type[AttrsType]]:
-    ...
+def is_attrs_class(obj: type) -> TypeGuard[type[AttrsType]]: ...
 
 
 @overload
-def is_attrs_class(obj: object) -> TypeGuard[AttrsType]:
-    ...
+def is_attrs_class(obj: object) -> TypeGuard[AttrsType]: ...
 
 
 def is_attrs_class(obj: object) -> TypeGuard[type[AttrsType]]:
@@ -82,13 +78,11 @@ def is_attrs_class(obj: object) -> TypeGuard[type[AttrsType]]:
 
 
 @overload
-def is_pydantic_model(obj: type) -> TypeGuard[type[BaseModel]]:
-    ...
+def is_pydantic_model(obj: type) -> TypeGuard[type[BaseModel]]: ...
 
 
 @overload
-def is_pydantic_model(obj: object) -> TypeGuard[BaseModel]:
-    ...
+def is_pydantic_model(obj: object) -> TypeGuard[BaseModel]: ...
 
 
 def is_pydantic_model(obj: object) -> TypeGuard[BaseModel]:
@@ -99,13 +93,11 @@ def is_pydantic_model(obj: object) -> TypeGuard[BaseModel]:
 
 
 @overload
-def is_msgspec_struct(obj: type) -> TypeGuard[type[msgspec.Struct]]:
-    ...
+def is_msgspec_struct(obj: type) -> TypeGuard[type[msgspec.Struct]]: ...
 
 
 @overload
-def is_msgspec_struct(obj: object) -> TypeGuard[msgspec.Struct]:
-    ...
+def is_msgspec_struct(obj: object) -> TypeGuard[msgspec.Struct]: ...
 
 
 def is_msgspec_struct(obj: object) -> TypeGuard[msgspec.Struct]:

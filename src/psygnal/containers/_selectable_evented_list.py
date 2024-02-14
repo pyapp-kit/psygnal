@@ -1,4 +1,5 @@
 """MutableSequence with a selection model."""
+
 from typing import Any, Iterable, Tuple, TypeVar
 
 from ._evented_list import EventedList, ListEvents

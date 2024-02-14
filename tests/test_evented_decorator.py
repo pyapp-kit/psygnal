@@ -75,8 +75,7 @@ def test_native_dataclass(decorator: bool, kwargs: dict) -> None:
     if decorator:
 
         @evented(equality_operators={"qux": operator.eq})  # just for test coverage
-        class Foo(Base):
-            ...
+        class Foo(Base): ...
 
     else:
 
@@ -102,8 +101,7 @@ def test_attrs_dataclass(decorator: bool, slots: bool) -> None:
     if decorator:
 
         @evented
-        class Foo(Base):
-            ...
+        class Foo(Base): ...
 
     else:
 
@@ -135,8 +133,7 @@ def test_pydantic_dataclass(decorator: bool) -> None:
     if decorator:
 
         @evented
-        class Foo(Base):
-            ...
+        class Foo(Base): ...
 
     else:
 
@@ -164,8 +161,7 @@ def test_pydantic_base_model(decorator: bool) -> None:
     if decorator:
 
         @evented(events_namespace="my_events")
-        class Foo(Base):
-            ...
+        class Foo(Base): ...
 
     else:
 
@@ -205,8 +201,7 @@ def test_no_signals_warn() -> None:
     with pytest.warns(UserWarning, match="No mutable fields found on class"):
 
         @evented
-        class Foo:
-            ...
+        class Foo: ...
 
         _ = Foo().events  # type: ignore
 

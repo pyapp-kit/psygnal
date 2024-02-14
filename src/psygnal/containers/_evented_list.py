@@ -21,6 +21,7 @@ interface, and call one of those 4 methods.  So if you override a method, you
 MUST make sure that all the appropriate events are emitted.  (Tests should
 cover this in test_evented_list.py)
 """
+
 from __future__ import annotations  # pragma: no cover
 
 from typing import (
@@ -141,12 +142,10 @@ class EventedList(MutableSequence[_T]):
         self._post_insert(value)
 
     @overload
-    def __getitem__(self, key: int) -> _T:
-        ...
+    def __getitem__(self, key: int) -> _T: ...
 
     @overload
-    def __getitem__(self, key: slice) -> Self:
-        ...
+    def __getitem__(self, key: slice) -> Self: ...
 
     def __getitem__(self, key: Index) -> _T | Self:
         """Return self[key]."""
@@ -154,12 +153,10 @@ class EventedList(MutableSequence[_T]):
         return self.__newlike__(result) if isinstance(result, list) else result
 
     @overload
-    def __setitem__(self, key: int, value: _T) -> None:
-        ...
+    def __setitem__(self, key: int, value: _T) -> None: ...
 
     @overload
-    def __setitem__(self, key: slice, value: Iterable[_T]) -> None:
-        ...
+    def __setitem__(self, key: slice, value: Iterable[_T]) -> None: ...
 
     def __setitem__(self, key: Index, value: _T | Iterable[_T]) -> None:
         """Set self[key] to value."""

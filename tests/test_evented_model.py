@@ -255,8 +255,7 @@ def test_update_with_inner_model_union():
 def test_update_with_inner_model_protocol():
     @runtime_checkable
     class InnerProtocol(Protocol):
-        def string(self) -> str:
-            ...
+        def string(self) -> str: ...
 
         # Protocol fields are not successfully set without explicit validation.
         @classmethod
@@ -559,12 +558,10 @@ def test_non_setter_with_dependencies() -> None:
             x: int
 
             @property
-            def y(self):
-                ...
+            def y(self): ...
 
             @y.setter
-            def y(self, v):
-                ...
+            def y(self, v): ...
 
             if PYDANTIC_V2:
                 model_config = {
@@ -585,12 +582,10 @@ def test_unrecognized_property_dependencies():
             x: int
 
             @property
-            def y(self):
-                ...
+            def y(self): ...
 
             @y.setter
-            def y(self, v):
-                ...
+            def y(self, v): ...
 
             if PYDANTIC_V2:
                 model_config = {
@@ -646,8 +641,7 @@ def test_setter_inheritance():
 
     assert M(x=2).x == 2
 
-    class N(M):
-        ...
+    class N(M): ...
 
     assert N(x=2).x == 2
 

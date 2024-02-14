@@ -31,9 +31,9 @@ class QueuedCallback(WeakCallback):
         thread will be used.
     """
 
-    _GLOBAL_QUEUE: ClassVar[
-        collections.defaultdict[Thread, Queue[CbArgsTuple]]
-    ] = DefaultDict(Queue)
+    _GLOBAL_QUEUE: ClassVar[collections.defaultdict[Thread, Queue[CbArgsTuple]]] = (
+        DefaultDict(Queue)
+    )
 
     def __init__(
         self,
