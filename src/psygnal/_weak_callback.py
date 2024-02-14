@@ -281,10 +281,12 @@ class WeakCallback(Generic[_R]):
             return f"{module}.{obj.__qualname__}"
         elif getattr(type(obj), "__qualname__", ""):
             return f"{module}.{type(obj).__qualname__}"
-        return repr(obj)
+        # this line was hit in py3.7, but not afterwards.
+        # retained as a fallback, but not covered by tests.
+        return repr(obj)  # pragma: no cover
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} on {self._object_repr}>"
+        return f"<{self.__class__.__name__} on {self._object_repr}>"  # pragma: no cover
 
 
 def _kill_and_finalize(

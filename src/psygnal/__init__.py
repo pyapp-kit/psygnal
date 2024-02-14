@@ -4,21 +4,11 @@ It emulates the signal/slot pattern from Qt, but it does not require Qt.
 """
 
 import os
+from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    PackageNotFoundError = Exception
     from ._evented_model_v1 import EventedModel  # noqa: TCH004
-
-    def version(package: str) -> str:
-        """Return version."""
-
-else:
-    # hiding this import from type checkers so mypyc can work on both 3.7 and later
-    try:
-        from importlib.metadata import PackageNotFoundError, version
-    except ImportError:
-        from importlib_metadata import PackageNotFoundError, version
 
 
 try:
