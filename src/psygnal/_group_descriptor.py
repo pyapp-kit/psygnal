@@ -436,11 +436,8 @@ class SignalGroupDescriptor:
                     setattr(instance, self._name, self._instance_map[obj_id])
 
             # clean up the cache when the instance is deleted
-            with contextlib.suppress(TypeError):
-                # on 3.7 this is type error, above it's not... but mypy yells about
-                # type ignore on 3.8+, so we do this funny business instead.
-                args = (instance, self._instance_map.pop, obj_id, None)
-                weakref.finalize(*args)  # type: ignore
+            with contextlib.suppress(TypeError):  # if it's not weakref-able
+                weakref.finalize(instance, self._instance_map.pop, obj_id, None)
 
         return self._instance_map[obj_id]
 

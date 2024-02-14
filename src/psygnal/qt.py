@@ -72,6 +72,5 @@ def stop_emitting_from_queue(thread: Thread | None = None) -> None:
         in the thread from which this function is called.
     """
     _thread = current_thread() if thread is None else thread
-    timer = _TIMERS.get(_thread)
-    if timer is not None:
+    if (timer := _TIMERS.get(_thread)) is not None:
         timer.stop()
