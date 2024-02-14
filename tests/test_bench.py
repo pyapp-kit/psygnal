@@ -86,9 +86,11 @@ def test_connect_time(
     if callback_type == "setattr":
         func: Callable = emitter.one_int.connect_setattr
         args: tuple = (obj, "x")
+        kwargs = {"maxargs": 1}
     elif callback_type == "setitem":
         func = emitter.one_int.connect_setitem
         args = (obj, "x")
+        kwargs = {"maxargs": 1}
     else:
         func = emitter.one_int.connect
         args = (_get_callback(callback_type, obj),)
@@ -107,10 +109,10 @@ def test_emit_time(benchmark: Callable, n_connections: int, callback_type: str) 
     obj = Obj()
     if callback_type == "setattr":
         for _ in range(n_connections):
-            emitter.one_int.connect_setattr(obj, "x")
+            emitter.one_int.connect_setattr(obj, "x", maxargs=1)
     elif callback_type == "setitem":
         for _ in range(n_connections):
-            emitter.one_int.connect_setitem(obj, "x")
+            emitter.one_int.connect_setitem(obj, "x", maxargs=1)
     else:
         callback = _get_callback(callback_type, obj)
         for _ in range(n_connections):

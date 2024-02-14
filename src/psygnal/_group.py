@@ -7,6 +7,7 @@ tuple, which contains `.signal`: the SignalInstance doing the emitting, and `.ar
 the args that were emitted.
 
 """
+
 from __future__ import annotations
 
 import warnings

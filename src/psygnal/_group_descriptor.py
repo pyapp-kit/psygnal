@@ -131,7 +131,7 @@ class _DataclassFieldSignalInstance(SignalInstance):
         self,
         obj: ref | object,
         attr: str,
-        maxargs: int | None = 1,
+        maxargs: int | None | object = 1,
         *,
         on_ref_error: RefErrorChoice = "warn",
     ) -> WeakCallback[None]:
@@ -211,15 +211,13 @@ SetAttr = Callable[[Any, str, Any], None]
 
 
 @overload
-def evented_setattr(signal_group_name: str, super_setattr: SetAttr) -> SetAttr:
-    ...
+def evented_setattr(signal_group_name: str, super_setattr: SetAttr) -> SetAttr: ...
 
 
 @overload
 def evented_setattr(
     signal_group_name: str, super_setattr: Literal[None] | None = None
-) -> Callable[[SetAttr], SetAttr]:
-    ...
+) -> Callable[[SetAttr], SetAttr]: ...
 
 
 def evented_setattr(
@@ -417,12 +415,10 @@ class SignalGroupDescriptor:
     _instance_map: ClassVar[dict[int, SignalGroup]] = {}
 
     @overload
-    def __get__(self, instance: None, owner: type) -> SignalGroupDescriptor:
-        ...
+    def __get__(self, instance: None, owner: type) -> SignalGroupDescriptor: ...
 
     @overload
-    def __get__(self, instance: object, owner: type) -> SignalGroup:
-        ...
+    def __get__(self, instance: object, owner: type) -> SignalGroup: ...
 
     def __get__(
         self, instance: object, owner: type

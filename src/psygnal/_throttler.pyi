@@ -17,8 +17,10 @@ class _ThrottlerBase(Generic[P]):
     ) -> None: ...
     def cancel(self) -> None:
         """Cancel any pending calls."""
+
     def flush(self) -> None:
         """Force a call if there is one pending."""
+
     def __call__(self, *args: P.args, **kwargs: P.kwargs) -> None: ...
 
 class Throttler(_ThrottlerBase[P]):

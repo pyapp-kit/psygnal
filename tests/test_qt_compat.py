@@ -1,4 +1,5 @@
 """qtbot should work for testing!"""
+
 from threading import Thread, current_thread, main_thread
 from typing import TYPE_CHECKING, Any, Callable, Tuple
 from unittest.mock import Mock
