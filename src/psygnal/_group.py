@@ -42,7 +42,29 @@ class EmissionInfo(NamedTuple):
 
 
 class SignalRelay(SignalInstance):
-    """Special SignalInstance that can be used to connect to all signals in a group."""
+    """Special SignalInstance that can be used to connect to all signals in a group.
+
+    This class will rarely be instantiated by a user (or anything other than a
+    SignalGroup).  But it may be imported and used as a type hint to change the
+    public name of the SignalRelay attribute on a SignalGroup subclass.
+
+    Parameters
+    ----------
+    signals : Mapping[str, SignalInstance]
+        A mapping of signal names to SignalInstance instances.
+    instance : Any, optional
+        An object to which this `SignalRelay` is bound, by default None
+
+    Examples
+    --------
+    ```python
+    from psygnal import Signal, SignalRelay, SignalGroup
+
+    class MySignals(SignalGroup):
+        all_signals: SignalRelay  # change the public name of the SignalRelay attribute
+        sig1 = Signal()
+        sig2 = Signal()
+    """
 
     def __init__(
         self, signals: Mapping[str, SignalInstance], instance: Any = None
@@ -180,10 +202,19 @@ class SignalRelay(SignalInstance):
 class SignalGroup:
     """A collection of signals that can be connected to as a single unit.
 
+    This class is not intended to be instantiated directly.  Instead, it should be
+    subclassed, and the subclass should define Signal instances as class attributes.
+    The SignalGroup will then automatically collect these signals and provide a
+    SignalRelay instance that can be used to connect to all of the signals in the group.
+
+    This class is used in both the EventedModels and the evented dataclass patterns.
+    See also: `psygnal.SignalGroupDescriptor`, which provides convenient and explicit
+    way to create a SignalGroup on a dataclass-like class.
+
     Parameters
     ----------
     instance : Any, optional
-        An object to which this SignalGroup is bound, by default None
+        An object to which this `SignalGroup` is bound, by default None
 
     Attributes
     ----------
@@ -192,6 +223,23 @@ class SignalGroup:
         this group.  The name of this attribute can be overridden by the user by
         creating a new name for the SignalRelay annotation on a subclass of SignalGroup
         e.g. `my_name: SignalRelay`
+
+    Examples
+    --------
+    ```python
+    from psygnal import Signal, SignalGroup
+
+    class MySignals(SignalGroup):
+        sig1 = Signal()
+        sig2 = Signal()
+
+    group = MySignals()
+    group.all.connect(print) # connect to all signals in the group
+
+    list(group)                  # ['sig1', 'sig2']
+    len(group)                   # 2
+    group.sig1 is group['sig1']  # True
+    ```
     """
 
     _psygnal_signals: ClassVar[Mapping[str, Signal]]
@@ -227,7 +275,7 @@ class SignalGroup:
         setattr(self, self._psygnal_relay_name, self._psygnal_relay)
 
     def __init_subclass__(cls, strict: bool = False) -> None:
-        """Finds all Signal instances on the class and add them to `cls._signals_`."""
+        """Collects all Signal instances on the class under `cls._psygnal_signals`."""
         cls._psygnal_signals = {
             k: val
             for k, val in getattr(cls, "__dict__", {}).items()
@@ -265,6 +313,7 @@ class SignalGroup:
 
     @property
     def signals(self) -> Mapping[str, SignalInstance]:
+        """DEPRECATED: A mapping of signal names to SignalInstance instances."""
         # TODO: deprecate this property
         warnings.warn(
             "Accessing the `signals` property on a SignalGroup is deprecated. "
@@ -276,12 +325,15 @@ class SignalGroup:
         return self._psygnal_instances
 
     def __len__(self) -> int:
+        """Return the number of signals in the group (not including the relay)."""
         return len(self._psygnal_signals)
 
     def __getitem__(self, item: str) -> SignalInstance:
+        """Get a signal instance by name."""
         return self._psygnal_instances[item]
 
     def __iter__(self) -> Iterator[str]:
+        """Yield the names of all signals in the group."""
         return iter(self._psygnal_signals)
 
     def __repr__(self) -> str:
