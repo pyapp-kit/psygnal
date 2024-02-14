@@ -90,6 +90,26 @@ person.age = 31  # prints: Age changed to 31
 
 See the [dataclass documentation](https://psygnal.readthedocs.io/en/latest/dataclasses/) for more details.
 
+### Evented Containers
+
+`psygnal.containers` provides evented versions of mutable data structures
+(`dict`, `list`, `set`), for cases when you need to monitor mutation:
+
+```python
+from psygnal.containers import EventedList
+
+my_list = EventedList([1, 2, 3, 4, 5])
+
+my_list.events.inserted.connect(lambda i, val: print(f"Inserted {val} at index {i}"))
+my_list.events.removed.connect(lambda i, val: print(f"Removed {val} at index {i}"))
+
+my_list.append(6)  # Output: Inserted 6 at index 5
+my_list.pop()  # Output: Removed 6 at index 5
+```
+
+See the
+[evented containers documentation](https://psygnal.readthedocs.io/en/latest/API/containers/)
+for more details.
 
 ## Benchmark history
 
