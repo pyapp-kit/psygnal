@@ -527,7 +527,7 @@ class SignalInstance:
         self,
         obj: weakref.ref | object,
         attr: str,
-        maxargs: int | None = None,
+        maxargs: int | None | object = _NULL,
         *,
         on_ref_error: RefErrorChoice = "warn",
     ) -> WeakCallback[None]:
@@ -581,6 +581,16 @@ class SignalInstance:
         >>> t.sig.emit(5)
         >>> assert my_obj.x == 5
         """
+        if maxargs is _NULL:
+            warnings.warn(
+                "The default value of maxargs will change from `None` to `1` in"
+                "version 0.11. To silence this warning, provide an explicit value for "
+                "maxargs (`None` for current behavior, `1` for future behavior).",
+                FutureWarning,
+                stacklevel=2,
+            )
+            maxargs = None
+
         if isinstance(obj, weakref.ReferenceType):  # pragma: no cover
             warnings.warn(
                 'Using a weakref as the "obj" argument is deprecated. '
@@ -597,7 +607,7 @@ class SignalInstance:
             caller = WeakSetattr(
                 obj,
                 attr,
-                max_args=maxargs,
+                max_args=cast("int | None", maxargs),
                 finalize=self._try_discard,
                 on_ref_error=on_ref_error,
             )
@@ -634,7 +644,7 @@ class SignalInstance:
         self,
         obj: weakref.ref | object,
         key: str,
-        maxargs: int | None = None,
+        maxargs: int | None | object = _NULL,
         *,
         on_ref_error: RefErrorChoice = "warn",
     ) -> WeakCallback[None]:
@@ -685,6 +695,16 @@ class SignalInstance:
         >>> t.sig.emit(5)
         >>> assert my_obj == {'x': 5}
         """
+        if maxargs is _NULL:
+            warnings.warn(
+                "The default value of maxargs will change from `None` to `1` in"
+                "version 0.11. To silence this warning, provide an explicit value for "
+                "maxargs (`None` for current behavior, `1` for future behavior).",
+                FutureWarning,
+                stacklevel=2,
+            )
+            maxargs = None
+
         if isinstance(obj, weakref.ReferenceType):  # pragma: no cover
             warnings.warn(
                 'Using a weakref as the "obj" argument is deprecated. '
@@ -701,7 +721,7 @@ class SignalInstance:
             caller = WeakSetitem(
                 obj,  # type: ignore
                 key,
-                max_args=maxargs,
+                max_args=cast("int | None", maxargs),
                 finalize=self._try_discard,
                 on_ref_error=on_ref_error,
             )
