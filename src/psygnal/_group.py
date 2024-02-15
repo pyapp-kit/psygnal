@@ -292,6 +292,13 @@ class SignalGroup:
     # TODO: change type hint to -> SignalInstance after completing deprecation of
     # direct access to names on SignalRelay object
     def __getattr__(self, name: str) -> Any:
+        # Note, technically these lines aren't actually needed because of the descriptor
+        # protocol.  Accessing a name on the instance will first look in the
+        # instance's __dict__, and then in the class's __dict__, which
+        # will call Signal.__get__ and return the SignalInstance.
+        # these lines are here as a reminder to developers.
+        if name != "_psygnal_instances" and name in self._psygnal_instances:
+            return self._psygnal_instances[name]  # pragma: no cover
         if name != "_psygnal_relay" and hasattr(self._psygnal_relay, name):
             warnings.warn(
                 f"Accessing SignalInstance attribute {name!r} on a SignalGroup is "
@@ -302,13 +309,6 @@ class SignalGroup:
                 stacklevel=2,
             )
             return getattr(self._psygnal_relay, name)
-        # Note, these lines aren't actually needed because of the descriptor
-        # protocol.  Accessing a name on the instance will first look in the
-        # instance's __dict__, and then in the class's __dict__, which
-        # will call Signal.__get__ and return the SignalInstance.
-        # these lines are here as a reminder to developers.
-        # if name in self._psygnal_instances:
-        #     return self._psygnal_instances[name]
         raise AttributeError(f"{type(self).__name__!r} has no attribute {name!r}")
 
     @property
@@ -335,6 +335,12 @@ class SignalGroup:
     def __iter__(self) -> Iterator[str]:
         """Yield the names of all signals in the group."""
         return iter(self._psygnal_signals)
+
+    def __contains__(self, item: str) -> bool:
+        """Return True if the group contains a signal with the given name."""
+        # this is redundant with __iter__ and can be removed, but only after
+        # removing the deprecation warning in __getattr__
+        return item in self._psygnal_signals
 
     def __repr__(self) -> str:
         """Return repr(self)."""
