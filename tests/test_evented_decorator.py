@@ -7,6 +7,8 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 
+from psygnal import SignalInstance
+
 try:
     import pydantic.version
 
@@ -245,3 +247,20 @@ def test_get_namespace() -> None:
 
     assert get_evented_namespace(Foo) == "my_events"
     assert is_evented(Foo)
+
+
+def test_name_conflicts() -> None:
+    # https://github.com/pyapp-kit/psygnal/pull/269
+
+    @evented
+    @dataclass
+    class Foo:
+        name: str
+
+    obj = Foo("foo")
+    assert obj.name == "foo"
+    group = obj.events
+    assert isinstance(group, SignalGroup)
+    assert "name" in group
+    assert isinstance(group.name, SignalInstance)
+    assert group["name"] is group.name
