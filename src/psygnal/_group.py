@@ -131,8 +131,8 @@ class SignalRelay(SignalInstance):
         """
 
         def _inner(slot: Callable) -> Callable:
-            for sig in self._signals:
-                self._signals[sig].connect(
+            for sig in self._signals.values():
+                sig.connect(
                     slot,
                     check_nargs=check_nargs,
                     check_types=check_types,
@@ -146,19 +146,18 @@ class SignalRelay(SignalInstance):
     def block(self, exclude: Iterable[str | SignalInstance] = ()) -> None:
         """Block this signal and all emitters from emitting."""
         super().block()
-        for k in self._signals:
-            v = self._signals[k]
-            if exclude and v in exclude or k in exclude:
+        for name, sig in self._signals.items():
+            if exclude and sig in exclude or name in exclude:
                 continue
-            self._sig_was_blocked[k] = v._is_blocked
-            v.block()
+            self._sig_was_blocked[name] = sig._is_blocked
+            sig.block()
 
     def unblock(self) -> None:
         """Unblock this signal and all emitters, allowing them to emit."""
         super().unblock()
-        for k in self._signals:
-            if not self._sig_was_blocked.pop(k, False):
-                self._signals[k].unblock()
+        for name, sig in self._signals.items():
+            if not self._sig_was_blocked.pop(name, False):
+                sig.unblock()
 
     def blocked(
         self, exclude: Iterable[str | SignalInstance] = ()
@@ -190,8 +189,8 @@ class SignalRelay(SignalInstance):
         ValueError
             If `slot` is not connected and `missing_ok` is False.
         """
-        for signal in self._signals:
-            self._signals[signal].disconnect(slot, missing_ok)
+        for sig in self._signals.values():
+            sig.disconnect(slot, missing_ok)
         super().disconnect(slot, missing_ok)
 
 
