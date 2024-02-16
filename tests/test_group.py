@@ -13,9 +13,9 @@ class MyGroup(SignalGroup):
 
 
 def test_signal_group():
-    assert not MyGroup.is_uniform()
+    assert not MyGroup.psygnals_uniform()
     group = MyGroup()
-    assert not group.is_uniform()
+    assert not group.psygnals_uniform()
     assert list(group) == ["sig1", "sig2"]  # testing __iter__
     assert group.sig1 is group["sig1"]
 
@@ -32,9 +32,9 @@ def test_uniform_group():
         sig1 = Signal(int)
         sig2 = Signal(int)
 
-    assert MyStrictGroup.is_uniform()
+    assert MyStrictGroup.psygnals_uniform()
     group = MyStrictGroup()
-    assert group.is_uniform()
+    assert group.psygnals_uniform()
     assert set(group) == {"sig1", "sig2"}
 
     with pytest.raises(TypeError) as e:
@@ -53,7 +53,7 @@ def test_nonhashable_args():
         sig1 = Signal(Annotated[int, {"a": 1}])  # type: ignore
         sig2 = Signal(Annotated[float, {"b": 1}])  # type: ignore
 
-    assert not MyGroup.is_uniform()
+    assert not MyGroup.psygnals_uniform()
 
     with pytest.raises(TypeError):
 

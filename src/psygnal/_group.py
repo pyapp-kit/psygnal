@@ -88,7 +88,7 @@ class SignalRelay(SignalInstance):
         """Connect `slot` to be called whenever *any* Signal in this group is emitted.
 
         Params are the same as `psygnal.SignalInstance.connect`.  It's probably
-        best to check whether `self.is_uniform()`
+        best to check whether all signals are uniform (i.e. have the same signature).
 
         Parameters
         ----------
@@ -359,9 +359,19 @@ class SignalGroup:
         return f"<SignalGroup {name!r} with {len(self)} signals>"
 
     @classmethod
+    def psygnals_uniform(cls) -> bool:
+        """Return true if all signals in the group have the same signature."""
+        return cls._psygnal_uniform
+
+    @classmethod
     def is_uniform(cls) -> bool:
         """Return true if all signals in the group have the same signature."""
-        # TODO: Deprecate this meth?
+        warnings.warn(
+            "The `is_uniform` method on SignalGroup is deprecated. Use "
+            "`psygnals_uniform` instead. This will be an error in v0.11.",
+            FutureWarning,
+            stacklevel=2,
+        )
         return cls._psygnal_uniform
 
     def __deepcopy__(self, memo: dict[int, Any]) -> SignalGroup:

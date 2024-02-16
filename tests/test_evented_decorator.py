@@ -252,24 +252,39 @@ def test_get_namespace() -> None:
 
 def test_name_conflicts() -> None:
     # https://github.com/pyapp-kit/psygnal/pull/269
+    from dataclasses import field
 
     @evented
     @dataclass
     class Foo:
         name: str
         all: bool = False
+        is_uniform: bool = True
+        signals: list = field(default_factory=list)
+        _psygnal_signals: str = "signals"
 
     obj = Foo("foo")
     assert obj.name == "foo"
     with pytest.warns(UserWarning, match="Name 'all' is reserved"):
         group = obj.events
     assert isinstance(group, SignalGroup)
+
     assert "name" in group
     assert isinstance(group.name, SignalInstance)
     assert group["name"] is group.name
 
+    assert "is_uniform" in group and isinstance(group.is_uniform, SignalInstance)
+    assert "signals" in group and isinstance(group.signals, SignalInstance)
+
+    # this one is protected and will be warned about
+    assert "_psygnal_signals" not in group
+
+    # group.all is always a relay
     assert isinstance(group.all, SignalRelay)
-    assert isinstance(group["all"], SignalInstance)
+    # getitem returns the signal
+    assert "all" in group and isinstance(group["all"], SignalInstance)
 
     with pytest.raises(AttributeError):  # it's not writeable
         group.all = SignalRelay({})
+
+    assert not group.psygnals_uniform()
