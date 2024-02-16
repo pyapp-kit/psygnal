@@ -261,7 +261,6 @@ def test_name_conflicts() -> None:
         all: bool = False
         is_uniform: bool = True
         signals: list = field(default_factory=list)
-        _psygnal_signals: str = "signals"
 
     obj = Foo("foo")
     assert obj.name == "foo"
@@ -276,9 +275,6 @@ def test_name_conflicts() -> None:
 
     assert "is_uniform" in group and isinstance(group.is_uniform, SignalInstance)
     assert "signals" in group and isinstance(group.signals, SignalInstance)
-
-    # this one is protected and will be warned about
-    assert "_psygnal_signals" not in group
 
     # group.all is always a relay
     assert isinstance(group.all, SignalRelay)
@@ -300,3 +296,14 @@ def test_name_conflicts() -> None:
     obj2 = Foo2()
     with pytest.raises(NameError, match="Name 'psygnals_uniform' is reserved"):
         _ = obj2.events
+
+    @evented
+    @dataclass
+    class Foo3:
+        _psygnal_signals: str = "signals"
+
+    obj3 = Foo3()
+    with pytest.warns(UserWarning, match="Signal names may not begin with '_psygnal'"):
+        group3 = obj3.events
+
+    assert "_psygnal_signals" not in group3
