@@ -270,3 +270,6 @@ def test_name_conflicts() -> None:
 
     assert isinstance(group.all, SignalRelay)
     assert isinstance(group["all"], SignalInstance)
+
+    with pytest.raises(AttributeError):  # it's not writeable
+        group.all = SignalRelay({})

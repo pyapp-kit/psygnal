@@ -322,6 +322,7 @@ class SignalGroup:
                 stacklevel=2,
             )
             return getattr(self._psygnal_relay, name)
+
         raise AttributeError(f"{type(self).__name__!r} has no signal named {name!r}")
 
     @property

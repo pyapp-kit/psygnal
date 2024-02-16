@@ -21,6 +21,9 @@ def test_signal_group():
 
     assert repr(group) == "<SignalGroup 'MyGroup' with 2 signals>"
 
+    with pytest.raises(AttributeError, match="'MyGroup' has no signal named 'sig3'"):
+        group.sig3  # noqa: B018
+
 
 def test_uniform_group():
     """In a uniform group, all signals must have the same signature."""
@@ -217,7 +220,7 @@ def test_group_deepcopy() -> None:
     # with pytest.warns(UserWarning, match="does not copy connected weakly"):
     group2 = deepcopy(group)
 
-    assert not len(group2._psygnal_relay)
+    assert not len(group2.all)
     mock = Mock()
     mock2 = Mock()
     group.all.connect(mock)
