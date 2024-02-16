@@ -15,7 +15,8 @@ except ImportError:
 import pydantic.version
 from pydantic import BaseModel
 
-from psygnal import EmissionInfo, EventedModel, SignalGroup
+from psygnal import EmissionInfo, EventedModel
+from psygnal._group import SignalGroup
 
 PYDANTIC_V2 = pydantic.version.VERSION.startswith("2")
 
@@ -69,11 +70,12 @@ def test_evented_model():
 
     # test event system
     assert isinstance(user.events, SignalGroup)
-    assert "id" in user.events.signals
-    assert "name" in user.events.signals
+    with pytest.warns(FutureWarning):
+        assert "id" in user.events.signals
+        assert "name" in user.events.signals
 
     # ClassVars are excluded from events
-    assert "age" not in user.events.signals
+    assert "age" not in user.events
 
     id_mock = Mock()
     name_mock = Mock()
@@ -174,7 +176,7 @@ def test_evented_model_da_array_equality():
     assert model1 == model2
 
 
-def test_values_updated():
+def test_values_updated() -> None:
     class User(EventedModel):
         """Demo evented model.
 
@@ -200,7 +202,12 @@ def test_values_updated():
     user1_events = Mock()
     u1_id_events = Mock()
     u2_id_events = Mock()
-    user1.events.connect(user1_events)
+
+    user1.events.all.connect(user1_events)
+    user1.events.all.connect(user1_events)
+
+    user1.events.id.connect(u1_id_events)
+    user2.events.id.connect(u2_id_events)
     user1.events.id.connect(u1_id_events)
     user2.events.id.connect(u2_id_events)
 
@@ -520,7 +527,7 @@ def test_evented_model_with_property_setters():
 
 def test_evented_model_with_property_setters_events():
     t = T()
-    assert "c" in t.events.signals  # the setter has an event
+    assert "c" in t.events  # the setter has an event
     mock_a = Mock()
     mock_b = Mock()
     mock_c = Mock()
@@ -830,7 +837,7 @@ def test_connect_only_to_events() -> None:
     check_mock.assert_not_called()
     mock1.assert_not_called()
 
-    m.events.connect(mock1)
+    m.events.all.connect(mock1)
     with patch.object(
         model_module,
         "_check_field_equality",

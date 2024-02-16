@@ -263,9 +263,12 @@ def evented_setattr(
                 return super_setattr(self, name, value)
 
             group: SignalGroup | None = getattr(self, signal_group_name, None)
-            signal: SignalInstance | None = getattr(group, name, None)
+            if not isinstance(group, SignalGroup) or name not in group:
+                return super_setattr(self, name, value)
+
             # don't emit if the signal doesn't exist or has no listeners
-            if group is None or signal is None or len(signal) < 2 and not len(group):
+            signal: SignalInstance = group[name]
+            if len(signal) < 2 and not len(group._psygnal_relay):
                 return super_setattr(self, name, value)
 
             with _changes_emitted(self, name, signal):
@@ -443,7 +446,7 @@ class SignalGroupDescriptor:
 
     def _create_group(self, owner: type) -> type[SignalGroup]:
         Group = self._signal_group or _build_dataclass_signal_group(owner, self._eqop)
-        if self._warn_on_no_fields and not Group._signals_:
+        if self._warn_on_no_fields and not Group._psygnal_signals:
             warnings.warn(
                 f"No mutable fields found on class {owner}: no events will be "
                 "emitted. (Is this a dataclass, attrs, msgspec, or pydantic model?)",

@@ -188,7 +188,25 @@ class Signal:
         # but it allows us to prevent creating a key for this instance (which may
         # not be hashable or weak-referenceable), and also provides a significant
         # speedup on attribute access (affecting everything).
-        setattr(instance, name, signal_instance)
+        # (note, this is the same mechanism used in the `cached_property` decorator)
+        try:
+            setattr(instance, name, signal_instance)
+        except AttributeError as e:
+            from ._group import SignalGroup
+
+            if name == "all" and isinstance(instance, SignalGroup):
+                # this specific case will happen if an evented dataclass field is named
+                # "all". 'all' is a reserved name for the SignalRelay, but we've
+                # already caught and warned about it in SignalGroup.__init_subclass__.
+                pass
+            else:
+                # otherwise, give an informative error message
+                raise AttributeError(  # pragma: no cover
+                    "An attempt to cache a SignalInstance on instance "
+                    f"{instance} failed. Please report this with your use case at "
+                    "https://github.com/pyapp-kit/psygnal/issues."
+                ) from e
+
         return signal_instance
 
     @classmethod

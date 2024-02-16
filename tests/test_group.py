@@ -1,3 +1,4 @@
+from copy import deepcopy
 from unittest.mock import Mock, call
 
 import pytest
@@ -12,13 +13,20 @@ class MyGroup(SignalGroup):
 
 
 def test_signal_group():
-    assert not MyGroup.is_uniform()
+    assert not MyGroup.psygnals_uniform()
+    with pytest.warns(
+        FutureWarning, match="The `is_uniform` method on SignalGroup is deprecated"
+    ):
+        assert not MyGroup.is_uniform()
     group = MyGroup()
-    assert not group.is_uniform()
-    assert isinstance(group.signals, dict)
-    assert group.signals == {"sig1": group.sig1, "sig2": group.sig2}
+    assert not group.psygnals_uniform()
+    assert list(group) == ["sig1", "sig2"]  # testing __iter__
+    assert group.sig1 is group["sig1"]
 
     assert repr(group) == "<SignalGroup 'MyGroup' with 2 signals>"
+
+    with pytest.raises(AttributeError, match="'MyGroup' has no signal named 'sig3'"):
+        group.sig3  # noqa: B018
 
 
 def test_uniform_group():
@@ -28,11 +36,10 @@ def test_uniform_group():
         sig1 = Signal(int)
         sig2 = Signal(int)
 
-    assert MyStrictGroup.is_uniform()
+    assert MyStrictGroup.psygnals_uniform()
     group = MyStrictGroup()
-    assert group.is_uniform()
-    assert isinstance(group.signals, dict)
-    assert set(group.signals) == {"sig1", "sig2"}
+    assert group.psygnals_uniform()
+    assert set(group) == {"sig1", "sig2"}
 
     with pytest.raises(TypeError) as e:
 
@@ -50,7 +57,7 @@ def test_nonhashable_args():
         sig1 = Signal(Annotated[int, {"a": 1}])  # type: ignore
         sig2 = Signal(Annotated[float, {"b": 1}])  # type: ignore
 
-    assert not MyGroup.is_uniform()
+    assert not MyGroup.psygnals_uniform()
 
     with pytest.raises(TypeError):
 
@@ -65,11 +72,17 @@ def test_signal_group_connect(direct: bool):
     group = MyGroup()
     if direct:
         # the callback wants the emitted arguments directly
-        group.connect_direct(mock)
+
+        with pytest.warns(
+            FutureWarning,
+            match="Accessing SignalInstance attribute 'connect_direct' on a SignalGroup"
+            " is deprecated",
+        ):
+            group.connect_direct(mock)
     else:
         # the callback will receive an EmissionInfo tuple
         # (SignalInstance, arg_tuple)
-        group.connect(mock)
+        group.all.connect(mock)
     group.sig1.emit(1)
     group.sig2.emit("hi")
 
@@ -87,14 +100,14 @@ def test_signal_group_connect(direct: bool):
 
 
 def test_signal_group_connect_no_args():
-    """Test that group.connect can take a callback that wants no args"""
+    """Test that group.all.connect can take a callback that wants no args"""
     group = MyGroup()
     count = []
 
     def my_slot() -> None:
         count.append(1)
 
-    group.connect(my_slot)
+    group.all.connect(my_slot)
     group.sig1.emit(1)
     group.sig2.emit("hi")
     assert len(count) == 2
@@ -106,7 +119,7 @@ def test_group_blocked():
     mock1 = Mock()
     mock2 = Mock()
 
-    group.connect(mock1)
+    group.all.connect(mock1)
     group.sig1.connect(mock2)
     group.sig1.emit(1)
 
@@ -119,7 +132,7 @@ def test_group_blocked():
     group.sig2.block()
     assert group.sig2._is_blocked
 
-    with group.blocked():
+    with group.all.blocked():
         group.sig1.emit(1)
         assert group.sig1._is_blocked
 
@@ -141,7 +154,7 @@ def test_group_blocked_exclude():
     group.sig1.connect(mock1)
     group.sig2.connect(mock2)
 
-    with group.blocked(exclude=("sig2",)):
+    with group.all.blocked(exclude=("sig2",)):
         group.sig1.emit(1)
         group.sig2.emit("hi")
     mock1.assert_not_called()
@@ -158,7 +171,7 @@ def test_group_disconnect_single_slot():
     group.sig1.connect(mock1)
     group.sig2.connect(mock2)
 
-    group.disconnect(mock1)
+    group.all.disconnect(mock1)
     group.sig1.emit()
     mock1.assert_not_called()
 
@@ -176,7 +189,7 @@ def test_group_disconnect_all_slots():
     group.sig1.connect(mock1)
     group.sig2.connect(mock2)
 
-    group.disconnect()
+    group.all.disconnect()
     group.sig1.emit()
     group.sig2.emit()
 
@@ -192,23 +205,47 @@ def test_weakref():
 
     obj = T()
     group = MyGroup(obj)
-    assert group.instance is obj
+    assert group.all.instance is obj
     del obj
     gc.collect()
-    assert group.instance is None
+    assert group.all.instance is None
 
 
-def test_group_deepcopy():
-    from copy import deepcopy
-
+def test_group_deepcopy() -> None:
     class T:
         def method(self): ...
 
     obj = T()
     group = MyGroup(obj)
-    group.connect(obj.method)
+    assert deepcopy(group) is not group  # but no warning
 
-    with pytest.warns(UserWarning, match="does not copy connected weakly"):
-        group2 = deepcopy(group)
+    group.all.connect(obj.method)
 
-    assert not len(group2)
+    # with pytest.warns(UserWarning, match="does not copy connected weakly"):
+    group2 = deepcopy(group)
+
+    assert not len(group2.all)
+    mock = Mock()
+    mock2 = Mock()
+    group.all.connect(mock)
+    group2.all.connect(mock2)
+
+    group2.sig1.emit(1)
+    mock.assert_not_called()
+    mock2.assert_called_with(EmissionInfo(group2.sig1, (1,)))
+
+    mock2.reset_mock()
+    group.sig1.emit(1)
+    mock.assert_called_with(EmissionInfo(group.sig1, (1,)))
+    mock2.assert_not_called()
+
+
+def test_group_conflicts() -> None:
+    with pytest.warns(UserWarning, match="Signal names may not begin with '_psygnal'"):
+
+        class MyGroup(SignalGroup):
+            _psygnal_thing = Signal(int)
+            other_signal = Signal(int)
+
+    assert "_psygnal_thing" not in MyGroup._psygnal_signals
+    assert "other_signal" in MyGroup._psygnal_signals

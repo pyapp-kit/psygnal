@@ -141,12 +141,13 @@ class EventedModelSuite:
             x: int = 1
 
         self.model = Model
+        self.model_instance = Model()
 
     def time_setattr_no_connections(self, n: int) -> None:
         if self.model is None:
             return
 
-        obj = self.model()
+        obj = self.model_instance
         for i in range(n):
             obj.x = i
 
@@ -154,7 +155,7 @@ class EventedModelSuite:
         if self.model is None:
             return
 
-        obj = self.model()
+        obj = self.model_instance
         obj.events.x.connect(callback)
         for i in range(n):
             obj.x = i

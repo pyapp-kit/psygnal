@@ -347,7 +347,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         if (
             name == "_events"
             or not hasattr(self, "_events")  # can happen on init
-            or name not in self._events.signals
+            or name not in self._events
         ):
             # fallback to default behavior
             return self._super_setattr_(name, value)
@@ -357,16 +357,17 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         # dependent properties.
         # note that ALL signals will have at least one listener simply by nature of
         # being in the `self._events` SignalGroup.
-        signal_instance: SignalInstance = getattr(self._events, name)
+        group = self._events
+        signal_instance: SignalInstance = group[name]
         deps_with_callbacks = {
             dep_name
             for dep_name in self.__field_dependents__.get(name, ())
-            if len(getattr(self._events, dep_name)) > 1
+            if len(group[dep_name]) > 1
         }
         if (
             len(signal_instance) < 2  # the signal itself has no listeners
             and not deps_with_callbacks  # no dependent properties with listeners
-            and not len(self._events)  # no listeners on the SignalGroup
+            and not len(group._psygnal_relay)  # no listeners on the SignalGroup
         ):
             return self._super_setattr_(name, value)
 
@@ -433,7 +434,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         if not isinstance(values, dict):  # pragma: no cover
             raise TypeError(f"values must be a dict or BaseModel. got {type(values)}")
 
-        with self.events.paused():  # TODO: reduce?
+        with self.events._psygnal_relay.paused():  # TODO: reduce?
             for key, value in values.items():
                 field = getattr(self, key)
                 if isinstance(field, EventedModel) and recurse:

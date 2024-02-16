@@ -7,6 +7,9 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 
+from psygnal import SignalInstance
+from psygnal._group import SignalRelay
+
 try:
     import pydantic.version
 
@@ -16,12 +19,12 @@ except ImportError:
 
 
 from psygnal import (
-    SignalGroup,
     SignalGroupDescriptor,
     evented,
     get_evented_namespace,
     is_evented,
 )
+from psygnal._group import SignalGroup
 
 decorated_or_descriptor = pytest.mark.parametrize(
     "decorator", [True, False], ids=["decorator", "descriptor"]
@@ -38,7 +41,7 @@ def _check_events(cls, events_ns="events"):
 
     events = getattr(obj, events_ns)
     assert isinstance(events, SignalGroup)
-    assert set(events.signals) == {"bar", "baz", "qux"}
+    assert set(events) == {"bar", "baz", "qux"}
 
     mock = Mock()
     events.bar.connect(mock)
@@ -245,3 +248,63 @@ def test_get_namespace() -> None:
 
     assert get_evented_namespace(Foo) == "my_events"
     assert is_evented(Foo)
+
+
+def test_name_conflicts() -> None:
+    # https://github.com/pyapp-kit/psygnal/pull/269
+    from dataclasses import field
+
+    @evented
+    @dataclass
+    class Foo:
+        name: str
+        all: bool = False
+        is_uniform: bool = True
+        signals: list = field(default_factory=list)
+
+    obj = Foo("foo")
+    assert obj.name == "foo"
+    with pytest.warns(UserWarning, match="Name 'all' is reserved"):
+        group = obj.events
+
+    assert isinstance(group, SignalGroup)
+
+    assert "name" in group
+    assert isinstance(group.name, SignalInstance)
+    assert group["name"] is group.name
+
+    assert "is_uniform" in group and isinstance(group.is_uniform, SignalInstance)
+    assert "signals" in group and isinstance(group.signals, SignalInstance)
+
+    # group.all is always a relay
+    assert isinstance(group.all, SignalRelay)
+
+    # getitem returns the signal
+    assert "all" in group and isinstance(group["all"], SignalInstance)
+    assert not isinstance(group["all"], SignalRelay)
+
+    with pytest.raises(AttributeError):  # it's not writeable
+        group.all = SignalRelay({})
+
+    assert group.psygnals_uniform() is False
+
+    @evented
+    @dataclass
+    class Foo2:
+        psygnals_uniform: bool = True
+
+    obj2 = Foo2()
+    with pytest.raises(NameError, match="Name 'psygnals_uniform' is reserved"):
+        _ = obj2.events
+
+    @evented
+    @dataclass
+    class Foo3:
+        field: int = 1
+        _psygnal_signals: str = "signals"
+
+    obj3 = Foo3()
+    with pytest.warns(UserWarning, match="Signal names may not begin with '_psygnal'"):
+        group3 = obj3.events
+
+    assert "_psygnal_signals" not in group3

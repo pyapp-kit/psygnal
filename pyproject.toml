@@ -135,6 +135,7 @@ HATCH_BUILD_HOOKS_ENABLE = "1"
 line-length = 88
 target-version = "py37"
 src = ["src", "tests"]
+[tool.ruff.lint]
 select = [
     "E",    # style errors
     "F",    # flakes
@@ -162,7 +163,7 @@ ignore = [
     "RUF009", # Do not perform function call in dataclass defaults
 ]
 
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "tests/*.py" = ["D", "S", "RUF012"]
 "benchmarks/*.py" = ["D", "RUF012"]
 

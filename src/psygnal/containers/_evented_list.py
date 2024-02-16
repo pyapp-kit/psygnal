@@ -35,7 +35,7 @@ from typing import (
     overload,
 )
 
-from psygnal._group import EmissionInfo, SignalGroup
+from psygnal._group import EmissionInfo, SignalGroup, SignalRelay
 from psygnal._signal import Signal, SignalInstance
 from psygnal.utils import iter_signal_instances
 
@@ -416,7 +416,7 @@ class EventedList(MutableSequence[_T]):
 
         if (
             args
-            and isinstance(emitter, SignalGroup)
+            and isinstance(emitter, SignalRelay)
             and isinstance(args[0], EmissionInfo)
         ):
             emitter, args = args[0]
