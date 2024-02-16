@@ -300,6 +300,7 @@ def test_name_conflicts() -> None:
     @evented
     @dataclass
     class Foo3:
+        field: int = 1
         _psygnal_signals: str = "signals"
 
     obj3 = Foo3()
