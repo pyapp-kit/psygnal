@@ -253,7 +253,16 @@ class SignalGroup:
             for k, val in getattr(cls, "__dict__", {}).items()
             if isinstance(val, Signal)
         }
-        #
+
+        if conflicts := {k for k in cls._psygnal_signals if k.startswith("_psygnal")}:
+            warnings.warn(
+                "Signal names may not begin with '_psygnal'. "
+                f"Skipping signals: {conflicts}",
+                stacklevel=2,
+            )
+            for key in conflicts:
+                del cls._psygnal_signals[key]
+
         if "all" in cls._psygnal_signals:
             warnings.warn(
                 "Name 'all' is reserved for the SignalRelay. You cannot use this "

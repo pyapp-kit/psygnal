@@ -234,3 +234,14 @@ def test_group_deepcopy() -> None:
     group.sig1.emit(1)
     mock.assert_called_with(EmissionInfo(group.sig1, (1,)))
     mock2.assert_not_called()
+
+
+def test_group_conflicts() -> None:
+    with pytest.warns(UserWarning, match="Signal names may not begin with '_psygnal'"):
+
+        class MyGroup(SignalGroup):
+            _psygnal_thing = Signal(int)
+            other_signal = Signal(int)
+
+    assert "_psygnal_thing" not in MyGroup._psygnal_signals
+    assert "other_signal" in MyGroup._psygnal_signals
