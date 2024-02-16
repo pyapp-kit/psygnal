@@ -200,8 +200,8 @@ class Signal:
                 # already caught and warned about it in SignalGroup.__init_subclass__.
                 pass
             else:
-                # otherwise,
-                raise AttributeError(
+                # otherwise, give an informative error message
+                raise AttributeError(  # pragma: no cover
                     "An attempt to cache a SignalInstance on instance "
                     f"{instance} failed. Please report this with your use case at "
                     "https://github.com/pyapp-kit/psygnal/issues."
