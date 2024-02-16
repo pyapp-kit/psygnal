@@ -273,6 +273,12 @@ class SignalGroup:
             )
             delattr(cls, "all")
 
+        if "psygnals_uniform" in cls._psygnal_signals:
+            raise NameError(
+                "Name 'psygnals_uniform' is reserved.  You cannot use this "
+                "name as a signal on a SignalGroup"
+            )
+
         cls._psygnal_uniform = _is_uniform(cls._psygnal_signals.values())
         if strict and not cls._psygnal_uniform:
             raise TypeError(

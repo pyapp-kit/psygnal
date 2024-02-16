@@ -14,6 +14,10 @@ class MyGroup(SignalGroup):
 
 def test_signal_group():
     assert not MyGroup.psygnals_uniform()
+    with pytest.warns(
+        FutureWarning, match="The `is_uniform` method on SignalGroup is deprecated"
+    ):
+        assert not MyGroup.is_uniform()
     group = MyGroup()
     assert not group.psygnals_uniform()
     assert list(group) == ["sig1", "sig2"]  # testing __iter__

@@ -267,6 +267,7 @@ def test_name_conflicts() -> None:
     assert obj.name == "foo"
     with pytest.warns(UserWarning, match="Name 'all' is reserved"):
         group = obj.events
+
     assert isinstance(group, SignalGroup)
 
     assert "name" in group
@@ -281,10 +282,21 @@ def test_name_conflicts() -> None:
 
     # group.all is always a relay
     assert isinstance(group.all, SignalRelay)
+
     # getitem returns the signal
     assert "all" in group and isinstance(group["all"], SignalInstance)
+    assert not isinstance(group["all"], SignalRelay)
 
     with pytest.raises(AttributeError):  # it's not writeable
         group.all = SignalRelay({})
 
-    assert not group.psygnals_uniform()
+    assert group.psygnals_uniform() is False
+
+    @evented
+    @dataclass
+    class Foo2:
+        psygnals_uniform: bool = True
+
+    obj2 = Foo2()
+    with pytest.raises(NameError, match="Name 'psygnals_uniform' is reserved"):
+        _ = obj2.events
