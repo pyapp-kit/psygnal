@@ -290,18 +290,6 @@ class SignalGroup:
         """
         return self._psygnal_relay
 
-    @all.setter
-    def all(self, value: Any) -> None:
-        if isinstance(value, SignalInstance) and value.name == "all":
-            # this specific case will happen if an evented dataclass field is named
-            # "all".  During SignalGroup.__init__, when the _psygnal_instsances are
-            # created, `Signal.__get__` method will attempt to set the "all" attribute
-            # on the group instance.  'all' is a reserved name for the SignalRelay,
-            # but we've already caught and warned about it in __init_subclass__.
-            return
-        # in all other cases, this will raise an AttributeError
-        raise AttributeError("Cannot set property 'all' on a SignalGroup")
-
     # TODO: change type hint to -> SignalInstance after completing deprecation of
     # direct access to names on SignalRelay object
     def __getattr__(self, name: str) -> Any:
