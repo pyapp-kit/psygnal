@@ -1,5 +1,38 @@
 # Changelog
 
+## [v0.10.0rc0](https://github.com/pyapp-kit/psygnal/tree/v0.10.0rc0) (2024-02-16)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.5...v0.10.0rc0)
+
+**Implemented enhancements:**
+
+- refactor!: New SignalGroup that does not subclass SignalInstance [\#269](https://github.com/pyapp-kit/psygnal/pull/269) ([tlambert03](https://github.com/tlambert03))
+- feat: emit the old value as second argument in Signals from SignalGroupDescriptor \(evented dataclass\) [\#257](https://github.com/pyapp-kit/psygnal/pull/257) ([getzze](https://github.com/getzze))
+
+**Fixed bugs:**
+
+- fix: fix connect\_setattr on dataclass field signals [\#258](https://github.com/pyapp-kit/psygnal/pull/258) ([tlambert03](https://github.com/tlambert03))
+- fix: add and fix copy operators [\#255](https://github.com/pyapp-kit/psygnal/pull/255) ([Czaki](https://github.com/Czaki))
+- fix: fix 3.7 build [\#250](https://github.com/pyapp-kit/psygnal/pull/250) ([tlambert03](https://github.com/tlambert03))
+
+**Tests & CI:**
+
+- ci: inherit secrets in reusable workflow [\#266](https://github.com/pyapp-kit/psygnal/pull/266) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- docs: Update README.md with evented containers [\#272](https://github.com/pyapp-kit/psygnal/pull/272) ([tlambert03](https://github.com/tlambert03))
+- docs: Update README.md with `make build` [\#270](https://github.com/pyapp-kit/psygnal/pull/270) ([tlambert03](https://github.com/tlambert03))
+- Drop python 3.7 [\#268](https://github.com/pyapp-kit/psygnal/pull/268) ([tlambert03](https://github.com/tlambert03))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.16.4 to 2.16.5 [\#263](https://github.com/pyapp-kit/psygnal/pull/263) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.16.2 to 2.16.4 [\#256](https://github.com/pyapp-kit/psygnal/pull/256) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(dependabot\): bump actions/cache from 3 to 4 [\#253](https://github.com/pyapp-kit/psygnal/pull/253) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(dependabot\): bump actions/upload-artifact from 3 to 4 [\#249](https://github.com/pyapp-kit/psygnal/pull/249) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(dependabot\): bump actions/setup-python from 4 to 5 [\#248](https://github.com/pyapp-kit/psygnal/pull/248) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(dependabot\): bump CodSpeedHQ/action from 1 to 2 [\#246](https://github.com/pyapp-kit/psygnal/pull/246) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(dependabot\): bump conda-incubator/setup-miniconda from 2 to 3 [\#245](https://github.com/pyapp-kit/psygnal/pull/245) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci: use reusable ci workflow [\#241](https://github.com/pyapp-kit/psygnal/pull/241) ([tlambert03](https://github.com/tlambert03))
+
 ## [v0.9.5](https://github.com/pyapp-kit/psygnal/tree/v0.9.5) (2023-11-13)
 
 [Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.4...v0.9.5)
