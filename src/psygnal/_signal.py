@@ -188,7 +188,8 @@ class Signal:
         # but it allows us to prevent creating a key for this instance (which may
         # not be hashable or weak-referenceable), and also provides a significant
         # speedup on attribute access (affecting everything).
-        setattr(instance, name, signal_instance)
+        with suppress(AttributeError):  # in case it fails
+            setattr(instance, name, signal_instance)
         return signal_instance
 
     @classmethod

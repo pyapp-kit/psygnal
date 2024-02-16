@@ -26,7 +26,7 @@ from mypy_extensions import mypyc_attr
 
 from psygnal._signal import Signal, SignalInstance, _SignalBlocker
 
-__all__ = ["EmissionInfo", "SignalGroup", "SignalRelay"]
+__all__ = ["EmissionInfo", "SignalGroup"]
 
 
 class EmissionInfo(NamedTuple):
@@ -46,8 +46,7 @@ class SignalRelay(SignalInstance):
     """Special SignalInstance that can be used to connect to all signals in a group.
 
     This class will rarely be instantiated by a user (or anything other than a
-    SignalGroup).  But it may be imported and used as a type hint to change the
-    public name of the SignalRelay attribute on a SignalGroup subclass.
+    SignalGroup).
 
     Parameters
     ----------
@@ -55,16 +54,6 @@ class SignalRelay(SignalInstance):
         A mapping of signal names to SignalInstance instances.
     instance : Any, optional
         An object to which this `SignalRelay` is bound, by default None
-
-    Examples
-    --------
-    ```python
-    from psygnal import Signal, SignalRelay, SignalGroup
-
-    class MySignals(SignalGroup):
-        all_signals: SignalRelay  # change the public name of the SignalRelay attribute
-        sig1 = Signal()
-        sig2 = Signal()
     """
 
     def __init__(
@@ -205,7 +194,8 @@ class SignalGroup:
     This class is not intended to be instantiated directly.  Instead, it should be
     subclassed, and the subclass should define Signal instances as class attributes.
     The SignalGroup will then automatically collect these signals and provide a
-    SignalRelay instance that can be used to connect to all of the signals in the group.
+    SignalRelay instance (at `group.all`) that can be used to connect to all of the
+    signals in the group.
 
     This class is used in both the EventedModels and the evented dataclass patterns.
     See also: `psygnal.SignalGroupDescriptor`, which provides convenient and explicit
@@ -220,9 +210,7 @@ class SignalGroup:
     ----------
     all : SignalRelay
         A special SignalRelay instance that can be used to connect to all signals in
-        this group.  The name of this attribute can be overridden by the user by
-        creating a new name for the SignalRelay annotation on a subclass of SignalGroup
-        e.g. `my_name: SignalRelay`
+        this group.
 
     Examples
     --------
@@ -246,33 +234,17 @@ class SignalGroup:
     _psygnal_instances: dict[str, SignalInstance]
     _psygnal_uniform: ClassVar[bool] = False
 
-    # see comment in __init__.  This type annotation can be overriden by subclass
-    # to change the public name of the SignalRelay attribute
-    all: SignalRelay
-
     def __init__(self, instance: Any = None) -> None:
         cls = type(self)
         if not hasattr(cls, "_psygnal_signals"):  # pragma: no cover
             raise TypeError(
-                "Cannot instantiate SignalGroup directly.  Use a subclass instead."
+                "Cannot instantiate `SignalGroup` directly.  Use a subclass instead."
             )
-        self._psygnal_instances: dict[str, SignalInstance] = {
-            name: signal.__get__(self, cls)
-            for name, signal in cls._psygnal_signals.items()
+
+        self._psygnal_instances = {
+            name: sig.__get__(self, cls) for name, sig in cls._psygnal_signals.items()
         }
         self._psygnal_relay = SignalRelay(self._psygnal_instances, instance)
-
-        # determine the public name of the signal relay.
-        # by default, this is "all", but it can be overridden by the user by creating
-        # a new name for the SignalRelay annotation on a subclass of SignalGroup
-        # e.g. `my_name: SignalRelay`
-        self._psygnal_relay_name = "all"
-        for base in cls.__mro__:
-            for key, val in getattr(base, "__annotations__", {}).items():
-                if val is SignalRelay:
-                    self._psygnal_relay_name = key
-                    break
-        setattr(self, self._psygnal_relay_name, self._psygnal_relay)
 
     def __init_subclass__(cls, strict: bool = False) -> None:
         """Collects all Signal instances on the class under `cls._psygnal_signals`."""
@@ -281,6 +253,16 @@ class SignalGroup:
             for k, val in getattr(cls, "__dict__", {}).items()
             if isinstance(val, Signal)
         }
+        #
+        if "all" in cls._psygnal_signals:
+            warnings.warn(
+                "Name 'all' is reserved for the SignalRelay. You cannot use this "
+                "name on to access a SignalInstance on a SignalGroup. (You may still "
+                "access it at `group['all']`).",
+                UserWarning,
+                stacklevel=2,
+            )
+            delattr(cls, "all")
 
         cls._psygnal_uniform = _is_uniform(cls._psygnal_signals.values())
         if strict and not cls._psygnal_uniform:
@@ -289,27 +271,46 @@ class SignalGroup:
             )
         super().__init_subclass__()
 
+    @property
+    def all(self) -> SignalRelay:
+        """SignalInstance that can be used to connect to all signals in this group.
+
+        Examples
+        --------
+        ```python
+        from psygnal import Signal, SignalGroup
+
+        class MySignals(SignalGroup):
+            sig1 = Signal()
+            sig2 = Signal()
+
+        group = MySignals()
+        group.sig2.connect(...)  # connect to a single signal by name
+        group.all.connect(...)  # connect to all signals in the group
+        """
+        return self._psygnal_relay
+
     # TODO: change type hint to -> SignalInstance after completing deprecation of
     # direct access to names on SignalRelay object
     def __getattr__(self, name: str) -> Any:
-        # Note, technically these lines aren't actually needed because of the descriptor
-        # protocol.  Accessing a name on the instance will first look in the
-        # instance's __dict__, and then in the class's __dict__, which
+        # Note, technically these lines aren't actually needed because of Signal's
+        # descriptor protocol: Accessing a name on a group instance will first look
+        # the instance's __dict__, and then in the class's __dict__, which
         # will call Signal.__get__ and return the SignalInstance.
-        # these lines are here as a reminder to developers.
+        # these lines are here as a reminder to developers (and safeguard?).
         if name != "_psygnal_instances" and name in self._psygnal_instances:
             return self._psygnal_instances[name]  # pragma: no cover
+
         if name != "_psygnal_relay" and hasattr(self._psygnal_relay, name):
             warnings.warn(
                 f"Accessing SignalInstance attribute {name!r} on a SignalGroup is "
-                f"deprecated. Access it on the {self._psygnal_relay_name!r} "
-                f"attribute instead. e.g. `group.{self._psygnal_relay_name}.{name}`. "
-                "This will be an error in v0.11.",
+                f"deprecated. Access it on the `group.all` attribute instead. e.g. "
+                f"`group.all.{name}`. This will be an error in v0.11.",
                 FutureWarning,
                 stacklevel=2,
             )
             return getattr(self._psygnal_relay, name)
-        raise AttributeError(f"{type(self).__name__!r} has no attribute {name!r}")
+        raise AttributeError(f"{type(self).__name__!r} has no signal named {name!r}")
 
     @property
     def signals(self) -> Mapping[str, SignalInstance]:

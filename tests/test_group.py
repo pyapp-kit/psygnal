@@ -5,7 +5,6 @@ import pytest
 from typing_extensions import Annotated
 
 from psygnal import EmissionInfo, Signal, SignalGroup
-from psygnal._group import SignalRelay
 
 
 class MyGroup(SignalGroup):
@@ -232,14 +231,3 @@ def test_group_deepcopy() -> None:
     group.sig1.emit(1)
     mock.assert_called_with(EmissionInfo(group.sig1, (1,)))
     mock2.assert_not_called()
-
-
-def test_group_relay_name() -> None:
-    class T(SignalGroup):
-        agg: SignalRelay
-        sig1 = Signal(int)
-
-    t = T()
-    assert t.agg is t._psygnal_relay
-    # test getitem
-    assert t["sig1"] is t.sig1

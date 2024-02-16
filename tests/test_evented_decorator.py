@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 
 from psygnal import SignalInstance
+from psygnal._group import SignalRelay
 
 try:
     import pydantic.version
@@ -256,11 +257,16 @@ def test_name_conflicts() -> None:
     @dataclass
     class Foo:
         name: str
+        all: bool = False
 
     obj = Foo("foo")
     assert obj.name == "foo"
-    group = obj.events
+    with pytest.warns(UserWarning, match="Name 'all' is reserved"):
+        group = obj.events
     assert isinstance(group, SignalGroup)
     assert "name" in group
     assert isinstance(group.name, SignalInstance)
     assert group["name"] is group.name
+
+    assert isinstance(group.all, SignalRelay)
+    assert isinstance(group["all"], SignalInstance)
