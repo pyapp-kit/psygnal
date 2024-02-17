@@ -2,7 +2,11 @@ from copy import deepcopy
 from unittest.mock import Mock, call
 
 import pytest
-from typing_extensions import Annotated
+
+try:
+    from typing import Annotated  # py39
+except ImportError:
+    Annotated = None
 
 from psygnal import EmissionInfo, Signal, SignalGroup
 
@@ -50,6 +54,7 @@ def test_uniform_group():
     assert str(e.value).startswith("All Signals in a strict SignalGroup must")
 
 
+@pytest.mark.skipif(Annotated is None, reason="requires typing.Annotated")
 def test_nonhashable_args():
     """Test that non-hashable annotations are allowed in a SignalGroup"""
 

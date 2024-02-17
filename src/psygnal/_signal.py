@@ -15,19 +15,20 @@ from typing import (
     ContextManager,
     Iterable,
     Iterator,
+    Literal,
     NoReturn,
     Type,
     TypeVar,
     Union,
     cast,
+    get_args,
+    get_origin,
     get_type_hints,
     overload,
 )
 
-from mypy_extensions import mypyc_attr
-from typing_extensions import get_args, get_origin
-
 from ._exceptions import EmitLoopError
+from ._mypyc import mypyc_attr
 from ._queue import QueuedCallback
 from ._weak_callback import (
     StrongFunction,
@@ -38,7 +39,6 @@ from ._weak_callback import (
 )
 
 if TYPE_CHECKING:
-    from typing_extensions import Literal
 
     from ._group import EmissionInfo
     from ._weak_callback import RefErrorChoice

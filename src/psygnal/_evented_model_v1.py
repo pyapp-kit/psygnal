@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     import pydantic.v1.main as pydantic_main
     from pydantic.v1 import BaseModel, PrivateAttr, utils
     from pydantic.v1.fields import Field, FieldInfo, ModelField
-    from typing_extensions import dataclass_transform
+    from typing_extensions import dataclass_transform  # py311
 
     EqOperator = Callable[[Any, Any], bool]
 

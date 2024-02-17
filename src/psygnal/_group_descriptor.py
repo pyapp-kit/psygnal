@@ -12,6 +12,7 @@ from typing import (
     Callable,
     ClassVar,
     Iterable,
+    Literal,
     Type,
     TypeVar,
     cast,
@@ -24,7 +25,6 @@ from ._signal import Signal, SignalInstance
 
 if TYPE_CHECKING:
     from _weakref import ref as ref
-    from typing_extensions import Literal
 
     from psygnal._weak_callback import RefErrorChoice, WeakCallback
 

@@ -22,9 +22,9 @@ from typing import (
     NamedTuple,
 )
 
-from mypy_extensions import mypyc_attr
-
 from psygnal._signal import Signal, SignalInstance, _SignalBlocker
+
+from ._mypyc import mypyc_attr
 
 __all__ = ["EmissionInfo", "SignalGroup"]
 

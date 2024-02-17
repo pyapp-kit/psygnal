@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Iterable, Iterator, MutableSet, TypeVar
+from typing import TYPE_CHECKING, Any, Final, Iterable, Iterator, MutableSet, TypeVar
 
 from psygnal import Signal, SignalGroup
 
 if TYPE_CHECKING:
     from typing import Self
 
-    from typing_extensions import Final
 
 _T = TypeVar("_T")
 

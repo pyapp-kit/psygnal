@@ -1,11 +1,10 @@
 import inspect
 import sys
-from typing import Any, ClassVar, List, Sequence, Union
+from typing import Any, ClassVar, List, Protocol, Sequence, Union, runtime_checkable
 from unittest.mock import Mock, call, patch
 
 import numpy as np
 import pytest
-from typing_extensions import Protocol, runtime_checkable
 
 try:
     from pydantic import PrivateAttr
