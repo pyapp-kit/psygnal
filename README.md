@@ -12,7 +12,7 @@
 Psygnal (pronounced "signal") is a pure python implementation of the [observer
 pattern](https://en.wikipedia.org/wiki/Observer_pattern), with the API of
 [Qt-style Signals](https://doc.qt.io/qt-5/signalsandslots.html) with (optional)
-signature and type checking, and support for threading.
+signature and type checking, and support for threading.  It has no dependencies.
 
 > This library does ***not*** require or use Qt in any way, It simply implements
 > a similar observer pattern API.
