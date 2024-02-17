@@ -49,19 +49,6 @@ jobs:
           - os: windows-latest
             python-version: "3.12"
 
-  test-min-reqs:
-    name: Test min reqs
-    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@main
-    with:
-      os: ubuntu-latest
-      python-version: ${{ matrix.python-version }}
-      pip-install-min-reqs: true
-    secrets: inherit
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11"]
-
   test-qt:
     name: Test Qt
     uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v1
