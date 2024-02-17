@@ -4,15 +4,23 @@ import sys
 import weakref
 from functools import partial
 from types import BuiltinMethodType, FunctionType, MethodType, MethodWrapperType
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, cast
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Generic,
+    Literal,
+    Protocol,
+    TypeVar,
+    cast,
+)
 from warnings import warn
 
-from mypy_extensions import mypyc_attr
-from typing_extensions import Protocol
+from ._mypyc import mypyc_attr
 
 if TYPE_CHECKING:
     import toolz
-    from typing_extensions import Literal, TypeAlias, TypeGuard
+    from typing_extensions import TypeAlias, TypeGuard  # py310
 
     RefErrorChoice: TypeAlias = Literal["raise", "warn", "ignore"]
 

@@ -3,12 +3,11 @@ import time
 from contextlib import suppress
 from functools import partial, wraps
 from inspect import Signature
-from typing import Optional
+from typing import Literal, Optional
 from unittest.mock import MagicMock, Mock, call
 
 import pytest
 import toolz
-from typing_extensions import Literal
 
 from psygnal import EmitLoopError, Signal, SignalInstance, _compiled
 from psygnal._weak_callback import WeakCallback

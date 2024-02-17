@@ -26,13 +26,13 @@ from ._signal import Signal, SignalInstance
 if TYPE_CHECKING:
     from inspect import Signature
 
-    from typing_extensions import dataclass_transform
+    from typing_extensions import dataclass_transform  # py311
 
     EqOperator = Callable[[Any, Any], bool]
 
 else:
     try:
-        from typing_extensions import dataclass_transform
+        from typing_extensions import dataclass_transform  # py311
     except ImportError:  # pragma: no cover
 
         def dataclass_transform(*args, **kwargs):

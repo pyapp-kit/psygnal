@@ -24,29 +24,25 @@ classifiers = [
     "Typing :: Typed",
 ]
 dynamic = ["version"]
-dependencies = ["typing-extensions >=3.7.4.2", "mypy_extensions"]
+dependencies = [
+    # typing-extensions is in the source code, but not actually required
+    # at runtime. All uses are guarded by if TYPE_CHECKING
+]
 
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 [project.optional-dependencies]
 dev = [
     "black",
-    "cruft",
-    "dask",
     "ipython",
     "mypy",
-    "numpy",
+    "mypy_extensions",
     "pre-commit",
-    "pydantic",
     "PyQt5",
-    "pytest-cov",
     "pytest-mypy-plugins",
-    "pytest-qt",
-    "pytest",
-    "qtpy",
     "rich",
     "ruff",
-    "wrapt",
+    "typing-extensions",
 ]
 docs = [
     "griffe==0.25.5",
@@ -99,6 +95,7 @@ require-runtime-dependencies = true
 dependencies = [
     "hatch-mypyc>=0.13.0",
     "mypy>=0.991",
+    "mypy_extensions >=0.4.2",
     "pydantic",
     "types-attrs",
     "msgspec ; python_version >= '3.8'",

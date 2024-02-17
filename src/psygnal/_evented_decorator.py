@@ -1,8 +1,8 @@
 from typing import (
-    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
+    Literal,
     Optional,
     Type,
     TypeVar,
@@ -11,9 +11,6 @@ from typing import (
 )
 
 from psygnal._group_descriptor import SignalGroupDescriptor
-
-if TYPE_CHECKING:
-    from typing_extensions import Literal
 
 __all__ = ["evented"]
 
