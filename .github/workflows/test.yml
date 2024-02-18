@@ -103,6 +103,7 @@ jobs:
       - name: install
         run: |
           python -m pip install -e .[test]
+          python -m pip install pytest-codspeed
           python -c "import sys, psygnal; sys.exit(0 if psygnal._compiled else 1)"
         env:
           HATCH_BUILD_HOOKS_ENABLE: "1"

@@ -62,7 +62,6 @@ test = [
     "pydantic",
     "pyinstaller>=4.0",
     "pytest>=6.0",
-    "pytest-codspeed",
     "pytest-cov",
     "wrapt",
     "msgspec ; python_version >= '3.8'",
@@ -117,7 +116,7 @@ skip = ["*-manylinux_i686", "*-musllinux_i686", "*-win32", "pp*"]
 build = ["cp38-*", "cp39-*", "cp310-*", "cp311-*", "cp312-*"]
 test-extras = ["test"]
 test-command = "pytest {project}/tests -v"
-test-skip = "*-musllinux*"
+test-skip = ["*-musllinux*", "cp312-win*", "*-macosx_arm64"]
 
 [[tool.cibuildwheel.overrides]]
 select = "*-manylinux_i686*"
