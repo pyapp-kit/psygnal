@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Callable, Generator, Iterator
 from warnings import warn
 
-from ._group import EmissionInfo, SignalGroup, SignalRelay
+from ._group import EmissionInfo, SignalGroup
 from ._signal import SignalInstance
 
 __all__ = ["monitor_events", "iter_signal_instances"]
@@ -59,10 +59,6 @@ def monitor_events(
             )
         disconnectors = set()
         for siginst in iter_signal_instances(obj, include_private_attrs):
-            if isinstance(siginst, SignalRelay):
-                # TODO: ... but why?
-                continue
-
             if _old_api:
 
                 def _report(*args: Any, signal: SignalInstance = siginst) -> None:
@@ -103,14 +99,22 @@ def iter_signal_instances(
     SignalInstance
         SignalInstances (and SignalGroups) found as attributes on `obj`.
     """
+    # SignalGroup
+    if isinstance(obj, SignalGroup):
+        for sig in obj:
+            yield obj[sig]
+        return
+
+    # Signal attached to Class
     for n in dir(obj):
-        if include_private_attrs or not n.startswith("_"):
-            with suppress(AttributeError, FutureWarning):
-                attr = getattr(obj, n)
-                if isinstance(attr, SignalInstance):
-                    yield attr
-                if isinstance(attr, SignalGroup):
-                    yield attr._psygnal_relay
+        if include_private_attrs and n.startswith("_"):
+            continue
+        with suppress(AttributeError, FutureWarning):
+            attr = getattr(obj, n)
+            if isinstance(attr, SignalInstance):
+                yield attr
+            if isinstance(attr, SignalGroup):
+                yield attr._psygnal_relay
 
 
 _COMPILED_EXTS = (".so", ".pyd")

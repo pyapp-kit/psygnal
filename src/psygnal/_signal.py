@@ -111,12 +111,15 @@ class Signal:
         name: str | None = None,
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
+        slotted: bool = False,
     ) -> None:
         self._name = name
         self.description = description
         self._check_nargs_on_connect = check_nargs_on_connect
         self._check_types_on_connect = check_types_on_connect
         self._signal_instance_class: type[SignalInstance] = SignalInstance
+        self._signal_instances: dict[int, SignalInstance] = {}
+        self._slotted_owner = slotted
 
         if types and isinstance(types[0], Signature):
             self._signature = types[0]
@@ -140,14 +143,12 @@ class Signal:
             self._name = name
 
     @overload
-    def __get__(
-        self, instance: None, owner: type[Any] | None = None
-    ) -> Signal: ...  # pragma: no cover
+    def __get__(self, instance: None, owner: type[Any] | None = None) -> Signal:
+        ...  # pragma: no cover
 
     @overload
-    def __get__(
-        self, instance: Any, owner: type[Any] | None = None
-    ) -> SignalInstance: ...  # pragma: no cover
+    def __get__(self, instance: Any, owner: type[Any] | None = None) -> SignalInstance:
+        ...  # pragma: no cover
 
     def __get__(
         self, instance: Any, owner: type[Any] | None = None
@@ -173,14 +174,8 @@ class Signal:
         """
         if instance is None:
             return self
-        name = cast("str", self._name)
-        signal_instance = self._signal_instance_class(
-            self.signature,
-            instance=instance,
-            name=name,
-            check_nargs_on_connect=self._check_nargs_on_connect,
-            check_types_on_connect=self._check_types_on_connect,
-        )
+        signal_instance = self._get_signal_instance(instance)
+
         # instead of caching this signal instance on self, we just assign it
         # to instance.name ... this essentially breaks the descriptor,
         # (i.e. __get__ will never again be called for this instance, and we have no
@@ -189,25 +184,40 @@ class Signal:
         # not be hashable or weak-referenceable), and also provides a significant
         # speedup on attribute access (affecting everything).
         # (note, this is the same mechanism used in the `cached_property` decorator)
-        try:
-            setattr(instance, name, signal_instance)
-        except AttributeError as e:
-            from ._group import SignalGroup
-
-            if name == "all" and isinstance(instance, SignalGroup):
-                # this specific case will happen if an evented dataclass field is named
-                # "all". 'all' is a reserved name for the SignalRelay, but we've
-                # already caught and warned about it in SignalGroup.__init_subclass__.
-                pass
-            else:
-                # otherwise, give an informative error message
-                raise AttributeError(  # pragma: no cover
-                    "An attempt to cache a SignalInstance on instance "
-                    f"{instance} failed. Please report this with your use case at "
-                    "https://github.com/pyapp-kit/psygnal/issues."
-                ) from e
+        if not self._slotted_owner:
+            try:
+                name = cast("str", self._name)
+                setattr(instance, name, signal_instance)
+            except AttributeError as e:
+                if hasattr(owner, "__slots__"):
+                    self._slotted_owner = True
+                else:
+                    raise AttributeError(  # pragma: no cover
+                        "An attempt to cache a SignalInstance on instance "
+                        f"{instance} failed. Please report this with your use case at "
+                        "https://github.com/pyapp-kit/psygnal/issues."
+                    ) from e
 
         return signal_instance
+
+    def _get_signal_instance(self, instance: Any) -> SignalInstance:
+        if instance is None:
+            raise ValueError(
+                "The instance to attach to the SignalInstance should not be None."
+            )
+
+        id_ = id(instance)
+        if id_ not in self._signal_instances:
+            name = cast("str", self._name)
+            self._signal_instances[id_] = self._signal_instance_class(
+                self.signature,
+                instance=instance,
+                name=name,
+                check_nargs_on_connect=self._check_nargs_on_connect,
+                check_types_on_connect=self._check_types_on_connect,
+            )
+
+        return self._signal_instances[id_]
 
     @classmethod
     @contextmanager
@@ -378,7 +388,8 @@ class SignalInstance:
         unique: bool | str = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
-    ) -> Callable[[F], F]: ...  # pragma: no cover
+    ) -> Callable[[F], F]:
+        ...  # pragma: no cover
 
     @overload
     def connect(
@@ -391,7 +402,8 @@ class SignalInstance:
         unique: bool | str = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
-    ) -> F: ...  # pragma: no cover
+    ) -> F:
+        ...  # pragma: no cover
 
     def connect(
         self,
@@ -879,7 +891,8 @@ class SignalInstance:
         check_nargs: bool = False,
         check_types: bool = False,
         asynchronous: Literal[False] = False,
-    ) -> None: ...  # pragma: no cover
+    ) -> None:
+        ...  # pragma: no cover
 
     @overload
     def emit(
@@ -985,7 +998,8 @@ class SignalInstance:
         check_nargs: bool = False,
         check_types: bool = False,
         asynchronous: Literal[False] = False,
-    ) -> None: ...  # pragma: no cover
+    ) -> None:
+        ...  # pragma: no cover
 
     @overload
     def __call__(

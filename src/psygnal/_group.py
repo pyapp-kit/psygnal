@@ -28,6 +28,15 @@ from psygnal._signal import Signal, SignalInstance, _SignalBlocker
 
 __all__ = ["EmissionInfo", "SignalGroup"]
 
+SIGNALGROUP_RESERVED = (
+    "all",
+    "is_uniform",
+    "signals",
+    "get_signal_by_alias",
+    "connect",
+    "disconnect",
+)
+
 
 class EmissionInfo(NamedTuple):
     """Tuple containing information about an emission event.
@@ -183,12 +192,23 @@ class SignalRelay(SignalInstance):
         super().disconnect(slot, missing_ok)
 
 
+class SignalGroupMetaclass(type):
+
+    def __len__(self):
+        """Return the number of signals in the group."""
+        return self._psygnal_cls_len()
+
+    def __iter__(self) -> Iterator[str]:
+        """Yield the names of all signals in the group."""
+        return self._psygnal_cls_iter()
+
+
 # NOTE
 # To developers. Avoid adding public names to this class, as it is intended to be
 # a container for user-determined names.  If names must be added, try to prefix
 # with "psygnal_" to avoid conflicts with user-defined names.
 @mypyc_attr(allow_interpreted_subclasses=True)
-class SignalGroup:
+class SignalGroup(metaclass=SignalGroupMetaclass):
     """A collection of signals that can be connected to as a single unit.
 
     This class is not intended to be instantiated directly.  Instead, it should be
@@ -230,9 +250,12 @@ class SignalGroup:
     ```
     """
 
-    _psygnal_signals: ClassVar[Mapping[str, Signal]]
-    _psygnal_instances: dict[str, SignalInstance]
+    _psygnal_signals: ClassVar[Mapping[str, Signal]] = {}
     _psygnal_uniform: ClassVar[bool] = False
+    _psygnal_aliases: ClassVar[Mapping[str, str | None]] = {}
+
+    _psygnal_instances: dict[str, SignalInstance]
+    _psygnal_relay: SignalRelay
 
     def __init__(self, instance: Any = None) -> None:
         cls = type(self)
@@ -241,19 +264,35 @@ class SignalGroup:
                 "Cannot instantiate `SignalGroup` directly.  Use a subclass instead."
             )
 
+        # Attach SignalInstance to this SignalGroup instance
         self._psygnal_instances = {
-            name: sig.__get__(self, cls) for name, sig in cls._psygnal_signals.items()
+            name: sig._get_signal_instance(self)
+            for name, sig in cls._psygnal_signals.items()
         }
+        # Attach SignalRelay to the object instance
         self._psygnal_relay = SignalRelay(self._psygnal_instances, instance)
 
-    def __init_subclass__(cls, strict: bool = False) -> None:
+    def __init_subclass__(
+        cls,
+        strict: bool = False,
+        signal_aliases: Mapping[str, str | None] = {},
+    ) -> None:
         """Collects all Signal instances on the class under `cls._psygnal_signals`."""
-        cls._psygnal_signals = {
-            k: val
-            for k, val in getattr(cls, "__dict__", {}).items()
-            if isinstance(val, Signal)
-        }
+        # Collect Signals and remove from class attributes
+        # Use dir(cls) instead of cls.__dict__ to get attributes from super()
+        _psygnal_signals = {}
+        for k in dir(cls):
+            val = getattr(cls, k, None)
+            if isinstance(val, Signal):
+                _psygnal_signals[k] = val
+                delattr(cls, k)
 
+        # Collect the Signals also from super-class
+        # When subclassing, the Signals have been removed from the attributes,
+        # look for cls._psygnal_signals also
+        cls._psygnal_signals = {**cls._psygnal_signals, **_psygnal_signals}
+
+        # Remove signal names conflicting with SignalGroup private attributes
         if conflicts := {k for k in cls._psygnal_signals if k.startswith("_psygnal")}:
             warnings.warn(
                 "Signal names may not begin with '_psygnal'. "
@@ -263,21 +302,17 @@ class SignalGroup:
             for key in conflicts:
                 del cls._psygnal_signals[key]
 
-        if "all" in cls._psygnal_signals:
+        # Emit warning for signal names conflicting with SignalGroup attributes
+        if conflicts := {k for k in cls._psygnal_signals if k in SIGNALGROUP_RESERVED}:
             warnings.warn(
-                "Name 'all' is reserved for the SignalRelay. You cannot use this "
-                "name on to access a SignalInstance on a SignalGroup. (You may still "
-                "access it at `group['all']`).",
+                f"Names {tuple(conflicts)!r} are reserved. You cannot use these "
+                "names on to access SignalInstances on a SignalGroup. (You may still "
+                "access them as keys: `group[name]`).",
                 UserWarning,
                 stacklevel=2,
             )
-            delattr(cls, "all")
 
-        if "psygnals_uniform" in cls._psygnal_signals:
-            raise NameError(
-                "Name 'psygnals_uniform' is reserved.  You cannot use this "
-                "name as a signal on a SignalGroup"
-            )
+        cls._psygnal_aliases = {**cls._psygnal_aliases, **signal_aliases}
 
         cls._psygnal_uniform = _is_uniform(cls._psygnal_signals.values())
         if strict and not cls._psygnal_uniform:
@@ -316,34 +351,16 @@ class SignalGroup:
         if name != "_psygnal_instances" and name in self._psygnal_instances:
             return self._psygnal_instances[name]  # pragma: no cover
 
-        if name != "_psygnal_relay" and hasattr(self._psygnal_relay, name):
-            warnings.warn(
-                f"Accessing SignalInstance attribute {name!r} on a SignalGroup is "
-                f"deprecated. Access it on the `group.all` attribute instead. e.g. "
-                f"`group.all.{name}`. This will be an error in v0.11.",
-                FutureWarning,
-                stacklevel=2,
-            )
-            return getattr(self._psygnal_relay, name)
-
         raise AttributeError(f"{type(self).__name__!r} has no signal named {name!r}")
 
     @property
     def signals(self) -> Mapping[str, SignalInstance]:
         """DEPRECATED: A mapping of signal names to SignalInstance instances."""
-        # TODO: deprecate this property
-        warnings.warn(
-            "Accessing the `signals` property on a SignalGroup is deprecated. "
-            "Use __iter__ to iterate over all signal names, and __getitem__ or getattr "
-            "to access signal instances. This will be an error in a future.",
-            FutureWarning,
-            stacklevel=2,
-        )
         return self._psygnal_instances
 
     def __len__(self) -> int:
         """Return the number of signals in the group (not including the relay)."""
-        return len(self._psygnal_signals)
+        return len(self._psygnal_instances)
 
     def __getitem__(self, item: str) -> SignalInstance:
         """Get a signal instance by name."""
@@ -351,33 +368,51 @@ class SignalGroup:
 
     def __iter__(self) -> Iterator[str]:
         """Yield the names of all signals in the group."""
-        return iter(self._psygnal_signals)
+        return iter(self._psygnal_instances)
 
     def __contains__(self, item: str) -> bool:
         """Return True if the group contains a signal with the given name."""
         # this is redundant with __iter__ and can be removed, but only after
         # removing the deprecation warning in __getattr__
-        return item in self._psygnal_signals
+        return item in self._psygnal_instances
+
+    @classmethod
+    def _psygnal_cls_len(cls) -> int:
+        """Return the number of signals in the group (not including the relay)."""
+        if not hasattr(cls, "_psygnal_signals"):
+            return 0
+        return len(cls._psygnal_signals)
+
+    @classmethod
+    def _psygnal_cls_iter(cls) -> Iterator[str]:
+        """Yield the names of all signals in the group."""
+        if not hasattr(cls, "_psygnal_signals"):
+            return
+        return iter(cls._psygnal_signals)
 
     def __repr__(self) -> str:
         """Return repr(self)."""
         name = self.__class__.__name__
         return f"<SignalGroup {name!r} with {len(self)} signals>"
 
-    @classmethod
-    def psygnals_uniform(cls) -> bool:
-        """Return true if all signals in the group have the same signature."""
-        return cls._psygnal_uniform
+    def get_signal_by_alias(self, name: str) -> SignalInstance | None:
+        sig_name = self._psygnal_aliases.get(name, name)
+        if sig_name is None or sig_name not in self:
+            return None
+        return self[sig_name]
+
+    def connect(self, *args, **kwargs):
+        return self.all.connect(*args, **kwargs)
+
+    def disconnect(self, *args, **kwargs):
+        return self.all.disconnect(*args, **kwargs)
+
+    def connect_direct(self, *args, **kwargs):
+        return self.all.connect_direct(*args, **kwargs)
 
     @classmethod
     def is_uniform(cls) -> bool:
         """Return true if all signals in the group have the same signature."""
-        warnings.warn(
-            "The `is_uniform` method on SignalGroup is deprecated. Use "
-            "`psygnals_uniform` instead. This will be an error in v0.11.",
-            FutureWarning,
-            stacklevel=2,
-        )
         return cls._psygnal_uniform
 
     def __deepcopy__(self, memo: dict[int, Any]) -> SignalGroup:

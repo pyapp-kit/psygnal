@@ -17,7 +17,6 @@ try:
 except ImportError:
     PYDANTIC_V2 = False
 
-
 from psygnal import (
     SignalGroupDescriptor,
     evented,
@@ -254,6 +253,8 @@ def test_name_conflicts() -> None:
     # https://github.com/pyapp-kit/psygnal/pull/269
     from dataclasses import field
 
+    match = "You cannot use these names on to access SignalInstances on a SignalGroup"
+
     @evented
     @dataclass
     class Foo:
@@ -264,7 +265,7 @@ def test_name_conflicts() -> None:
 
     obj = Foo("foo")
     assert obj.name == "foo"
-    with pytest.warns(UserWarning, match="Name 'all' is reserved"):
+    with pytest.warns(UserWarning, match=match):
         group = obj.events
 
     assert isinstance(group, SignalGroup)
@@ -273,8 +274,11 @@ def test_name_conflicts() -> None:
     assert isinstance(group.name, SignalInstance)
     assert group["name"] is group.name
 
-    assert "is_uniform" in group and isinstance(group.is_uniform, SignalInstance)
-    assert "signals" in group and isinstance(group.signals, SignalInstance)
+    assert "is_uniform" in group and isinstance(group["is_uniform"], SignalInstance)
+    assert "signals" in group and isinstance(group["signals"], SignalInstance)
+
+    assert not isinstance(group.is_uniform, SignalInstance)
+    assert not isinstance(group.signals, SignalInstance)
 
     # group.all is always a relay
     assert isinstance(group.all, SignalRelay)
@@ -286,25 +290,16 @@ def test_name_conflicts() -> None:
     with pytest.raises(AttributeError):  # it's not writeable
         group.all = SignalRelay({})
 
-    assert group.psygnals_uniform() is False
+    assert group.is_uniform() is False
 
     @evented
     @dataclass
     class Foo2:
-        psygnals_uniform: bool = True
-
-    obj2 = Foo2()
-    with pytest.raises(NameError, match="Name 'psygnals_uniform' is reserved"):
-        _ = obj2.events
-
-    @evented
-    @dataclass
-    class Foo3:
         field: int = 1
         _psygnal_signals: str = "signals"
 
-    obj3 = Foo3()
+    obj2 = Foo2()
     with pytest.warns(UserWarning, match="Signal names may not begin with '_psygnal'"):
-        group3 = obj3.events
+        group2 = obj2.events
 
-    assert "_psygnal_signals" not in group3
+    assert "_psygnal_signals" not in group2
