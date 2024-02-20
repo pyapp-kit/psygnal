@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from ._group import EmissionInfo
     from ._weak_callback import RefErrorChoice
 
-    ReducerFunc = Union[Callable[[tuple, tuple], tuple], Callable[[list[tuple]], tuple]]
+    ReducerFunc = Union[Callable[[tuple, tuple], tuple], Callable[[List[tuple]], tuple]]
 
 __all__ = ["Signal", "SignalInstance", "_compiled"]
 _NULL = object()
