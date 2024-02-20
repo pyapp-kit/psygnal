@@ -129,7 +129,7 @@ class EmitSuite:
 
 
 class EventedModelSuite:
-    params = [10, 100]
+    params = [10, 10000]
 
     def setup(self, n: int) -> None:
         try:
