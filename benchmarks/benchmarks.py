@@ -163,7 +163,7 @@ class EventedModelSuite:
 
 
 class EventedSetSuite:
-    params = [10, 1000]
+    params = [10, 100000]
 
     def setup(self, n):
         self.my_set = EventedSet(range(n))
