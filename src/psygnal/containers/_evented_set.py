@@ -310,6 +310,6 @@ def _reduce_events(li: Iterable[tuple[Iterable, Iterable]]) -> tuple[tuple, tupl
     return tuple(added_li), tuple(removed_li)
 
 
-_reduce_events.__signature__ = inspect.signature(
+_reduce_events.__signature__ = inspect.signature(  # type: ignore [attr-defined]
     _reduce_events
 )  # for performance reasons
