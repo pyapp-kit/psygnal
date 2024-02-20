@@ -232,22 +232,30 @@ class EventedSet(_BaseMutableSet[_T]):
 
     def update(self, *others: Iterable[_T]) -> None:
         """Update this set with the union of this set and others."""
-        with self.events.items_changed.paused(_reduce_events, ((), ())):
+        with self.events.items_changed.paused(
+            _reduce_events,
+        ):
             super().update(*others)
 
     def clear(self) -> None:
         """Remove all elements from this set."""
-        with self.events.items_changed.paused(_reduce_events, ((), ())):
+        with self.events.items_changed.paused(
+            _reduce_events,
+        ):
             super().clear()
 
     def difference_update(self, *s: Iterable[_T]) -> None:
         """Remove all elements of another set from this set."""
-        with self.events.items_changed.paused(_reduce_events, ((), ())):
+        with self.events.items_changed.paused(
+            _reduce_events,
+        ):
             super().difference_update(*s)
 
     def intersection_update(self, *s: Iterable[_T]) -> None:
         """Update this set with the intersection of itself and another."""
-        with self.events.items_changed.paused(_reduce_events, ((), ())):
+        with self.events.items_changed.paused(
+            _reduce_events,
+        ):
             super().intersection_update(*s)
 
     def symmetric_difference_update(self, __s: Iterable[_T]) -> None:
@@ -299,8 +307,10 @@ class EventedOrderedSet(EventedSet, OrderedSet[_T]):
         super().__init__(iterable)
 
 
-def _reduce_events(a: tuple, b: tuple) -> tuple[tuple, tuple]:
-    """Combine two events (a and b) each of which contain (added, removed)."""
-    a0, a1 = a
-    b0, b1 = b
-    return (a0 + b0, a1 + b1)
+def _reduce_events(li: list[tuple]) -> tuple[tuple, tuple]:
+    """Combine multiple events into a single event."""
+    added_li, removed_li = [], []
+    for added, removed in li:
+        added_li.extend(added)
+        removed_li.extend(removed)
+    return tuple(added_li), tuple(removed_li)

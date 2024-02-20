@@ -33,7 +33,6 @@ from ._queue import QueuedCallback
 from ._weak_callback import (
     StrongFunction,
     WeakCallback,
-    WeakMethod,
     WeakSetattr,
     WeakSetitem,
     weak_callback,
@@ -44,7 +43,7 @@ if TYPE_CHECKING:
     from ._group import EmissionInfo
     from ._weak_callback import RefErrorChoice
 
-    ReducerFunc = Callable[[tuple, tuple], tuple]
+    ReducerFunc = Union[Callable[[tuple, tuple], tuple], Callable[[list[tuple]], tuple]]
 
 __all__ = ["Signal", "SignalInstance", "_compiled"]
 _NULL = object()
@@ -319,7 +318,7 @@ class SignalInstance:
     ) -> None:
         self._name = name
         self._instance: Callable = self._instance_ref(instance)
-        self._args_queue: list[Any] = []  # filled when paused
+        self._args_queue: list[tuple] = []  # filled when paused
 
         if isinstance(signature, (list, tuple)):
             signature = _build_signature(*signature)
@@ -933,18 +932,7 @@ class SignalInstance:
             If `check_nargs` and/or `check_types` are `True`, and the corresponding
             checks fail.
         """
-        from ._group import SignalRelay
-
-        if (
-            self._is_blocked
-            or len(self._slots) == 0
-            or (
-                len(self._slots) == 1
-                and isinstance(self._slots[0], WeakMethod)
-                and isinstance(self._slots[0].dereference().__self__, SignalRelay)  # type: ignore [union-attr]
-                and len(self._slots[0].dereference().__self__) == 0  # type: ignore [union-attr, arg-type]
-            )
-        ):
+        if self._is_blocked or len(self._slots) == 0:
             return None
 
         if check_nargs:
@@ -1087,7 +1075,7 @@ class SignalInstance:
 
         Parameters
         ----------
-        reducer : Callable[[tuple, tuple], Any], optional
+        reducer : Callable[[tuple, tuple], Any], Callable[[list[tuple]], tuple],  optional
             If provided, all gathered args will be reduced into a single argument by
             passing `reducer` to `functools.reduce`.
             NOTE: args passed to `emit` are collected as tuples, so the two arguments
@@ -1117,10 +1105,21 @@ class SignalInstance:
         if not getattr(self, "_args_queue", None):
             return
         if reducer is not None:
-            if initial is _NULL:
-                args = reduce(reducer, self._args_queue)
+            if (
+                hasattr(reducer, "__annotations__")
+                and len(reducer.__annotations__) == 2
+            ):
+                args = cast(Callable[[list[tuple]], tuple], reducer)(self._args_queue)
+            elif initial is _NULL:
+                args = reduce(
+                    cast(Callable[[tuple, tuple], tuple], reducer), self._args_queue
+                )
             else:
-                args = reduce(reducer, self._args_queue, initial)
+                args = reduce(
+                    cast(Callable[[tuple, tuple], tuple], reducer),
+                    self._args_queue,
+                    initial,
+                )
             self._run_emit_loop(args)
         else:
             for args in self._args_queue:
@@ -1134,9 +1133,11 @@ class SignalInstance:
 
         Parameters
         ----------
-        reducer : Callable[[tuple, tuple], Any], optional
-            If provided, all gathered args will be reduced into a single argument by
+        reducer : Callable[[tuple, tuple], Any] or Callable[[list[tuple]], Any], optional
+            If provided two arguments, all gathered args will
+            be reduced into a single argument by
             passing `reducer` to `functools.reduce`.
+            If provided single argument (a list of tuples) will be passed to it
             NOTE: args passed to `emit` are collected as tuples, so the two arguments
             passed to `reducer` will always be tuples. `reducer` must handle that and
             return an args tuple.
