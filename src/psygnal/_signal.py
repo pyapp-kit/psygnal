@@ -44,7 +44,11 @@ if TYPE_CHECKING:
     from ._group import EmissionInfo
     from ._weak_callback import RefErrorChoice
 
-    ReducerFunc = Union[Callable[[tuple, tuple], tuple], Callable[[List[tuple]], tuple]]
+    # single function that does all the work itself
+    ReducerOneArg = Callable[[Iterable[tuple[Iterable, Iterable]]], tuple[tuple, tuple]]
+    # function that works on two arguments and will be passed to itertools.reduce
+    ReducerTwoArgs = Callable[[tuple, tuple], tuple]
+    ReducerFunc = Union[ReducerOneArg, ReducerTwoArgs]
 
 __all__ = ["Signal", "SignalInstance", "_compiled"]
 _NULL = object()
