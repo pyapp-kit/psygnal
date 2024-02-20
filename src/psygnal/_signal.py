@@ -1076,7 +1076,7 @@ class SignalInstance:
 
         Parameters
         ----------
-        reducer : Callable[[tuple, tuple], Any], Callable[[list[tuple]], tuple],  optional
+        reducer : Callable[[tuple, tuple], Any], Callable[[list[tuple]], tuple] | None
             If provided, all gathered args will be reduced into a single argument by
             passing `reducer` to `functools.reduce`.
             NOTE: args passed to `emit` are collected as tuples, so the two arguments
@@ -1134,7 +1134,7 @@ class SignalInstance:
 
         Parameters
         ----------
-        reducer : Callable[[tuple, tuple], Any] or Callable[[list[tuple]], Any], optional
+        reducer : Callable[[tuple, tuple], Any] or Callable[[list[tuple]], Any] | None
             If provided two arguments, all gathered args will
             be reduced into a single argument by
             passing `reducer` to `functools.reduce`.
