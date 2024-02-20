@@ -2,6 +2,7 @@
 from functools import partial
 
 from psygnal import Signal, SignalInstance
+from psygnal.containers import EventedSet
 
 
 class CreateSuite:
@@ -159,3 +160,28 @@ class EventedModelSuite:
         obj.events.x.connect(callback)
         for i in range(n):
             obj.x = i
+
+
+class EventedSetSuite:
+    params = [10, 1000]
+
+    def setup(self, n):
+        self.my_set = EventedSet(range(n))
+
+    def time_create_set(self, n):
+        EventedSet(range(n))
+
+    def time_update_new(self, n):
+        self.my_set.update(range(n, n * 2))
+
+    def time_update_existing(self, n):
+        self.my_set.update(range(n))
+
+    def time_update_overlap(self, n):
+        self.my_set.update(range(n // 2, n + n // 2))
+
+
+class EventedSetWithCallbackSuite(EventedSetSuite):
+    def setup(self, n):
+        super().setup(n)
+        self.my_set.events.items_changed.connect(callback)
