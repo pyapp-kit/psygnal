@@ -15,7 +15,6 @@ from typing import (
     ContextManager,
     Iterable,
     Iterator,
-    List,
     Literal,
     NoReturn,
     Type,
