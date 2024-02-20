@@ -932,7 +932,9 @@ class SignalInstance:
             If `check_nargs` and/or `check_types` are `True`, and the corresponding
             checks fail.
         """
-        if self._is_blocked or len(self._slots) == 0:
+        if self._is_blocked or (
+            len(self._slots) == 0 and SignalInstance._debug_hook is None
+        ):
             return None
 
         if check_nargs:
