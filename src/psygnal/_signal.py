@@ -15,6 +15,7 @@ from typing import (
     ContextManager,
     Iterable,
     Iterator,
+    List,
     Literal,
     NoReturn,
     Type,
@@ -24,7 +25,7 @@ from typing import (
     get_args,
     get_origin,
     get_type_hints,
-    overload, List,
+    overload,
 )
 
 from ._exceptions import EmitLoopError
