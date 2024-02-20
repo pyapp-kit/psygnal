@@ -24,7 +24,7 @@ from typing import (
     get_args,
     get_origin,
     get_type_hints,
-    overload,
+    overload, List,
 )
 
 from ._exceptions import EmitLoopError
@@ -1111,7 +1111,7 @@ class SignalInstance:
                 hasattr(reducer, "__annotations__")
                 and len(reducer.__annotations__) == 2
             ):
-                args = cast(Callable[[list[tuple]], tuple], reducer)(self._args_queue)
+                args = cast(Callable[[List[tuple]], tuple], reducer)(self._args_queue)
             elif initial is _NULL:
                 args = reduce(
                     cast(Callable[[tuple, tuple], tuple], reducer), self._args_queue
