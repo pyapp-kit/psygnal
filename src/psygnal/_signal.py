@@ -33,6 +33,7 @@ from ._queue import QueuedCallback
 from ._weak_callback import (
     StrongFunction,
     WeakCallback,
+    WeakMethod,
     WeakSetattr,
     WeakSetitem,
     weak_callback,
@@ -932,7 +933,18 @@ class SignalInstance:
             If `check_nargs` and/or `check_types` are `True`, and the corresponding
             checks fail.
         """
-        if self._is_blocked:
+        from ._group import SignalRelay
+
+        if (
+            self._is_blocked
+            or len(self._slots) == 0
+            or (
+                len(self._slots) == 1
+                and isinstance(self._slots[0], WeakMethod)
+                and isinstance(self._slots[0].dereference().__self__, SignalRelay)  # type: ignore [union-attr]
+                and len(self._slots[0].dereference().__self__) == 0  # type: ignore [union-attr, arg-type]
+            )
+        ):
             return None
 
         if check_nargs:
