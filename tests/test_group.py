@@ -256,4 +256,17 @@ def test_group_conflicts() -> None:
     assert "other_signal" in MyGroup._psygnal_signals
 
 
-def test_unnecessary_group_emit() -> None: ...
+def test_delayed_relay_connect() -> None:
+    group = MyGroup()
+    assert len(group.sig1) == 0
+
+    group.sig1.connect(print)
+    # group relay hasn't been connected to sig1 yet
+    assert len(group.sig1) == 1
+
+    group.all.connect(print)
+    # NOW the relay is connected
+    assert len(group.sig1) == 2
+    method = group.sig1._slots[-1].dereference()
+    assert method
+    assert method.__name__ == "_slot_relay"
