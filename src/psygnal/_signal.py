@@ -1127,6 +1127,10 @@ class SignalInstance:
         # EventedModel.update, it may be undefined (as seen in tests)
         if not getattr(self, "_args_queue", None):
             return
+        if len(self._slots) == 0:
+            self._args_queue.clear()
+            return
+
         if reducer is not None:
             if len(inspect.signature(reducer).parameters) == 1:
                 args = cast("ReducerOneArg", reducer)(self._args_queue)
