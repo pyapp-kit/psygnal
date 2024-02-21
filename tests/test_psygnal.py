@@ -159,6 +159,7 @@ def test_signature_provided():
 
 def test_emit_checks():
     emitter = Emitter()
+    emitter.one_int.connect(f_no_arg)
 
     emitter.one_int.emit(check_nargs=False)
     emitter.one_int.emit()

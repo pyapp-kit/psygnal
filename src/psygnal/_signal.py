@@ -39,11 +39,15 @@ from ._weak_callback import (
 )
 
 if TYPE_CHECKING:
-
     from ._group import EmissionInfo
     from ._weak_callback import RefErrorChoice
 
-    ReducerFunc = Callable[[tuple, tuple], tuple]
+    # single function that does all the work of reducing an iterable of args
+    # to a single args
+    ReducerOneArg = Callable[[Iterable[tuple]], tuple]
+    # function that takes two args tuples. it will be passed to itertools.reduce
+    ReducerTwoArgs = Callable[[tuple, tuple], tuple]
+    ReducerFunc = Union[ReducerOneArg, ReducerTwoArgs]
 
 __all__ = ["Signal", "SignalInstance", "_compiled"]
 _NULL = object()
@@ -318,7 +322,7 @@ class SignalInstance:
     ) -> None:
         self._name = name
         self._instance: Callable = self._instance_ref(instance)
-        self._args_queue: list[Any] = []  # filled when paused
+        self._args_queue: list[tuple] = []  # filled when paused
 
         if isinstance(signature, (list, tuple)):
             signature = _build_signature(*signature)
@@ -1075,15 +1079,20 @@ class SignalInstance:
 
         Parameters
         ----------
-        reducer : Callable[[tuple, tuple], Any], optional
-            If provided, all gathered args will be reduced into a single argument by
-            passing `reducer` to `functools.reduce`.
-            NOTE: args passed to `emit` are collected as tuples, so the two arguments
-            passed to `reducer` will always be tuples. `reducer` must handle that and
-            return an args tuple.
-            For example, three `emit(1)` events would be reduced and re-emitted as
-            follows: `self.emit(*functools.reduce(reducer, [(1,), (1,), (1,)]))`
+        reducer : Callable | None
+            A optional function to reduce the args collected while paused into a single
+            emitted group of args.  If not provided, all emissions will be re-emitted
+            as they were collected when the signal is resumed. May be:
 
+            - a function that takes two args tuples and returns a single args tuple.
+              This will be passed to `functools.reduce` and is expected to reduce all
+              collected/emitted args into a single tuple.
+              For example, three `emit(1)` events would be reduced and re-emitted as
+              follows: `self.emit(*functools.reduce(reducer, [(1,), (1,), (1,)]))`
+            - a function that takes a single argument (an iterable of args tuples) and
+              returns a tuple (the reduced args). This will be *not* be passed to
+              `functools.reduce`. If `reducer` is a function that takes a single
+              argument, `initial` will be ignored.
         initial: any, optional
             initial value to pass to `functools.reduce`
 
@@ -1105,10 +1114,14 @@ class SignalInstance:
         if not getattr(self, "_args_queue", None):
             return
         if reducer is not None:
-            if initial is _NULL:
-                args = reduce(reducer, self._args_queue)
+            if len(inspect.signature(reducer).parameters) == 1:
+                args = cast("ReducerOneArg", reducer)(self._args_queue)
             else:
-                args = reduce(reducer, self._args_queue, initial)
+                reducer = cast("ReducerTwoArgs", reducer)
+                if initial is _NULL:
+                    args = reduce(reducer, self._args_queue)
+                else:
+                    args = reduce(reducer, self._args_queue, initial)
             self._run_emit_loop(args)
         else:
             for args in self._args_queue:
@@ -1122,14 +1135,20 @@ class SignalInstance:
 
         Parameters
         ----------
-        reducer : Callable[[tuple, tuple], Any], optional
-            If provided, all gathered args will be reduced into a single argument by
-            passing `reducer` to `functools.reduce`.
-            NOTE: args passed to `emit` are collected as tuples, so the two arguments
-            passed to `reducer` will always be tuples. `reducer` must handle that and
-            return an args tuple.
-            For example, three `emit(1)` events would be reduced and re-emitted as
-            follows: `self.emit(*functools.reduce(reducer, [(1,), (1,), (1,)]))`
+        reducer : Callable | None
+            A optional function to reduce the args collected while paused into a single
+            emitted group of args.  If not provided, all emissions will be re-emitted
+            as they were collected when the signal is resumed. May be:
+
+            - a function that takes two args tuples and returns a single args tuple.
+              This will be passed to `functools.reduce` and is expected to reduce all
+              collected/emitted args into a single tuple.
+              For example, three `emit(1)` events would be reduced and re-emitted as
+              follows: `self.emit(*functools.reduce(reducer, [(1,), (1,), (1,)]))`
+            - a function that takes a single argument (an iterable of args tuples) and
+              returns a tuple (the reduced args). This will be *not* be passed to
+              `functools.reduce`. If `reducer` is a function that takes a single
+              argument, `initial` will be ignored.
         initial: any, optional
             initial value to pass to `functools.reduce`
 
