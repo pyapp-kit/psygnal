@@ -18,6 +18,7 @@ from typing import (
     List,
     Literal,
     NoReturn,
+    Tuple,
     Type,
     TypeVar,
     Union,
@@ -45,7 +46,7 @@ if TYPE_CHECKING:
     from ._weak_callback import RefErrorChoice
 
     # single function that does all the work itself
-    ReducerOneArg = Callable[[Iterable[tuple[Iterable, Iterable]]], tuple[tuple, tuple]]
+    ReducerOneArg = Callable[[Iterable[Tuple[Iterable, Iterable]]], Tuple[tuple, tuple]]
     # function that works on two arguments and will be passed to itertools.reduce
     ReducerTwoArgs = Callable[[tuple, tuple], tuple]
     ReducerFunc = Union[ReducerOneArg, ReducerTwoArgs]
