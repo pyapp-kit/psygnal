@@ -16,7 +16,7 @@ class MyGroup(SignalGroup):
     sig2 = Signal(str)
 
 
-def test_signal_group():
+def test_signal_group() -> None:
     assert not MyGroup.psygnals_uniform()
     with pytest.warns(
         FutureWarning, match="The `is_uniform` method on SignalGroup is deprecated"
@@ -33,7 +33,7 @@ def test_signal_group():
         group.sig3  # noqa: B018
 
 
-def test_uniform_group():
+def test_uniform_group() -> None:
     """In a uniform group, all signals must have the same signature."""
 
     class MyStrictGroup(SignalGroup, strict=True):
@@ -55,7 +55,7 @@ def test_uniform_group():
 
 
 @pytest.mark.skipif(Annotated is None, reason="requires typing.Annotated")
-def test_nonhashable_args():
+def test_nonhashable_args() -> None:
     """Test that non-hashable annotations are allowed in a SignalGroup"""
 
     class MyGroup(SignalGroup):
@@ -72,7 +72,7 @@ def test_nonhashable_args():
 
 
 @pytest.mark.parametrize("direct", [True, False])
-def test_signal_group_connect(direct: bool):
+def test_signal_group_connect(direct: bool) -> None:
     mock = Mock()
     group = MyGroup()
     if direct:
@@ -104,7 +104,7 @@ def test_signal_group_connect(direct: bool):
     mock.assert_has_calls(expected_calls)
 
 
-def test_signal_group_connect_no_args():
+def test_signal_group_connect_no_args() -> None:
     """Test that group.all.connect can take a callback that wants no args"""
     group = MyGroup()
     count = []
@@ -118,7 +118,7 @@ def test_signal_group_connect_no_args():
     assert len(count) == 2
 
 
-def test_group_blocked():
+def test_group_blocked() -> None:
     group = MyGroup()
 
     mock1 = Mock()
@@ -149,7 +149,7 @@ def test_group_blocked():
     mock2.assert_not_called()
 
 
-def test_group_blocked_exclude():
+def test_group_blocked_exclude() -> None:
     """Test that we can exempt certain signals from being blocked."""
     group = MyGroup()
 
@@ -166,7 +166,7 @@ def test_group_blocked_exclude():
     mock2.assert_called_once_with("hi")
 
 
-def test_group_disconnect_single_slot():
+def test_group_disconnect_single_slot() -> None:
     """Test that we can disconnect single slots from groups."""
     group = MyGroup()
 
@@ -184,7 +184,7 @@ def test_group_disconnect_single_slot():
     mock2.assert_called_once()
 
 
-def test_group_disconnect_all_slots():
+def test_group_disconnect_all_slots() -> None:
     """Test that we can disconnect all slots from groups."""
     group = MyGroup()
 
@@ -202,7 +202,7 @@ def test_group_disconnect_all_slots():
     mock2.assert_not_called()
 
 
-def test_weakref():
+def test_weakref() -> None:
     """Make sure that the group doesn't keep a strong reference to the instance."""
     import gc
 
@@ -218,7 +218,7 @@ def test_weakref():
 
 def test_group_deepcopy() -> None:
     class T:
-        def method(self): ...
+        def method(self) -> None: ...
 
     obj = T()
     group = MyGroup(obj)
@@ -254,3 +254,6 @@ def test_group_conflicts() -> None:
 
     assert "_psygnal_thing" not in MyGroup._psygnal_signals
     assert "other_signal" in MyGroup._psygnal_signals
+
+
+def test_unnecessary_group_emit() -> None: ...

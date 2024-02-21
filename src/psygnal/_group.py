@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import warnings
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
@@ -25,6 +26,9 @@ from typing import (
 from psygnal._signal import Signal, SignalInstance, _SignalBlocker
 
 from ._mypyc import mypyc_attr
+
+if TYPE_CHECKING:
+    from psygnal._weak_callback import WeakCallback
 
 __all__ = ["EmissionInfo", "SignalGroup"]
 
@@ -63,10 +67,15 @@ class SignalRelay(SignalInstance):
         self._signals = signals
         self._sig_was_blocked: dict[str, bool] = {}
 
+    def _append_slot(self, slot: WeakCallback) -> None:
+        super()._append_slot(slot)
+        self._connect_relay()
+
+    def _connect_relay(self) -> None:
         # silence any warnings about failed weakrefs (will occur in compiled version)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            for sig in signals.values():
+            for sig in self._signals.values():
                 sig.connect(
                     self._slot_relay, check_nargs=False, check_types=False, unique=True
                 )

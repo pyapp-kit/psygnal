@@ -521,13 +521,16 @@ class SignalInstance:
                     finalize=self._try_discard,
                     on_ref_error=_on_ref_err,
                 )
-                if thread is None:
-                    self._slots.append(cb)
-                else:
-                    self._slots.append(QueuedCallback(cb, thread=thread))
+                if thread is not None:
+                    cb = QueuedCallback(cb, thread=thread)
+                self._append_slot(cb)
             return slot
 
         return _wrapper if slot is None else _wrapper(slot)
+
+    def _append_slot(self, slot: WeakCallback) -> None:
+        """Append a slot to the list of slots."""
+        self._slots.append(slot)
 
     def _try_discard(self, callback: WeakCallback, missing_ok: bool = True) -> None:
         """Try to discard a callback from the list of slots.

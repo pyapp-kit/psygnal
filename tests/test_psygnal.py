@@ -395,8 +395,7 @@ def test_group_weakref(slot):
     group = MyGroup()
     obj = MyObj()
 
-    # simply by nature of being in a group, sig1 will have a callback
-    assert len(group.sig1) == 1
+    assert len(group.sig1) == 0
     # but the group itself doesn't have any
     assert len(group._psygnal_relay) == 0
 
