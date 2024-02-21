@@ -1128,7 +1128,7 @@ class SignalInstance:
         if not getattr(self, "_args_queue", None):
             return
         if len(self._slots) == 0:
-            self._args_queue = []
+            self._args_queue.clear()
             return
 
         if reducer is not None:
