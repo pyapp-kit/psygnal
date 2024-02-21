@@ -268,7 +268,7 @@ def evented_setattr(
 
             # don't emit if the signal doesn't exist or has no listeners
             signal: SignalInstance = group[name]
-            if len(signal) < 1 and not len(group._psygnal_relay):
+            if len(signal) < 1:
                 return super_setattr(self, name, value)
 
             with _changes_emitted(self, name, signal):
