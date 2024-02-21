@@ -348,7 +348,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         deps_with_callbacks = {
             dep_name
             for dep_name in self.__field_dependents__.get(name, ())
-            if len(group[dep_name]) > 1
+            if len(group[dep_name])
         }
         if (
             len(signal_instance) < 1  # the signal itself has no listeners
