@@ -261,12 +261,14 @@ def test_delayed_relay_connect() -> None:
     assert len(group.sig1) == 0
 
     group.sig1.connect(print)
-    # group relay hasn't been connected to sig1 yet
+    # group relay hasn't been connected to sig1 or sig2 yet
     assert len(group.sig1) == 1
+    assert len(group.sig2) == 0
 
     group.all.connect(print)
     # NOW the relay is connected
     assert len(group.sig1) == 2
+    assert len(group.sig2) == 1
     method = group.sig1._slots[-1].dereference()
     assert method
     assert method.__name__ == "_slot_relay"
