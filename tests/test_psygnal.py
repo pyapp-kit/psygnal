@@ -385,7 +385,7 @@ def test_weakref(slot):
         "partial",
     ],
 )
-def test_group_weakref(slot):
+def test_group_weakref(slot) -> None:
     """Test that a connected method doesn't hold strong ref."""
     from psygnal import SignalGroup
 
@@ -411,7 +411,7 @@ def test_group_weakref(slot):
     del obj
     gc.collect()
     group.sig1.emit(1)  # this should trigger deletion, so would emitter.emit()
-    assert len(group.sig1) == 1
+    assert len(group.sig1) == 0  # NOTE! this is 0 not 1, because the relay is also gone
     assert len(group._psygnal_relay) == 0  # it's been cleaned up
 
 

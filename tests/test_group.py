@@ -258,17 +258,33 @@ def test_group_conflicts() -> None:
 
 def test_delayed_relay_connect() -> None:
     group = MyGroup()
+    mock = Mock()
+    gmock = Mock()
     assert len(group.sig1) == 0
 
-    group.sig1.connect(print)
+    group.sig1.connect(mock)
     # group relay hasn't been connected to sig1 or sig2 yet
     assert len(group.sig1) == 1
     assert len(group.sig2) == 0
 
-    group.all.connect(print)
+    group.all.connect(gmock)
     # NOW the relay is connected
     assert len(group.sig1) == 2
     assert len(group.sig2) == 1
     method = group.sig1._slots[-1].dereference()
     assert method
     assert method.__name__ == "_slot_relay"
+
+    group.sig1.emit(1)
+    mock.assert_called_once_with(1)
+    gmock.assert_called_once_with(EmissionInfo(group.sig1, (1,)))
+
+    group.all.disconnect(gmock)
+    assert len(group.sig1) == 1
+    assert len(group.all) == 0
+
+    mock.reset_mock()
+    gmock.reset_mock()
+    group.sig1.emit(1)
+    mock.assert_called_once_with(1)
+    gmock.assert_not_called()

@@ -19,6 +19,7 @@ from typing import (
     ContextManager,
     Iterable,
     Iterator,
+    Literal,
     Mapping,
     NamedTuple,
 )
@@ -69,8 +70,8 @@ class SignalRelay(SignalInstance):
 
     def _append_slot(self, slot: WeakCallback) -> None:
         super()._append_slot(slot)
-        if len(self._slots) == 1
-	        self._connect_relay():
+        if len(self._slots) == 1:
+            self._connect_relay()
 
     def _connect_relay(self) -> None:
         # silence any warnings about failed weakrefs (will occur in compiled version)
@@ -80,6 +81,15 @@ class SignalRelay(SignalInstance):
                 sig.connect(
                     self._slot_relay, check_nargs=False, check_types=False, unique=True
                 )
+
+    def _remove_slot(self, slot: int | WeakCallback | Literal["all"]) -> None:
+        super()._remove_slot(slot)
+        if not self._slots:
+            self._disconnect_relay()
+
+    def _disconnect_relay(self) -> None:
+        for sig in self._signals.values():
+            sig.disconnect(self._slot_relay)
 
     def _slot_relay(self, *args: Any) -> None:
         if emitter := Signal.current_emitter():
