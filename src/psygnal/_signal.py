@@ -521,13 +521,27 @@ class SignalInstance:
                     finalize=self._try_discard,
                     on_ref_error=_on_ref_err,
                 )
-                if thread is None:
-                    self._slots.append(cb)
-                else:
-                    self._slots.append(QueuedCallback(cb, thread=thread))
+                if thread is not None:
+                    cb = QueuedCallback(cb, thread=thread)
+                self._append_slot(cb)
             return slot
 
         return _wrapper if slot is None else _wrapper(slot)
+
+    def _append_slot(self, slot: WeakCallback) -> None:
+        """Append a slot to the list of slots."""
+        # implementing this as a method allows us to override/extend it in subclasses
+        self._slots.append(slot)
+
+    def _remove_slot(self, slot: Literal["all"] | int | WeakCallback) -> None:
+        """Remove a slot from the list of slots."""
+        # implementing this as a method allows us to override/extend it in subclasses
+        if slot == "all":
+            self._slots.clear()
+        elif isinstance(slot, int):
+            self._slots.pop(slot)
+        else:
+            self._slots.remove(cast("WeakCallback", slot))
 
     def _try_discard(self, callback: WeakCallback, missing_ok: bool = True) -> None:
         """Try to discard a callback from the list of slots.
@@ -540,7 +554,7 @@ class SignalInstance:
             If `True`, do not raise an error if the callback is not found in the list.
         """
         try:
-            self._slots.remove(callback)
+            self._remove_slot(callback)
         except ValueError:
             if not missing_ok:
                 raise
@@ -633,7 +647,7 @@ class SignalInstance:
                 finalize=self._try_discard,
                 on_ref_error=on_ref_error,
             )
-            self._slots.append(caller)
+            self._append_slot(caller)
         return caller
 
     def disconnect_setattr(
@@ -747,7 +761,7 @@ class SignalInstance:
                 finalize=self._try_discard,
                 on_ref_error=on_ref_error,
             )
-            self._slots.append(caller)
+            self._append_slot(caller)
 
         return caller
 
@@ -859,12 +873,12 @@ class SignalInstance:
         with self._lock:
             if slot is None:
                 # NOTE: clearing an empty list is actually a RuntimeError in Qt
-                self._slots.clear()
+                self._remove_slot("all")
                 return
 
             idx = self._slot_index(slot)
             if idx != -1:
-                self._slots.pop(idx)
+                self._remove_slot(idx)
             elif not missing_ok:
                 raise ValueError(f"slot is not connected: {slot}")
 
