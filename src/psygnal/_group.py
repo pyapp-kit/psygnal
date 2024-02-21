@@ -69,7 +69,8 @@ class SignalRelay(SignalInstance):
 
     def _append_slot(self, slot: WeakCallback) -> None:
         super()._append_slot(slot)
-        self._connect_relay()
+        if len(self._slots) == 1
+	        self._connect_relay():
 
     def _connect_relay(self) -> None:
         # silence any warnings about failed weakrefs (will occur in compiled version)
