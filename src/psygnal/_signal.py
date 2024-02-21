@@ -15,7 +15,6 @@ from typing import (
     ContextManager,
     Iterable,
     Iterator,
-    List,
     Literal,
     NoReturn,
     Tuple,
@@ -1111,21 +1110,15 @@ class SignalInstance:
         if not getattr(self, "_args_queue", None):
             return
         if reducer is not None:
-            if (
-                hasattr(reducer, "__annotations__")
-                and len(reducer.__annotations__) == 2
-            ):
-                args = cast(Callable[[List[tuple]], tuple], reducer)(self._args_queue)
-            elif initial is _NULL:
-                args = reduce(
-                    cast(Callable[[tuple, tuple], tuple], reducer), self._args_queue
-                )
+            if len(inspect.signature(reducer).parameters) == 1:
+                reducer = cast(Callable[[Iterable[tuple]], tuple], reducer)
+                args = reducer(self._args_queue)
             else:
-                args = reduce(
-                    cast(Callable[[tuple, tuple], tuple], reducer),
-                    self._args_queue,
-                    initial,
-                )
+                reducer = cast(Callable[[tuple, tuple], tuple], reducer)
+                if initial is _NULL:
+                    args = reduce(reducer, self._args_queue)
+                else:
+                    args = reduce(reducer, self._args_queue, initial)
             self._run_emit_loop(args)
         else:
             for args in self._args_queue:

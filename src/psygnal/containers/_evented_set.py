@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Final, Iterable, Iterator, MutableSet, TypeVar
 
@@ -307,3 +308,8 @@ def _reduce_events(li: Iterable[tuple[Iterable, Iterable]]) -> tuple[tuple, tupl
         added_li.extend(added)
         removed_li.extend(removed)
     return tuple(added_li), tuple(removed_li)
+
+
+_reduce_events.__signature__ = inspect.signature(  # type: ignore [attr-defined]
+    _reduce_events
+)  # for performance reasons
