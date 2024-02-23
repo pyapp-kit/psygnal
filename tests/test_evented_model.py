@@ -553,6 +553,9 @@ def test_evented_model_with_property_setters_events():
     mock_c.assert_called_with([5, 20])
     mock_b.assert_not_called()
     assert t.c == [5, 20]
+    mock_a.reset_mock()
+    t.a = 5  # no change, no events
+    mock_a.assert_not_called()
 
 
 def test_non_setter_with_dependencies() -> None:
@@ -852,15 +855,21 @@ def _reset_mocks(*args):
         el.reset_mock()
 
 
-@pytest.mark.filterwarnings("ignore:.*Support for class-based.*:DeprecationWarning")
 def test_single_emit():
     class SampleClass(EventedModel):
         a: int = 1
         b: int = 2
 
-        class Config:
-            allow_property_setters = True
-            field_dependencies = {"c": ["a"], "d": ["a", "b"], "e": ["a", "b"]}
+        if PYDANTIC_V2:
+            model_config = {
+                "allow_property_setters": True,
+                "guess_property_dependencies": True,
+            }
+        else:
+
+            class Config:
+                allow_property_setters = True
+                guess_property_dependencies = True
 
         @property
         def c(self):
