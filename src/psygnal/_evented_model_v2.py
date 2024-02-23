@@ -1,6 +1,7 @@
 import sys
 import warnings
 from contextlib import contextmanager
+from types import TracebackType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -8,6 +9,7 @@ from typing import (
     ClassVar,
     Dict,
     Iterator,
+    Optional,
     Set,
     Type,
     Union,
@@ -19,7 +21,7 @@ from pydantic import BaseModel, ConfigDict, PrivateAttr
 from pydantic._internal import _model_construction, _utils
 from pydantic.fields import Field, FieldInfo
 
-from ._evented_model_utils import ComparisonDelayer
+# from ._evented_model_utils import ComparisonDelayer
 from ._group import SignalGroup
 from ._group_descriptor import _check_field_equality, _pick_equality_operator
 from ._signal import Signal, SignalInstance
@@ -515,3 +517,20 @@ def _get_defaults(obj: Type[BaseModel]) -> Dict[str, Any]:
             d = _get_defaults(v.annotation)  # pragma: no cover
         dflt[k] = d
     return dflt
+
+
+class ComparisonDelayer:
+    def __init__(self, target: EventedModel) -> None:
+        self._target = target
+
+    def __enter__(self) -> None:
+        self._target._delay_check_semaphore += 1
+
+    def __exit__(
+        self,
+        exc_type: Optional[type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> None:
+        self._target._delay_check_semaphore -= 1
+        self._target._check_if_values_changed_and_emit_if_needed()
