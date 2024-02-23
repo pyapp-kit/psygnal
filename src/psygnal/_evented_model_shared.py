@@ -248,14 +248,14 @@ def _get_field_dependents(
             raise TypeError(
                 f"Config property_dependencies must be a dict, not {cfg_deps!r}"
             )
-        for prop, mfields in cfg_deps.items():
+        for prop, fields in cfg_deps.items():
             if prop not in {*model_fields, *cls.__property_setters__}:
                 raise ValueError(
                     "Fields with dependencies must be fields or property.setters."
                     f"{prop!r} is not."
                 )
-            for field in mfields:
-                if field not in mfields:
+            for field in fields:
+                if field not in model_fields:
                     warnings.warn(
                         f"Unrecognized field dependency: {field!r}", stacklevel=2
                     )
