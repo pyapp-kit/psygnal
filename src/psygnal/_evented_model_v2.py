@@ -347,8 +347,6 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         for name in self._primary_changes:
             # primary changes should contains only fields
             # that are changed directly by assigment
-            if name not in self._changes_queue:
-                continue
             old_value = self._changes_queue[name]
             new_value = getattr(self, name)
             if not _check_field_equality(type(self), name, new_value, old_value):
