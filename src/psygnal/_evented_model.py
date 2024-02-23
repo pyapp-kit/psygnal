@@ -124,7 +124,7 @@ if not PYDANTIC_V1:
     def _get_config(cls: pydantic.BaseModel) -> "ConfigDict":
         return cls.model_config
 
-    def _get_fields(cls: pydantic.BaseModel) -> dict[str, pydantic.fields.FieldInfo]:
+    def _get_fields(cls: pydantic.BaseModel) -> Dict[str, pydantic.fields.FieldInfo]:
         return cls.model_fields
 
     def _model_dump(obj: pydantic.BaseModel) -> dict:
