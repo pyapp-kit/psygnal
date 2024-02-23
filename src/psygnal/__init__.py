@@ -61,14 +61,12 @@ from ._signal import Signal, SignalInstance, _compiled
 from ._throttler import debounced, throttled
 
 
-def __getattr__(name: str) -> Any:
+def __getattr__(name: str) -> Any:  # pragma: no cover
     if name == "EventedModel":
         from ._evented_model_shared import EventedModel
 
         return EventedModel
-    raise AttributeError(  # pragma: no cover
-        f"module {__name__!r} has no attribute {name!r}"
-    )
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 del os, TYPE_CHECKING

@@ -100,13 +100,36 @@ def no_class_attributes() -> Iterator[None]:  # pragma: no cover
         pydantic_main.ClassAttribute = utils.ClassAttribute
 
 
-class FieldInfo(NamedTuple):
-    annotation: Type[Any] | None
-    frozen: bool | None
+if not PYDANTIC_V1:
 
+    def _get_defaults(
+        obj: pydantic.BaseModel | Type[pydantic.BaseModel],
+    ) -> Dict[str, Any]:
+        """Get possibly nested default values for a Model object."""
+        dflt = {}
+        for k, v in obj.model_fields.items():
+            d = v.get_default()
+            if (
+                d is None
+                and isinstance(v.annotation, type)
+                and issubclass(v.annotation, pydantic.BaseModel)
+            ):
+                d = _get_defaults(v.annotation)  # pragma: no cover
+            dflt[k] = d
+        return dflt
 
-if PYDANTIC_V1:
+    def _get_config(cls: pydantic.BaseModel) -> "ConfigDict":
+        return cls.model_config
 
+    def _get_fields(cls: pydantic.BaseModel) -> dict[str, pydantic.fields.FieldInfo]:
+        return cls.model_fields
+
+    def _model_dump(obj: pydantic.BaseModel) -> dict:
+        return obj.model_dump()
+
+else:
+
+    @no_type_check
     def _get_defaults(obj: pydantic.BaseModel) -> Dict[str, Any]:
         """Get possibly nested default values for a Model object."""
         dflt = {}
@@ -128,6 +151,10 @@ if PYDANTIC_V1:
     def _get_config(cls: type) -> "ConfigDict":
         return GetAttrAsItem(cls.__config__)
 
+    class FieldInfo(NamedTuple):
+        annotation: Type[Any] | None
+        frozen: bool | None
+
     @no_type_check
     def _get_fields(cls: type) -> dict[str, FieldInfo]:
         return {
@@ -137,35 +164,6 @@ if PYDANTIC_V1:
 
     def _model_dump(obj: pydantic.BaseModel) -> dict:
         return obj.dict()
-
-else:
-
-    @no_type_check
-    def _get_defaults(obj: Type[pydantic.BaseModel]) -> Dict[str, Any]:
-        """Get possibly nested default values for a Model object."""
-        dflt = {}
-        for k, v in obj.model_fields.items():
-            d = v.get_default()
-            if (
-                d is None
-                and isinstance(v.annotation, type)
-                and issubclass(v.annotation, pydantic.BaseModel)
-            ):
-                d = _get_defaults(v.annotation)  # pragma: no cover
-            dflt[k] = d
-        return dflt
-
-    @no_type_check
-    def _get_config(cls: type) -> "ConfigDict":
-        return cls.model_config
-
-    @no_type_check
-    def _get_fields(cls: type) -> dict[str, FieldInfo]:
-        return cls.model_fields
-
-    @no_type_check
-    def _model_dump(obj: pydantic.BaseModel) -> dict:
-        return obj.model_dump()
 
 
 class EventedMetaclass(pydantic_main.ModelMetaclass):
@@ -435,7 +433,7 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
         return self._events
 
     @property
-    def _defaults(self) -> dict:
+    def _defaults(self) -> Dict[str, Any]:
         return _get_defaults(self)
 
     def __eq__(self, other: Any) -> bool:
