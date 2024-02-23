@@ -845,3 +845,75 @@ def test_connect_only_to_events() -> None:
         m.a = 3
     check_mock.assert_has_calls([call(Model, "a", 3, 1)])
     mock1.assert_called_once()
+
+
+def _reset_mocks(*args):
+    for el in args:
+        el.reset_mock()
+
+
+@pytest.mark.filterwarnings("ignore:.*Support for class-based.*:DeprecationWarning")
+def test_single_emit():
+    class SampleClass(EventedModel):
+        a: int = 1
+        b: int = 2
+
+        class Config:
+            allow_property_setters = True
+            field_dependencies = {"c": ["a"], "d": ["a", "b"], "e": ["a", "b"]}
+
+        @property
+        def c(self):
+            return self.a
+
+        @c.setter
+        def c(self, value):
+            self.a = value
+
+        @property
+        def d(self):
+            return self.a + self.b
+
+        @d.setter
+        def d(self, value):
+            self.a = value // 2
+            self.b = value - self.a
+
+        @property
+        def e(self):
+            return self.a - self.b
+
+        @e.setter
+        def e(self, value):
+            self.a = value + self.b
+
+    s = SampleClass()
+    a_m = Mock()
+    c_m = Mock()
+    d_m = Mock()
+    s.events.a.connect(a_m)
+    s.events.c.connect(c_m)
+    s.events.d.connect(d_m)
+
+    s.a = 4
+    a_m.assert_called_once()
+    c_m.assert_called_once()
+    d_m.assert_called_once()
+
+    _reset_mocks(a_m, c_m, d_m)
+
+    s.c = 6
+    a_m.assert_called_once()
+    c_m.assert_called_once()
+    d_m.assert_called_once()
+
+    _reset_mocks(a_m, c_m, d_m)
+
+    e_m = Mock()
+    s.events.e.connect(e_m)
+
+    s.d = 21
+    a_m.assert_called_once()
+    c_m.assert_called_once()
+    d_m.assert_called_once()
+    e_m.assert_called_once()

@@ -15,6 +15,7 @@ from typing import (
     no_type_check,
 )
 
+from ._evented_model_utils import ComparisonDelayer
 from ._group import SignalGroup
 from ._group_descriptor import _check_field_equality, _pick_equality_operator
 from ._signal import Signal, SignalInstance
@@ -298,12 +299,12 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
 
         class Config:
             allow_property_setters = True
-            property_dependencies = {"c": ["a", "b"]}
+            field_dependencies = {"c": ["a", "b"]}
 
     m = MyModel()
     assert m.c == [1, 1]
     m.events.c.connect(lambda v: print(f"c updated to {v}"))
-    m.a = 2  # prints 'c updated to [2, 1]'
+    m.a = 2 # prints 'c updated to [2, 1]'
     ```
 
     """
@@ -319,6 +320,9 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
     __eq_operators__: ClassVar[Dict[str, "EqOperator"]]
     __slots__ = {"__weakref__"}
     __signal_group__: ClassVar[Type[SignalGroup]]
+    _changes_queue: Dict[str, Any] = PrivateAttr(default_factory=dict)
+    _primary_changes: Set[str] = PrivateAttr(default_factory=set)
+    _delay_check_semaphore: int = PrivateAttr(0)
     # pydantic BaseModel configuration.  see:
     # https://pydantic-docs.helpmanual.io/usage/model_config/
 
@@ -343,15 +347,46 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         else:
             super().__setattr__(name, value)
 
-    def __setattr__(self, name: str, value: Any) -> None:
-        if (
-            name == "_events"
-            or not hasattr(self, "_events")  # can happen on init
-            or name not in self._events
-        ):
-            # fallback to default behavior
-            return self._super_setattr_(name, value)
+    def _check_if_values_changed_and_emit_if_needed(self) -> None:
+        """
+        Check if field values changed and emit events if needed.
 
+        The advantage of moving this to the end of all the modifications is
+        that comparisons will be performed only once for every potential change.
+        """
+        if self._delay_check_semaphore > 0 or len(self._changes_queue) == 0:
+            # do not run whole machinery if there is no need
+            return
+        to_emit = []
+        for name in self._primary_changes:
+            # primary changes should contains only fields
+            # that are changed directly by assigment
+            if name not in self._changes_queue:
+                continue
+            old_value = self._changes_queue[name]
+            new_value = getattr(self, name)
+            if not _check_field_equality(type(self), name, new_value, old_value):
+                to_emit.append((name, new_value))
+            self._changes_queue.pop(name)
+        if not to_emit:
+            # If no direct changes was made then we can skip whole machinery
+            self._changes_queue.clear()
+            self._primary_changes.clear()
+            return
+        for name, old_value in self._changes_queue.items():
+            # check if any of dependent properties changed
+            new_value = getattr(self, name)
+            if not _check_field_equality(type(self), name, new_value, old_value):
+                to_emit.append((name, new_value))
+        self._changes_queue.clear()
+        self._primary_changes.clear()
+
+        with ComparisonDelayer(self):
+            # Again delay comparison to avoid having events caused by callback functions
+            for name, new_value in to_emit:
+                getattr(self._events, name)(new_value)
+
+    def _setattr_impl(self, name: str, value: Any) -> None:
         # if there are no listeners, we can just set the value without emitting
         # so first check if there are any listeners for this field or any of its
         # dependent properties.
@@ -370,30 +405,27 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
             and not len(group._psygnal_relay)  # no listeners on the SignalGroup
         ):
             return self._super_setattr_(name, value)
+        self._primary_changes.add(name)
+        if name not in self._changes_queue:
+            self._changes_queue[name] = getattr(self, name, object())
 
-        # grab the current value and those of any dependent properties
-        # so that we can check if they have changed after setting the value
-        before = getattr(self, name, object())
-        deps_before: Dict[str, Any] = {
-            dep: getattr(self, dep) for dep in deps_with_callbacks
-        }
+        for dep in deps_with_callbacks:
+            if dep not in self._changes_queue:
+                self._changes_queue[dep] = getattr(self, dep, object())
+        self._super_setattr_(name, value)
 
-        # set value using original setter
-        with signal_instance.blocked():
-            self._super_setattr_(name, value)
+    def __setattr__(self, name: str, value: Any) -> None:
+        if (
+            name == "_events"
+            or not hasattr(self, "_events")  # can happen on init
+            or name not in self._events
+        ):
+            # fallback to default behavior
+            return self._super_setattr_(name, value)
+        with ComparisonDelayer(self):
+            self._setattr_impl(name, value)
 
-        # if the value has changed we emit the event with new value
-        after = getattr(self, name)
-        if not _check_field_equality(type(self), name, after, before):
-            signal_instance.emit(after)  # emit event
-
-            # also emit events for any dependent attributes that have changed as well
-            for dep, before_val in deps_before.items():
-                after_val = getattr(self, dep)
-                if not _check_field_equality(type(self), dep, after_val, before_val):
-                    getattr(self._events, dep).emit(after_val)
-
-    # expose the private SignalGroup publically
+    # expose the private SignalGroup publicly
     @property
     def events(self) -> SignalGroup:
         """Return the `SignalGroup` containing all events for this model."""
