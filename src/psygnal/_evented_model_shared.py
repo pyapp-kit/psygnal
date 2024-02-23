@@ -29,23 +29,26 @@ FIELD_DEPENDENCIES = "field_dependencies"
 GUESS_PROPERTY_DEPENDENCIES = "guess_property_dependencies"
 PYDANTIC_V1 = pydantic.version.VERSION.startswith("1")
 
-if PYDANTIC_V1:
-    import pydantic.main as pydantic_main
-    from pydantic import utils
-else:
-    from pydantic._internal import _model_construction as pydantic_main  # type: ignore
-    from pydantic._internal import _utils as utils  # type: ignore
 
 if TYPE_CHECKING:
     from inspect import Signature
 
     from pydantic import ConfigDict
+    from pydantic._internal import _model_construction as pydantic_main
+    from pydantic._internal import _utils as utils
     from typing_extensions import dataclass_transform as dataclass_transform  # py311
 
     from ._signal import SignalInstance
 
     EqOperator = Callable[[Any, Any], bool]
 else:
+    if PYDANTIC_V1:
+        import pydantic.main as pydantic_main
+        from pydantic import utils
+    else:
+        from pydantic._internal import _model_construction as pydantic_main
+        from pydantic._internal import _utils as utils
+
     try:
         # py311
         from typing_extensions import dataclass_transform
@@ -92,12 +95,12 @@ def no_class_attributes() -> Iterator[None]:  # pragma: no cover
     def _return2(x: str, y: "Signature") -> "Signature":
         return y
 
-    pydantic_main.ClassAttribute = _return2
+    pydantic_main.ClassAttribute = _return2  # type: ignore
     try:
         yield
     finally:
         # undo our monkey patch
-        pydantic_main.ClassAttribute = utils.ClassAttribute
+        pydantic_main.ClassAttribute = utils.ClassAttribute  # type: ignore
 
 
 if not PYDANTIC_V1:
