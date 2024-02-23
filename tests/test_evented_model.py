@@ -789,7 +789,7 @@ def test_comparison_count() -> None:
                 field_dependencies = {"b": ["a"]}
 
     # pick whether to mock v1 or v2 modules
-    model_module = sys.modules[type(Model).__module__]
+    model_module = sys.modules[Model.__mro__[1].__module__]
 
     m = Model(a=0)
     b_mock = Mock()
@@ -822,7 +822,7 @@ def test_connect_only_to_events() -> None:
         a: int
 
     # pick whether to mock v1 or v2 modules
-    model_module = sys.modules[type(Model).__module__]
+    model_module = sys.modules[Model.__mro__[1].__module__]
 
     m = Model(a=0)
     mock1 = Mock()
