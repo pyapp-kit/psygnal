@@ -5,17 +5,20 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    ClassVar,
     Dict,
     Iterator,
     NamedTuple,
     Set,
+    Type,
+    Union,
     no_type_check,
 )
 
 import pydantic
 
 from ._group import SignalGroup
-from ._group_descriptor import _pick_equality_operator
+from ._group_descriptor import _check_field_equality, _pick_equality_operator
 from ._signal import Signal
 
 NULL = object()
@@ -98,31 +101,65 @@ class FieldInfo(NamedTuple):
     frozen: bool | None
 
 
-class GetAttrAsItem:
-    def __init__(self, obj: Any) -> None:
-        self._obj = obj
+if PYDANTIC_V1:
 
-    def get(self, key: str, default: Any = None) -> Any:
-        return getattr(self._obj, key, default)
+    def _get_defaults(obj: pydantic.BaseModel) -> Dict[str, Any]:
+        """Get possibly nested default values for a Model object."""
+        dflt = {}
+        for k, v in obj.__fields__.items():
+            d = v.get_default()
+            if d is None and isinstance(v.type_, pydantic_main.ModelMetaclass):
+                d = _get_defaults(v.type_)  # pragma: no cover
+            dflt[k] = d
+        return dflt
 
+    class GetAttrAsItem:
+        def __init__(self, obj: Any) -> None:
+            self._obj = obj
 
-@no_type_check
-def _get_fields(cls: type) -> dict[str, FieldInfo]:
-    if PYDANTIC_V1:
+        def get(self, key: str, default: Any = None) -> Any:
+            return getattr(self._obj, key, default)
+
+    @no_type_check
+    def _get_config(cls: type) -> "ConfigDict":
+        return GetAttrAsItem(cls.__config__)
+
+    @no_type_check
+    def _get_fields(cls: type) -> dict[str, FieldInfo]:
         return {
             k: FieldInfo(annotation=f.type_, frozen=not f.field_info.allow_mutation)
             for k, f in cls.__fields__.items()
         }
-    else:
+
+    def _model_dump(obj: pydantic.BaseModel) -> dict:
+        return obj.dict()
+
+else:
+
+    def _get_defaults(obj: Type[pydantic.BaseModel]) -> Dict[str, Any]:
+        """Get possibly nested default values for a Model object."""
+        dflt = {}
+        for k, v in obj.model_fields.items():
+            d = v.get_default()
+            if (
+                d is None
+                and isinstance(v.annotation, type)
+                and issubclass(v.annotation, pydantic.BaseModel)
+            ):
+                d = _get_defaults(v.annotation)  # pragma: no cover
+            dflt[k] = d
+        return dflt
+
+    @no_type_check
+    def _get_config(cls: type) -> "ConfigDict":
+        return cls.model_config
+
+    @no_type_check
+    def _get_fields(cls: type) -> dict[str, FieldInfo]:
         return cls.model_fields
 
-
-@no_type_check
-def _get_config(cls: type) -> "ConfigDict":
-    if PYDANTIC_V1:
-        return GetAttrAsItem(cls.__config__)
-    else:
-        return cls.model_config
+    def _model_dump(obj: pydantic.BaseModel) -> dict:
+        return obj.model_dump()
 
 
 class EventedMetaclass(pydantic_main.ModelMetaclass):
@@ -271,3 +308,75 @@ def _get_field_dependents(
                     if name in model_fields:
                         deps.setdefault(name, set()).add(prop)
     return deps
+
+
+class _EBase(pydantic.BaseModel, metaclass=EventedMetaclass):
+    __slots__ = {"__weakref__"}
+    __signal_group__: ClassVar[Type[SignalGroup]]
+
+    def __init__(_model_self_, **data: Any) -> None:
+        super().__init__(**data)
+        Group = _model_self_.__signal_group__
+        # the type error is "cannot assign to a class variable" ...
+        # but if we don't use `ClassVar`, then the `dataclass_transform` decorator
+        # will add _events: SignalGroup to the __init__ signature, for *all* user models
+        _model_self_._events = Group(_model_self_)  # type: ignore [misc]
+
+    # expose the private SignalGroup publically
+    @property
+    def events(self) -> SignalGroup:
+        """Return the `SignalGroup` containing all events for this model."""
+        return self._events
+
+    @property
+    def _defaults(self) -> dict:
+        return _get_defaults(self)
+
+    def __eq__(self, other: Any) -> bool:
+        """Check equality with another object.
+
+        We override the pydantic approach (which just checks
+        ``self.model_dump() == other.model_dump()``) to accommodate more complicated
+        types like arrays, whose truth value is often ambiguous. ``__eq_operators__``
+        is constructed in ``EqualityMetaclass.__new__``
+        """
+        if not isinstance(other, _EBase):
+            return _model_dump(self) == other  # type: ignore
+
+        for f_name, _ in self.__eq_operators__.items():
+            if not hasattr(self, f_name) or not hasattr(other, f_name):
+                return False  # pragma: no cover
+            a = getattr(self, f_name)
+            b = getattr(other, f_name)
+            if not _check_field_equality(type(self), f_name, a, b):
+                return False
+        return True
+
+    def update(self, values: Union["_EBase", dict], recurse: bool = True) -> None:
+        """Update a model in place.
+
+        Parameters
+        ----------
+        values : Union[dict, EventedModel]
+            Values to update the model with. If an EventedModel is passed it is
+            first converted to a dictionary. The keys of this dictionary must
+            be found as attributes on the current model.
+        recurse : bool
+            If True, recursively update fields that are EventedModels.
+            Otherwise, just update the immediate fields of this EventedModel,
+            which is useful when the declared field type (e.g. ``Union``) can have
+            different realized types with different fields.
+        """
+        if isinstance(values, pydantic.BaseModel):
+            values = _model_dump(values)
+
+        if not isinstance(values, dict):  # pragma: no cover
+            raise TypeError(f"values must be a dict or BaseModel. got {type(values)}")
+
+        with self.events._psygnal_relay.paused():  # TODO: reduce?
+            for key, value in values.items():
+                field = getattr(self, key)
+                if isinstance(field, _EBase) and recurse:
+                    field.update(value, recurse=recurse)
+                else:
+                    setattr(self, key, value)

@@ -6,18 +6,15 @@ from typing import (
     Dict,
     Iterator,
     Set,
-    Type,
-    Union,
     cast,
 )
 
-from ._evented_model_shared import NULL, EventedMetaclass, dataclass_transform
+from ._evented_model_shared import NULL, _EBase, dataclass_transform
 from ._group import SignalGroup
 from ._group_descriptor import _check_field_equality
 
 if TYPE_CHECKING:
-    import pydantic.v1.main as pydantic_main
-    from pydantic.v1 import BaseModel, PrivateAttr
+    from pydantic.v1 import PrivateAttr
     from pydantic.v1.fields import Field, FieldInfo
 
     from ._evented_model_shared import EqOperator
@@ -25,13 +22,12 @@ if TYPE_CHECKING:
 
 
 else:
-    import pydantic.main as pydantic_main
-    from pydantic import BaseModel, PrivateAttr
+    from pydantic import PrivateAttr
     from pydantic.fields import Field, FieldInfo
 
 
 @dataclass_transform(kw_only_default=True, field_specifiers=(Field, FieldInfo))
-class EventedModel(BaseModel, metaclass=EventedMetaclass):
+class EventedModel(_EBase):
     """A pydantic BaseModel that emits a signal whenever a field value is changed.
 
     !!! important
@@ -123,22 +119,12 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
     # when field is changed, an event for dependent properties will be emitted.
     __field_dependents__: ClassVar[Dict[str, Set[str]]]
     __eq_operators__: ClassVar[Dict[str, "EqOperator"]]
-    __slots__ = {"__weakref__"}
-    __signal_group__: ClassVar[Type[SignalGroup]]
     # pydantic BaseModel configuration.  see:
     # https://pydantic-docs.helpmanual.io/usage/model_config/
 
     class Config:
         # this seems to be necessary for the _json_encoders trick to work
         json_encoders: ClassVar[dict] = {"____": None}
-
-    def __init__(_model_self_, **data: Any) -> None:
-        super().__init__(**data)
-        Group = _model_self_.__signal_group__
-        # the type error is "cannot assign to a class variable" ...
-        # but if we don't use `ClassVar`, then the `dataclass_transform` decorator
-        # will add _events: SignalGroup to the __init__ signature, for *all* user models
-        _model_self_._events = Group(_model_self_)  # type: ignore [misc]
 
     def _super_setattr_(self, name: str, value: Any) -> None:
         # pydantic will raise a ValueError if extra fields are not allowed
@@ -199,16 +185,6 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
                 if not _check_field_equality(type(self), dep, after_val, before_val):
                     getattr(self._events, dep).emit(after_val)
 
-    # expose the private SignalGroup publically
-    @property
-    def events(self) -> SignalGroup:
-        """Return the `SignalGroup` containing all events for this model."""
-        return self._events
-
-    @property
-    def _defaults(self) -> dict:
-        return _get_defaults(self)
-
     def reset(self) -> None:
         """Reset the state of the model to default values."""
         for name, value in self._defaults.items():
@@ -219,54 +195,6 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
                 and self.__fields__[name].field_info.allow_mutation
             ):
                 setattr(self, name, value)
-
-    def update(self, values: Union["EventedModel", dict], recurse: bool = True) -> None:
-        """Update a model in place.
-
-        Parameters
-        ----------
-        values : Union[dict, EventedModel]
-            Values to update the model with. If an EventedModel is passed it is
-            first converted to a dictionary. The keys of this dictionary must
-            be found as attributes on the current model.
-        recurse : bool
-            If True, recursively update fields that are EventedModels.
-            Otherwise, just update the immediate fields of this EventedModel,
-            which is useful when the declared field type (e.g. ``Union``) can have
-            different realized types with different fields.
-        """
-        if isinstance(values, BaseModel):
-            values = values.dict()
-        if not isinstance(values, dict):  # pragma: no cover
-            raise TypeError(f"values must be a dict or BaseModel. got {type(values)}")
-
-        with self.events._psygnal_relay.paused():  # TODO: reduce?
-            for key, value in values.items():
-                field = getattr(self, key)
-                if isinstance(field, EventedModel) and recurse:
-                    field.update(value, recurse=recurse)
-                else:
-                    setattr(self, key, value)
-
-    def __eq__(self, other: Any) -> bool:
-        """Check equality with another object.
-
-        We override the pydantic approach (which just checks
-        ``self.dict() == other.dict()``) to accommodate more complicated types
-        like arrays, whose truth value is often ambiguous. ``__eq_operators__``
-        is constructed in ``EqualityMetaclass.__new__``
-        """
-        if not isinstance(other, EventedModel):
-            return self.dict() == other  # type: ignore
-
-        for f_name, _ in self.__eq_operators__.items():
-            if not hasattr(self, f_name) or not hasattr(other, f_name):
-                return False  # pragma: no cover
-            a = getattr(self, f_name)
-            b = getattr(other, f_name)
-            if not _check_field_equality(type(self), f_name, a, b):
-                return False
-        return True
 
     @contextmanager
     def enums_as_values(self, as_values: bool = True) -> Iterator[None]:
@@ -287,14 +215,3 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
                 self.Config.use_enum_values = before  # type: ignore  # pragma: no cover
             else:
                 delattr(self.Config, "use_enum_values")
-
-
-def _get_defaults(obj: BaseModel) -> Dict[str, Any]:
-    """Get possibly nested default values for a Model object."""
-    dflt = {}
-    for k, v in obj.__fields__.items():
-        d = v.get_default()
-        if d is None and isinstance(v.type_, pydantic_main.ModelMetaclass):
-            d = _get_defaults(v.type_)  # pragma: no cover
-        dflt[k] = d
-    return dflt
