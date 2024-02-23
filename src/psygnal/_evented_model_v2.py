@@ -1,7 +1,6 @@
 import sys
 import warnings
 from contextlib import contextmanager
-from types import TracebackType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -9,7 +8,6 @@ from typing import (
     ClassVar,
     Dict,
     Iterator,
-    Optional,
     Set,
     Type,
     Union,
@@ -21,7 +19,7 @@ from pydantic import BaseModel, ConfigDict, PrivateAttr
 from pydantic._internal import _model_construction, _utils
 from pydantic.fields import Field, FieldInfo
 
-# from ._evented_model_utils import ComparisonDelayer
+from ._evented_model_utils import ComparisonDelayer
 from ._group import SignalGroup
 from ._group_descriptor import _check_field_equality, _pick_equality_operator
 from ._signal import Signal, SignalInstance
@@ -156,6 +154,10 @@ class EventedMetaclass(_model_construction.ModelMetaclass):
 
         cls.__field_dependents__ = _get_field_dependents(cls)
         cls.__signal_group__ = type(f"{name}SignalGroup", (SignalGroup,), signals)
+        if not cls.__field_dependents__ and hasattr(cls, "_setattr_no_dependants"):
+            cls._setattr_default = cls._setattr_no_dependants
+        elif hasattr(cls, "_setattr_with_dependants"):
+            cls._setattr_default = cls._setattr_with_dependants
         return cls
 
 
@@ -400,6 +402,23 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
                 self._changes_queue[dep] = getattr(self, dep, object())
         self._super_setattr_(name, value)
 
+    def _setattr_default(self, name: str, value: Any) -> None:
+        """Will be overwritten by metaclass __new__."""
+
+    def _setattr_with_dependants(self, name: str, value: Any) -> None:
+        with ComparisonDelayer(self):
+            self._setattr_impl(name, value)
+
+    def _setattr_no_dependants(self, name: str, value: Any) -> None:
+        group = self._events
+        signal_instance: SignalInstance = group[name]
+        if len(signal_instance) < 1:
+            return self._super_setattr_(name, value)
+        old_value = getattr(self, name, object())
+        self._super_setattr_(name, value)
+        if not _check_field_equality(type(self), name, value, old_value):
+            getattr(self._events, name)(value)
+
     def __setattr__(self, name: str, value: Any) -> None:
         if (
             name == "_events"
@@ -408,8 +427,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         ):
             # fallback to default behavior
             return self._super_setattr_(name, value)
-        with ComparisonDelayer(self):
-            self._setattr_impl(name, value)
+        self._setattr_default(name, value)
 
     # expose the private SignalGroup publically
     @property
@@ -517,20 +535,3 @@ def _get_defaults(obj: Type[BaseModel]) -> Dict[str, Any]:
             d = _get_defaults(v.annotation)  # pragma: no cover
         dflt[k] = d
     return dflt
-
-
-class ComparisonDelayer:
-    def __init__(self, target: EventedModel) -> None:
-        self._target = target
-
-    def __enter__(self) -> None:
-        self._target._delay_check_semaphore += 1
-
-    def __exit__(
-        self,
-        exc_type: Optional[Type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional[TracebackType],
-    ) -> None:
-        self._target._delay_check_semaphore -= 1
-        self._target._check_if_values_changed_and_emit_if_needed()
