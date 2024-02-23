@@ -8,7 +8,7 @@ from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from ._evented_model_shared import EventedModel  # noqa: TCH004
+    from ._evented_model import EventedModel  # noqa: TCH004
 
 
 try:
@@ -63,7 +63,7 @@ from ._throttler import debounced, throttled
 
 def __getattr__(name: str) -> Any:  # pragma: no cover
     if name == "EventedModel":
-        from ._evented_model_shared import EventedModel
+        from ._evented_model import EventedModel
 
         return EventedModel
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

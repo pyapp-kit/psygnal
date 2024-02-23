@@ -106,7 +106,7 @@ def no_class_attributes() -> Iterator[None]:  # pragma: no cover
 if not PYDANTIC_V1:
 
     def _get_defaults(
-        obj: pydantic.BaseModel | Type[pydantic.BaseModel],
+        obj: Union[pydantic.BaseModel, Type[pydantic.BaseModel]],
     ) -> Dict[str, Any]:
         """Get possibly nested default values for a Model object."""
         dflt = {}
@@ -155,11 +155,11 @@ else:
         return GetAttrAsItem(cls.__config__)
 
     class FieldInfo(NamedTuple):
-        annotation: Type[Any] | None
-        frozen: bool | None
+        annotation: Union[Type[Any], None]
+        frozen: Union[bool, None]
 
     @no_type_check
-    def _get_fields(cls: type) -> dict[str, FieldInfo]:
+    def _get_fields(cls: type) -> Dict[str, FieldInfo]:
         return {
             k: FieldInfo(annotation=f.type_, frozen=not f.field_info.allow_mutation)
             for k, f in cls.__fields__.items()
@@ -183,7 +183,7 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
     when each instance of an ``EventedModel`` is instantiated).
     """
 
-    __property_setters__: dict[str, property]
+    __property_setters__: Dict[str, property]
 
     @no_type_check
     def __new__(
