@@ -35,13 +35,13 @@ if TYPE_CHECKING:
     from inspect import Signature
 
     from pydantic import ConfigDict
-    from typing_extensions import dataclass_transform  # py311
+    from typing_extensions import dataclass_transform as dataclass_transform  # py311
 
     EqOperator = Callable[[Any, Any], bool]
 else:
     try:
         # py311
-        from typing_extensions import dataclass_transform as dataclass_transform
+        from typing_extensions import dataclass_transform
     except ImportError:  # pragma: no cover
 
         def dataclass_transform(*args, **kwargs):
@@ -85,12 +85,12 @@ def no_class_attributes() -> Iterator[None]:  # pragma: no cover
     def _return2(x: str, y: "Signature") -> "Signature":
         return y
 
-    pydantic_main.ClassAttribute = _return2  # type: ignore
+    pydantic_main.ClassAttribute = _return2
     try:
         yield
     finally:
         # undo our monkey patch
-        pydantic_main.ClassAttribute = utils.ClassAttribute  # type: ignore
+        pydantic_main.ClassAttribute = utils.ClassAttribute
 
 
 class FieldInfo(NamedTuple):
@@ -106,6 +106,7 @@ class GetAttrAsItem:
         return getattr(self._obj, key, default)
 
 
+@no_type_check
 def _get_fields(cls: type) -> dict[str, FieldInfo]:
     if PYDANTIC_V1:
         return {

@@ -27,11 +27,7 @@ if TYPE_CHECKING:
     from ._signal import SignalInstance
 
 
-EventedMetaclass = dataclass_transform(
-    kw_only_default=True, field_specifiers=(Field, FieldInfo)
-)(EventedMetaclass)
-
-
+@dataclass_transform(kw_only_default=True, field_specifiers=(Field, FieldInfo))
 class EventedModel(BaseModel, metaclass=EventedMetaclass):
     """A pydantic BaseModel that emits a signal whenever a field value is changed.
 
