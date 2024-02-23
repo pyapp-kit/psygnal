@@ -101,7 +101,7 @@ dependencies = [
 ]
 exclude = [
     "src/psygnal/__init__.py",
-    "src/psygnal/_evented_model_shared.py",
+    "src/psygnal/_evented_model.py",
     "src/psygnal/utils.py",
     "src/psygnal/containers",
     "src/psygnal/qt.py",
