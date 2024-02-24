@@ -1,15 +1,7 @@
+from importlib.metadata import PackageNotFoundError, PackagePath
+from importlib.metadata import files as package_files
 from pathlib import Path
 from typing import Iterable, List, Union
-
-try:
-    from importlib.metadata import PackageNotFoundError, PackagePath
-    from importlib.metadata import files as package_files
-except ImportError:
-    from importlib_metadata import (  # type: ignore[no-redef]
-        PackageNotFoundError,
-        PackagePath,
-    )
-    from importlib_metadata import files as package_files  # type: ignore[no-redef]
 
 try:
     import psygnal

@@ -200,6 +200,7 @@ exclude_lines = [
     "\\.\\.\\.",
     "raise NotImplementedError()",
 ]
+show_missing = true
 [tool.coverage.run]
 source = ["psygnal"]
 omit = ["*/_pyinstaller_util/hook-psygnal.py"]

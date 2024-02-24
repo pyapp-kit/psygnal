@@ -1,6 +1,6 @@
 import sys
 import warnings
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -247,14 +247,13 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
                     signals[key] = Signal(object)
         else:
             for b in cls.__bases__:
-                if not (hasattr(b, "model_config") or hasattr(b, "__config__")):
-                    continue
-                conf = _get_config(b)
-                if conf and conf.get(ALLOW_PROPERTY_SETTERS, False):
-                    raise ValueError(
-                        "Cannot set 'allow_property_setters' to 'False' when base "
-                        f"class {b} sets it to True"
-                    )
+                with suppress(AttributeError):
+                    conf = _get_config(b)
+                    if conf and conf.get(ALLOW_PROPERTY_SETTERS, False):
+                        raise ValueError(
+                            "Cannot set 'allow_property_setters' to 'False' when base "
+                            f"class {b} sets it to True"
+                        )
 
         cls.__field_dependents__ = _get_field_dependents(
             cls, model_config, model_fields
