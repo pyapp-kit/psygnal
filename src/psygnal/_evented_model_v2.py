@@ -156,8 +156,8 @@ class EventedMetaclass(_model_construction.ModelMetaclass):
         cls.__signal_group__ = type(f"{name}SignalGroup", (SignalGroup,), signals)
         if not cls.__field_dependents__ and hasattr(cls, "_setattr_no_dependants"):
             cls._setattr_default = cls._setattr_no_dependants
-        elif hasattr(cls, "_setattr_with_dependants"):
-            cls._setattr_default = cls._setattr_with_dependants
+        elif hasattr(cls, "_setattr_with_dependents"):
+            cls._setattr_default = cls._setattr_with_dependents
         return cls
 
 
@@ -405,7 +405,7 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
     def _setattr_default(self, name: str, value: Any) -> None:
         """Will be overwritten by metaclass __new__."""
 
-    def _setattr_with_dependants(self, name: str, value: Any) -> None:
+    def _setattr_with_dependents(self, name: str, value: Any) -> None:
         with ComparisonDelayer(self):
             self._setattr_impl(name, value)
 

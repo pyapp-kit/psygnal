@@ -8,13 +8,13 @@ if TYPE_CHECKING:
     import pydantic.version
 
     if pydantic.version.VERSION.startswith("2"):
-        from ._evented_model_v2 import EventedModel as EventedModelv1
+        from ._evented_model_v2 import EventedModel as EventedModelV1
     else:
-        from ._evented_model_v1 import EventedModel as EventedModelv2
+        from ._evented_model_v1 import EventedModel as EventedModelV2
 
 
 class ComparisonDelayer:
-    def __init__(self, target: EventedModelv1 | EventedModelv2) -> None:
+    def __init__(self, target: EventedModelV1 | EventedModelV2) -> None:
         self._target = target
 
     def __enter__(self) -> None:
