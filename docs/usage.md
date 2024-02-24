@@ -348,63 +348,6 @@ app.processEvents()  # or app.exec_(), or anything to keep the event loop runnin
 It is ok to call `start_emitting_from_queue` multiple times (so multiple
 end-users can use it).
 
-## Asynchronous Signal Emission
-
-!!!warning "Deprecated"
-
-    This feature is deprecated and will be removed in a future release.
-    Its use is not recommended in new code. If you need to emit signals
-    in a background thread, please create your own [`threading.Thread`][]
-    and call `emit` from within that thread.
-
-There is ~~experimental~~ **deprecated** support for calling all connected slots
-in another thread, using `emit(..., asynchronous=True)`
-
-```py
-obj = MyObj()
-
-def slow_callback(arg):
-    import time
-    time.sleep(0.5)
-    print(f"Hi {arg!r}, from another thread")
-
-obj.value_changed.connect(slow_callback)
-```
-
-This one is called synchronously (note the order of print statements):
-
-```py
-obj.value_changed.emit('friend')
-print("Hi, from main thread.")
-
-# after 0.5 seconds, prints:
-# Hi 'friend', from another thread
-# Hi, from main thread.
-```
-
-This one is called asynchronously, and immediately returns to the caller.
-A `threading.Thread` object is returned.
-
-```py
-thread = obj.value_changed.emit('friend', asynchronous=True)
-print("Hi, from main thread.")
-
-# immediately prints
-# Hi, from main thread.
-
-# then after 0.5 seconds this will print:
-# Hi 'friend', from another thread
-```
-
-**Note:** The user is responsible for `joining` and managing the
-`threading.Thread` instance returned when calling `.emit(...,
-asynchronous=True)`.
-
-**Experimental!**  While thread-safety is the goal,
-([`RLocks`](https://docs.python.org/3/library/threading.html#rlock-objects) are
-used during important state mutations) it is not guaranteed.  Please use at your
-own risk. Issues/PRs welcome.
-
 ## Blocking a Signal
 
 To temporarily block a signal, use the `signal.blocked()` context context manager:

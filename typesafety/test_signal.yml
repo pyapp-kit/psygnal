@@ -26,9 +26,6 @@
     x = s.emit(1)
     reveal_type(x)  # N: Revealed type is "None"
 
-    y = s.emit(1, asynchronous=True)
-    reveal_type(y)  # N: Revealed type is "Union[psygnal._signal.EmitThread, None]"
-
 - case: signal_connection
   main: |
     from psygnal import SignalInstance
