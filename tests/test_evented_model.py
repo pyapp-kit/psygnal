@@ -850,7 +850,7 @@ def test_connect_only_to_events() -> None:
     mock1.assert_called_once()
 
 
-def test_if_event_is_emited_only_once():
+def test_if_event_is_emitted_only_once() -> None:
     """Check if, for complex property setters, the event is emitted only once."""
 
     class SampleClass(EventedModel):
