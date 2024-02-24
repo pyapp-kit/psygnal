@@ -553,6 +553,9 @@ def test_evented_model_with_property_setters_events():
     mock_c.assert_called_with([5, 20])
     mock_b.assert_not_called()
     assert t.c == [5, 20]
+    mock_a.reset_mock()
+    t.a = 5  # no change, no events
+    mock_a.assert_not_called()
 
 
 def test_non_setter_with_dependencies() -> None:
@@ -845,3 +848,52 @@ def test_connect_only_to_events() -> None:
         m.a = 3
     check_mock.assert_has_calls([call(Model, "a", 3, 1)])
     mock1.assert_called_once()
+
+
+def test_if_event_is_emited_only_once():
+    """Check if, for complex property setters, the event is emitted only once."""
+
+    class SampleClass(EventedModel):
+        a: int = 1
+        b: int = 2
+
+        if PYDANTIC_V2:
+            model_config = {
+                "allow_property_setters": True,
+                "guess_property_dependencies": True,
+            }
+        else:
+
+            class Config:
+                allow_property_setters = True
+                guess_property_dependencies = True
+
+        @property
+        def c(self):
+            return self.a + self.b
+
+        @c.setter
+        def c(self, value):
+            self.a = value - self.b
+
+        @property
+        def d(self):
+            return self.a + self.b
+
+        @d.setter
+        def d(self, value):
+            self.a = value // 2
+            self.b = value - self.a
+
+    s = SampleClass()
+    a_m = Mock()
+    c_m = Mock()
+    d_m = Mock()
+    s.events.a.connect(a_m)
+    s.events.c.connect(c_m)
+    s.events.d.connect(d_m)
+
+    s.d = 5
+    a_m.assert_called_once()
+    c_m.assert_called_once()
+    d_m.assert_called_once()
