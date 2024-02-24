@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import (
     TYPE_CHECKING,
+    Any,
+    Callable,
     Iterable,
     Iterator,
     Mapping,
@@ -13,6 +15,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
+    get_args,
 )
 
 if TYPE_CHECKING:
@@ -93,6 +96,24 @@ class TypedMutableMapping(MutableMapping[_K, _V]):
 
     def __copy__(self) -> Self:
         return self.copy()
+
+    # PYDANTIC SUPPORT
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: Callable
+    ) -> Mapping[str, Any]:
+        """Return the Pydantic core schema for this object."""
+        from pydantic_core import core_schema
+
+        args = get_args(source_type)
+        return core_schema.no_info_after_validator_function(
+            function=cls,
+            schema=core_schema.dict_schema(
+                keys_schema=handler(args[0]) if args else None,
+                values_schema=handler(args[1]) if len(args) > 1 else None,
+            ),
+        )
 
 
 class DictEvents(SignalGroup):

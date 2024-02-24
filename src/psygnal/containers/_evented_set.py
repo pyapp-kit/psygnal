@@ -2,7 +2,18 @@ from __future__ import annotations
 
 import inspect
 from itertools import chain
-from typing import TYPE_CHECKING, Any, Final, Iterable, Iterator, MutableSet, TypeVar
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Final,
+    Iterable,
+    Iterator,
+    Mapping,
+    MutableSet,
+    TypeVar,
+    get_args,
+)
 
 from psygnal import Signal, SignalGroup
 
@@ -155,6 +166,23 @@ class _BaseMutableSet(MutableSet[_T]):
         new = self.copy()
         new.update(*s)
         return new
+
+    # PYDANTIC SUPPORT
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: Callable
+    ) -> Mapping[str, Any]:
+        """Return the Pydantic core schema for this object."""
+        from pydantic_core import core_schema
+
+        args = get_args(source_type)
+        return core_schema.no_info_after_validator_function(
+            function=cls,
+            schema=core_schema.set_schema(
+                items_schema=handler(args[0]) if args else None,
+            ),
+        )
 
 
 class OrderedSet(_BaseMutableSet[_T]):
