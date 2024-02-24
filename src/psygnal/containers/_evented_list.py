@@ -22,16 +22,19 @@ MUST make sure that all the appropriate events are emitted.  (Tests should
 cover this in test_evented_list.py)
 """
 
-from __future__ import annotations  # pragma: no cover
+from __future__ import annotations
 
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Iterable,
+    Mapping,
     MutableSequence,
     TypeVar,
     Union,
     cast,
+    get_args,
     overload,
 )
 
@@ -422,3 +425,20 @@ class EventedList(MutableSequence[_T]):
             emitter, args = args[0]
 
         self.events.child_event.emit(idx, obj, emitter, args)
+
+    # PYDANTIC SUPPORT
+
+    @classmethod
+    def __get_pydantic_core_schema__(
+        cls, source_type: Any, handler: Callable
+    ) -> Mapping[str, Any]:
+        """Return the Pydantic core schema for this object."""
+        from pydantic_core import core_schema
+
+        args = get_args(source_type)
+        return core_schema.no_info_after_validator_function(
+            function=cls,
+            schema=core_schema.list_schema(
+                items_schema=handler(args[0]) if args else None,
+            ),
+        )
