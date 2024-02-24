@@ -9,7 +9,6 @@ from typing import (
     Dict,
     Iterator,
     NamedTuple,
-    Optional,
     Set,
     Type,
     Union,
@@ -33,7 +32,6 @@ PYDANTIC_V1 = pydantic.version.VERSION.startswith("1")
 
 if TYPE_CHECKING:
     from inspect import Signature
-    from types import TracebackType
 
     from pydantic import ConfigDict
     from pydantic._internal import _model_construction as pydantic_main
@@ -172,18 +170,15 @@ else:
 
 
 class ComparisonDelayer:
+    """Context that delays before/after comparisons until exit."""
+
     def __init__(self, target: "EventedModel") -> None:
         self._target = target
 
     def __enter__(self) -> None:
         self._target._delay_check_semaphore += 1
 
-    def __exit__(
-        self,
-        exc_type: Optional[type[BaseException]],
-        exc_val: Optional[BaseException],
-        exc_tb: Optional["TracebackType"],
-    ) -> None:
+    def __exit__(self, *_: Any, **__: Any) -> None:
         self._target._delay_check_semaphore -= 1
         self._target._check_if_values_changed_and_emit_if_needed()
 
@@ -427,15 +422,14 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
     # add private attributes for event emission
     _events: ClassVar[SignalGroup] = PrivateAttr()
 
-    __slots__ = {"__weakref__"}
-    __signal_group__: ClassVar[Type[SignalGroup]]
     # mapping of name -> property obj for methods that are property setters
     __property_setters__: ClassVar[Dict[str, property]]
     # mapping of field name -> dependent set of property names
     # when field is changed, an event for dependent properties will be emitted.
     __field_dependents__: ClassVar[Dict[str, Set[str]]]
     __eq_operators__: ClassVar[Dict[str, "EqOperator"]]
-
+    __slots__ = {"__weakref__"}
+    __signal_group__: ClassVar[Type[SignalGroup]]
     _changes_queue: Dict[str, Any] = PrivateAttr(default_factory=dict)
     _primary_changes: Set[str] = PrivateAttr(default_factory=set)
     _delay_check_semaphore: int = PrivateAttr(0)
@@ -446,8 +440,6 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
             # this seems to be necessary for the _json_encoders trick to work
             json_encoders: ClassVar[dict] = {"____": None}
 
-    # pydantic BaseModel configuration.  see:
-    # https://pydantic-docs.helpmanual.io/usage/model_config/
     def __init__(_model_self_, **data: Any) -> None:
         super().__init__(**data)
         Group = _model_self_.__signal_group__
@@ -456,7 +448,7 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
         # will add _events: SignalGroup to the __init__ signature, for *all* user models
         _model_self_._events = Group(_model_self_)  # type: ignore [misc]
 
-    # expose the private SignalGroup publically
+    # expose the private SignalGroup publicly
     @property
     def events(self) -> SignalGroup:
         """Return the `SignalGroup` containing all events for this model."""
@@ -475,7 +467,7 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
         is constructed in ``EqualityMetaclass.__new__``
         """
         if not isinstance(other, EventedModel):
-            return _model_dump(self) == other  # type: ignore
+            return bool(_model_dump(self) == other)
 
         for f_name, _ in self.__eq_operators__.items():
             if not hasattr(self, f_name) or not hasattr(other, f_name):
@@ -485,18 +477,6 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
             if not _check_field_equality(type(self), f_name, a, b):
                 return False
         return True
-
-    def _super_setattr_(self, name: str, value: Any) -> None:
-        # pydantic will raise a ValueError if extra fields are not allowed
-        # so we first check to see if this field has a property.setter.
-        # if so, we use it instead.
-        if name in self.__property_setters__:
-            self.__property_setters__[name].fset(self, value)  # type: ignore
-        elif name == "_events":
-            # pydantic v2 prohibits shadowing class vars, on instances
-            object.__setattr__(self, name, value)
-        else:
-            super().__setattr__(name, value)
 
     def update(self, values: Union["EventedModel", dict], recurse: bool = True) -> None:
         """Update a model in place.
@@ -574,6 +554,54 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
             for name, new_value in to_emit:
                 getattr(self._events, name)(new_value)
 
+    def __setattr__(self, name: str, value: Any) -> None:
+        if (
+            name == "_events"
+            or not hasattr(self, "_events")  # can happen on init
+            or name not in self._events
+        ):
+            # fallback to default behavior
+            return self._super_setattr_(name, value)
+        # the _setattr_default method is overriden in __new__ to be one of
+        # `_setattr_no_dependants` or `_setattr_with_dependents`.
+        self._setattr_default(name, value)
+
+    def _super_setattr_(self, name: str, value: Any) -> None:
+        # pydantic will raise a ValueError if extra fields are not allowed
+        # so we first check to see if this field has a property.setter.
+        # if so, we use it instead.
+        if name in self.__property_setters__:
+            self.__property_setters__[name].fset(self, value)  # type: ignore[misc]
+        elif name == "_events":
+            # pydantic v2 prohibits shadowing class vars, on instances
+            object.__setattr__(self, name, value)
+        else:
+            super().__setattr__(name, value)
+
+    def _setattr_default(self, name: str, value: Any) -> None:
+        """Will be overwritten by metaclass __new__.
+
+        It will become either `_setattr_no_dependants` (if the class has no
+        properties and `__field_dependents__`), or `_setattr_with_dependents` if it
+        does.
+        """
+
+    def _setattr_no_dependants(self, name: str, value: Any) -> None:
+        """__setattr__ behavior when the class has no properties."""
+        group = self._events
+        signal_instance: SignalInstance = group[name]
+        if len(signal_instance) < 1:
+            return self._super_setattr_(name, value)
+        old_value = getattr(self, name, object())
+        self._super_setattr_(name, value)
+        if not _check_field_equality(type(self), name, value, old_value):
+            getattr(self._events, name)(value)
+
+    def _setattr_with_dependents(self, name: str, value: Any) -> None:
+        """__setattr__ behavior when the class does properties."""
+        with ComparisonDelayer(self):
+            self._setattr_impl(name, value)
+
     def _setattr_impl(self, name: str, value: Any) -> None:
         # if there are no listeners, we can just set the value without emitting
         # so first check if there are any listeners for this field or any of its
@@ -601,33 +629,6 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
             if dep not in self._changes_queue:
                 self._changes_queue[dep] = getattr(self, dep, object())
         self._super_setattr_(name, value)
-
-    def _setattr_default(self, name: str, value: Any) -> None:
-        """Will be overwritten by metaclass __new__."""
-
-    def _setattr_with_dependents(self, name: str, value: Any) -> None:
-        with ComparisonDelayer(self):
-            self._setattr_impl(name, value)
-
-    def _setattr_no_dependants(self, name: str, value: Any) -> None:
-        group = self._events
-        signal_instance: SignalInstance = group[name]
-        if len(signal_instance) < 1:
-            return self._super_setattr_(name, value)
-        old_value = getattr(self, name, object())
-        self._super_setattr_(name, value)
-        if not _check_field_equality(type(self), name, value, old_value):
-            getattr(self._events, name)(value)
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        if (
-            name == "_events"
-            or not hasattr(self, "_events")  # can happen on init
-            or name not in self._events
-        ):
-            # fallback to default behavior
-            return self._super_setattr_(name, value)
-        self._setattr_default(name, value)
 
     if PYDANTIC_V1:
 
