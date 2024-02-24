@@ -996,3 +996,39 @@ def test_pickle():
     x = pickle.loads(_dump)
     x.sig.emit()
     mock.assert_called_once()
+
+
+def test_signal_order():
+    """Test that signals are emitted in the order they were connected."""
+    emitter = Emitter()
+    mock1 = Mock()
+    mock2 = Mock()
+
+    def callback(x):
+        if x != 10:
+            emitter.one_int.emit(10)
+
+    emitter.one_int.connect(mock1)
+    emitter.one_int.connect(callback)
+    emitter.one_int.connect(mock2)
+    emitter.one_int.emit(1)
+
+    mock1.assert_has_calls([call(1), call(10)])
+    mock2.assert_has_calls([call(1), call(10)])
+
+
+def test_double_emmision_error():
+    s = SignalInstance(raise_on_emit_during_emission=True)
+
+    i = 0
+
+    def callback():
+        nonlocal i
+        if i == 0:
+            s.emit()
+        i += 1
+
+    s.connect(callback)
+
+    with pytest.raises(EmitLoopError):
+        s.emit()
