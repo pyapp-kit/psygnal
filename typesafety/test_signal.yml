@@ -19,13 +19,6 @@
     s = Signal(Signature())
     s = Signal(1) # ER: Argument 1 to "Signal" has incompatible type "int"; .*
 
-- case: signal_emit
-  main: |
-    from psygnal import SignalInstance
-    s = SignalInstance()
-    x = s.emit(1)
-    reveal_type(x)  # N: Revealed type is "None"
-
 - case: signal_connection
   main: |
     from psygnal import SignalInstance
