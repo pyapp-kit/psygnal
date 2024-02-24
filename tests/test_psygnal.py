@@ -967,3 +967,14 @@ def test_pickle():
     x = pickle.loads(_dump)
     x.sig.emit()
     mock.assert_called_once()
+
+
+def test_recursion_error() -> None:
+    s = SignalInstance()
+
+    @s.connect
+    def callback() -> None:
+        s.emit()
+
+    with pytest.raises(RecursionError):
+        s.emit()
