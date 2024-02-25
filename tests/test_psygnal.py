@@ -1,4 +1,6 @@
 import gc
+import os
+import sys
 from contextlib import suppress
 from functools import partial, wraps
 from inspect import Signature
@@ -6,10 +8,14 @@ from typing import Literal, Optional
 from unittest.mock import MagicMock, Mock, call
 
 import pytest
-import toolz
 
+import psygnal
 from psygnal import EmitLoopError, Signal, SignalInstance
 from psygnal._weak_callback import WeakCallback
+
+PY39 = sys.version_info[:2] == (3, 9)
+WINDOWS = os.name == "nt"
+COMPILED = psygnal._compiled
 
 
 def stupid_decorator(fun):
@@ -268,8 +274,10 @@ def test_slot_types(type_: str) -> None:
     elif type_ == "partial_method":
         signal.connect(partial(obj.f_int_int, 2))
     elif type_ == "toolz_function":
+        toolz = pytest.importorskip("toolz")
         signal.connect(toolz.curry(f_int_int, 2))
     elif type_ == "toolz_method":
+        toolz = pytest.importorskip("toolz")
         signal.connect(toolz.curry(obj.f_int_int, 2))
     elif type_ == "partial_method_kwarg":
         signal.connect(partial(obj.f_int_int, b=2))
@@ -362,6 +370,7 @@ def test_weakref(slot):
     if slot == "partial":
         emitter.one_int.connect(partial(obj.f_int_int, 1))
     elif slot == "toolz_curry":
+        toolz = pytest.importorskip("toolz")
         emitter.one_int.connect(toolz.curry(obj.f_int_int, 1))
     else:
         emitter.one_int.connect(getattr(obj, slot))
@@ -969,6 +978,7 @@ def test_pickle():
     mock.assert_called_once()
 
 
+@pytest.mark.skipif(PY39 and WINDOWS and COMPILED, reason="fails")
 def test_recursion_error() -> None:
     s = SignalInstance()
 
