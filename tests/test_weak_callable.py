@@ -5,7 +5,6 @@ from unittest.mock import Mock
 from weakref import ref
 
 import pytest
-import toolz
 
 from psygnal._weak_callback import WeakCallback, weak_callback
 
@@ -59,6 +58,7 @@ def test_slot_types(type_: str, capsys) -> None:
 
         cb = weak_callback(obj, strong_func=(type_ == "function"), finalize=final_mock)
     elif type_ == "toolz_function":
+        toolz = pytest.importorskip("toolz")
 
         @toolz.curry
         def obj(z: int, x: int) -> None:
@@ -73,6 +73,7 @@ def test_slot_types(type_: str, capsys) -> None:
     elif type_ == "partial_method":
         cb = weak_callback(partial(obj.method, 2), max_args=0, finalize=final_mock)
     elif type_ == "toolz_method":
+        toolz = pytest.importorskip("toolz")
         cb = weak_callback(toolz.curry(obj.method, 2), max_args=0, finalize=final_mock)
     elif type_ == "mock":
         cb = weak_callback(mock, finalize=final_mock)

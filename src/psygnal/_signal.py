@@ -562,7 +562,7 @@ class SignalInstance:
 
     def connect_setattr(
         self,
-        obj: weakref.ref | object,
+        obj: object,
         attr: str,
         maxargs: int | None | object = _NULL,
         *,
@@ -578,8 +578,8 @@ class SignalInstance:
 
         Parameters
         ----------
-        obj : Union[weakref.ref, object]
-            An object or weak reference (deprecated) to an object.
+        obj : object
+            An object.
         attr : str
             The name of an attribute on `obj` that should be set to the value of this
             signal when emitted.
@@ -628,15 +628,6 @@ class SignalInstance:
             )
             maxargs = None
 
-        if isinstance(obj, weakref.ReferenceType):  # pragma: no cover
-            warnings.warn(
-                'Using a weakref as the "obj" argument is deprecated. '
-                "Use the object directly instead. This will raise an error in "
-                "a future release.",
-                FutureWarning,
-                stacklevel=2,
-            )
-            obj = obj()
         if not hasattr(obj, attr):
             raise AttributeError(f"Object {obj} has no attribute {attr!r}")
 
@@ -679,7 +670,7 @@ class SignalInstance:
 
     def connect_setitem(
         self,
-        obj: weakref.ref | object,
+        obj: object,
         key: str,
         maxargs: int | None | object = _NULL,
         *,
@@ -695,8 +686,8 @@ class SignalInstance:
 
         Parameters
         ----------
-        obj : Union[weakref.ref, object]
-            An object or weak reference (deprecated) to an object.
+        obj : object
+            An object.
         key : str
             Name of the key in `obj` that should be set to the value of this
             signal when emitted
@@ -742,21 +733,12 @@ class SignalInstance:
             )
             maxargs = None
 
-        if isinstance(obj, weakref.ReferenceType):  # pragma: no cover
-            warnings.warn(
-                'Using a weakref as the "obj" argument is deprecated. '
-                "Use the object directly instead. This will raise an error in "
-                "a future release.",
-                FutureWarning,
-                stacklevel=2,
-            )
-            obj = obj()
         if not hasattr(obj, "__setitem__"):
             raise TypeError(f"Object {obj} does not support __setitem__")
 
         with self._lock:
             caller = WeakSetitem(
-                obj,  # type: ignore
+                obj,
                 key,
                 max_args=cast("int | None", maxargs),
                 finalize=self._try_discard,
@@ -891,33 +873,9 @@ class SignalInstance:
         """Return number of connected slots."""
         return len(self._slots)
 
-    @overload
     def emit(
-        self,
-        *args: Any,
-        check_nargs: bool = False,
-        check_types: bool = False,
-        asynchronous: Literal[False] = False,
-    ) -> None: ...  # pragma: no cover
-
-    @overload
-    def emit(
-        self,
-        *args: Any,
-        check_nargs: bool = False,
-        check_types: bool = False,
-        asynchronous: Literal[True],
-    ) -> EmitThread | None:
-        # will return `None` if emitter is blocked
-        ...  # pragma: no cover
-
-    def emit(
-        self,
-        *args: Any,
-        check_nargs: bool = False,
-        check_types: bool = False,
-        asynchronous: bool = False,
-    ) -> EmitThread | None:
+        self, *args: Any, check_nargs: bool = False, check_types: bool = False
+    ) -> None:
         """Emit this signal with arguments `args`.
 
         !!! note
@@ -937,13 +895,6 @@ class SignalInstance:
             If `False` and the provided arguments do not match the types declared by
             the signature of this Signal, raise `TypeError`.  Incurs some overhead.
             by default False.
-        asynchronous : bool
-            If `True`, run signal emission in another thread. by default `False`.
-            **DEPRECATED:**. *If you need to emit from a thread, please just create
-            your own [`threading.Thread`][] and call
-            [`SignalInstance.emit`][psygnal.SignalInstance.emit]. See also the `thread`
-            parameter in the [`SignalInstance.connect`][psygnal.SignalInstance.connect]
-            method.*
 
         Raises
         ------
@@ -981,55 +932,17 @@ class SignalInstance:
 
             SignalInstance._debug_hook(EmissionInfo(self, args))
 
-        if asynchronous:
-            warnings.warn(
-                "The `asynchronous` parameter is deprecated and will be removed in a "
-                "future release. If you need this, please create your own "
-                "`threading.Thread` and call `SignalInstance.emit`. See also the new "
-                "`thread` parameter in the `SignalInstance.connect` method.",
-                FutureWarning,
-                stacklevel=2,
-            )
-            sd = EmitThread(self, args)
-            sd.start()
-            return sd
-
         self._run_emit_loop(args)
         return None
 
-    @overload
     def __call__(
-        self,
-        *args: Any,
-        check_nargs: bool = False,
-        check_types: bool = False,
-        asynchronous: Literal[False] = False,
-    ) -> None: ...  # pragma: no cover
-
-    @overload
-    def __call__(
-        self,
-        *args: Any,
-        check_nargs: bool = False,
-        check_types: bool = False,
-        asynchronous: Literal[True],
-    ) -> EmitThread | None:
-        # will return `None` if emitter is blocked
-        ...  # pragma: no cover
-
-    def __call__(
-        self,
-        *args: Any,
-        check_nargs: bool = False,
-        check_types: bool = False,
-        asynchronous: bool = False,
-    ) -> EmitThread | None:
+        self, *args: Any, check_nargs: bool = False, check_types: bool = False
+    ) -> None:
         """Alias for `emit()`."""
-        return self.emit(  # type: ignore
+        return self.emit(
             *args,
             check_nargs=check_nargs,
             check_types=check_types,
-            asynchronous=asynchronous,
         )
 
     def _run_emit_loop(self, args: tuple[Any, ...]) -> None:
@@ -1046,6 +959,11 @@ class SignalInstance:
                         for caller in self._slots:
                             caller.cb(arg)
                         i += 1
+            except RecursionError as e:
+                raise RecursionError(
+                    f"RecursionError in {caller.slot_repr()} when "
+                    f"emitting signal {self.name!r} with args {args}"
+                ) from e
             except Exception as e:
                 raise EmitLoopError(cb=caller, args=args, exc=e, signal=self) from e
             finally:
@@ -1258,21 +1176,6 @@ class _SignalPauser:
     def __exit__(self, *args: Any) -> None:
         if not self._was_paused:
             self._signal.resume(self._reducer, self._initial)
-
-
-class EmitThread(threading.Thread):
-    """A thread to emit a signal asynchronously."""
-
-    def __init__(self, signal_instance: SignalInstance, args: tuple[Any, ...]) -> None:
-        super().__init__(name=signal_instance.name)
-        self._signal_instance = signal_instance
-        self.args = args
-        # current = threading.currentThread()
-        # self.parent = (current.getName(), current.ident)
-
-    def run(self) -> None:
-        """Run thread."""
-        self._signal_instance._run_emit_loop(self.args)
 
 
 # #############################################################################

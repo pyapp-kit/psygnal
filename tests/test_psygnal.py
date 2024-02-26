@@ -1,5 +1,6 @@
 import gc
-import time
+import os
+import sys
 from contextlib import suppress
 from functools import partial, wraps
 from inspect import Signature
@@ -7,10 +8,14 @@ from typing import Literal, Optional
 from unittest.mock import MagicMock, Mock, call
 
 import pytest
-import toolz
 
-from psygnal import EmitLoopError, Signal, SignalInstance, _compiled
+import psygnal
+from psygnal import EmitLoopError, Signal, SignalInstance
 from psygnal._weak_callback import WeakCallback
+
+PY39 = sys.version_info[:2] == (3, 9)
+WINDOWS = os.name == "nt"
+COMPILED = psygnal._compiled
 
 
 def stupid_decorator(fun):
@@ -269,8 +274,10 @@ def test_slot_types(type_: str) -> None:
     elif type_ == "partial_method":
         signal.connect(partial(obj.f_int_int, 2))
     elif type_ == "toolz_function":
+        toolz = pytest.importorskip("toolz")
         signal.connect(toolz.curry(f_int_int, 2))
     elif type_ == "toolz_method":
+        toolz = pytest.importorskip("toolz")
         signal.connect(toolz.curry(obj.f_int_int, 2))
     elif type_ == "partial_method_kwarg":
         signal.connect(partial(obj.f_int_int, b=2))
@@ -363,6 +370,7 @@ def test_weakref(slot):
     if slot == "partial":
         emitter.one_int.connect(partial(obj.f_int_int, 1))
     elif slot == "toolz_curry":
+        toolz = pytest.importorskip("toolz")
         emitter.one_int.connect(toolz.curry(obj.f_int_int, 1))
     else:
         emitter.one_int.connect(getattr(obj, slot))
@@ -581,34 +589,6 @@ def test_unique_connections():
 
     e.one_int.connect(f_no_arg)
     assert len(e.one_int._slots) == 2
-
-
-@pytest.mark.skipif(_compiled, reason="passes, but segfaults on exit")
-def test_asynchronous_emit():
-    e = Emitter()
-    a = []
-
-    def slow_append(arg: int):
-        time.sleep(0.1)
-        a.append(arg)
-
-    mock = MagicMock(wraps=slow_append)
-    e.no_arg.connect(mock, unique=False)
-
-    assert not Signal.current_emitter()
-    value = 42
-    with pytest.warns(FutureWarning):
-        thread = e.no_arg.emit(value, asynchronous=True)
-    mock.assert_called_once()
-    assert Signal.current_emitter() is e.no_arg
-
-    # dude, you have to wait.
-    assert not a
-
-    if thread:
-        thread.join()
-    assert a == [value]
-    assert not Signal.current_emitter()
 
 
 def test_sig_unavailable():
@@ -996,6 +976,18 @@ def test_pickle():
     x = pickle.loads(_dump)
     x.sig.emit()
     mock.assert_called_once()
+
+
+@pytest.mark.skipif(PY39 and WINDOWS and COMPILED, reason="fails")
+def test_recursion_error() -> None:
+    s = SignalInstance()
+
+    @s.connect
+    def callback() -> None:
+        s.emit()
+
+    with pytest.raises(RecursionError):
+        s.emit()
 
 
 def test_signal_order():

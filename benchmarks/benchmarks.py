@@ -1,4 +1,5 @@
 # type: ignore
+import math
 from functools import partial
 
 from psygnal import Signal, SignalInstance
@@ -41,6 +42,16 @@ class R:
 
 def callback(x: int) -> None:
     list(range(2))  # simulate a brief thing
+
+
+def empty(event):
+    pass
+
+
+def fibonacci(n):
+    if n < 2:
+        return n
+    return fibonacci(n - 1) + fibonacci(n - 2)
 
 
 class ConnectSuite:
@@ -160,6 +171,73 @@ class EventedModelSuite:
         obj.events.x.connect(callback)
         for i in range(n):
             obj.x = i
+
+
+class EventedModelWithPropsSuite:
+    def setup(self) -> None:
+        try:
+            import pydantic
+
+            from psygnal import EventedModel
+
+            PYDANTIC_V1 = pydantic.version.VERSION.startswith("1")
+        except ImportError:
+            self.model = None
+            return
+
+        class ModelWithProperties(EventedModel):
+            a: int = 3
+            b: float = 2.0
+            c: int = 3
+
+            @property
+            def d(self):
+                return (self.c + self.a) ** self.b
+
+            @d.setter
+            def d(self, value):
+                self.c = value
+                self.a = value
+                self.b = value * 1.1
+
+            @property
+            def e(self):
+                fca = fibonacci(self.c) + fibonacci(self.a)
+                return fca ** fibonacci(math.ceil(self.b))
+
+            @e.setter
+            def e(self, v):
+                pass
+
+            if PYDANTIC_V1:
+
+                class Config:
+                    allow_property_setters = True
+                    field_dependencies = {"e": ["a", "b", "c"]}
+
+            else:
+                model_config = {
+                    "allow_property_setters": True,
+                    "field_dependencies": {"e": ["a", "b", "c"]},
+                }
+
+        self.model = ModelWithProperties()
+        self.model.events.a.connect(empty)
+        self.model.events.b.connect(empty)
+        self.model.events.c.connect(empty)
+        self.model.events.e.connect(empty)
+
+    def time_event_firing(self) -> None:
+        self.model.d = 4
+        self.model.d = 18
+
+    def time_long_connection(self) -> None:
+        def long_connection(val):
+            for _i in range(5):
+                fibonacci(self.model.c)
+
+        self.model.events.e.connect(long_connection)
+        self.model.d = 15
 
 
 class EventedSetSuite:

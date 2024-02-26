@@ -8,7 +8,7 @@ from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from ._evented_model_v1 import EventedModel  # noqa: TCH004
+    from ._evented_model import EventedModel  # noqa: TCH004
 
 
 try:
@@ -61,19 +61,12 @@ from ._signal import Signal, SignalInstance, _compiled
 from ._throttler import debounced, throttled
 
 
-def __getattr__(name: str) -> Any:
+def __getattr__(name: str) -> Any:  # pragma: no cover
     if name == "EventedModel":
-        import pydantic.version
-
-        if pydantic.version.VERSION.startswith("2"):
-            from ._evented_model_v2 import EventedModel
-        else:
-            from ._evented_model_v1 import EventedModel  # type: ignore
+        from ._evented_model import EventedModel
 
         return EventedModel
-    raise AttributeError(  # pragma: no cover
-        f"module {__name__!r} has no attribute {name!r}"
-    )
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 del os, TYPE_CHECKING

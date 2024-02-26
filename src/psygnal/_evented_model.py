@@ -1,6 +1,6 @@
 import sys
 import warnings
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -8,6 +8,7 @@ from typing import (
     ClassVar,
     Dict,
     Iterator,
+    NamedTuple,
     Set,
     Type,
     Union,
@@ -15,34 +16,46 @@ from typing import (
     no_type_check,
 )
 
-from ._evented_model_utils import ComparisonDelayer
+import pydantic
+from pydantic import PrivateAttr
+
 from ._group import SignalGroup
 from ._group_descriptor import _check_field_equality, _pick_equality_operator
-from ._signal import Signal, SignalInstance
+from ._signal import Signal
+
+NULL = object()
+ALLOW_PROPERTY_SETTERS = "allow_property_setters"
+FIELD_DEPENDENCIES = "field_dependencies"
+GUESS_PROPERTY_DEPENDENCIES = "guess_property_dependencies"
+PYDANTIC_V1 = pydantic.version.VERSION.startswith("1")
+
 
 if TYPE_CHECKING:
     from inspect import Signature
 
-    import pydantic.v1.main as pydantic_main
-    from pydantic.v1 import BaseModel, PrivateAttr, utils
-    from pydantic.v1.fields import Field, FieldInfo, ModelField
-    from typing_extensions import dataclass_transform  # py311
+    from pydantic import ConfigDict
+    from pydantic._internal import _model_construction as pydantic_main
+    from pydantic._internal import _utils as utils
+    from typing_extensions import dataclass_transform as dataclass_transform  # py311
+
+    from ._signal import SignalInstance
 
     EqOperator = Callable[[Any, Any], bool]
-
 else:
-    import pydantic.main as pydantic_main
-    from pydantic import BaseModel, PrivateAttr, utils
-    from pydantic.fields import Field, FieldInfo
+    if PYDANTIC_V1:
+        import pydantic.main as pydantic_main
+        from pydantic import utils
+    else:
+        from pydantic._internal import _model_construction as pydantic_main
+        from pydantic._internal import _utils as utils
 
-    def dataclass_transform(*args, **kwargs):
-        return lambda a: a
+    try:
+        # py311
+        from typing_extensions import dataclass_transform
+    except ImportError:  # pragma: no cover
 
-
-_NULL = object()
-ALLOW_PROPERTY_SETTERS = "allow_property_setters"
-FIELD_DEPENDENCIES = "field_dependencies"
-GUESS_PROPERTY_DEPENDENCIES = "guess_property_dependencies"
+        def dataclass_transform(*args, **kwargs):
+            return lambda a: a
 
 
 @contextmanager
@@ -90,7 +103,86 @@ def no_class_attributes() -> Iterator[None]:  # pragma: no cover
         pydantic_main.ClassAttribute = utils.ClassAttribute  # type: ignore
 
 
-@dataclass_transform(kw_only_default=True, field_specifiers=(Field, FieldInfo))
+if not PYDANTIC_V1:
+
+    def _get_defaults(
+        obj: Union[pydantic.BaseModel, Type[pydantic.BaseModel]],
+    ) -> Dict[str, Any]:
+        """Get possibly nested default values for a Model object."""
+        dflt = {}
+        for k, v in obj.model_fields.items():
+            d = v.get_default()
+            if (
+                d is None
+                and isinstance(v.annotation, type)
+                and issubclass(v.annotation, pydantic.BaseModel)
+            ):
+                d = _get_defaults(v.annotation)  # pragma: no cover
+            dflt[k] = d
+        return dflt
+
+    def _get_config(cls: pydantic.BaseModel) -> "ConfigDict":
+        return cls.model_config
+
+    def _get_fields(cls: pydantic.BaseModel) -> Dict[str, pydantic.fields.FieldInfo]:
+        return cls.model_fields
+
+    def _model_dump(obj: pydantic.BaseModel) -> dict:
+        return obj.model_dump()
+
+else:
+
+    @no_type_check
+    def _get_defaults(obj: pydantic.BaseModel) -> Dict[str, Any]:
+        """Get possibly nested default values for a Model object."""
+        dflt = {}
+        for k, v in obj.__fields__.items():
+            d = v.get_default()
+            if d is None and isinstance(v.type_, pydantic_main.ModelMetaclass):
+                d = _get_defaults(v.type_)  # pragma: no cover
+            dflt[k] = d
+        return dflt
+
+    class GetAttrAsItem:
+        def __init__(self, obj: Any) -> None:
+            self._obj = obj
+
+        def get(self, key: str, default: Any = None) -> Any:
+            return getattr(self._obj, key, default)
+
+    @no_type_check
+    def _get_config(cls: type) -> "ConfigDict":
+        return GetAttrAsItem(cls.__config__)
+
+    class FieldInfo(NamedTuple):
+        annotation: Union[Type[Any], None]
+        frozen: Union[bool, None]
+
+    @no_type_check
+    def _get_fields(cls: type) -> Dict[str, FieldInfo]:
+        return {
+            k: FieldInfo(annotation=f.type_, frozen=not f.field_info.allow_mutation)
+            for k, f in cls.__fields__.items()
+        }
+
+    def _model_dump(obj: pydantic.BaseModel) -> dict:
+        return obj.dict()
+
+
+class ComparisonDelayer:
+    """Context that delays before/after comparisons until exit."""
+
+    def __init__(self, target: "EventedModel") -> None:
+        self._target = target
+
+    def __enter__(self) -> None:
+        self._target._delay_check_semaphore += 1
+
+    def __exit__(self, *_: Any, **__: Any) -> None:
+        self._target._delay_check_semaphore -= 1
+        self._target._check_if_values_changed_and_emit_if_needed()
+
+
 class EventedMetaclass(pydantic_main.ModelMetaclass):
     """pydantic ModelMetaclass that preps "equality checking" operations.
 
@@ -105,6 +197,8 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
     when each instance of an ``EventedModel`` is instantiated).
     """
 
+    __property_setters__: Dict[str, property]
+
     @no_type_check
     def __new__(
         mcs: type, name: str, bases: tuple, namespace: dict, **kwargs: Any
@@ -115,25 +209,30 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
 
         cls.__eq_operators__ = {}
         signals = {}
-        fields: Dict[str, ModelField] = cls.__fields__
-        for n, f in fields.items():
-            cls.__eq_operators__[n] = _pick_equality_operator(f.type_)
-            if f.field_info.allow_mutation:
-                signals[n] = Signal(f.type_)
+
+        model_fields = _get_fields(cls)
+        model_config = _get_config(cls)
+
+        for n, f in model_fields.items():
+            cls.__eq_operators__[n] = _pick_equality_operator(f.annotation)
+            if not f.frozen:
+                signals[n] = Signal(f.annotation)
 
             # If a field type has a _json_encode method, add it to the json
             # encoders for this model.
             # NOTE: a _json_encode field must return an object that can be
             # passed to json.dumps ... but it needn't return a string.
-            if hasattr(f.type_, "_json_encode"):
-                encoder = f.type_._json_encode
-                cls.__config__.json_encoders[f.type_] = encoder
+            if PYDANTIC_V1 and hasattr(f.annotation, "_json_encode"):
+                encoder = f.annotation._json_encode
+                cls.__config__.json_encoders[f.annotation] = encoder
                 # also add it to the base config
                 # required for pydantic>=1.8.0 due to:
                 # https://github.com/samuelcolvin/pydantic/pull/2064
-                EventedModel.__config__.json_encoders[f.type_] = encoder
+                for base in cls.__bases__:
+                    if hasattr(base, "__config__"):
+                        base.__config__.json_encoders[f.annotation] = encoder
 
-        allow_props = getattr(cls.__config__, ALLOW_PROPERTY_SETTERS, False)
+        allow_props = model_config.get(ALLOW_PROPERTY_SETTERS, False)
 
         # check for @_.setters defined on the class, so we can allow them
         # in EventedModel.__setattr__
@@ -148,14 +247,17 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
                     signals[key] = Signal(object)
         else:
             for b in cls.__bases__:
-                conf = getattr(b, "__config__", None)
-                if conf and getattr(conf, ALLOW_PROPERTY_SETTERS, False):
-                    raise ValueError(
-                        "Cannot set 'allow_property_setters' to 'False' when base "
-                        f"class {b} sets it to True"
-                    )
+                with suppress(AttributeError):
+                    conf = _get_config(b)
+                    if conf and conf.get(ALLOW_PROPERTY_SETTERS, False):
+                        raise ValueError(
+                            "Cannot set 'allow_property_setters' to 'False' when base "
+                            f"class {b} sets it to True"
+                        )
 
-        cls.__field_dependents__ = _get_field_dependents(cls)
+        cls.__field_dependents__ = _get_field_dependents(
+            cls, model_config, model_fields
+        )
         cls.__signal_group__ = type(f"{name}SignalGroup", (SignalGroup,), signals)
         if not cls.__field_dependents__ and hasattr(cls, "_setattr_no_dependants"):
             cls._setattr_default = cls._setattr_no_dependants
@@ -164,7 +266,9 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
         return cls
 
 
-def _get_field_dependents(cls: "EventedModel") -> Dict[str, Set[str]]:
+def _get_field_dependents(
+    cls: "EventedMetaclass", model_config: dict, model_fields: dict
+) -> Dict[str, Set[str]]:
     """Return mapping of field name -> dependent set of property names.
 
     Dependencies may be declared in the Model Config to emit an event
@@ -190,9 +294,9 @@ def _get_field_dependents(cls: "EventedModel") -> Dict[str, Set[str]]:
     """
     deps: Dict[str, Set[str]] = {}
 
-    cfg_deps = getattr(cls.__config__, FIELD_DEPENDENCIES, {})  # sourcery skip
+    cfg_deps = model_config.get(FIELD_DEPENDENCIES, {})  # sourcery skip
     if not cfg_deps:
-        cfg_deps = getattr(cls.__config__, "property_dependencies", {})
+        cfg_deps = model_config.get("property_dependencies", {})
         if cfg_deps:
             warnings.warn(
                 "The 'property_dependencies' configuration key is deprecated. "
@@ -207,30 +311,31 @@ def _get_field_dependents(cls: "EventedModel") -> Dict[str, Set[str]]:
                 f"Config property_dependencies must be a dict, not {cfg_deps!r}"
             )
         for prop, fields in cfg_deps.items():
-            if prop not in {*cls.__fields__, *cls.__property_setters__}:
+            if prop not in {*model_fields, *cls.__property_setters__}:
                 raise ValueError(
                     "Fields with dependencies must be fields or property.setters."
                     f"{prop!r} is not."
                 )
             for field in fields:
-                if field not in cls.__fields__:
+                if field not in model_fields:
                     warnings.warn(
                         f"Unrecognized field dependency: {field!r}", stacklevel=2
                     )
                 deps.setdefault(field, set()).add(prop)
-    if getattr(cls.__config__, GUESS_PROPERTY_DEPENDENCIES, False):
+    if model_config.get(GUESS_PROPERTY_DEPENDENCIES, False):
         # if property_dependencies haven't been explicitly defined, we can glean
         # them from the property.fget code object:
         # SKIP THIS MAGIC FOR NOW?
         for prop, setter in cls.__property_setters__.items():
             if setter.fget is not None:
                 for name in setter.fget.__code__.co_names:
-                    if name in cls.__fields__:
+                    if name in model_fields:
                         deps.setdefault(name, set()).add(prop)
     return deps
 
 
-class EventedModel(BaseModel, metaclass=EventedMetaclass):
+@dataclass_transform(kw_only_default=True, field_specifiers=(pydantic.Field,))
+class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
     """A pydantic BaseModel that emits a signal whenever a field value is changed.
 
     !!! important
@@ -327,12 +432,12 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
     _changes_queue: Dict[str, Any] = PrivateAttr(default_factory=dict)
     _primary_changes: Set[str] = PrivateAttr(default_factory=set)
     _delay_check_semaphore: int = PrivateAttr(0)
-    # pydantic BaseModel configuration.  see:
-    # https://pydantic-docs.helpmanual.io/usage/model_config/
 
-    class Config:
-        # this seems to be necessary for the _json_encoders trick to work
-        json_encoders: ClassVar[dict] = {"____": None}
+    if PYDANTIC_V1:
+
+        class Config:
+            # this seems to be necessary for the _json_encoders trick to work
+            json_encoders: ClassVar[dict] = {"____": None}
 
     def __init__(_model_self_, **data: Any) -> None:
         super().__init__(**data)
@@ -342,14 +447,74 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
         # will add _events: SignalGroup to the __init__ signature, for *all* user models
         _model_self_._events = Group(_model_self_)  # type: ignore [misc]
 
-    def _super_setattr_(self, name: str, value: Any) -> None:
-        # pydantic will raise a ValueError if extra fields are not allowed
-        # so we first check to see if this field has a property.setter.
-        # if so, we use it instead.
-        if name in self.__property_setters__:
-            self.__property_setters__[name].fset(self, value)  # type: ignore
-        else:
-            super().__setattr__(name, value)
+    # expose the private SignalGroup publicly
+    @property
+    def events(self) -> SignalGroup:
+        """Return the `SignalGroup` containing all events for this model."""
+        return self._events
+
+    @property
+    def _defaults(self) -> Dict[str, Any]:
+        return _get_defaults(self)
+
+    def __eq__(self, other: Any) -> bool:
+        """Check equality with another object.
+
+        We override the pydantic approach (which just checks
+        ``self.model_dump() == other.model_dump()``) to accommodate more complicated
+        types like arrays, whose truth value is often ambiguous. ``__eq_operators__``
+        is constructed in ``EqualityMetaclass.__new__``
+        """
+        if not isinstance(other, EventedModel):
+            return bool(_model_dump(self) == other)
+
+        for f_name, _ in self.__eq_operators__.items():
+            if not hasattr(self, f_name) or not hasattr(other, f_name):
+                return False  # pragma: no cover
+            a = getattr(self, f_name)
+            b = getattr(other, f_name)
+            if not _check_field_equality(type(self), f_name, a, b):
+                return False
+        return True
+
+    def update(self, values: Union["EventedModel", dict], recurse: bool = True) -> None:
+        """Update a model in place.
+
+        Parameters
+        ----------
+        values : Union[dict, EventedModel]
+            Values to update the model with. If an EventedModel is passed it is
+            first converted to a dictionary. The keys of this dictionary must
+            be found as attributes on the current model.
+        recurse : bool
+            If True, recursively update fields that are EventedModels.
+            Otherwise, just update the immediate fields of this EventedModel,
+            which is useful when the declared field type (e.g. ``Union``) can have
+            different realized types with different fields.
+        """
+        if isinstance(values, pydantic.BaseModel):
+            values = _model_dump(values)
+
+        if not isinstance(values, dict):  # pragma: no cover
+            raise TypeError(f"values must be a dict or BaseModel. got {type(values)}")
+
+        with self.events._psygnal_relay.paused():  # TODO: reduce?
+            for key, value in values.items():
+                field = getattr(self, key)
+                if isinstance(field, EventedModel) and recurse:
+                    field.update(value, recurse=recurse)
+                else:
+                    setattr(self, key, value)
+
+    def reset(self) -> None:
+        """Reset the state of the model to default values."""
+        model_config = _get_config(self)
+        model_fields = _get_fields(self)
+        for name, value in self._defaults.items():
+            if isinstance(value, EventedModel):
+                cast("EventedModel", getattr(self, name)).reset()
+            elif not model_config.get("frozen") and not model_fields[name].frozen:
+                setattr(self, name, value)
 
     def _check_if_values_changed_and_emit_if_needed(self) -> None:
         """
@@ -388,11 +553,59 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
             for name, new_value in to_emit:
                 getattr(self._events, name)(new_value)
 
+    def __setattr__(self, name: str, value: Any) -> None:
+        if (
+            name == "_events"
+            or not hasattr(self, "_events")  # can happen on init
+            or name not in self._events
+        ):
+            # fallback to default behavior
+            return self._super_setattr_(name, value)
+        # the _setattr_default method is overriden in __new__ to be one of
+        # `_setattr_no_dependants` or `_setattr_with_dependents`.
+        self._setattr_default(name, value)
+
+    def _super_setattr_(self, name: str, value: Any) -> None:
+        # pydantic will raise a ValueError if extra fields are not allowed
+        # so we first check to see if this field has a property.setter.
+        # if so, we use it instead.
+        if name in self.__property_setters__:
+            self.__property_setters__[name].fset(self, value)  # type: ignore[misc]
+        elif name == "_events":
+            # pydantic v2 prohibits shadowing class vars, on instances
+            object.__setattr__(self, name, value)
+        else:
+            super().__setattr__(name, value)
+
+    def _setattr_default(self, name: str, value: Any) -> None:
+        """Will be overwritten by metaclass __new__.
+
+        It will become either `_setattr_no_dependants` (if the class has no
+        properties and `__field_dependents__`), or `_setattr_with_dependents` if it
+        does.
+        """
+
+    def _setattr_no_dependants(self, name: str, value: Any) -> None:
+        """__setattr__ behavior when the class has no properties."""
+        group = self._events
+        signal_instance: SignalInstance = group[name]
+        if len(signal_instance) < 1:
+            return self._super_setattr_(name, value)
+        old_value = getattr(self, name, object())
+        self._super_setattr_(name, value)
+        if not _check_field_equality(type(self), name, value, old_value):
+            getattr(self._events, name)(value)
+
+    def _setattr_with_dependents(self, name: str, value: Any) -> None:
+        """__setattr__ behavior when the class does properties."""
+        with ComparisonDelayer(self):
+            self._setattr_impl(name, value)
+
     def _setattr_impl(self, name: str, value: Any) -> None:
         # if there are no listeners, we can just set the value without emitting
         # so first check if there are any listeners for this field or any of its
         # dependent properties.
-        # note that ALL signals will have at least one listener simply by nature of
+        # note that ALL signals will have sat least one listener simply by nature of
         # being in the `self._events` SignalGroup.
         group = self._events
         signal_instance: SignalInstance = group[name]
@@ -416,129 +629,49 @@ class EventedModel(BaseModel, metaclass=EventedMetaclass):
                 self._changes_queue[dep] = getattr(self, dep, object())
         self._super_setattr_(name, value)
 
-    def _setattr_default(self, name: str, value: Any) -> None:
-        """Will be overwritten by metaclass __new__."""
+    if PYDANTIC_V1:
 
-    def _setattr_with_dependents(self, name: str, value: Any) -> None:
-        with ComparisonDelayer(self):
-            self._setattr_impl(name, value)
+        @contextmanager
+        def enums_as_values(self, as_values: bool = True) -> Iterator[None]:
+            """Temporarily override how enums are retrieved.
 
-    def _setattr_no_dependants(self, name: str, value: Any) -> None:
-        group = self._events
-        signal_instance: SignalInstance = group[name]
-        if len(signal_instance) < 1:
-            return self._super_setattr_(name, value)
-        old_value = getattr(self, name, object())
-        self._super_setattr_(name, value)
-        if not _check_field_equality(type(self), name, value, old_value):
-            getattr(self._events, name)(value)
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        if (
-            name == "_events"
-            or not hasattr(self, "_events")  # can happen on init
-            or name not in self._events
-        ):
-            # fallback to default behavior
-            return self._super_setattr_(name, value)
-        self._setattr_default(name, value)
-
-    # expose the private SignalGroup publicly
-    @property
-    def events(self) -> SignalGroup:
-        """Return the `SignalGroup` containing all events for this model."""
-        return self._events
-
-    @property
-    def _defaults(self) -> dict:
-        return _get_defaults(self)
-
-    def reset(self) -> None:
-        """Reset the state of the model to default values."""
-        for name, value in self._defaults.items():
-            if isinstance(value, EventedModel):
-                cast("EventedModel", getattr(self, name)).reset()
-            elif (
-                self.__config__.allow_mutation
-                and self.__fields__[name].field_info.allow_mutation
-            ):
-                setattr(self, name, value)
-
-    def update(self, values: Union["EventedModel", dict], recurse: bool = True) -> None:
-        """Update a model in place.
-
-        Parameters
-        ----------
-        values : Union[dict, EventedModel]
-            Values to update the model with. If an EventedModel is passed it is
-            first converted to a dictionary. The keys of this dictionary must
-            be found as attributes on the current model.
-        recurse : bool
-            If True, recursively update fields that are EventedModels.
-            Otherwise, just update the immediate fields of this EventedModel,
-            which is useful when the declared field type (e.g. ``Union``) can have
-            different realized types with different fields.
-        """
-        if isinstance(values, BaseModel):
-            values = values.dict()
-        if not isinstance(values, dict):  # pragma: no cover
-            raise TypeError(f"values must be a dict or BaseModel. got {type(values)}")
-
-        with self.events._psygnal_relay.paused():  # TODO: reduce?
-            for key, value in values.items():
-                field = getattr(self, key)
-                if isinstance(field, EventedModel) and recurse:
-                    field.update(value, recurse=recurse)
+            Parameters
+            ----------
+            as_values : bool
+                Whether enums should be shown as values (or as enum objects),
+                by default `True`
+            """
+            before = getattr(self.Config, "use_enum_values", NULL)
+            self.Config.use_enum_values = as_values  # type: ignore
+            try:
+                yield
+            finally:
+                if before is not NULL:
+                    self.Config.use_enum_values = before  # type: ignore  # pragma: no cover
                 else:
-                    setattr(self, key, value)
+                    delattr(self.Config, "use_enum_values")
 
-    def __eq__(self, other: Any) -> bool:
-        """Check equality with another object.
+    else:
 
-        We override the pydantic approach (which just checks
-        ``self.dict() == other.dict()``) to accommodate more complicated types
-        like arrays, whose truth value is often ambiguous. ``__eq_operators__``
-        is constructed in ``EqualityMetaclass.__new__``
-        """
-        if not isinstance(other, EventedModel):
-            return self.dict() == other  # type: ignore
+        @classmethod
+        @contextmanager
+        def enums_as_values(
+            cls, as_values: bool = True
+        ) -> Iterator[None]:  # pragma: no cover
+            """Temporarily override how enums are retrieved.
 
-        for f_name, _ in self.__eq_operators__.items():
-            if not hasattr(self, f_name) or not hasattr(other, f_name):
-                return False  # pragma: no cover
-            a = getattr(self, f_name)
-            b = getattr(other, f_name)
-            if not _check_field_equality(type(self), f_name, a, b):
-                return False
-        return True
-
-    @contextmanager
-    def enums_as_values(self, as_values: bool = True) -> Iterator[None]:
-        """Temporarily override how enums are retrieved.
-
-        Parameters
-        ----------
-        as_values : bool
-            Whether enums should be shown as values (or as enum objects),
-            by default `True`
-        """
-        before = getattr(self.Config, "use_enum_values", _NULL)
-        self.Config.use_enum_values = as_values  # type: ignore
-        try:
-            yield
-        finally:
-            if before is not _NULL:
-                self.Config.use_enum_values = before  # type: ignore  # pragma: no cover
-            else:
-                delattr(self.Config, "use_enum_values")
-
-
-def _get_defaults(obj: BaseModel) -> Dict[str, Any]:
-    """Get possibly nested default values for a Model object."""
-    dflt = {}
-    for k, v in obj.__fields__.items():
-        d = v.get_default()
-        if d is None and isinstance(v.type_, pydantic_main.ModelMetaclass):
-            d = _get_defaults(v.type_)  # pragma: no cover
-        dflt[k] = d
-    return dflt
+            Parameters
+            ----------
+            as_values : bool
+                Whether enums should be shown as values (or as enum objects),
+                by default `True`
+            """
+            before = cls.model_config.get("use_enum_values", NULL)
+            cls.model_config["use_enum_values"] = as_values
+            try:
+                yield
+            finally:
+                if before is not NULL:  # pragma: no cover
+                    cls.model_config["use_enum_values"] = cast(bool, before)
+                else:
+                    cls.model_config.pop("use_enum_values")

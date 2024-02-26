@@ -101,8 +101,7 @@ dependencies = [
 ]
 exclude = [
     "src/psygnal/__init__.py",
-    "src/psygnal/_evented_model_v1.py",
-    "src/psygnal/_evented_model_v2.py",
+    "src/psygnal/_evented_model.py",
     "src/psygnal/utils.py",
     "src/psygnal/containers",
     "src/psygnal/qt.py",
@@ -201,6 +200,7 @@ exclude_lines = [
     "\\.\\.\\.",
     "raise NotImplementedError()",
 ]
+show_missing = true
 [tool.coverage.run]
 source = ["psygnal"]
 omit = ["*/_pyinstaller_util/hook-psygnal.py"]
