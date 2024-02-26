@@ -299,9 +299,6 @@ class SignalInstance:
         Whether to check the callback parameter types against `signature` when
         connecting a new callback. This can also be provided at connection time using
         `.connect(..., check_types=True)`. By default, False.
-    raise_on_emit_during_emission: bool
-        raise exception if signal is emitted while already emitting.
-        This could be used to detect callback loops. By default, False.
 
     Raises
     ------
@@ -322,7 +319,6 @@ class SignalInstance:
         name: str | None = None,
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
-        raise_on_emit_during_emission: bool = False,
     ) -> None:
         self._name = name
         self._instance: Callable = self._instance_ref(instance)
@@ -339,7 +335,6 @@ class SignalInstance:
         self._signature = signature
         self._check_nargs_on_connect = check_nargs_on_connect
         self._check_types_on_connect = check_types_on_connect
-        self._raise_on_emit_during_emission = raise_on_emit_during_emission
         self._slots: list[WeakCallback] = []
         self._is_blocked: bool = False
         self._is_paused: bool = False
@@ -1042,10 +1037,6 @@ class SignalInstance:
         with self._lock:
             self._emit_queue.append(args)
             if len(self._emit_queue) > 1:
-                if self._raise_on_emit_during_emission:
-                    raise RuntimeError(
-                        f"Signal {self!r} emitted while already emitting."
-                    )
                 return None
             try:
                 with Signal._emitting(self):
