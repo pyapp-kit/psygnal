@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import sys
 import threading
 import warnings
 import weakref
@@ -52,6 +53,7 @@ if TYPE_CHECKING:
 __all__ = ["Signal", "SignalInstance", "_compiled"]
 _NULL = object()
 F = TypeVar("F", bound=Callable)
+RECURSION_LIMIT = sys.getrecursionlimit()
 
 
 class Signal:
@@ -945,33 +947,30 @@ class SignalInstance:
             check_types=check_types,
         )
 
-    def _run_emit_loop_inner(self) -> None:
-        try:
-            with Signal._emitting(self):
-                q_len = len(self._emit_queue)
-                for i in range(q_len):
-                    args = self._emit_queue[i]
-                    for caller in self._slots:
-                        caller.cb(args)
-                self._emit_queue = self._emit_queue[q_len:]
-                if len(self._emit_queue) > 0:
-                    self._run_emit_loop_inner()
-        except RecursionError as e:
-            raise RecursionError(
-                f"RecursionError in {caller.slot_repr()} when "
-                f"emitting signal {self.name!r} with args {args}"
-            ) from e
-        except Exception as e:
-            raise EmitLoopError(cb=caller, args=args, exc=e, signal=self) from e
-
     def _run_emit_loop(self, args: tuple[Any, ...]) -> None:
         # allow receiver to query sender with Signal.current_emitter()
         with self._lock:
             self._emit_queue.append(args)
+
             if len(self._emit_queue) > 1:
                 return None
             try:
-                self._run_emit_loop_inner()
+                with Signal._emitting(self):
+                    i = 0
+                    while i < len(self._emit_queue):
+                        args = self._emit_queue[i]
+                        for caller in self._slots:
+                            caller.cb(args)
+                            if len(self._emit_queue) > RECURSION_LIMIT:
+                                raise RecursionError
+                        i += 1
+            except RecursionError as e:
+                raise RecursionError(
+                    f"RecursionError in {caller.slot_repr()} when "
+                    f"emitting signal {self.name!r} with args {args}"
+                ) from e
+            except Exception as e:
+                raise EmitLoopError(cb=caller, args=args, exc=e, signal=self) from e
             finally:
                 self._emit_queue.clear()
 
