@@ -1017,18 +1017,32 @@ def test_signal_order():
     mock2.assert_has_calls([call(1), call(10)])
 
 
-def test_double_emmision_error():
-    s = SignalInstance(raise_on_emit_during_emission=True)
+def test_signal_order_suspend():
+    """Test that signals are emitted in the order they were connected."""
+    emitter = Emitter()
+    mock1 = Mock()
+    mock2 = Mock()
 
-    i = 0
+    def callback(x):
+        if x < 10:
+            emitter.one_int.emit(10)
 
-    def callback():
-        nonlocal i
-        if i == 0:
-            s.emit()
-        i += 1
+    def callback2(x):
+        if x == 10:
+            emitter.one_int.emit(11)
 
-    s.connect(callback)
+    def callback3(x):
+        if x == 10:
+            with emitter.one_int.paused(reducer=lambda a, b: (a[0] + b[0],)):
+                for i in range(12, 15):
+                    emitter.one_int.emit(i)
 
-    with pytest.raises(EmitLoopError):
-        s.emit()
+    emitter.one_int.connect(mock1)
+    emitter.one_int.connect(callback)
+    emitter.one_int.connect(callback2)
+    emitter.one_int.connect(callback3)
+    emitter.one_int.connect(mock2)
+    emitter.one_int.emit(1)
+
+    mock1.assert_has_calls([call(1), call(10), call(11), call(39)])
+    mock2.assert_has_calls([call(1), call(10), call(11), call(39)])
