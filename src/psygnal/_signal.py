@@ -951,6 +951,11 @@ class SignalInstance:
                 for caller in self._slots:
                     try:
                         caller.cb(args)
+                    except RecursionError as e:
+                        raise RecursionError(
+                            f"RecursionError in {caller.slot_repr()} when "
+                            f"emitting signal {self.name!r} with args {args}"
+                        ) from e
                     except Exception as e:
                         raise EmitLoopError(
                             cb=caller, args=args, exc=e, signal=self
