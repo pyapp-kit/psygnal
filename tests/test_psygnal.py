@@ -1038,3 +1038,18 @@ def test_signal_order_suspend():
 
     mock1.assert_has_calls([call(1), call(10), call(11), call(39)])
     mock2.assert_has_calls([call(1), call(10), call(11), call(39)])
+
+
+def test_call_priority() -> None:
+    """Test that signals are emitted in the order they were connected."""
+    emitter = Emitter()
+
+    calls = []
+
+    emitter.no_arg.connect(lambda: calls.append(1))
+    emitter.no_arg.connect(lambda: calls.append(2), priority=5)
+    emitter.no_arg.connect(lambda: calls.append(3), priority=-5)
+    emitter.no_arg.connect(lambda: calls.append(4), priority=10)
+
+    emitter.no_arg.emit()
+    assert calls == [4, 2, 1, 3]

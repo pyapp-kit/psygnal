@@ -57,6 +57,7 @@ class QueuedCallback(WeakCallback):
         # NOTE: for some strange reason, mypyc crashes if we use `self._thread` here
         # so we use `self._thred` instead
         self._thred = thread
+        self.priority: int = wrapped.priority
 
     def cb(self, args: tuple = ()) -> None:
         if current_thread() is self._thred:

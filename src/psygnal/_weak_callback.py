@@ -42,6 +42,7 @@ def weak_callback(
     finalize: Callable[[WeakCallback], Any] | None = None,
     strong_func: bool = True,
     on_ref_error: RefErrorChoice = "warn",
+    priority: int = 0,
 ) -> WeakCallback[_R]:
     """Create a weakly-referenced callback.
 
@@ -78,6 +79,11 @@ def weak_callback(
         ReferenceError will be raised.  If 'warn' (default), a warning will be issued
         and a strong-reference will be used. If 'ignore' a strong-reference will be
         used (silently).
+    priority : int, optional
+        The priority of the callback.  This is used to determine the order in which
+        callbacks are called when multiple are connected to the same signal.
+        Higher priority callbacks are called first. Negative values are allowed.
+        The default is 0.
 
     Returns
     -------
@@ -120,9 +126,11 @@ def weak_callback(
 
     if isinstance(cb, FunctionType):
         return (
-            StrongFunction(cb, max_args, args, kwargs)
+            StrongFunction(cb, max_args, args, kwargs, priority=priority)
             if strong_func
-            else WeakFunction(cb, max_args, args, kwargs, finalize, on_ref_error)
+            else WeakFunction(
+                cb, max_args, args, kwargs, finalize, on_ref_error, priority=priority
+            )
         )
 
     if isinstance(cb, MethodType):
@@ -134,8 +142,12 @@ def weak_callback(
                     "WeakCallback.__setitem__ requires a key argument"
                 ) from e
             obj = cast("SupportsSetitem", cb.__self__)
-            return WeakSetitem(obj, key, max_args, finalize, on_ref_error)
-        return WeakMethod(cb, max_args, args, kwargs, finalize, on_ref_error)
+            return WeakSetitem(
+                obj, key, max_args, finalize, on_ref_error, priority=priority
+            )
+        return WeakMethod(
+            cb, max_args, args, kwargs, finalize, on_ref_error, priority=priority
+        )
 
     if isinstance(cb, (MethodWrapperType, BuiltinMethodType)):
         if kwargs:  # pragma: no cover
@@ -150,8 +162,12 @@ def weak_callback(
                 raise TypeError(
                     "setattr requires two arguments, an object and an attribute name."
                 ) from e
-            return WeakSetattr(obj, attr, max_args, finalize, on_ref_error)
-        return WeakBuiltin(cb, max_args, args, finalize, on_ref_error)
+            return WeakSetattr(
+                obj, attr, max_args, finalize, on_ref_error, priority=priority
+            )
+        return WeakBuiltin(
+            cb, max_args, args, finalize, on_ref_error, priority=priority
+        )
 
     if _is_toolz_curry(cb):
         cb_partial = getattr(cb, "_partial", None)
@@ -166,10 +182,13 @@ def weak_callback(
             max_args=max_args,
             finalize=finalize,
             on_ref_error=on_ref_error,
+            priority=priority,
         )
 
     if callable(cb):
-        return WeakFunction(cb, max_args, args, kwargs, finalize, on_ref_error)
+        return WeakFunction(
+            cb, max_args, args, kwargs, finalize, on_ref_error, priority=priority
+        )
 
     raise TypeError(f"unsupported type {type(cb)}")  # pragma: no cover
 
@@ -194,6 +213,7 @@ class WeakCallback(Generic[_R]):
         obj: Any,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = "warn",
+        priority: int = 0,
     ) -> None:
         self._key: str = WeakCallback.object_key(obj)
         self._obj_module: str = getattr(obj, "__module__", None) or ""
@@ -202,6 +222,8 @@ class WeakCallback(Generic[_R]):
         self._max_args: int | None = max_args
         self._alive: bool = True
         self._on_ref_error: RefErrorChoice = on_ref_error
+
+        self.priority: int = priority
 
     def cb(self, args: tuple[Any, ...] = ()) -> None:
         """Call the callback with `args`. Args will be spread when calling the func."""
@@ -319,8 +341,9 @@ class StrongFunction(WeakCallback):
         args: tuple[Any, ...] = (),
         kwargs: dict[str, Any] | None = None,
         on_ref_error: RefErrorChoice = "warn",
+        priority: int = 0,
     ) -> None:
-        super().__init__(obj, max_args, on_ref_error)
+        super().__init__(obj, max_args, on_ref_error, priority)
         self._f = obj
         self._args = args
         self._kwargs = kwargs or {}
@@ -358,8 +381,9 @@ class WeakFunction(WeakCallback):
         kwargs: dict[str, Any] | None = None,
         finalize: Callable | None = None,
         on_ref_error: RefErrorChoice = "warn",
+        priority: int = 0,
     ) -> None:
-        super().__init__(obj, max_args, on_ref_error)
+        super().__init__(obj, max_args, on_ref_error, priority)
         self._f = self._try_ref(obj, finalize)
         self._args = args
         self._kwargs = kwargs or {}
@@ -403,8 +427,9 @@ class WeakMethod(WeakCallback):
         kwargs: dict[str, Any] | None = None,
         finalize: Callable | None = None,
         on_ref_error: RefErrorChoice = "warn",
+        priority: int = 0,
     ) -> None:
-        super().__init__(obj, max_args, on_ref_error)
+        super().__init__(obj, max_args, on_ref_error, priority)
         self._obj_ref = self._try_ref(obj.__self__, finalize)
         self._func_ref = self._try_ref(obj.__func__, finalize)
         self._args = args
@@ -456,8 +481,9 @@ class WeakBuiltin(WeakCallback):
         args: tuple[Any, ...] = (),
         finalize: Callable | None = None,
         on_ref_error: RefErrorChoice = "warn",
+        priority: int = 0,
     ) -> None:
-        super().__init__(obj, max_args, on_ref_error)
+        super().__init__(obj, max_args, on_ref_error, priority)
         self._obj_ref = self._try_ref(obj.__self__, finalize)
         self._func_name = obj.__name__
         self._args = args
@@ -491,8 +517,9 @@ class WeakSetattr(WeakCallback):
         max_args: int | None = None,
         finalize: Callable | None = None,
         on_ref_error: RefErrorChoice = "warn",
+        priority: int = 0,
     ) -> None:
-        super().__init__(obj, max_args, on_ref_error)
+        super().__init__(obj, max_args, on_ref_error, priority)
         self._key += f".__setattr__({attr!r})"
         self._obj_ref = self._try_ref(obj, finalize)
         self._attr = attr
@@ -529,8 +556,9 @@ class WeakSetitem(WeakCallback):
         max_args: int | None = None,
         finalize: Callable | None = None,
         on_ref_error: RefErrorChoice = "warn",
+        priority: int = 0,
     ) -> None:
-        super().__init__(obj, max_args, on_ref_error)
+        super().__init__(obj, max_args, on_ref_error, priority)
         self._key += f".__setitem__({key!r})"
         self._obj_ref = self._try_ref(obj, finalize)
         self._itemkey = key
