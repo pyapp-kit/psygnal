@@ -342,6 +342,7 @@ class SignalInstance:
         self._is_paused: bool = False
         self._lock = threading.RLock()
         self._emit_queue: list[tuple] = []
+        # whether any slots in self._slots have a priority other than 0
         self._priority_in_use = False
 
     @staticmethod
@@ -547,14 +548,18 @@ class SignalInstance:
 
         Implementing this as a method allows us to override/extend it in subclasses.
         """
+        # if no previously connected slots have a priority, and this slot also
+        # has no priority, we can just (quickly) append it to the end of the list.
         if not self._priority_in_use:
             if not slot.priority:
                 self._slots.append(slot)
                 return
+            # remember that we have a priority in use, so we skip this check
             self._priority_in_use = True
 
-        # insert the slot in the correct position based on priority
-        # high priority slots are at the front of the list
+        # otherwise we need to (slowly) iterate over self._slots to
+        # insert the slot in the correct position based on priority.
+        # High priority slots are placed at the front of the list
         # low/negative priority slots are at the end of the list
         for i, s in enumerate(self._slots):
             if s.priority < slot.priority:
