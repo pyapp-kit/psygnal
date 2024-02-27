@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import sys
 import threading
 import warnings
 import weakref
@@ -52,6 +53,7 @@ if TYPE_CHECKING:
 __all__ = ["Signal", "SignalInstance", "_compiled"]
 _NULL = object()
 F = TypeVar("F", bound=Callable)
+RECURSION_LIMIT = sys.getrecursionlimit()
 
 
 class Signal:
@@ -339,6 +341,7 @@ class SignalInstance:
         self._is_blocked: bool = False
         self._is_paused: bool = False
         self._lock = threading.RLock()
+        self._emit_queue: list[tuple] = []
 
     @staticmethod
     def _instance_ref(instance: Any) -> Callable[[], Any]:
@@ -947,19 +950,29 @@ class SignalInstance:
     def _run_emit_loop(self, args: tuple[Any, ...]) -> None:
         # allow receiver to query sender with Signal.current_emitter()
         with self._lock:
-            with Signal._emitting(self):
-                for caller in self._slots:
-                    try:
-                        caller.cb(args)
-                    except RecursionError as e:
-                        raise RecursionError(
-                            f"RecursionError in {caller.slot_repr()} when "
-                            f"emitting signal {self.name!r} with args {args}"
-                        ) from e
-                    except Exception as e:
-                        raise EmitLoopError(
-                            cb=caller, args=args, exc=e, signal=self
-                        ) from e
+            self._emit_queue.append(args)
+
+            if len(self._emit_queue) > 1:
+                return None
+            try:
+                with Signal._emitting(self):
+                    i = 0
+                    while i < len(self._emit_queue):
+                        args = self._emit_queue[i]
+                        for caller in self._slots:
+                            caller.cb(args)
+                            if len(self._emit_queue) > RECURSION_LIMIT:
+                                raise RecursionError
+                        i += 1
+            except RecursionError as e:
+                raise RecursionError(
+                    f"RecursionError in {caller.slot_repr()} when "
+                    f"emitting signal {self.name!r} with args {args}"
+                ) from e
+            except Exception as e:
+                raise EmitLoopError(cb=caller, args=args, exc=e, signal=self) from e
+            finally:
+                self._emit_queue.clear()
 
         return None
 
@@ -1108,6 +1121,7 @@ class SignalInstance:
             "_args_queue",
             "_check_nargs_on_connect",
             "_check_types_on_connect",
+            "_emit_queue",
         )
         dd = {slot: getattr(self, slot) for slot in attrs}
         dd["_instance"] = self._instance()
