@@ -1167,6 +1167,7 @@ class SignalInstance:
             "_check_nargs_on_connect",
             "_check_types_on_connect",
             "_emit_queue",
+            "_priority_in_use",
         )
         dd = {slot: getattr(self, slot) for slot in attrs}
         dd["_instance"] = self._instance()
