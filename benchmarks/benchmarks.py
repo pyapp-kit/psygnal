@@ -102,7 +102,7 @@ class EmitSuite:
         self.emitter3 = E()
         if hasattr(self.emitter3.changed, "connect_setattr"):
             for _ in range(n):
-                self.emitter3.changed.connect_setattr(self.receiver, "attr")
+                self.emitter3.changed.connect_setattr(self.receiver, "attr", maxargs=1)
 
         self.emitter4 = E()
         for _ in range(n):
@@ -112,7 +112,7 @@ class EmitSuite:
         self.emitter5 = E()
         if hasattr(self.emitter5.changed, "connect_setitem"):
             for _ in range(n):
-                self.emitter5.changed.connect_setitem(self.receiver, "x")
+                self.emitter5.changed.connect_setitem(self.receiver, "x", maxargs=1)
 
         self.emitter6 = E()
         for _ in range(n):
