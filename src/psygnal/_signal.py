@@ -342,6 +342,7 @@ class SignalInstance:
         self._is_paused: bool = False
         self._lock = threading.RLock()
         self._emit_queue: list[tuple] = []
+        self._priority_in_use = False
 
     @staticmethod
     def _instance_ref(instance: Any) -> Callable[[], Any]:
@@ -542,8 +543,15 @@ class SignalInstance:
         return _wrapper if slot is None else _wrapper(slot)
 
     def _append_slot(self, slot: WeakCallback) -> None:
-        """Append a slot to the list of slots."""
-        # implementing this as a method allows us to override/extend it in subclasses
+        """Append a slot to the list of slots.
+
+        Implementing this as a method allows us to override/extend it in subclasses.
+        """
+        if not self._priority_in_use:
+            if not slot.priority:
+                self._slots.append(slot)
+                return
+            self._priority_in_use = True
 
         # insert the slot in the correct position based on priority
         # high priority slots are at the front of the list
