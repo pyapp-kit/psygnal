@@ -256,7 +256,6 @@ class SignalGroup:
 
     _psygnal_signals: ClassVar[Mapping[str, Signal]] = {}
     _psygnal_uniform: ClassVar[bool] = False
-    _psygnal_aliases: ClassVar[Mapping[str, str | None]] = {}
 
     _psygnal_instances: dict[str, SignalInstance]
     _psygnal_relay: SignalRelay
@@ -276,11 +275,7 @@ class SignalGroup:
         # Attach SignalRelay to the object instance
         self._psygnal_relay = SignalRelay(self._psygnal_instances, instance)
 
-    def __init_subclass__(
-        cls,
-        strict: bool = False,
-        signal_aliases: Mapping[str, str | None] = {},
-    ) -> None:
+    def __init_subclass__(cls, strict: bool = False) -> None:
         """Collects all Signal instances on the class under `cls._psygnal_signals`."""
         # Collect Signals and remove from class attributes
         # Use dir(cls) instead of cls.__dict__ to get attributes from super()
@@ -297,9 +292,11 @@ class SignalGroup:
         cls._psygnal_signals = {**cls._psygnal_signals, **_psygnal_signals}
 
         # Emit warning for signal names conflicting with SignalGroup attributes
-        reserved = SignalGroup.__dict__.keys()
+        reserved = set(dir(cls))
         conflicts = {
-            k for k in cls._psygnal_signals if k in reserved or k.startswith("_psygnal")
+            k
+            for k in cls._psygnal_signals
+            if k in reserved or k.startswith(("_psygnal", "psygnal"))
         }
         if conflicts:
             warnings.warn(
@@ -309,8 +306,6 @@ class SignalGroup:
                 UserWarning,
                 stacklevel=2,
             )
-
-        cls._psygnal_aliases = {**cls._psygnal_aliases, **signal_aliases}
 
         cls._psygnal_uniform = _is_uniform(cls._psygnal_signals.values())
         if strict and not cls._psygnal_uniform:
@@ -386,12 +381,6 @@ class SignalGroup:
         """Return repr(self)."""
         name = self.__class__.__name__
         return f"<SignalGroup {name!r} with {len(self)} signals>"
-
-    def get_signal_by_alias(self, name: str) -> SignalInstance | None:
-        sig_name = self._psygnal_aliases.get(name, name)
-        if sig_name is None or sig_name not in self:
-            return None
-        return self[sig_name]
 
     @overload
     def connect(

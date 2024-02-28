@@ -5,6 +5,7 @@ import operator
 import sys
 import warnings
 import weakref
+from functools import lru_cache
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -137,6 +138,7 @@ class _DataclassFieldSignalInstance(SignalInstance):
         return super().connect_setattr(obj, attr, maxargs, on_ref_error=on_ref_error)
 
 
+@lru_cache(maxsize=None)
 def _build_dataclass_signal_group(
     cls: type, equality_operators: Iterable[tuple[str, EqOperator]] | None = None
 ) -> type[SignalGroup]:
@@ -209,22 +211,17 @@ SetAttr = Callable[[Any, str, Any], None]
 
 
 @overload
-def evented_setattr(
-    signal_group_name: str,
-    super_setattr: SetAttr,
-) -> SetAttr: ...
+def evented_setattr(signal_group_name: str, super_setattr: SetAttr) -> SetAttr: ...
 
 
 @overload
 def evented_setattr(
-    signal_group_name: str,
-    super_setattr: Literal[None] | None = None,
+    signal_group_name: str, super_setattr: Literal[None] | None = None
 ) -> Callable[[SetAttr], SetAttr]: ...
 
 
 def evented_setattr(
-    signal_group_name: str,
-    super_setattr: SetAttr | None = None,
+    signal_group_name: str, super_setattr: SetAttr | None = None
 ) -> SetAttr | Callable[[SetAttr], SetAttr]:
     """Create a new __setattr__ method that emits events when fields change.
 
@@ -266,12 +263,12 @@ def evented_setattr(
                 return super_setattr(self, name, value)
 
             group: SignalGroup | None = getattr(self, signal_group_name, None)
-            if not isinstance(group, SignalGroup):
+            if not isinstance(group, SignalGroup) or name not in group:
                 return super_setattr(self, name, value)
 
             # don't emit if the signal doesn't exist or has no listeners
-            signal: SignalInstance | None = group.get_signal_by_alias(name)
-            if not signal or len(signal) < 1:
+            signal: SignalInstance = group[name]
+            if len(signal) < 1:
                 return super_setattr(self, name, value)
 
             with _changes_emitted(self, name, signal):
@@ -384,8 +381,6 @@ class SignalGroupDescriptor:
         self._cache_on_instance = cache_on_instance
         self._patch_setattr = patch_setattr
 
-        self._signal_groups: dict[int, type[SignalGroup]] = {}
-
     def __set_name__(self, owner: type, name: str) -> None:
         """Called when this descriptor is added to class `owner` as attribute `name`."""
         self._name = name
@@ -430,15 +425,13 @@ class SignalGroupDescriptor:
         if instance is None:
             return self
 
-        signal_group = self._get_signal_group(owner)
-
         # if we haven't yet instantiated a SignalGroup for this instance,
         # do it now and cache it.  Note that we cache it here in addition to
         # the instance (in case the instance is not modifiable).
         obj_id = id(instance)
         if obj_id not in self._instance_map:
             # cache it
-            self._instance_map[obj_id] = signal_group(instance)
+            self._instance_map[obj_id] = self._create_group(owner)(instance)
             # also *try* to set it on the instance as well, since it will skip all the
             # __get__ logic in the future, but if it fails, no big deal.
             if self._name and self._cache_on_instance:
@@ -450,12 +443,6 @@ class SignalGroupDescriptor:
                 weakref.finalize(instance, self._instance_map.pop, obj_id, None)
 
         return self._instance_map[obj_id]
-
-    def _get_signal_group(self, owner: type) -> type[SignalGroup]:
-        type_id = id(owner)
-        if type_id not in self._signal_groups:
-            self._signal_groups[type_id] = self._create_group(owner)
-        return self._signal_groups[type_id]
 
     def _create_group(self, owner: type) -> type[SignalGroup]:
         Group = self._signal_group_class or _build_dataclass_signal_group(
