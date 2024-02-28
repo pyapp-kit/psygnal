@@ -1,16 +1,19 @@
 # Changelog
 
-## [v0.10.0rc0](https://github.com/pyapp-kit/psygnal/tree/v0.10.0rc0) (2024-02-16)
+## [v0.10.0rc3](https://github.com/pyapp-kit/psygnal/tree/v0.10.0rc3) (2024-02-24)
 
-[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.5...v0.10.0rc0)
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.5...v0.10.0rc3)
 
 **Implemented enhancements:**
 
+- feat: support for evented containers as pydantic v2 fields [\#283](https://github.com/pyapp-kit/psygnal/pull/283) ([tlambert03](https://github.com/tlambert03))
+- perf: Fixing performance of evented set [\#275](https://github.com/pyapp-kit/psygnal/pull/275) ([Czaki](https://github.com/Czaki))
 - refactor!: New SignalGroup that does not subclass SignalInstance [\#269](https://github.com/pyapp-kit/psygnal/pull/269) ([tlambert03](https://github.com/tlambert03))
 - feat: emit the old value as second argument in Signals from SignalGroupDescriptor \(evented dataclass\) [\#257](https://github.com/pyapp-kit/psygnal/pull/257) ([getzze](https://github.com/getzze))
 
 **Fixed bugs:**
 
+- feat: deduplicate events emision in nested properties [\#279](https://github.com/pyapp-kit/psygnal/pull/279) ([Czaki](https://github.com/Czaki))
 - fix: fix connect\_setattr on dataclass field signals [\#258](https://github.com/pyapp-kit/psygnal/pull/258) ([tlambert03](https://github.com/tlambert03))
 - fix: add and fix copy operators [\#255](https://github.com/pyapp-kit/psygnal/pull/255) ([Czaki](https://github.com/Czaki))
 - fix: fix 3.7 build [\#250](https://github.com/pyapp-kit/psygnal/pull/250) ([tlambert03](https://github.com/tlambert03))
@@ -21,6 +24,11 @@
 
 **Merged pull requests:**
 
+- chore: remove asynchronous emit and other deprecations [\#282](https://github.com/pyapp-kit/psygnal/pull/282) ([tlambert03](https://github.com/tlambert03))
+- refactor: Unify pydantic evented model modules [\#280](https://github.com/pyapp-kit/psygnal/pull/280) ([tlambert03](https://github.com/tlambert03))
+- perf: Do not use reducer if there is no callback in `SingalInstance.resume` [\#278](https://github.com/pyapp-kit/psygnal/pull/278) ([Czaki](https://github.com/Czaki))
+- perf: Delay SignalRelay connection to when a callback is connected [\#277](https://github.com/pyapp-kit/psygnal/pull/277) ([tlambert03](https://github.com/tlambert03))
+- build: remove all dependencies [\#273](https://github.com/pyapp-kit/psygnal/pull/273) ([tlambert03](https://github.com/tlambert03))
 - docs: Update README.md with evented containers [\#272](https://github.com/pyapp-kit/psygnal/pull/272) ([tlambert03](https://github.com/tlambert03))
 - docs: Update README.md with `make build` [\#270](https://github.com/pyapp-kit/psygnal/pull/270) ([tlambert03](https://github.com/tlambert03))
 - Drop python 3.7 [\#268](https://github.com/pyapp-kit/psygnal/pull/268) ([tlambert03](https://github.com/tlambert03))

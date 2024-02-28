@@ -12,19 +12,28 @@ from __future__ import annotations
 
 import warnings
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
     ContextManager,
     Iterable,
     Iterator,
+    Literal,
     Mapping,
     NamedTuple,
+    overload,
 )
 
-from mypy_extensions import mypyc_attr
-
 from psygnal._signal import Signal, SignalInstance, _SignalBlocker
+
+from ._mypyc import mypyc_attr
+
+if TYPE_CHECKING:
+    import threading
+
+    from psygnal._signal import F
+    from psygnal._weak_callback import RefErrorChoice, WeakCallback
 
 __all__ = ["EmissionInfo", "SignalGroup"]
 
@@ -63,13 +72,28 @@ class SignalRelay(SignalInstance):
         self._signals = signals
         self._sig_was_blocked: dict[str, bool] = {}
 
+    def _append_slot(self, slot: WeakCallback) -> None:
+        super()._append_slot(slot)
+        if len(self._slots) == 1:
+            self._connect_relay()
+
+    def _connect_relay(self) -> None:
         # silence any warnings about failed weakrefs (will occur in compiled version)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            for sig in signals.values():
+            for sig in self._signals.values():
                 sig.connect(
                     self._slot_relay, check_nargs=False, check_types=False, unique=True
                 )
+
+    def _remove_slot(self, slot: int | WeakCallback | Literal["all"]) -> None:
+        super()._remove_slot(slot)
+        if not self._slots:
+            self._disconnect_relay()
+
+    def _disconnect_relay(self) -> None:
+        for sig in self._signals.values():
+            sig.disconnect(self._slot_relay)
 
     def _slot_relay(self, *args: Any) -> None:
         if emitter := Signal.current_emitter():
@@ -274,7 +298,9 @@ class SignalGroup:
 
         # Emit warning for signal names conflicting with SignalGroup attributes
         reserved = SignalGroup.__dict__.keys()
-        conflicts = {k for k in cls._psygnal_signals if k in reserved or k.startswith("_psygnal")}
+        conflicts = {
+            k for k in cls._psygnal_signals if k in reserved or k.startswith("_psygnal")
+        }
         if conflicts:
             warnings.warn(
                 f"Names {tuple(conflicts)!r} are reserved. You cannot use these "
@@ -367,23 +393,92 @@ class SignalGroup:
             return None
         return self[sig_name]
 
-    def connect(self, *args, **kwargs):
-        return self.all.connect(*args, **kwargs)
+    @overload
+    def connect(
+        self,
+        *,
+        thread: threading.Thread | Literal["main", "current"] | None = ...,
+        check_nargs: bool | None = ...,
+        check_types: bool | None = ...,
+        unique: bool | str = ...,
+        max_args: int | None = None,
+        on_ref_error: RefErrorChoice = ...,
+    ) -> Callable[[F], F]: ...  # pragma: no cover
 
-    def disconnect(self, *args, **kwargs):
-        return self.all.disconnect(*args, **kwargs)
+    @overload
+    def connect(
+        self,
+        slot: F,
+        *,
+        thread: threading.Thread | Literal["main", "current"] | None = ...,
+        check_nargs: bool | None = ...,
+        check_types: bool | None = ...,
+        unique: bool | str = ...,
+        max_args: int | None = None,
+        on_ref_error: RefErrorChoice = ...,
+    ) -> F: ...  # pragma: no cover
 
-    def connect_direct(self, *args, **kwargs):
-        return self.all.connect_direct(*args, **kwargs)
+    def connect(
+        self,
+        slot: F | None = None,
+        *,
+        thread: threading.Thread | Literal["main", "current"] | None = None,
+        check_nargs: bool | None = None,
+        check_types: bool | None = None,
+        unique: bool | str = False,
+        max_args: int | None = None,
+        on_ref_error: RefErrorChoice = "warn",
+    ) -> Callable[[F], F] | F:
+        if slot is None:
+            return self._psygnal_relay.connect(
+                thread=thread,
+                check_nargs=check_nargs,
+                check_types=check_types,
+                unique=unique,
+                max_args=max_args,
+                on_ref_error=on_ref_error,
+            )
+        else:
+            return self._psygnal_relay.connect(
+                slot,
+                thread=thread,
+                check_nargs=check_nargs,
+                check_types=check_types,
+                unique=unique,
+                max_args=max_args,
+                on_ref_error=on_ref_error,
+            )
 
-    def block(self, *args, **kwargs):
-        return self.all.block(*args, **kwargs)
+    def disconnect(self, slot: Callable | None = None, missing_ok: bool = True) -> None:
+        return self._psygnal_relay.disconnect(slot, missing_ok)
 
-    def unblock(self, *args, **kwargs):
-        return self.all.unblock(*args, **kwargs)
+    def connect_direct(
+        self,
+        slot: Callable | None = None,
+        *,
+        check_nargs: bool | None = None,
+        check_types: bool | None = None,
+        unique: bool | str = False,
+        max_args: int | None = None,
+    ) -> Callable[[Callable], Callable] | Callable:
+        return self._psygnal_relay.connect_direct(
+            slot,
+            check_nargs=check_nargs,
+            check_types=check_types,
+            unique=unique,
+            max_args=max_args,
+        )
 
-    def blocked(self, *args, **kwargs):
-        return self.all.blocked(*args, **kwargs)
+    def block(self, exclude: Iterable[str | SignalInstance] = ()) -> None:
+        return self._psygnal_relay.block(exclude=exclude)
+
+    def unblock(self) -> None:
+        return self._psygnal_relay.unblock()
+
+    def blocked(
+        self, exclude: Iterable[str | SignalInstance] = ()
+    ) -> ContextManager[None]:
+        return self._psygnal_relay.blocked(exclude=exclude)
 
     @classmethod
     def is_uniform(cls) -> bool:

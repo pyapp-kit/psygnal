@@ -141,3 +141,29 @@ def test_copy_no_sync():
     s2 = copy(s1)
     s1.add(4)
     assert len(s2) == 3
+
+
+def test_set_emission_order():
+    s = EventedSet()
+
+    def callback1():
+        if 1 not in s:
+            s.add(1)
+
+    def callback2():
+        if 5 not in s:
+            s.update(range(5, 10))
+
+    s.events.items_changed.connect(callback1)
+    s.events.items_changed.connect(callback2)
+    mock = Mock()
+    s.events.items_changed.connect(mock)
+
+    s.add(11)
+    mock.assert_has_calls(
+        [
+            call((11,), ()),
+            call((1,), ()),
+            call((5, 6, 7, 8, 9), ()),
+        ]
+    )

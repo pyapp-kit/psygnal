@@ -2,12 +2,10 @@ from __future__ import annotations
 
 from queue import Queue
 from threading import Thread, current_thread, main_thread
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, DefaultDict, Tuple
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, DefaultDict, Literal, Tuple
 
 if TYPE_CHECKING:
     import collections
-
-    from typing_extensions import Literal
 
 
 from ._exceptions import EmitLoopError

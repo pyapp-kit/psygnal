@@ -278,7 +278,10 @@ def test_name_conflicts() -> None:
     assert "signals" in group and isinstance(group["signals"], SignalInstance)
 
     assert not isinstance(group.is_uniform, SignalInstance)
-    with pytest.warns(FutureWarning, match="Accessing the `signals` property on a SignalGroup is deprecated."):
+    with pytest.warns(
+        FutureWarning,
+        match="Accessing the `signals` property on a SignalGroup is deprecated.",
+    ):
         assert not isinstance(group.signals, SignalInstance)
 
     # group.all is always a relay

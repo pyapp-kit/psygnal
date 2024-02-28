@@ -4,15 +4,13 @@ import contextlib
 import dataclasses
 import sys
 import types
-from typing import TYPE_CHECKING, Any, Iterator, List, cast, overload
-
-from typing_extensions import Protocol
+from typing import TYPE_CHECKING, Any, Iterator, List, Protocol, cast, overload
 
 if TYPE_CHECKING:
     import attrs
     import msgspec
     from pydantic import BaseModel
-    from typing_extensions import TypeGuard
+    from typing_extensions import TypeGuard  # py310
 
 
 class _DataclassParams(Protocol):

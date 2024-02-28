@@ -11,6 +11,7 @@ from typing import (
     Callable,
     ClassVar,
     Iterable,
+    Literal,
     Type,
     TypeVar,
     cast,
@@ -23,7 +24,6 @@ from ._signal import Signal, SignalInstance
 
 if TYPE_CHECKING:
     from _weakref import ref as ref
-    from typing_extensions import Literal
 
     from psygnal._weak_callback import RefErrorChoice, WeakCallback
 
@@ -212,16 +212,14 @@ SetAttr = Callable[[Any, str, Any], None]
 def evented_setattr(
     signal_group_name: str,
     super_setattr: SetAttr,
-) -> SetAttr:
-    ...
+) -> SetAttr: ...
 
 
 @overload
 def evented_setattr(
     signal_group_name: str,
     super_setattr: Literal[None] | None = None,
-) -> Callable[[SetAttr], SetAttr]:
-    ...
+) -> Callable[[SetAttr], SetAttr]: ...
 
 
 def evented_setattr(
@@ -273,7 +271,7 @@ def evented_setattr(
 
             # don't emit if the signal doesn't exist or has no listeners
             signal: SignalInstance | None = group.get_signal_by_alias(name)
-            if signal is None or len(signal) < 2 and not len(group._psygnal_relay):
+            if not signal or len(signal) < 1:
                 return super_setattr(self, name, value)
 
             with _changes_emitted(self, name, signal):
@@ -420,12 +418,10 @@ class SignalGroupDescriptor:
     _instance_map: ClassVar[dict[int, SignalGroup]] = {}
 
     @overload
-    def __get__(self, instance: None, owner: type) -> SignalGroupDescriptor:
-        ...
+    def __get__(self, instance: None, owner: type) -> SignalGroupDescriptor: ...
 
     @overload
-    def __get__(self, instance: object, owner: type) -> SignalGroup:
-        ...
+    def __get__(self, instance: object, owner: type) -> SignalGroup: ...
 
     def __get__(
         self, instance: object, owner: type

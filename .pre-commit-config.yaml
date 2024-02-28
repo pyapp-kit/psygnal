@@ -45,3 +45,4 @@ repos:
         additional_dependencies:
           - types-attrs
           - pydantic
+          - typing_extensions

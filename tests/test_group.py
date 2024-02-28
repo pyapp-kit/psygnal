@@ -6,6 +6,11 @@ import pytest
 from attr import define
 from typing_extensions import Annotated
 
+try:
+    from typing import Annotated  # py39
+except ImportError:
+    Annotated = None
+
 from psygnal import EmissionInfo, Signal, SignalGroup
 
 
@@ -28,7 +33,7 @@ def test_signal_group():
         group.sig3  # noqa: B018
 
 
-def test_uniform_group():
+def test_uniform_group() -> None:
     """In a uniform group, all signals must have the same signature."""
 
     class MyStrictGroup(SignalGroup, strict=True):
@@ -49,7 +54,8 @@ def test_uniform_group():
     assert str(e.value).startswith("All Signals in a strict SignalGroup must")
 
 
-def test_nonhashable_args():
+@pytest.mark.skipif(Annotated is None, reason="requires typing.Annotated")
+def test_nonhashable_args() -> None:
     """Test that non-hashable annotations are allowed in a SignalGroup"""
 
     class MyGroup(SignalGroup):
@@ -66,7 +72,7 @@ def test_nonhashable_args():
 
 
 @pytest.mark.parametrize("direct", [True, False])
-def test_signal_group_connect(direct: bool):
+def test_signal_group_connect(direct: bool) -> None:
     mock = Mock()
     group = MyGroup()
     if direct:
@@ -92,7 +98,7 @@ def test_signal_group_connect(direct: bool):
     mock.assert_has_calls(expected_calls)
 
 
-def test_signal_group_connect_no_args():
+def test_signal_group_connect_no_args() -> None:
     """Test that group.all.connect can take a callback that wants no args"""
     group = MyGroup()
     count = []
@@ -106,7 +112,7 @@ def test_signal_group_connect_no_args():
     assert len(count) == 2
 
 
-def test_group_blocked():
+def test_group_blocked() -> None:
     group = MyGroup()
 
     mock1 = Mock()
@@ -137,7 +143,7 @@ def test_group_blocked():
     mock2.assert_not_called()
 
 
-def test_group_blocked_exclude():
+def test_group_blocked_exclude() -> None:
     """Test that we can exempt certain signals from being blocked."""
     group = MyGroup()
 
@@ -154,7 +160,7 @@ def test_group_blocked_exclude():
     mock2.assert_called_once_with("hi")
 
 
-def test_group_disconnect_single_slot():
+def test_group_disconnect_single_slot() -> None:
     """Test that we can disconnect single slots from groups."""
     group = MyGroup()
 
@@ -172,7 +178,7 @@ def test_group_disconnect_single_slot():
     mock2.assert_called_once()
 
 
-def test_group_disconnect_all_slots():
+def test_group_disconnect_all_slots() -> None:
     """Test that we can disconnect all slots from groups."""
     group = MyGroup()
 
@@ -190,7 +196,7 @@ def test_group_disconnect_all_slots():
     mock2.assert_not_called()
 
 
-def test_weakref():
+def test_weakref() -> None:
     """Make sure that the group doesn't keep a strong reference to the instance."""
     import gc
 
@@ -206,7 +212,7 @@ def test_weakref():
 
 def test_group_deepcopy() -> None:
     class T:
-        def method(self): ...
+        def method(self) -> None: ...
 
     obj = T()
     group = MyGroup(obj)
@@ -234,7 +240,6 @@ def test_group_deepcopy() -> None:
 
 
 def test_slotted_class() -> None:
-
     @define(slots=True)
     class Foo:
         sig1: ClassVar[Signal] = Signal(int, int)
@@ -260,7 +265,7 @@ def test_slotted_class() -> None:
 
 def test_group_conflicts() -> None:
     match = "You cannot use these names on to access SignalInstances on a SignalGroup."
-    
+
     with pytest.warns(UserWarning, match=match):
 
         class MyGroup(SignalGroup):
@@ -281,3 +286,37 @@ def test_group_conflicts() -> None:
     assert "other_other_signal" in MySubGroup._psygnal_signals
 
     assert "other_other_signal" not in MyGroup._psygnal_signals
+
+
+def test_delayed_relay_connect() -> None:
+    group = MyGroup()
+    mock = Mock()
+    gmock = Mock()
+    assert len(group.sig1) == 0
+
+    group.sig1.connect(mock)
+    # group relay hasn't been connected to sig1 or sig2 yet
+    assert len(group.sig1) == 1
+    assert len(group.sig2) == 0
+
+    group.all.connect(gmock)
+    # NOW the relay is connected
+    assert len(group.sig1) == 2
+    assert len(group.sig2) == 1
+    method = group.sig1._slots[-1].dereference()
+    assert method
+    assert method.__name__ == "_slot_relay"
+
+    group.sig1.emit(1)
+    mock.assert_called_once_with(1)
+    gmock.assert_called_once_with(EmissionInfo(group.sig1, (1,)))
+
+    group.all.disconnect(gmock)
+    assert len(group.sig1) == 1
+    assert len(group.all) == 0
+
+    mock.reset_mock()
+    gmock.reset_mock()
+    group.sig1.emit(1)
+    mock.assert_called_once_with(1)
+    gmock.assert_not_called()

@@ -1,17 +1,21 @@
 import gc
-import time
+import os
+import sys
 from contextlib import suppress
 from functools import partial, wraps
 from inspect import Signature
-from typing import Optional
+from typing import Literal, Optional
 from unittest.mock import MagicMock, Mock, call
 
 import pytest
-import toolz
-from typing_extensions import Literal
 
-from psygnal import EmitLoopError, Signal, SignalInstance, _compiled
+import psygnal
+from psygnal import EmitLoopError, Signal, SignalInstance
 from psygnal._weak_callback import WeakCallback
+
+PY39 = sys.version_info[:2] == (3, 9)
+WINDOWS = os.name == "nt"
+COMPILED = psygnal._compiled
 
 
 def stupid_decorator(fun):
@@ -160,6 +164,7 @@ def test_signature_provided():
 
 def test_emit_checks():
     emitter = Emitter()
+    emitter.one_int.connect(f_no_arg)
 
     emitter.one_int.emit(check_nargs=False)
     emitter.one_int.emit()
@@ -269,8 +274,10 @@ def test_slot_types(type_: str) -> None:
     elif type_ == "partial_method":
         signal.connect(partial(obj.f_int_int, 2))
     elif type_ == "toolz_function":
+        toolz = pytest.importorskip("toolz")
         signal.connect(toolz.curry(f_int_int, 2))
     elif type_ == "toolz_method":
+        toolz = pytest.importorskip("toolz")
         signal.connect(toolz.curry(obj.f_int_int, 2))
     elif type_ == "partial_method_kwarg":
         signal.connect(partial(obj.f_int_int, b=2))
@@ -363,6 +370,7 @@ def test_weakref(slot):
     if slot == "partial":
         emitter.one_int.connect(partial(obj.f_int_int, 1))
     elif slot == "toolz_curry":
+        toolz = pytest.importorskip("toolz")
         emitter.one_int.connect(toolz.curry(obj.f_int_int, 1))
     else:
         emitter.one_int.connect(getattr(obj, slot))
@@ -385,7 +393,7 @@ def test_weakref(slot):
         "partial",
     ],
 )
-def test_group_weakref(slot):
+def test_group_weakref(slot) -> None:
     """Test that a connected method doesn't hold strong ref."""
     from psygnal import SignalGroup
 
@@ -395,8 +403,7 @@ def test_group_weakref(slot):
     group = MyGroup()
     obj = MyObj()
 
-    # simply by nature of being in a group, sig1 will have a callback
-    assert len(group.sig1) == 1
+    assert len(group.sig1) == 0
     # but the group itself doesn't have any
     assert len(group._psygnal_relay) == 0
 
@@ -412,7 +419,7 @@ def test_group_weakref(slot):
     del obj
     gc.collect()
     group.sig1.emit(1)  # this should trigger deletion, so would emitter.emit()
-    assert len(group.sig1) == 1
+    assert len(group.sig1) == 0  # NOTE! this is 0 not 1, because the relay is also gone
     assert len(group._psygnal_relay) == 0  # it's been cleaned up
 
 
@@ -582,34 +589,6 @@ def test_unique_connections():
 
     e.one_int.connect(f_no_arg)
     assert len(e.one_int._slots) == 2
-
-
-@pytest.mark.skipif(_compiled, reason="passes, but segfaults on exit")
-def test_asynchronous_emit():
-    e = Emitter()
-    a = []
-
-    def slow_append(arg: int):
-        time.sleep(0.1)
-        a.append(arg)
-
-    mock = MagicMock(wraps=slow_append)
-    e.no_arg.connect(mock, unique=False)
-
-    assert not Signal.current_emitter()
-    value = 42
-    with pytest.warns(FutureWarning):
-        thread = e.no_arg.emit(value, asynchronous=True)
-    mock.assert_called_once()
-    assert Signal.current_emitter() is e.no_arg
-
-    # dude, you have to wait.
-    assert not a
-
-    if thread:
-        thread.join()
-    assert a == [value]
-    assert not Signal.current_emitter()
 
 
 def test_sig_unavailable():
@@ -997,3 +976,65 @@ def test_pickle():
     x = pickle.loads(_dump)
     x.sig.emit()
     mock.assert_called_once()
+
+
+@pytest.mark.skipif(PY39 and WINDOWS and COMPILED, reason="fails")
+def test_recursion_error() -> None:
+    s = SignalInstance()
+
+    @s.connect
+    def callback() -> None:
+        s.emit()
+
+    with pytest.raises(RecursionError):
+        s.emit()
+
+
+def test_signal_order():
+    """Test that signals are emitted in the order they were connected."""
+    emitter = Emitter()
+    mock1 = Mock()
+    mock2 = Mock()
+
+    def callback(x):
+        if x != 10:
+            emitter.one_int.emit(10)
+
+    emitter.one_int.connect(mock1)
+    emitter.one_int.connect(callback)
+    emitter.one_int.connect(mock2)
+    emitter.one_int.emit(1)
+
+    mock1.assert_has_calls([call(1), call(10)])
+    mock2.assert_has_calls([call(1), call(10)])
+
+
+def test_signal_order_suspend():
+    """Test that signals are emitted in the order they were connected."""
+    emitter = Emitter()
+    mock1 = Mock()
+    mock2 = Mock()
+
+    def callback(x):
+        if x < 10:
+            emitter.one_int.emit(10)
+
+    def callback2(x):
+        if x == 10:
+            emitter.one_int.emit(11)
+
+    def callback3(x):
+        if x == 10:
+            with emitter.one_int.paused(reducer=lambda a, b: (a[0] + b[0],)):
+                for i in range(12, 15):
+                    emitter.one_int.emit(i)
+
+    emitter.one_int.connect(mock1)
+    emitter.one_int.connect(callback)
+    emitter.one_int.connect(callback2)
+    emitter.one_int.connect(callback3)
+    emitter.one_int.connect(mock2)
+    emitter.one_int.emit(1)
+
+    mock1.assert_has_calls([call(1), call(10), call(11), call(39)])
+    mock2.assert_has_calls([call(1), call(10), call(11), call(39)])

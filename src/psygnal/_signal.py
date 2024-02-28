@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import sys
 import threading
 import warnings
 import weakref
@@ -15,19 +16,20 @@ from typing import (
     ContextManager,
     Iterable,
     Iterator,
+    Literal,
     NoReturn,
     Type,
     TypeVar,
     Union,
     cast,
+    get_args,
+    get_origin,
     get_type_hints,
     overload,
 )
 
-from mypy_extensions import mypyc_attr
-from typing_extensions import get_args, get_origin
-
 from ._exceptions import EmitLoopError
+from ._mypyc import mypyc_attr
 from ._queue import QueuedCallback
 from ._weak_callback import (
     StrongFunction,
@@ -38,16 +40,20 @@ from ._weak_callback import (
 )
 
 if TYPE_CHECKING:
-    from typing_extensions import Literal
-
     from ._group import EmissionInfo
     from ._weak_callback import RefErrorChoice
 
-    ReducerFunc = Callable[[tuple, tuple], tuple]
+    # single function that does all the work of reducing an iterable of args
+    # to a single args
+    ReducerOneArg = Callable[[Iterable[tuple]], tuple]
+    # function that takes two args tuples. it will be passed to itertools.reduce
+    ReducerTwoArgs = Callable[[tuple, tuple], tuple]
+    ReducerFunc = Union[ReducerOneArg, ReducerTwoArgs]
 
 __all__ = ["Signal", "SignalInstance", "_compiled"]
 _NULL = object()
 F = TypeVar("F", bound=Callable)
+RECURSION_LIMIT = sys.getrecursionlimit()
 
 
 class Signal:
@@ -143,12 +149,14 @@ class Signal:
             self._name = name
 
     @overload
-    def __get__(self, instance: None, owner: type[Any] | None = None) -> Signal:
-        ...  # pragma: no cover
+    def __get__(
+        self, instance: None, owner: type[Any] | None = None
+    ) -> Signal: ...  # pragma: no cover
 
     @overload
-    def __get__(self, instance: Any, owner: type[Any] | None = None) -> SignalInstance:
-        ...  # pragma: no cover
+    def __get__(
+        self, instance: Any, owner: type[Any] | None = None
+    ) -> SignalInstance: ...  # pragma: no cover
 
     def __get__(
         self, instance: Any, owner: type[Any] | None = None
@@ -328,7 +336,7 @@ class SignalInstance:
     ) -> None:
         self._name = name
         self._instance: Callable = self._instance_ref(instance)
-        self._args_queue: list[Any] = []  # filled when paused
+        self._args_queue: list[tuple] = []  # filled when paused
 
         if isinstance(signature, (list, tuple)):
             signature = _build_signature(*signature)
@@ -345,6 +353,7 @@ class SignalInstance:
         self._is_blocked: bool = False
         self._is_paused: bool = False
         self._lock = threading.RLock()
+        self._emit_queue: list[tuple] = []
 
     @staticmethod
     def _instance_ref(instance: Any) -> Callable[[], Any]:
@@ -388,8 +397,7 @@ class SignalInstance:
         unique: bool | str = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
-    ) -> Callable[[F], F]:
-        ...  # pragma: no cover
+    ) -> Callable[[F], F]: ...  # pragma: no cover
 
     @overload
     def connect(
@@ -402,8 +410,7 @@ class SignalInstance:
         unique: bool | str = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
-    ) -> F:
-        ...  # pragma: no cover
+    ) -> F: ...  # pragma: no cover
 
     def connect(
         self,
@@ -529,13 +536,27 @@ class SignalInstance:
                     finalize=self._try_discard,
                     on_ref_error=_on_ref_err,
                 )
-                if thread is None:
-                    self._slots.append(cb)
-                else:
-                    self._slots.append(QueuedCallback(cb, thread=thread))
+                if thread is not None:
+                    cb = QueuedCallback(cb, thread=thread)
+                self._append_slot(cb)
             return slot
 
         return _wrapper if slot is None else _wrapper(slot)
+
+    def _append_slot(self, slot: WeakCallback) -> None:
+        """Append a slot to the list of slots."""
+        # implementing this as a method allows us to override/extend it in subclasses
+        self._slots.append(slot)
+
+    def _remove_slot(self, slot: Literal["all"] | int | WeakCallback) -> None:
+        """Remove a slot from the list of slots."""
+        # implementing this as a method allows us to override/extend it in subclasses
+        if slot == "all":
+            self._slots.clear()
+        elif isinstance(slot, int):
+            self._slots.pop(slot)
+        else:
+            self._slots.remove(cast("WeakCallback", slot))
 
     def _try_discard(self, callback: WeakCallback, missing_ok: bool = True) -> None:
         """Try to discard a callback from the list of slots.
@@ -548,14 +569,14 @@ class SignalInstance:
             If `True`, do not raise an error if the callback is not found in the list.
         """
         try:
-            self._slots.remove(callback)
+            self._remove_slot(callback)
         except ValueError:
             if not missing_ok:
                 raise
 
     def connect_setattr(
         self,
-        obj: weakref.ref | object,
+        obj: object,
         attr: str,
         maxargs: int | None | object = _NULL,
         *,
@@ -571,8 +592,8 @@ class SignalInstance:
 
         Parameters
         ----------
-        obj : Union[weakref.ref, object]
-            An object or weak reference (deprecated) to an object.
+        obj : object
+            An object.
         attr : str
             The name of an attribute on `obj` that should be set to the value of this
             signal when emitted.
@@ -621,15 +642,6 @@ class SignalInstance:
             )
             maxargs = None
 
-        if isinstance(obj, weakref.ReferenceType):  # pragma: no cover
-            warnings.warn(
-                'Using a weakref as the "obj" argument is deprecated. '
-                "Use the object directly instead. This will raise an error in "
-                "a future release.",
-                FutureWarning,
-                stacklevel=2,
-            )
-            obj = obj()
         if not hasattr(obj, attr):
             raise AttributeError(f"Object {obj} has no attribute {attr!r}")
 
@@ -641,7 +653,7 @@ class SignalInstance:
                 finalize=self._try_discard,
                 on_ref_error=on_ref_error,
             )
-            self._slots.append(caller)
+            self._append_slot(caller)
         return caller
 
     def disconnect_setattr(
@@ -672,7 +684,7 @@ class SignalInstance:
 
     def connect_setitem(
         self,
-        obj: weakref.ref | object,
+        obj: object,
         key: str,
         maxargs: int | None | object = _NULL,
         *,
@@ -688,8 +700,8 @@ class SignalInstance:
 
         Parameters
         ----------
-        obj : Union[weakref.ref, object]
-            An object or weak reference (deprecated) to an object.
+        obj : object
+            An object.
         key : str
             Name of the key in `obj` that should be set to the value of this
             signal when emitted
@@ -735,27 +747,18 @@ class SignalInstance:
             )
             maxargs = None
 
-        if isinstance(obj, weakref.ReferenceType):  # pragma: no cover
-            warnings.warn(
-                'Using a weakref as the "obj" argument is deprecated. '
-                "Use the object directly instead. This will raise an error in "
-                "a future release.",
-                FutureWarning,
-                stacklevel=2,
-            )
-            obj = obj()
         if not hasattr(obj, "__setitem__"):
             raise TypeError(f"Object {obj} does not support __setitem__")
 
         with self._lock:
             caller = WeakSetitem(
-                obj,  # type: ignore
+                obj,
                 key,
                 max_args=cast("int | None", maxargs),
                 finalize=self._try_discard,
                 on_ref_error=on_ref_error,
             )
-            self._slots.append(caller)
+            self._append_slot(caller)
 
         return caller
 
@@ -867,12 +870,12 @@ class SignalInstance:
         with self._lock:
             if slot is None:
                 # NOTE: clearing an empty list is actually a RuntimeError in Qt
-                self._slots.clear()
+                self._remove_slot("all")
                 return
 
             idx = self._slot_index(slot)
             if idx != -1:
-                self._slots.pop(idx)
+                self._remove_slot(idx)
             elif not missing_ok:
                 raise ValueError(f"slot is not connected: {slot}")
 
@@ -884,34 +887,9 @@ class SignalInstance:
         """Return number of connected slots."""
         return len(self._slots)
 
-    @overload
     def emit(
-        self,
-        *args: Any,
-        check_nargs: bool = False,
-        check_types: bool = False,
-        asynchronous: Literal[False] = False,
+        self, *args: Any, check_nargs: bool = False, check_types: bool = False
     ) -> None:
-        ...  # pragma: no cover
-
-    @overload
-    def emit(
-        self,
-        *args: Any,
-        check_nargs: bool = False,
-        check_types: bool = False,
-        asynchronous: Literal[True],
-    ) -> EmitThread | None:
-        # will return `None` if emitter is blocked
-        ...  # pragma: no cover
-
-    def emit(
-        self,
-        *args: Any,
-        check_nargs: bool = False,
-        check_types: bool = False,
-        asynchronous: bool = False,
-    ) -> EmitThread | None:
         """Emit this signal with arguments `args`.
 
         !!! note
@@ -931,13 +909,6 @@ class SignalInstance:
             If `False` and the provided arguments do not match the types declared by
             the signature of this Signal, raise `TypeError`.  Incurs some overhead.
             by default False.
-        asynchronous : bool
-            If `True`, run signal emission in another thread. by default `False`.
-            **DEPRECATED:**. *If you need to emit from a thread, please just create
-            your own [`threading.Thread`][] and call
-            [`SignalInstance.emit`][psygnal.SignalInstance.emit]. See also the `thread`
-            parameter in the [`SignalInstance.connect`][psygnal.SignalInstance.connect]
-            method.*
 
         Raises
         ------
@@ -975,69 +946,45 @@ class SignalInstance:
 
             SignalInstance._debug_hook(EmissionInfo(self, args))
 
-        if asynchronous:
-            warnings.warn(
-                "The `asynchronous` parameter is deprecated and will be removed in a "
-                "future release. If you need this, please create your own "
-                "`threading.Thread` and call `SignalInstance.emit`. See also the new "
-                "`thread` parameter in the `SignalInstance.connect` method.",
-                FutureWarning,
-                stacklevel=2,
-            )
-            sd = EmitThread(self, args)
-            sd.start()
-            return sd
-
         self._run_emit_loop(args)
         return None
 
-    @overload
     def __call__(
-        self,
-        *args: Any,
-        check_nargs: bool = False,
-        check_types: bool = False,
-        asynchronous: Literal[False] = False,
+        self, *args: Any, check_nargs: bool = False, check_types: bool = False
     ) -> None:
-        ...  # pragma: no cover
-
-    @overload
-    def __call__(
-        self,
-        *args: Any,
-        check_nargs: bool = False,
-        check_types: bool = False,
-        asynchronous: Literal[True],
-    ) -> EmitThread | None:
-        # will return `None` if emitter is blocked
-        ...  # pragma: no cover
-
-    def __call__(
-        self,
-        *args: Any,
-        check_nargs: bool = False,
-        check_types: bool = False,
-        asynchronous: bool = False,
-    ) -> EmitThread | None:
         """Alias for `emit()`."""
-        return self.emit(  # type: ignore
+        return self.emit(
             *args,
             check_nargs=check_nargs,
             check_types=check_types,
-            asynchronous=asynchronous,
         )
 
     def _run_emit_loop(self, args: tuple[Any, ...]) -> None:
         # allow receiver to query sender with Signal.current_emitter()
         with self._lock:
-            with Signal._emitting(self):
-                for caller in self._slots:
-                    try:
-                        caller.cb(args)
-                    except Exception as e:
-                        raise EmitLoopError(
-                            cb=caller, args=args, exc=e, signal=self
-                        ) from e
+            self._emit_queue.append(args)
+
+            if len(self._emit_queue) > 1:
+                return None
+            try:
+                with Signal._emitting(self):
+                    i = 0
+                    while i < len(self._emit_queue):
+                        args = self._emit_queue[i]
+                        for caller in self._slots:
+                            caller.cb(args)
+                            if len(self._emit_queue) > RECURSION_LIMIT:
+                                raise RecursionError
+                        i += 1
+            except RecursionError as e:
+                raise RecursionError(
+                    f"RecursionError in {caller.slot_repr()} when "
+                    f"emitting signal {self.name!r} with args {args}"
+                ) from e
+            except Exception as e:
+                raise EmitLoopError(cb=caller, args=args, exc=e, signal=self) from e
+            finally:
+                self._emit_queue.clear()
 
         return None
 
@@ -1089,15 +1036,20 @@ class SignalInstance:
 
         Parameters
         ----------
-        reducer : Callable[[tuple, tuple], Any], optional
-            If provided, all gathered args will be reduced into a single argument by
-            passing `reducer` to `functools.reduce`.
-            NOTE: args passed to `emit` are collected as tuples, so the two arguments
-            passed to `reducer` will always be tuples. `reducer` must handle that and
-            return an args tuple.
-            For example, three `emit(1)` events would be reduced and re-emitted as
-            follows: `self.emit(*functools.reduce(reducer, [(1,), (1,), (1,)]))`
+        reducer : Callable | None
+            A optional function to reduce the args collected while paused into a single
+            emitted group of args.  If not provided, all emissions will be re-emitted
+            as they were collected when the signal is resumed. May be:
 
+            - a function that takes two args tuples and returns a single args tuple.
+              This will be passed to `functools.reduce` and is expected to reduce all
+              collected/emitted args into a single tuple.
+              For example, three `emit(1)` events would be reduced and re-emitted as
+              follows: `self.emit(*functools.reduce(reducer, [(1,), (1,), (1,)]))`
+            - a function that takes a single argument (an iterable of args tuples) and
+              returns a tuple (the reduced args). This will be *not* be passed to
+              `functools.reduce`. If `reducer` is a function that takes a single
+              argument, `initial` will be ignored.
         initial: any, optional
             initial value to pass to `functools.reduce`
 
@@ -1118,11 +1070,19 @@ class SignalInstance:
         # EventedModel.update, it may be undefined (as seen in tests)
         if not getattr(self, "_args_queue", None):
             return
+        if len(self._slots) == 0:
+            self._args_queue.clear()
+            return
+
         if reducer is not None:
-            if initial is _NULL:
-                args = reduce(reducer, self._args_queue)
+            if len(inspect.signature(reducer).parameters) == 1:
+                args = cast("ReducerOneArg", reducer)(self._args_queue)
             else:
-                args = reduce(reducer, self._args_queue, initial)
+                reducer = cast("ReducerTwoArgs", reducer)
+                if initial is _NULL:
+                    args = reduce(reducer, self._args_queue)
+                else:
+                    args = reduce(reducer, self._args_queue, initial)
             self._run_emit_loop(args)
         else:
             for args in self._args_queue:
@@ -1136,14 +1096,20 @@ class SignalInstance:
 
         Parameters
         ----------
-        reducer : Callable[[tuple, tuple], Any], optional
-            If provided, all gathered args will be reduced into a single argument by
-            passing `reducer` to `functools.reduce`.
-            NOTE: args passed to `emit` are collected as tuples, so the two arguments
-            passed to `reducer` will always be tuples. `reducer` must handle that and
-            return an args tuple.
-            For example, three `emit(1)` events would be reduced and re-emitted as
-            follows: `self.emit(*functools.reduce(reducer, [(1,), (1,), (1,)]))`
+        reducer : Callable | None
+            A optional function to reduce the args collected while paused into a single
+            emitted group of args.  If not provided, all emissions will be re-emitted
+            as they were collected when the signal is resumed. May be:
+
+            - a function that takes two args tuples and returns a single args tuple.
+              This will be passed to `functools.reduce` and is expected to reduce all
+              collected/emitted args into a single tuple.
+              For example, three `emit(1)` events would be reduced and re-emitted as
+              follows: `self.emit(*functools.reduce(reducer, [(1,), (1,), (1,)]))`
+            - a function that takes a single argument (an iterable of args tuples) and
+              returns a tuple (the reduced args). This will be *not* be passed to
+              `functools.reduce`. If `reducer` is a function that takes a single
+              argument, `initial` will be ignored.
         initial: any, optional
             initial value to pass to `functools.reduce`
 
@@ -1167,6 +1133,7 @@ class SignalInstance:
             "_args_queue",
             "_check_nargs_on_connect",
             "_check_types_on_connect",
+            "_emit_queue",
         )
         dd = {slot: getattr(self, slot) for slot in attrs}
         dd["_instance"] = self._instance()
@@ -1226,21 +1193,6 @@ class _SignalPauser:
     def __exit__(self, *args: Any) -> None:
         if not self._was_paused:
             self._signal.resume(self._reducer, self._initial)
-
-
-class EmitThread(threading.Thread):
-    """A thread to emit a signal asynchronously."""
-
-    def __init__(self, signal_instance: SignalInstance, args: tuple[Any, ...]) -> None:
-        super().__init__(name=signal_instance.name)
-        self._signal_instance = signal_instance
-        self.args = args
-        # current = threading.currentThread()
-        # self.parent = (current.getName(), current.ident)
-
-    def run(self) -> None:
-        """Run thread."""
-        self._signal_instance._run_emit_loop(self.args)
 
 
 # #############################################################################

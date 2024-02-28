@@ -24,29 +24,25 @@ classifiers = [
     "Typing :: Typed",
 ]
 dynamic = ["version"]
-dependencies = ["typing-extensions >=3.7.4.2", "mypy_extensions"]
+dependencies = [
+    # typing-extensions is in the source code, but not actually required
+    # at runtime. All uses are guarded by if TYPE_CHECKING
+]
 
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 [project.optional-dependencies]
 dev = [
     "black",
-    "cruft",
-    "dask",
     "ipython",
     "mypy",
-    "numpy",
+    "mypy_extensions",
     "pre-commit",
-    "pydantic",
     "PyQt5",
-    "pytest-cov",
     "pytest-mypy-plugins",
-    "pytest-qt",
-    "pytest",
-    "qtpy",
     "rich",
     "ruff",
-    "wrapt",
+    "typing-extensions",
 ]
 docs = [
     "griffe==0.25.5",
@@ -66,7 +62,6 @@ test = [
     "pydantic",
     "pyinstaller>=4.0",
     "pytest>=6.0",
-    "pytest-codspeed",
     "pytest-cov",
     "wrapt",
     "msgspec ; python_version >= '3.8'",
@@ -99,14 +94,14 @@ require-runtime-dependencies = true
 dependencies = [
     "hatch-mypyc>=0.13.0",
     "mypy>=0.991",
+    "mypy_extensions >=0.4.2",
     "pydantic",
     "types-attrs",
     "msgspec ; python_version >= '3.8'",
 ]
 exclude = [
     "src/psygnal/__init__.py",
-    "src/psygnal/_evented_model_v1.py",
-    "src/psygnal/_evented_model_v2.py",
+    "src/psygnal/_evented_model.py",
     "src/psygnal/utils.py",
     "src/psygnal/containers",
     "src/psygnal/qt.py",
@@ -120,7 +115,7 @@ skip = ["*-manylinux_i686", "*-musllinux_i686", "*-win32", "pp*"]
 build = ["cp38-*", "cp39-*", "cp310-*", "cp311-*", "cp312-*"]
 test-extras = ["test"]
 test-command = "pytest {project}/tests -v"
-test-skip = "*-musllinux*"
+test-skip = ["*-musllinux*", "cp312-win*", "*-macosx_arm64"]
 
 [[tool.cibuildwheel.overrides]]
 select = "*-manylinux_i686*"
@@ -205,6 +200,7 @@ exclude_lines = [
     "\\.\\.\\.",
     "raise NotImplementedError()",
 ]
+show_missing = true
 [tool.coverage.run]
 source = ["psygnal"]
 omit = ["*/_pyinstaller_util/hook-psygnal.py"]
