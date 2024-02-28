@@ -259,21 +259,25 @@ def test_slotted_class() -> None:
 
 
 def test_group_conflicts() -> None:
-    with pytest.warns(UserWarning, match="Signal names may not begin with '_psygnal'"):
+    match = "You cannot use these names on to access SignalInstances on a SignalGroup."
+    
+    with pytest.warns(UserWarning, match=match):
 
         class MyGroup(SignalGroup):
             _psygnal_thing = Signal(int)
             other_signal = Signal(int)
 
-    assert "_psygnal_thing" not in MyGroup
-    assert "other_signal" in MyGroup
+    assert "_psygnal_thing" in MyGroup._psygnal_signals
+    assert "other_signal" in MyGroup._psygnal_signals
 
     # Signals are passed to sub-classes
-    class MySubGroup(MyGroup):
-        other_other_signal = Signal(float)
+    with pytest.warns(UserWarning, match=match):
 
-    assert "_psygnal_thing" not in MySubGroup
-    assert "other_signal" in MySubGroup
-    assert "other_other_signal" in MySubGroup
+        class MySubGroup(MyGroup):
+            other_other_signal = Signal(float)
 
-    assert "other_other_signal" not in MyGroup
+    assert "_psygnal_thing" in MySubGroup._psygnal_signals
+    assert "other_signal" in MySubGroup._psygnal_signals
+    assert "other_other_signal" in MySubGroup._psygnal_signals
+
+    assert "other_other_signal" not in MyGroup._psygnal_signals

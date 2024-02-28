@@ -28,15 +28,6 @@ from psygnal._signal import Signal, SignalInstance, _SignalBlocker
 
 __all__ = ["EmissionInfo", "SignalGroup"]
 
-SIGNALGROUP_RESERVED = (
-    "all",
-    "is_uniform",
-    "signals",
-    "get_signal_by_alias",
-    "connect",
-    "disconnect",
-)
-
 
 class EmissionInfo(NamedTuple):
     """Tuple containing information about an emission event.
@@ -192,23 +183,12 @@ class SignalRelay(SignalInstance):
         super().disconnect(slot, missing_ok)
 
 
-class SignalGroupMetaclass(type):
-
-    def __len__(self):
-        """Return the number of signals in the group."""
-        return self._psygnal_cls_len()
-
-    def __iter__(self) -> Iterator[str]:
-        """Yield the names of all signals in the group."""
-        return self._psygnal_cls_iter()
-
-
 # NOTE
 # To developers. Avoid adding public names to this class, as it is intended to be
 # a container for user-determined names.  If names must be added, try to prefix
 # with "psygnal_" to avoid conflicts with user-defined names.
 @mypyc_attr(allow_interpreted_subclasses=True)
-class SignalGroup(metaclass=SignalGroupMetaclass):
+class SignalGroup:
     """A collection of signals that can be connected to as a single unit.
 
     This class is not intended to be instantiated directly.  Instead, it should be
@@ -292,18 +272,10 @@ class SignalGroup(metaclass=SignalGroupMetaclass):
         # look for cls._psygnal_signals also
         cls._psygnal_signals = {**cls._psygnal_signals, **_psygnal_signals}
 
-        # Remove signal names conflicting with SignalGroup private attributes
-        if conflicts := {k for k in cls._psygnal_signals if k.startswith("_psygnal")}:
-            warnings.warn(
-                "Signal names may not begin with '_psygnal'. "
-                f"Skipping signals: {conflicts}",
-                stacklevel=2,
-            )
-            for key in conflicts:
-                del cls._psygnal_signals[key]
-
         # Emit warning for signal names conflicting with SignalGroup attributes
-        if conflicts := {k for k in cls._psygnal_signals if k in SIGNALGROUP_RESERVED}:
+        reserved = SignalGroup.__dict__.keys()
+        conflicts = {k for k in cls._psygnal_signals if k in reserved or k.startswith("_psygnal")}
+        if conflicts:
             warnings.warn(
                 f"Names {tuple(conflicts)!r} are reserved. You cannot use these "
                 "names on to access SignalInstances on a SignalGroup. (You may still "
@@ -356,6 +328,14 @@ class SignalGroup(metaclass=SignalGroupMetaclass):
     @property
     def signals(self) -> Mapping[str, SignalInstance]:
         """DEPRECATED: A mapping of signal names to SignalInstance instances."""
+        # TODO: deprecate this property
+        warnings.warn(
+            "Accessing the `signals` property on a SignalGroup is deprecated. "
+            "Use __iter__ to iterate over all signal names, and __getitem__ or getattr "
+            "to access signal instances. This will be an error in a future.",
+            FutureWarning,
+            stacklevel=2,
+        )
         return self._psygnal_instances
 
     def __len__(self) -> int:
@@ -376,20 +356,6 @@ class SignalGroup(metaclass=SignalGroupMetaclass):
         # removing the deprecation warning in __getattr__
         return item in self._psygnal_instances
 
-    @classmethod
-    def _psygnal_cls_len(cls) -> int:
-        """Return the number of signals in the group (not including the relay)."""
-        if not hasattr(cls, "_psygnal_signals"):
-            return 0
-        return len(cls._psygnal_signals)
-
-    @classmethod
-    def _psygnal_cls_iter(cls) -> Iterator[str]:
-        """Yield the names of all signals in the group."""
-        if not hasattr(cls, "_psygnal_signals"):
-            return
-        return iter(cls._psygnal_signals)
-
     def __repr__(self) -> str:
         """Return repr(self)."""
         name = self.__class__.__name__
@@ -409,6 +375,15 @@ class SignalGroup(metaclass=SignalGroupMetaclass):
 
     def connect_direct(self, *args, **kwargs):
         return self.all.connect_direct(*args, **kwargs)
+
+    def block(self, *args, **kwargs):
+        return self.all.block(*args, **kwargs)
+
+    def unblock(self, *args, **kwargs):
+        return self.all.unblock(*args, **kwargs)
+
+    def blocked(self, *args, **kwargs):
+        return self.all.blocked(*args, **kwargs)
 
     @classmethod
     def is_uniform(cls) -> bool:

@@ -466,7 +466,7 @@ class SignalGroupDescriptor:
             owner, equality_operators=self._eqop
         )
 
-        if self._warn_on_no_fields and len(Group) == 0:
+        if self._warn_on_no_fields and len(Group._psygnal_signals) == 0:
             warnings.warn(
                 f"No mutable fields found on class {owner}: no events will be "
                 "emitted. (Is this a dataclass, attrs, msgspec, or pydantic model?)",

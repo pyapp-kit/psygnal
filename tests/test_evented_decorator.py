@@ -278,7 +278,8 @@ def test_name_conflicts() -> None:
     assert "signals" in group and isinstance(group["signals"], SignalInstance)
 
     assert not isinstance(group.is_uniform, SignalInstance)
-    assert not isinstance(group.signals, SignalInstance)
+    with pytest.warns(FutureWarning, match="Accessing the `signals` property on a SignalGroup is deprecated."):
+        assert not isinstance(group.signals, SignalInstance)
 
     # group.all is always a relay
     assert isinstance(group.all, SignalRelay)
@@ -299,7 +300,8 @@ def test_name_conflicts() -> None:
         _psygnal_signals: str = "signals"
 
     obj2 = Foo2()
-    with pytest.warns(UserWarning, match="Signal names may not begin with '_psygnal'"):
+    with pytest.warns(UserWarning, match=match):
         group2 = obj2.events
 
-    assert "_psygnal_signals" not in group2
+    assert "field" in group2
+    assert "_psygnal_signals" in group2
