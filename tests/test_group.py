@@ -3,12 +3,15 @@ from unittest.mock import Mock, call
 
 import pytest
 
+import psygnal
+
 try:
     from typing import Annotated  # py39
 except ImportError:
     Annotated = None
 
 from psygnal import EmissionInfo, Signal, SignalGroup
+from psygnal._group import SignalRelay
 
 
 class MyGroup(SignalGroup):
@@ -77,13 +80,7 @@ def test_signal_group_connect(direct: bool) -> None:
     group = MyGroup()
     if direct:
         # the callback wants the emitted arguments directly
-
-        with pytest.warns(
-            FutureWarning,
-            match="Accessing SignalInstance attribute 'connect_direct' on a SignalGroup"
-            " is deprecated",
-        ):
-            group.connect_direct(mock)
+        group.connect_direct(mock)
     else:
         # the callback will receive an EmissionInfo tuple
         # (SignalInstance, arg_tuple)
@@ -288,3 +285,19 @@ def test_delayed_relay_connect() -> None:
     group.sig1.emit(1)
     mock.assert_called_once_with(1)
     gmock.assert_not_called()
+
+
+@pytest.mark.skipif(psygnal._compiled, reason="requires uncompiled psygnal")
+def test_group_relay_signatures():
+    from inspect import signature
+
+    for name in dir(SignalGroup):
+        if (
+            hasattr(SignalRelay, name)
+            and not name.startswith("_")
+            and callable(getattr(SignalRelay, name))
+        ):
+            group_sig = signature(getattr(SignalGroup, name))
+            relay_sig = signature(getattr(SignalRelay, name))
+
+            assert group_sig == relay_sig

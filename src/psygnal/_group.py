@@ -22,6 +22,7 @@ from typing import (
     Literal,
     Mapping,
     NamedTuple,
+    overload,
 )
 
 from psygnal._signal import Signal, SignalInstance, _SignalBlocker
@@ -29,7 +30,10 @@ from psygnal._signal import Signal, SignalInstance, _SignalBlocker
 from ._mypyc import mypyc_attr
 
 if TYPE_CHECKING:
-    from psygnal._weak_callback import WeakCallback
+    import threading
+
+    from psygnal._signal import F
+    from psygnal._weak_callback import RefErrorChoice, WeakCallback
 
 __all__ = ["EmissionInfo", "SignalGroup"]
 
@@ -336,16 +340,6 @@ class SignalGroup:
         if name != "_psygnal_instances" and name in self._psygnal_instances:
             return self._psygnal_instances[name]  # pragma: no cover
 
-        if name != "_psygnal_relay" and hasattr(self._psygnal_relay, name):
-            warnings.warn(
-                f"Accessing SignalInstance attribute {name!r} on a SignalGroup is "
-                f"deprecated. Access it on the `group.all` attribute instead. e.g. "
-                f"`group.all.{name}`. This will be an error in v0.11.",
-                FutureWarning,
-                stacklevel=2,
-            )
-            return getattr(self._psygnal_relay, name)
-
         raise AttributeError(f"{type(self).__name__!r} has no signal named {name!r}")
 
     @property
@@ -388,6 +382,93 @@ class SignalGroup:
     def psygnals_uniform(cls) -> bool:
         """Return true if all signals in the group have the same signature."""
         return cls._psygnal_uniform
+
+    @overload
+    def connect(
+        self,
+        *,
+        thread: threading.Thread | Literal["main", "current"] | None = ...,
+        check_nargs: bool | None = ...,
+        check_types: bool | None = ...,
+        unique: bool | str = ...,
+        max_args: int | None = None,
+        on_ref_error: RefErrorChoice = ...,
+    ) -> Callable[[F], F]: ...  # pragma: no cover
+
+    @overload
+    def connect(
+        self,
+        slot: F,
+        *,
+        thread: threading.Thread | Literal["main", "current"] | None = ...,
+        check_nargs: bool | None = ...,
+        check_types: bool | None = ...,
+        unique: bool | str = ...,
+        max_args: int | None = None,
+        on_ref_error: RefErrorChoice = ...,
+    ) -> F: ...  # pragma: no cover
+
+    def connect(
+        self,
+        slot: F | None = None,
+        *,
+        thread: threading.Thread | Literal["main", "current"] | None = None,
+        check_nargs: bool | None = None,
+        check_types: bool | None = None,
+        unique: bool | str = False,
+        max_args: int | None = None,
+        on_ref_error: RefErrorChoice = "warn",
+    ) -> Callable[[F], F] | F:
+        if slot is None:
+            return self._psygnal_relay.connect(
+                thread=thread,
+                check_nargs=check_nargs,
+                check_types=check_types,
+                unique=unique,
+                max_args=max_args,
+                on_ref_error=on_ref_error,
+            )
+        else:
+            return self._psygnal_relay.connect(
+                slot,
+                thread=thread,
+                check_nargs=check_nargs,
+                check_types=check_types,
+                unique=unique,
+                max_args=max_args,
+                on_ref_error=on_ref_error,
+            )
+
+    def disconnect(self, slot: Callable | None = None, missing_ok: bool = True) -> None:
+        return self._psygnal_relay.disconnect(slot, missing_ok)
+
+    def connect_direct(
+        self,
+        slot: Callable | None = None,
+        *,
+        check_nargs: bool | None = None,
+        check_types: bool | None = None,
+        unique: bool | str = False,
+        max_args: int | None = None,
+    ) -> Callable[[Callable], Callable] | Callable:
+        return self._psygnal_relay.connect_direct(
+            slot,
+            check_nargs=check_nargs,
+            check_types=check_types,
+            unique=unique,
+            max_args=max_args,
+        )
+
+    def block(self, exclude: Iterable[str | SignalInstance] = ()) -> None:
+        return self._psygnal_relay.block(exclude=exclude)
+
+    def unblock(self) -> None:
+        return self._psygnal_relay.unblock()
+
+    def blocked(
+        self, exclude: Iterable[str | SignalInstance] = ()
+    ) -> ContextManager[None]:
+        return self._psygnal_relay.blocked(exclude=exclude)
 
     @classmethod
     def is_uniform(cls) -> bool:
