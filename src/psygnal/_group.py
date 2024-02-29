@@ -372,6 +372,16 @@ class SignalGroup:
         """Get a signal instance by name."""
         return self._psygnal_instances[item]
 
+    # this is just here for type checking, particularly on cases
+    # where the SignalGroup comes from the SignalGroupDescriptor
+    # (such as in evented dataclasses).  In those cases, it's hard to indicate
+    # to mypy that all remaining attributes are SignalInstances.
+    def __getattr__(self, item: str) -> SignalInstance:
+        """Get a signal instance by name."""
+        raise AttributeError(
+            f"{type(self).__name__!r} object has no attribute {item!r}"
+        )
+
     def __iter__(self) -> Iterator[str]:
         """Yield the names of all signals in the group."""
         return iter(self._psygnal_signals)
