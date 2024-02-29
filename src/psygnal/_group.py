@@ -260,11 +260,10 @@ class SignalGroup:
 
     def __init__(self, instance: Any = None) -> None:
         cls = type(self)
-        if not hasattr(cls, "_psygnal_signals"):  # pragma: no cover
+        if not hasattr(cls, "_psygnal_signals"):
             raise TypeError(
                 "Cannot instantiate `SignalGroup` directly.  Use a subclass instead."
             )
-
         self._psygnal_instances = {
             name: sig.__get__(self, cls) for name, sig in cls._psygnal_signals.items()
         }
@@ -272,35 +271,50 @@ class SignalGroup:
 
     def __init_subclass__(cls, strict: bool = False) -> None:
         """Collects all Signal instances on the class under `cls._psygnal_signals`."""
+        # Collect Signals and remove from class attributes
+        # Use dir(cls) instead of cls.__dict__ to get attributes from super()
+        forbidden = {
+            k for k in getattr(cls, "__dict__", ()) if k.startswith("_psygnal")
+        }
+        if forbidden:
+            raise TypeError(
+                f"SignalGroup subclass cannot have attributes starting with '_psygnal'."
+                f" Found: {forbidden}"
+            )
+
+        _psygnal_signals = {}
+        for k in dir(cls):
+            val = getattr(cls, k, None)
+            if isinstance(val, Signal):
+                _psygnal_signals[k] = val
+
+        # Collect the Signals also from super-class
+        # When subclassing, the Signals have been removed from the attributes,
+        # look for cls._psygnal_signals also
         cls._psygnal_signals = {
-            k: val
-            for k, val in getattr(cls, "__dict__", {}).items()
-            if isinstance(val, Signal)
+            **getattr(cls, "_psygnal_signals", {}),
+            **_psygnal_signals,
         }
 
-        if conflicts := {k for k in cls._psygnal_signals if k.startswith("_psygnal")}:
+        # Emit warning for signal names conflicting with SignalGroup attributes
+        reserved = set(dir(SignalGroup))
+        conflicts = {
+            k
+            for k in cls._psygnal_signals
+            if k in reserved or k.startswith(("_psygnal", "psygnal"))
+        }
+        if conflicts:
+            for name in conflicts:
+                delattr(cls, name)
+                print("DELETE", name)
+            Names = "Names" if len(conflicts) > 1 else "Name"
+            Are = "are" if len(conflicts) > 1 else "is"
             warnings.warn(
-                "Signal names may not begin with '_psygnal'. "
-                f"Skipping signals: {conflicts}",
-                stacklevel=2,
-            )
-            for key in conflicts:
-                del cls._psygnal_signals[key]
-
-        if "all" in cls._psygnal_signals:
-            warnings.warn(
-                "Name 'all' is reserved for the SignalRelay. You cannot use this "
-                "name on to access a SignalInstance on a SignalGroup. (You may still "
-                "access it at `group['all']`).",
+                f"{Names} {sorted(conflicts)!r} {Are} reserved. You cannot use these "
+                "names to access SignalInstances as attributes on a SignalGroup. (You "
+                "may still access them as keys to __getitem__: `group['name']`).",
                 UserWarning,
                 stacklevel=2,
-            )
-            delattr(cls, "all")
-
-        if "psygnals_uniform" in cls._psygnal_signals:
-            raise NameError(
-                "Name 'psygnals_uniform' is reserved.  You cannot use this "
-                "name as a signal on a SignalGroup"
             )
 
         cls._psygnal_uniform = _is_uniform(cls._psygnal_signals.values())

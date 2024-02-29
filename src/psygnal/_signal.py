@@ -54,6 +54,7 @@ __all__ = ["Signal", "SignalInstance", "_compiled"]
 _NULL = object()
 F = TypeVar("F", bound=Callable)
 RECURSION_LIMIT = sys.getrecursionlimit()
+SIGNAL_INSTANCE_CACHE: dict[int, SignalInstance] = {}
 
 
 class Signal:
@@ -179,14 +180,9 @@ class Signal:
         """
         if instance is None:
             return self
-        name = cast("str", self._name)
-        signal_instance = self._signal_instance_class(
-            self.signature,
-            instance=instance,
-            name=name,
-            check_nargs_on_connect=self._check_nargs_on_connect,
-            check_types_on_connect=self._check_types_on_connect,
-        )
+        if id(instance) in SIGNAL_INSTANCE_CACHE:
+            return SIGNAL_INSTANCE_CACHE[id(instance)]
+        signal_instance = self._create_signal_instance(instance)
         # instead of caching this signal instance on self, we just assign it
         # to instance.name ... this essentially breaks the descriptor,
         # (i.e. __get__ will never again be called for this instance, and we have no
@@ -195,25 +191,41 @@ class Signal:
         # not be hashable or weak-referenceable), and also provides a significant
         # speedup on attribute access (affecting everything).
         # (note, this is the same mechanism used in the `cached_property` decorator)
-        try:
-            setattr(instance, name, signal_instance)
-        except AttributeError as e:
-            from ._group import SignalGroup
+        from psygnal import SignalGroup
 
-            if name == "all" and isinstance(instance, SignalGroup):
-                # this specific case will happen if an evented dataclass field is named
-                # "all". 'all' is a reserved name for the SignalRelay, but we've
-                # already caught and warned about it in SignalGroup.__init_subclass__.
-                pass
-            else:
-                # otherwise, give an informative error message
-                raise AttributeError(  # pragma: no cover
-                    "An attempt to cache a SignalInstance on instance "
-                    f"{instance} failed. Please report this with your use case at "
-                    "https://github.com/pyapp-kit/psygnal/issues."
-                ) from e
+        if not isinstance(instance, SignalGroup):
+            try:
+                setattr(instance, cast("str", self._name), signal_instance)
+            except AttributeError:
+                self._cache_signal_instance(instance, signal_instance)
+        else:
+            self._cache_signal_instance(instance, signal_instance)
 
         return signal_instance
+
+    def _cache_signal_instance(
+        self, instance: Any, signal_instance: SignalInstance
+    ) -> None:
+        """Cache a signal instance on the instance."""
+        # fallback signal instance cache as last resort.  We use the object id
+        # instead a WeakKeyDictionary because we can't guarantee that the instance
+        # is hashable or weak-referenceable.  and we use a finalize to remove the
+        # cache when the instance is destroyed (if the object is weak-referenceable).
+        obj_id = id(instance)
+        SIGNAL_INSTANCE_CACHE[obj_id] = signal_instance
+        with suppress(TypeError):
+            weakref.finalize(instance, SIGNAL_INSTANCE_CACHE.pop, obj_id, None)
+
+    def _create_signal_instance(
+        self, instance: Any, name: str | None = None
+    ) -> SignalInstance:
+        return self._signal_instance_class(
+            self.signature,
+            instance=instance,
+            name=name or self._name,
+            check_nargs_on_connect=self._check_nargs_on_connect,
+            check_types_on_connect=self._check_types_on_connect,
+        )
 
     @classmethod
     @contextmanager

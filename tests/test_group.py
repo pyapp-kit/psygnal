@@ -10,13 +10,18 @@ try:
 except ImportError:
     Annotated = None
 
-from psygnal import EmissionInfo, Signal, SignalGroup
+from psygnal import EmissionInfo, Signal, SignalGroup, SignalInstance
 from psygnal._group import SignalRelay
 
 
 class MyGroup(SignalGroup):
     sig1 = Signal(int)
     sig2 = Signal(str)
+
+
+def test_cannot_instantiate_group() -> None:
+    with pytest.raises(TypeError, match="Cannot instantiate `SignalGroup` directly"):
+        SignalGroup()
 
 
 def test_signal_group() -> None:
@@ -84,7 +89,7 @@ def test_signal_group_connect(direct: bool) -> None:
     else:
         # the callback will receive an EmissionInfo tuple
         # (SignalInstance, arg_tuple)
-        group.all.connect(mock)
+        group.connect(mock)
     group.sig1.emit(1)
     group.sig2.emit("hi")
 
@@ -243,14 +248,44 @@ def test_group_deepcopy() -> None:
 
 
 def test_group_conflicts() -> None:
-    with pytest.warns(UserWarning, match="Signal names may not begin with '_psygnal'"):
+    with pytest.warns(UserWarning, match=r"Name \['connect'\] is reserved"):
 
         class MyGroup(SignalGroup):
-            _psygnal_thing = Signal(int)
+            connect = Signal(int)  # type: ignore
             other_signal = Signal(int)
 
-    assert "_psygnal_thing" not in MyGroup._psygnal_signals
+    assert "connect" in MyGroup._psygnal_signals
     assert "other_signal" in MyGroup._psygnal_signals
+    group = MyGroup()
+    assert isinstance(group["connect"], SignalInstance)
+    assert not isinstance(group.connect, SignalInstance)
+
+    with pytest.raises(
+        TypeError,
+        match="SignalGroup subclass cannot have attributes starting with '_psygnal'",
+    ):
+
+        class MyGroup2(SignalGroup):
+            _psygnal_private = 1
+
+
+def test_group_subclass() -> None:
+    # Signals are passed to sub-classes
+    class Group1(SignalGroup):
+        sig1 = Signal()
+
+    class Group2(Group1):
+        sig2 = Signal()
+
+    assert "sig1" in Group1._psygnal_signals
+    assert "sig1" in Group2._psygnal_signals
+    assert "sig2" in Group2._psygnal_signals
+    assert "sig2" not in Group1._psygnal_signals
+
+    assert hasattr(Group1, "sig1") and isinstance(Group1.sig1, Signal)
+    assert hasattr(Group2, "sig1") and isinstance(Group2.sig1, Signal)
+    assert hasattr(Group2, "sig2") and isinstance(Group2.sig2, Signal)
+    assert not hasattr(Group1, "sig2")
 
 
 def test_delayed_relay_connect() -> None:
