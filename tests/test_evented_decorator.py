@@ -275,7 +275,7 @@ def test_name_conflicts() -> None:
     assert isinstance(group.name, SignalInstance)
     assert group["name"] is group.name
 
-    assert "is_uniform" in group and isinstance(group.is_uniform, SignalInstance)
+    assert "is_uniform" in group and isinstance(group["is_uniform"], SignalInstance)
     assert "signals" in group and isinstance(group["signals"], SignalInstance)
 
     # group.all is always a relay

@@ -54,7 +54,6 @@ __all__ = ["Signal", "SignalInstance", "_compiled"]
 _NULL = object()
 F = TypeVar("F", bound=Callable)
 RECURSION_LIMIT = sys.getrecursionlimit()
-SIGNAL_INSTANCE_CACHE: dict[int, SignalInstance] = {}
 
 
 class Signal:
@@ -124,6 +123,7 @@ class Signal:
         self._check_nargs_on_connect = check_nargs_on_connect
         self._check_types_on_connect = check_types_on_connect
         self._signal_instance_class: type[SignalInstance] = SignalInstance
+        self._signal_instance_cache: dict[int, SignalInstance] = {}
 
         if types and isinstance(types[0], Signature):
             self._signature = types[0]
@@ -147,14 +147,12 @@ class Signal:
             self._name = name
 
     @overload
-    def __get__(
-        self, instance: None, owner: type[Any] | None = None
-    ) -> Signal: ...  # pragma: no cover
+    def __get__(self, instance: None, owner: type[Any] | None = None) -> Signal: ...
 
     @overload
     def __get__(
         self, instance: Any, owner: type[Any] | None = None
-    ) -> SignalInstance: ...  # pragma: no cover
+    ) -> SignalInstance: ...
 
     def __get__(
         self, instance: Any, owner: type[Any] | None = None
@@ -180,25 +178,19 @@ class Signal:
         """
         if instance is None:
             return self
-        if id(instance) in SIGNAL_INSTANCE_CACHE:
-            return SIGNAL_INSTANCE_CACHE[id(instance)]
+        if id(instance) in self._signal_instance_cache:
+            return self._signal_instance_cache[id(instance)]
         signal_instance = self._create_signal_instance(instance)
-        # instead of caching this signal instance on self, we just assign it
-        # to instance.name ... this essentially breaks the descriptor,
-        # (i.e. __get__ will never again be called for this instance, and we have no
-        # idea how many instances are out there),
-        # but it allows us to prevent creating a key for this instance (which may
-        # not be hashable or weak-referenceable), and also provides a significant
-        # speedup on attribute access (affecting everything).
-        # (note, this is the same mechanism used in the `cached_property` decorator)
-        from psygnal import SignalGroup
 
-        if not isinstance(instance, SignalGroup):
-            try:
-                setattr(instance, cast("str", self._name), signal_instance)
-            except AttributeError:
-                self._cache_signal_instance(instance, signal_instance)
-        else:
+        # cache this signal instance so that future access returns the same instance.
+        try:
+            # first, try to assign it to instance.name ... this essentially breaks the
+            # descriptor, (i.e. __get__ will never again be called for this instance)
+            # (note, this is the same mechanism used in the `cached_property` decorator)
+            setattr(instance, cast("str", self._name), signal_instance)
+        except AttributeError:
+            # if that fails, which may happen in slotted classes, then we fall back to
+            # our internal cache
             self._cache_signal_instance(instance, signal_instance)
 
         return signal_instance
@@ -212,9 +204,9 @@ class Signal:
         # is hashable or weak-referenceable.  and we use a finalize to remove the
         # cache when the instance is destroyed (if the object is weak-referenceable).
         obj_id = id(instance)
-        SIGNAL_INSTANCE_CACHE[obj_id] = signal_instance
+        self._signal_instance_cache[obj_id] = signal_instance
         with suppress(TypeError):
-            weakref.finalize(instance, SIGNAL_INSTANCE_CACHE.pop, obj_id, None)
+            weakref.finalize(instance, self._signal_instance_cache.pop, obj_id, None)
 
     def _create_signal_instance(
         self, instance: Any, name: str | None = None
@@ -397,7 +389,7 @@ class SignalInstance:
         unique: bool | str = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
-    ) -> Callable[[F], F]: ...  # pragma: no cover
+    ) -> Callable[[F], F]: ...
 
     @overload
     def connect(
@@ -410,7 +402,7 @@ class SignalInstance:
         unique: bool | str = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
-    ) -> F: ...  # pragma: no cover
+    ) -> F: ...
 
     def connect(
         self,

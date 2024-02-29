@@ -11,6 +11,7 @@ the args that were emitted.
 from __future__ import annotations
 
 import warnings
+from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -25,14 +26,14 @@ from typing import (
     overload,
 )
 
-from psygnal._signal import Signal, SignalInstance, _SignalBlocker
+from psygnal._signal import _NULL, Signal, SignalInstance, _SignalBlocker
 
 from ._mypyc import mypyc_attr
 
 if TYPE_CHECKING:
     import threading
 
-    from psygnal._signal import F
+    from psygnal._signal import F, ReducerFunc
     from psygnal._weak_callback import RefErrorChoice, WeakCallback
 
 __all__ = ["EmissionInfo", "SignalGroup"]
@@ -69,7 +70,7 @@ class SignalRelay(SignalInstance):
         self, signals: Mapping[str, SignalInstance], instance: Any = None
     ) -> None:
         super().__init__(signature=(EmissionInfo,), instance=instance)
-        self._signals = signals
+        self._signals = MappingProxyType(signals)
         self._sig_was_blocked: dict[str, bool] = {}
 
     def _append_slot(self, slot: WeakCallback) -> None:
@@ -255,8 +256,10 @@ class SignalGroup:
     """
 
     _psygnal_signals: ClassVar[Mapping[str, Signal]]
-    _psygnal_instances: dict[str, SignalInstance]
     _psygnal_uniform: ClassVar[bool] = False
+    _psygnal_name_conflicts: ClassVar[set[str]]
+
+    _psygnal_instances: dict[str, SignalInstance]
 
     def __init__(self, instance: Any = None) -> None:
         cls = type(self)
@@ -264,8 +267,14 @@ class SignalGroup:
             raise TypeError(
                 "Cannot instantiate `SignalGroup` directly.  Use a subclass instead."
             )
+
         self._psygnal_instances = {
-            name: sig.__get__(self, cls) for name, sig in cls._psygnal_signals.items()
+            name: (
+                sig._create_signal_instance(self)
+                if name in cls._psygnal_name_conflicts
+                else sig.__get__(self, cls)
+            )
+            for name, sig in cls._psygnal_signals.items()
         }
         self._psygnal_relay = SignalRelay(self._psygnal_instances, instance)
 
@@ -298,7 +307,7 @@ class SignalGroup:
 
         # Emit warning for signal names conflicting with SignalGroup attributes
         reserved = set(dir(SignalGroup))
-        conflicts = {
+        cls._psygnal_name_conflicts = conflicts = {
             k
             for k in cls._psygnal_signals
             if k in reserved or k.startswith(("_psygnal", "psygnal"))
@@ -306,7 +315,6 @@ class SignalGroup:
         if conflicts:
             for name in conflicts:
                 delattr(cls, name)
-                print("DELETE", name)
             Names = "Names" if len(conflicts) > 1 else "Name"
             Are = "are" if len(conflicts) > 1 else "is"
             warnings.warn(
@@ -342,19 +350,6 @@ class SignalGroup:
         group.all.connect(...)  # connect to all signals in the group
         """
         return self._psygnal_relay
-
-    # TODO: change type hint to -> SignalInstance after completing deprecation of
-    # direct access to names on SignalRelay object
-    def __getattr__(self, name: str) -> Any:
-        # Note, technically these lines aren't actually needed because of Signal's
-        # descriptor protocol: Accessing a name on a group instance will first look
-        # the instance's __dict__, and then in the class's __dict__, which
-        # will call Signal.__get__ and return the SignalInstance.
-        # these lines are here as a reminder to developers (and safeguard?).
-        if name != "_psygnal_instances" and name in self._psygnal_instances:
-            return self._psygnal_instances[name]  # pragma: no cover
-
-        raise AttributeError(f"{type(self).__name__!r} has no signal named {name!r}")
 
     @property
     def signals(self) -> Mapping[str, SignalInstance]:
@@ -397,6 +392,28 @@ class SignalGroup:
         """Return true if all signals in the group have the same signature."""
         return cls._psygnal_uniform
 
+    @classmethod
+    def is_uniform(cls) -> bool:
+        """Return true if all signals in the group have the same signature."""
+        warnings.warn(
+            "The `is_uniform` method on SignalGroup is deprecated. Use "
+            "`psygnals_uniform` instead. This will be an error in v0.11.",
+            FutureWarning,
+            stacklevel=2,
+        )
+        return cls._psygnal_uniform
+
+    def __deepcopy__(self, memo: dict[int, Any]) -> SignalGroup:
+        # TODO:
+        # This really isn't a deep copy. Should we also copy connections?
+        # a working deepcopy is important for pydantic support, but in most cases
+        # it will be a group without any signals connected
+        return type(self)(instance=self._psygnal_relay.instance)
+
+    # The rest are passthrough methods to the SignalRelay.
+    # The full signatures are here to make mypy and IDEs happy.
+    # parity with SignalInstance methods is tested in test_group.py
+
     @overload
     def connect(
         self,
@@ -407,7 +424,7 @@ class SignalGroup:
         unique: bool | str = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
-    ) -> Callable[[F], F]: ...  # pragma: no cover
+    ) -> Callable[[F], F]: ...
 
     @overload
     def connect(
@@ -420,7 +437,7 @@ class SignalGroup:
         unique: bool | str = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
-    ) -> F: ...  # pragma: no cover
+    ) -> F: ...
 
     def connect(
         self,
@@ -453,9 +470,6 @@ class SignalGroup:
                 on_ref_error=on_ref_error,
             )
 
-    def disconnect(self, slot: Callable | None = None, missing_ok: bool = True) -> None:
-        return self._psygnal_relay.disconnect(slot, missing_ok)
-
     def connect_direct(
         self,
         slot: Callable | None = None,
@@ -473,6 +487,9 @@ class SignalGroup:
             max_args=max_args,
         )
 
+    def disconnect(self, slot: Callable | None = None, missing_ok: bool = True) -> None:
+        return self._psygnal_relay.disconnect(slot=slot, missing_ok=missing_ok)
+
     def block(self, exclude: Iterable[str | SignalInstance] = ()) -> None:
         return self._psygnal_relay.block(exclude=exclude)
 
@@ -484,23 +501,16 @@ class SignalGroup:
     ) -> ContextManager[None]:
         return self._psygnal_relay.blocked(exclude=exclude)
 
-    @classmethod
-    def is_uniform(cls) -> bool:
-        """Return true if all signals in the group have the same signature."""
-        warnings.warn(
-            "The `is_uniform` method on SignalGroup is deprecated. Use "
-            "`psygnals_uniform` instead. This will be an error in v0.11.",
-            FutureWarning,
-            stacklevel=2,
-        )
-        return cls._psygnal_uniform
+    def pause(self) -> None:
+        return self._psygnal_relay.pause()
 
-    def __deepcopy__(self, memo: dict[int, Any]) -> SignalGroup:
-        # TODO:
-        # This really isn't a deep copy. Should we also copy connections?
-        # a working deepcopy is important for pydantic support, but in most cases
-        # it will be a group without any signals connected
-        return type(self)(instance=self._psygnal_relay.instance)
+    def resume(self, reducer: ReducerFunc | None = None, initial: Any = _NULL) -> None:
+        return self._psygnal_relay.resume(reducer=reducer, initial=initial)
+
+    def paused(
+        self, reducer: ReducerFunc | None = None, initial: Any = _NULL
+    ) -> ContextManager[None]:
+        return self._psygnal_relay.paused(reducer=reducer, initial=initial)
 
 
 def _is_uniform(signals: Iterable[Signal]) -> bool:

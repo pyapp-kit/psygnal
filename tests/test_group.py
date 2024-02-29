@@ -37,9 +37,6 @@ def test_signal_group() -> None:
 
     assert repr(group) == "<SignalGroup 'MyGroup' with 2 signals>"
 
-    with pytest.raises(AttributeError, match="'MyGroup' has no signal named 'sig3'"):
-        group.sig3  # noqa: B018
-
 
 def test_uniform_group() -> None:
     """In a uniform group, all signals must have the same signature."""
@@ -323,7 +320,7 @@ def test_delayed_relay_connect() -> None:
 
 
 @pytest.mark.skipif(psygnal._compiled, reason="requires uncompiled psygnal")
-def test_group_relay_signatures():
+def test_group_relay_signatures() -> None:
     from inspect import signature
 
     for name in dir(SignalGroup):
@@ -336,3 +333,56 @@ def test_group_relay_signatures():
             relay_sig = signature(getattr(SignalRelay, name))
 
             assert group_sig == relay_sig
+
+
+def test_group_relay_passthrough() -> None:
+    group = MyGroup()
+
+    mock1 = Mock()
+    mock2 = Mock()
+
+    # test connection
+    group.connect(mock1)
+    group.all.connect(mock2)
+    group.sig1.emit(1)
+    mock1.assert_called_once_with(EmissionInfo(group.sig1, (1,)))
+    mock2.assert_called_once_with(EmissionInfo(group.sig1, (1,)))
+
+    mock1.reset_mock()
+    mock2.reset_mock()
+
+    # test disconnection
+    group.disconnect(mock1)
+    group.all.disconnect(mock2)
+    group.sig1.emit("hi")
+
+    mock1.assert_not_called()
+    mock2.assert_not_called()
+
+    @group.connect(check_nargs=True)  # testing the decorator as well
+    def _(x: int) -> None:
+        mock1(x)
+
+    group.all.connect(mock2)
+
+    # test blocking
+    with group.blocked():
+        group.sig1.emit(1)
+
+    mock1.assert_not_called()
+    mock2.assert_not_called()
+
+    with group.all.blocked():
+        group.sig1.emit(1)
+
+    mock1.assert_not_called()
+    mock2.assert_not_called()
+
+    # smoke test the rest
+    group.connect_direct(mock1)
+    group.block()
+    group.unblock()
+    group.blocked()
+    group.pause()
+    group.resume()
+    group.paused()
