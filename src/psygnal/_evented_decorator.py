@@ -118,7 +118,7 @@ def evented(
     def _decorate(cls: T) -> T:
         if not isinstance(cls, type):  # pragma: no cover
             raise TypeError("evented can only be used on classes")
-        if any(k.startswith("_psygnal") for k in getattr(cls, "__dict__", {})):
+        if any(k.startswith("_psygnal") for k in getattr(cls, "__annotations__", {})):
             raise TypeError(
                 "Attributes on an evented class cannot start with '_psygnal'"
             )
