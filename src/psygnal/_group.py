@@ -376,10 +376,10 @@ class SignalGroup:
     # where the SignalGroup comes from the SignalGroupDescriptor
     # (such as in evented dataclasses).  In those cases, it's hard to indicate
     # to mypy that all remaining attributes are SignalInstances.
-    def __getattr__(self, item: str) -> SignalInstance:
+    def __getattr__(self, __name: str) -> SignalInstance:
         """Get a signal instance by name."""
-        raise AttributeError(
-            f"{type(self).__name__!r} object has no attribute {item!r}"
+        raise AttributeError(  # pragma: no cover
+            f"{type(self).__name__!r} object has no attribute {__name!r}"
         )
 
     def __iter__(self) -> Iterator[str]:
