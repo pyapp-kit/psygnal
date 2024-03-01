@@ -305,6 +305,6 @@ def test_name_conflicts() -> None:
         _psygnal_signals: str = "signals"
 
     with pytest.raises(
-        TypeError, match="Attributes on an evented class cannot start with '_psygnal'"
+        TypeError, match="Fields on an evented class cannot start with '_psygnal'"
     ):
         _ = evented(Foo3)
