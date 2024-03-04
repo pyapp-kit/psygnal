@@ -440,6 +440,7 @@ class SignalGroup:
         unique: bool | str = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
+        priority: int = ...,
     ) -> Callable[[F], F]: ...
 
     @overload
@@ -453,6 +454,7 @@ class SignalGroup:
         unique: bool | str = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
+        priority: int = ...,
     ) -> F: ...
 
     def connect(
@@ -465,6 +467,7 @@ class SignalGroup:
         unique: bool | str = False,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = "warn",
+        priority: int = 0,
     ) -> Callable[[F], F] | F:
         if slot is None:
             return self._psygnal_relay.connect(
@@ -474,6 +477,7 @@ class SignalGroup:
                 unique=unique,
                 max_args=max_args,
                 on_ref_error=on_ref_error,
+                priority=priority,
             )
         else:
             return self._psygnal_relay.connect(
@@ -484,6 +488,7 @@ class SignalGroup:
                 unique=unique,
                 max_args=max_args,
                 on_ref_error=on_ref_error,
+                priority=priority,
             )
 
     def connect_direct(

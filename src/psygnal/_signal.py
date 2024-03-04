@@ -493,7 +493,6 @@ class SignalInstance:
             Higher priority callbacks are called first. Negative values are allowed.
             The default is 0.
 
-
         Raises
         ------
         TypeError
