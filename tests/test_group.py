@@ -301,8 +301,6 @@ def test_group_conflicts() -> None:
     assert "other_signal" in MyGroup._psygnal_signals
     group = MyGroup()
     assert isinstance(group["connect"], SignalInstance)
-    assert group["connect"].name == "connect"
-    assert SubGroup()["connect"].name == "connect"
     assert not isinstance(group.connect, SignalInstance)
 
     with pytest.raises(
@@ -312,6 +310,13 @@ def test_group_conflicts() -> None:
 
         class MyGroup2(SignalGroup):
             _psygnal_private = 1
+
+    assert group.other_signal.name == "other_signal"
+    assert group["connect"].name == "connect"
+
+    subgroup = SubGroup()
+    assert subgroup["connect"].name == "connect"
+    assert subgroup.other_signal.name == "other_signal"
 
 
 def test_group_subclass() -> None:
