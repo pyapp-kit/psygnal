@@ -351,6 +351,8 @@ class SignalInstance:
         self._is_paused: bool = False
         self._lock = threading.RLock()
         self._emit_queue: list[tuple] = []
+        # whether any slots in self._slots have a priority other than 0
+        self._priority_in_use = False
 
     @staticmethod
     def _instance_ref(instance: Any) -> Callable[[], Any]:
@@ -394,6 +396,7 @@ class SignalInstance:
         unique: bool | str = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
+        priority: int = ...,
     ) -> Callable[[F], F]: ...
 
     @overload
@@ -407,6 +410,7 @@ class SignalInstance:
         unique: bool | str = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
+        priority: int = ...,
     ) -> F: ...
 
     def connect(
@@ -419,6 +423,7 @@ class SignalInstance:
         unique: bool | str = False,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = "warn",
+        priority: int = 0,
     ) -> Callable[[F], F] | F:
         """Connect a callback (`slot`) to this signal.
 
@@ -482,6 +487,11 @@ class SignalInstance:
             ReferenceError will be raised.  If 'warn' (default), a warning will be
             issued and a strong-reference will be used. If 'ignore' a strong-reference
             will be used (silently).
+        priority : int
+            The priority of the callback. This is used to determine the order in which
+            callbacks are called when multiple are connected to the same signal.
+            Higher priority callbacks are called first. Negative values are allowed.
+            The default is 0.
 
         Raises
         ------
@@ -531,6 +541,7 @@ class SignalInstance:
                     max_args=max_args,
                     finalize=self._try_discard,
                     on_ref_error=_on_ref_err,
+                    priority=priority,
                 )
                 if thread is not None:
                     cb = QueuedCallback(cb, thread=thread)
@@ -540,8 +551,27 @@ class SignalInstance:
         return _wrapper if slot is None else _wrapper(slot)
 
     def _append_slot(self, slot: WeakCallback) -> None:
-        """Append a slot to the list of slots."""
-        # implementing this as a method allows us to override/extend it in subclasses
+        """Append a slot to the list of slots.
+
+        Implementing this as a method allows us to override/extend it in subclasses.
+        """
+        # if no previously connected slots have a priority, and this slot also
+        # has no priority, we can just (quickly) append it to the end of the list.
+        if not self._priority_in_use:
+            if not slot.priority:
+                self._slots.append(slot)
+                return
+            # remember that we have a priority in use, so we skip this check
+            self._priority_in_use = True
+
+        # otherwise we need to (slowly) iterate over self._slots to
+        # insert the slot in the correct position based on priority.
+        # High priority slots are placed at the front of the list
+        # low/negative priority slots are at the end of the list
+        for i, s in enumerate(self._slots):
+            if s.priority < slot.priority:
+                self._slots.insert(i, slot)
+                return
         self._slots.append(slot)
 
     def _remove_slot(self, slot: Literal["all"] | int | WeakCallback) -> None:
@@ -577,6 +607,7 @@ class SignalInstance:
         maxargs: int | None | object = _NULL,
         *,
         on_ref_error: RefErrorChoice = "warn",
+        priority: int = 0,
     ) -> WeakCallback[None]:
         """Bind an object attribute to the emitted value of this signal.
 
@@ -600,6 +631,11 @@ class SignalInstance:
             ReferenceError will be raised.  If 'warn' (default), a warning will be
             issued and a strong-reference will be used. If 'ignore' a strong-reference
             will be used (silently).
+        priority : int
+            The priority of the callback. This is used to determine the order in which
+            callbacks are called when multiple are connected to the same signal.
+            Higher priority callbacks are called first. Negative values are allowed.
+            The default is 0.
 
         Returns
         -------
@@ -646,6 +682,7 @@ class SignalInstance:
                 max_args=cast("int | None", maxargs),
                 finalize=self._try_discard,
                 on_ref_error=on_ref_error,
+                priority=priority,
             )
             self._append_slot(caller)
         return caller
@@ -683,6 +720,7 @@ class SignalInstance:
         maxargs: int | None | object = _NULL,
         *,
         on_ref_error: RefErrorChoice = "warn",
+        priority: int = 0,
     ) -> WeakCallback[None]:
         """Bind a container item (such as a dict key) to emitted value of this signal.
 
@@ -706,6 +744,11 @@ class SignalInstance:
             ReferenceError will be raised.  If 'warn' (default), a warning will be
             issued and a strong-reference will be used. If 'ignore' a strong-reference
             will be used (silently).
+        priority : int
+            The priority of the callback. This is used to determine the order in which
+            callbacks are called when multiple are connected to the same signal.
+            Higher priority callbacks are called first. Negative values are allowed.
+            The default is 0.
 
         Returns
         -------
@@ -750,6 +793,7 @@ class SignalInstance:
                 max_args=cast("int | None", maxargs),
                 finalize=self._try_discard,
                 on_ref_error=on_ref_error,
+                priority=priority,
             )
             self._append_slot(caller)
 
@@ -1127,6 +1171,7 @@ class SignalInstance:
             "_check_nargs_on_connect",
             "_check_types_on_connect",
             "_emit_queue",
+            "_priority_in_use",
         )
         dd = {slot: getattr(self, slot) for slot in attrs}
         dd["_instance"] = self._instance()

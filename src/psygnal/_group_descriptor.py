@@ -134,8 +134,11 @@ class _DataclassFieldSignalInstance(SignalInstance):
         maxargs: int | None | object = 1,
         *,
         on_ref_error: RefErrorChoice = "warn",
+        priority: int = 0,
     ) -> WeakCallback[None]:
-        return super().connect_setattr(obj, attr, maxargs, on_ref_error=on_ref_error)
+        return super().connect_setattr(
+            obj, attr, maxargs, on_ref_error=on_ref_error, priority=priority
+        )
 
 
 @lru_cache(maxsize=None)
