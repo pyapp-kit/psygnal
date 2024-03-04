@@ -359,16 +359,16 @@ class SignalGroup:
 
     @property
     def signals(self) -> Mapping[str, SignalInstance]:
-        """DEPRECATED: A mapping of signal names to SignalInstance instances."""
+        """A mapping of signal names to SignalInstance instances."""
         # TODO: deprecate this property
-        warnings.warn(
-            "Accessing the `signals` property on a SignalGroup is deprecated. "
-            "Use __iter__ to iterate over all signal names, and __getitem__ or getattr "
-            "to access signal instances. This will be an error in a future.",
-            FutureWarning,
-            stacklevel=2,
-        )
-        return self._psygnal_instances
+        # warnings.warn(
+        #     "Accessing the `signals` property on a SignalGroup is deprecated. "
+        #     "Use __iter__ to iterate over all signal names, and __getitem__ or "
+        #     "getattr to access signal instances. This will be an error in a future.",
+        #     FutureWarning,
+        #     stacklevel=2,
+        # )
+        return MappingProxyType(self._psygnal_instances)
 
     def __len__(self) -> int:
         """Return the number of signals in the group (not including the relay)."""

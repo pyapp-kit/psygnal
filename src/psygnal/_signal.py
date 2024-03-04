@@ -664,7 +664,7 @@ class SignalInstance:
         """
         if maxargs is _NULL:
             warnings.warn(
-                "The default value of maxargs will change from `None` to `1` in"
+                "The default value of maxargs will change from `None` to `1` in "
                 "version 0.11. To silence this warning, provide an explicit value for "
                 "maxargs (`None` for current behavior, `1` for future behavior).",
                 FutureWarning,
