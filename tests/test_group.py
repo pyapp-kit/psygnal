@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import Callable
 from unittest.mock import Mock, call
 
 import pytest
@@ -17,6 +18,13 @@ from psygnal._group import SignalRelay
 class MyGroup(SignalGroup):
     sig1 = Signal(int)
     sig2 = Signal(str)
+
+
+with pytest.warns():
+
+    class ConflictGroup(SignalGroup):
+        sig1 = Signal(int)
+        connect = Signal(int)  # type: ignore
 
 
 def test_cannot_instantiate_group() -> None:
@@ -215,17 +223,41 @@ def test_weakref() -> None:
     assert group.all.instance is None
 
 
-def test_group_deepcopy() -> None:
+@pytest.mark.parametrize(
+    "Group, signame, get_sig",
+    [
+        (MyGroup, "sig1", getattr),
+        (MyGroup, "sig1", SignalGroup.__getitem__),
+        (ConflictGroup, "sig1", getattr),
+        (ConflictGroup, "sig1", SignalGroup.__getitem__),
+        (ConflictGroup, "connect", SignalGroup.__getitem__),
+    ],
+)
+def test_group_deepcopy(
+    Group: type[SignalGroup], signame: str, get_sig: Callable
+) -> None:
+    """_summary_
+
+    Parameters
+    ----------
+    Group : type[SignalGroup]
+        The group class to test, where ConflictGroup has a signal named "connect"
+        which conflicts with the SignalGroup method of the same name.
+    signame : str
+        The name of the signal to test
+    get_sig : Callable
+        The method to use to get the signal instance from the group. we don't
+        test getattr for ConflictGroup because it has a signal named "connect"
+    """
+
     class T:
         def method(self) -> None: ...
 
     obj = T()
-    group = MyGroup(obj)
+    group = Group(obj)
     assert deepcopy(group) is not group  # but no warning
 
     group.all.connect(obj.method)
-
-    # with pytest.warns(UserWarning, match="does not copy connected weakly"):
     group2 = deepcopy(group)
 
     assert not len(group2.all)
@@ -234,13 +266,22 @@ def test_group_deepcopy() -> None:
     group.all.connect(mock)
     group2.all.connect(mock2)
 
-    group2.sig1.emit(1)
-    mock.assert_not_called()
-    mock2.assert_called_with(EmissionInfo(group2.sig1, (1,)))
+    # test that we can access signalinstances (either using getattr or __getitem__)
+    siginst1 = get_sig(group, signame)
+    siginst2 = get_sig(group2, signame)
+    assert isinstance(siginst1, SignalInstance)
+    assert isinstance(siginst2, SignalInstance)
+    assert siginst1 is not siginst2
 
+    # test that emitting from the deepcopied group doesn't affect the original
+    siginst2.emit(1)
+    mock.assert_not_called()
+    mock2.assert_called_with(EmissionInfo(siginst2, (1,)))
+
+    # test that emitting from the original group doesn't affect the deepcopied one
     mock2.reset_mock()
-    group.sig1.emit(1)
-    mock.assert_called_with(EmissionInfo(group.sig1, (1,)))
+    siginst1.emit(1)
+    mock.assert_called_with(EmissionInfo(siginst1, (1,)))
     mock2.assert_not_called()
 
 
