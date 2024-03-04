@@ -314,7 +314,8 @@ class SignalGroup:
         }
         if conflicts:
             for name in conflicts:
-                delattr(cls, name)
+                if isinstance(getattr(cls, name), Signal):
+                    delattr(cls, name)
             Names = "Names" if len(conflicts) > 1 else "Name"
             Are = "are" if len(conflicts) > 1 else "is"
             warnings.warn(

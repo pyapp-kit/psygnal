@@ -294,10 +294,15 @@ def test_group_conflicts() -> None:
             connect = Signal(int)  # type: ignore
             other_signal = Signal(int)
 
+        class SubGroup(MyGroup):
+            sig4 = Signal(int)
+
     assert "connect" in MyGroup._psygnal_signals
     assert "other_signal" in MyGroup._psygnal_signals
     group = MyGroup()
     assert isinstance(group["connect"], SignalInstance)
+    assert group["connect"].name == "connect"
+    assert SubGroup()["connect"].name == "connect"
     assert not isinstance(group.connect, SignalInstance)
 
     with pytest.raises(
