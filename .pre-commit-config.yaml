@@ -8,12 +8,6 @@ default_install_hook_types: [pre-commit, commit-msg]
 exclude: .asv
 
 repos:
-  - repo: https://github.com/compilerla/conventional-pre-commit
-    rev: v3.1.0
-    hooks:
-      - id: conventional-pre-commit
-        stages: [commit-msg]
-
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:

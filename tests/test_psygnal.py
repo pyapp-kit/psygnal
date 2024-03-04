@@ -1038,3 +1038,21 @@ def test_signal_order_suspend():
 
     mock1.assert_has_calls([call(1), call(10), call(11), call(39)])
     mock2.assert_has_calls([call(1), call(10), call(11), call(39)])
+
+
+def test_slotted_classes():
+    class T:
+        __slots__ = ("not_sig",)
+        sig = Signal()
+
+    t = T()
+    mock = Mock()
+
+    @t.sig.connect
+    def f():
+        mock()
+
+    t.sig.emit()
+    mock.assert_called_once()
+
+    assert t.sig is t.sig

@@ -1,19 +1,37 @@
+from __future__ import annotations
+
 from copy import deepcopy
+from typing import Callable
 from unittest.mock import Mock, call
 
 import pytest
+
+import psygnal
 
 try:
     from typing import Annotated  # py39
 except ImportError:
     Annotated = None
 
-from psygnal import EmissionInfo, Signal, SignalGroup
+from psygnal import EmissionInfo, Signal, SignalGroup, SignalInstance
+from psygnal._group import SignalRelay
 
 
 class MyGroup(SignalGroup):
     sig1 = Signal(int)
     sig2 = Signal(str)
+
+
+with pytest.warns():
+
+    class ConflictGroup(SignalGroup):
+        sig1 = Signal(int)
+        connect = Signal(int)  # type: ignore
+
+
+def test_cannot_instantiate_group() -> None:
+    with pytest.raises(TypeError, match="Cannot instantiate `SignalGroup` directly"):
+        SignalGroup()
 
 
 def test_signal_group() -> None:
@@ -28,9 +46,6 @@ def test_signal_group() -> None:
     assert group.sig1 is group["sig1"]
 
     assert repr(group) == "<SignalGroup 'MyGroup' with 2 signals>"
-
-    with pytest.raises(AttributeError, match="'MyGroup' has no signal named 'sig3'"):
-        group.sig3  # noqa: B018
 
 
 def test_uniform_group() -> None:
@@ -77,17 +92,11 @@ def test_signal_group_connect(direct: bool) -> None:
     group = MyGroup()
     if direct:
         # the callback wants the emitted arguments directly
-
-        with pytest.warns(
-            FutureWarning,
-            match="Accessing SignalInstance attribute 'connect_direct' on a SignalGroup"
-            " is deprecated",
-        ):
-            group.connect_direct(mock)
+        group.connect_direct(mock)
     else:
         # the callback will receive an EmissionInfo tuple
         # (SignalInstance, arg_tuple)
-        group.all.connect(mock)
+        group.connect(mock)
     group.sig1.emit(1)
     group.sig2.emit("hi")
 
@@ -216,17 +225,41 @@ def test_weakref() -> None:
     assert group.all.instance is None
 
 
-def test_group_deepcopy() -> None:
+@pytest.mark.parametrize(
+    "Group, signame, get_sig",
+    [
+        (MyGroup, "sig1", getattr),
+        (MyGroup, "sig1", SignalGroup.__getitem__),
+        (ConflictGroup, "sig1", getattr),
+        (ConflictGroup, "sig1", SignalGroup.__getitem__),
+        (ConflictGroup, "connect", SignalGroup.__getitem__),
+    ],
+)
+def test_group_deepcopy(
+    Group: type[SignalGroup], signame: str, get_sig: Callable
+) -> None:
+    """_summary_
+
+    Parameters
+    ----------
+    Group : type[SignalGroup]
+        The group class to test, where ConflictGroup has a signal named "connect"
+        which conflicts with the SignalGroup method of the same name.
+    signame : str
+        The name of the signal to test
+    get_sig : Callable
+        The method to use to get the signal instance from the group. we don't
+        test getattr for ConflictGroup because it has a signal named "connect"
+    """
+
     class T:
         def method(self) -> None: ...
 
     obj = T()
-    group = MyGroup(obj)
+    group = Group(obj)
     assert deepcopy(group) is not group  # but no warning
 
     group.all.connect(obj.method)
-
-    # with pytest.warns(UserWarning, match="does not copy connected weakly"):
     group2 = deepcopy(group)
 
     assert not len(group2.all)
@@ -235,25 +268,74 @@ def test_group_deepcopy() -> None:
     group.all.connect(mock)
     group2.all.connect(mock2)
 
-    group2.sig1.emit(1)
-    mock.assert_not_called()
-    mock2.assert_called_with(EmissionInfo(group2.sig1, (1,)))
+    # test that we can access signalinstances (either using getattr or __getitem__)
+    siginst1 = get_sig(group, signame)
+    siginst2 = get_sig(group2, signame)
+    assert isinstance(siginst1, SignalInstance)
+    assert isinstance(siginst2, SignalInstance)
+    assert siginst1 is not siginst2
 
+    # test that emitting from the deepcopied group doesn't affect the original
+    siginst2.emit(1)
+    mock.assert_not_called()
+    mock2.assert_called_with(EmissionInfo(siginst2, (1,)))
+
+    # test that emitting from the original group doesn't affect the deepcopied one
     mock2.reset_mock()
-    group.sig1.emit(1)
-    mock.assert_called_with(EmissionInfo(group.sig1, (1,)))
+    siginst1.emit(1)
+    mock.assert_called_with(EmissionInfo(siginst1, (1,)))
     mock2.assert_not_called()
 
 
 def test_group_conflicts() -> None:
-    with pytest.warns(UserWarning, match="Signal names may not begin with '_psygnal'"):
+    with pytest.warns(UserWarning, match=r"Name \['connect'\] is reserved"):
 
         class MyGroup(SignalGroup):
-            _psygnal_thing = Signal(int)
+            connect = Signal(int)  # type: ignore
             other_signal = Signal(int)
 
-    assert "_psygnal_thing" not in MyGroup._psygnal_signals
+        class SubGroup(MyGroup):
+            sig4 = Signal(int)
+
+    assert "connect" in MyGroup._psygnal_signals
     assert "other_signal" in MyGroup._psygnal_signals
+    group = MyGroup()
+    assert isinstance(group["connect"], SignalInstance)
+    assert not isinstance(group.connect, SignalInstance)
+
+    with pytest.raises(
+        TypeError,
+        match="SignalGroup subclass cannot have attributes starting with '_psygnal'",
+    ):
+
+        class MyGroup2(SignalGroup):
+            _psygnal_private = 1
+
+    assert group.other_signal.name == "other_signal"
+    assert group["connect"].name == "connect"
+
+    subgroup = SubGroup()
+    assert subgroup["connect"].name == "connect"
+    assert subgroup.other_signal.name == "other_signal"
+
+
+def test_group_subclass() -> None:
+    # Signals are passed to sub-classes
+    class Group1(SignalGroup):
+        sig1 = Signal()
+
+    class Group2(Group1):
+        sig2 = Signal()
+
+    assert "sig1" in Group1._psygnal_signals
+    assert "sig1" in Group2._psygnal_signals
+    assert "sig2" in Group2._psygnal_signals
+    assert "sig2" not in Group1._psygnal_signals
+
+    assert hasattr(Group1, "sig1") and isinstance(Group1.sig1, Signal)
+    assert hasattr(Group2, "sig1") and isinstance(Group2.sig1, Signal)
+    assert hasattr(Group2, "sig2") and isinstance(Group2.sig2, Signal)
+    assert not hasattr(Group1, "sig2")
 
 
 def test_delayed_relay_connect() -> None:
@@ -288,3 +370,72 @@ def test_delayed_relay_connect() -> None:
     group.sig1.emit(1)
     mock.assert_called_once_with(1)
     gmock.assert_not_called()
+
+
+@pytest.mark.skipif(psygnal._compiled, reason="requires uncompiled psygnal")
+def test_group_relay_signatures() -> None:
+    from inspect import signature
+
+    for name in dir(SignalGroup):
+        if (
+            hasattr(SignalRelay, name)
+            and not name.startswith("_")
+            and callable(getattr(SignalRelay, name))
+        ):
+            group_sig = signature(getattr(SignalGroup, name))
+            relay_sig = signature(getattr(SignalRelay, name))
+
+            assert group_sig == relay_sig
+
+
+def test_group_relay_passthrough() -> None:
+    group = MyGroup()
+
+    mock1 = Mock()
+    mock2 = Mock()
+
+    # test connection
+    group.connect(mock1)
+    group.all.connect(mock2)
+    group.sig1.emit(1)
+    mock1.assert_called_once_with(EmissionInfo(group.sig1, (1,)))
+    mock2.assert_called_once_with(EmissionInfo(group.sig1, (1,)))
+
+    mock1.reset_mock()
+    mock2.reset_mock()
+
+    # test disconnection
+    group.disconnect(mock1)
+    group.all.disconnect(mock2)
+    group.sig1.emit("hi")
+
+    mock1.assert_not_called()
+    mock2.assert_not_called()
+
+    @group.connect(check_nargs=True)  # testing the decorator as well
+    def _(x: int) -> None:
+        mock1(x)
+
+    group.all.connect(mock2)
+
+    # test blocking
+    with group.blocked():
+        group.sig1.emit(1)
+
+    mock1.assert_not_called()
+    mock2.assert_not_called()
+
+    with group.all.blocked():
+        group.sig1.emit(1)
+
+    mock1.assert_not_called()
+    mock2.assert_not_called()
+
+    # smoke test the rest
+    group.connect_direct(mock1)
+    group.block()
+    group.unblock()
+    group.blocked()
+    group.pause()
+    group.resume()
+    group.paused()

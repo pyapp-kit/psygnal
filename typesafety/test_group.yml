@@ -13,6 +13,7 @@
     reveal_type(T.e)    # N: Revealed type is "psygnal._group_descriptor.SignalGroupDescriptor"
     reveal_type(t.e)    # N: Revealed type is "psygnal._group.SignalGroup"
     reveal_type(t.e['x'])  # N: Revealed type is "psygnal._signal.SignalInstance"
+    reveal_type(t.e.x)     # N: Revealed type is "psygnal._signal.SignalInstance"
 
     @t.e['x'].connect
     def func(x: int) -> None:
@@ -20,11 +21,8 @@
 
     reveal_type(func)  # N: Revealed type is "def (x: builtins.int)"
 
-    # TODO: change after removing __getattr__ deprecation
-    reveal_type(t.e.x)  # N: Revealed type is "Any"
-
     @t.e.x.connect
     def func2(x: int) -> None:
         pass
 
-    reveal_type(func2)  # N: Revealed type is "Any"
+    reveal_type(func2)  # N: Revealed type is "def (x: builtins.int)"
