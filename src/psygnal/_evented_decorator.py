@@ -107,6 +107,7 @@ def evented(
     from psygnal import evented
     from dataclasses import dataclass
 
+
     @evented
     @dataclass
     class Person:

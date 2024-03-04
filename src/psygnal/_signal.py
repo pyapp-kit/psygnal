@@ -67,11 +67,14 @@ class Signal:
     ```python
     from psygnal import Signal
 
+
     class MyEmitter:
         changed = Signal(int)
 
+
     def receiver(arg: int):
         print("new value:", arg)
+
 
     emitter = MyEmitter()
     emitter.changed.connect(receiver)
@@ -240,6 +243,7 @@ class Signal:
         ```python
         from psygnal import Signal
 
+
         def my_callback():
             source = Signal.current_emitter()
         ```
@@ -275,6 +279,7 @@ class SignalInstance:
     ```python
     class Emitter:
         signal = Signal()
+
 
     e = Emitter()
 
@@ -430,8 +435,7 @@ class SignalInstance:
 
         ```python
         @signal.connect
-        def my_function():
-            ...
+        def my_function(): ...
         ```
 
         !!!important
@@ -614,13 +618,11 @@ class SignalInstance:
         --------
         >>> class T:
         ...     sig = Signal(int)
-        ...
         >>> class SomeObj:
         ...     x = 1
-        ...
         >>> t = T()
         >>> my_obj = SomeObj()
-        >>> t.sig.connect_setattr(my_obj, 'x')
+        >>> t.sig.connect_setattr(my_obj, "x")
         >>> t.sig.emit(5)
         >>> assert my_obj.x == 5
         """
@@ -722,12 +724,11 @@ class SignalInstance:
         --------
         >>> class T:
         ...     sig = Signal(int)
-        ...
         >>> t = T()
         >>> my_obj = dict()
-        >>> t.sig.connect_setitem(my_obj, 'x')
+        >>> t.sig.connect_setitem(my_obj, "x")
         >>> t.sig.emit(5)
-        >>> assert my_obj == {'x': 5}
+        >>> assert my_obj == {"x": 5}
         """
         if maxargs is _NULL:
             warnings.warn(

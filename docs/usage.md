@@ -322,7 +322,7 @@ run_loop()
 Because Qt is commonly used with psygnal, we provide a convenience
 function `psygnal.qt.start_emitting_from_queue` that can be used to start
 monitoring the emission queue for a given thread. (It starts a `QTimer` in the
-invoking thread that calls `psygnal.emit_queueud` periodically).
+invoking thread that calls `psygnal.emit_queued` periodically).
 
 ```py
 from threading import Thread, current_thread
