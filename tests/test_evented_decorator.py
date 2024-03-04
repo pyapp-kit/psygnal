@@ -264,7 +264,9 @@ def test_name_conflicts() -> None:
 
     obj = Foo("foo")
     assert obj.name == "foo"
-    with pytest.warns(UserWarning, match="Name 'all' is reserved"):
+    with pytest.warns(
+        UserWarning, match=r"Names \['all', 'is_uniform', 'signals'\] are reserved"
+    ):
         group = obj.events
 
     assert isinstance(group, SignalGroup)
@@ -273,8 +275,8 @@ def test_name_conflicts() -> None:
     assert isinstance(group.name, SignalInstance)
     assert group["name"] is group.name
 
-    assert "is_uniform" in group and isinstance(group.is_uniform, SignalInstance)
-    assert "signals" in group and isinstance(group.signals, SignalInstance)
+    assert "is_uniform" in group and isinstance(group["is_uniform"], SignalInstance)
+    assert "signals" in group and isinstance(group["signals"], SignalInstance)
 
     # group.all is always a relay
     assert isinstance(group.all, SignalRelay)
@@ -294,17 +296,15 @@ def test_name_conflicts() -> None:
         psygnals_uniform: bool = True
 
     obj2 = Foo2()
-    with pytest.raises(NameError, match="Name 'psygnals_uniform' is reserved"):
+    with pytest.warns(match=r"Name \['psygnals_uniform'\] is reserved"):
         _ = obj2.events
 
-    @evented
     @dataclass
     class Foo3:
         field: int = 1
         _psygnal_signals: str = "signals"
 
-    obj3 = Foo3()
-    with pytest.warns(UserWarning, match="Signal names may not begin with '_psygnal'"):
-        group3 = obj3.events
-
-    assert "_psygnal_signals" not in group3
+    with pytest.raises(
+        TypeError, match="Fields on an evented class cannot start with '_psygnal'"
+    ):
+        _ = evented(Foo3)
