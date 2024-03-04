@@ -237,16 +237,18 @@ class SignalGroup:
     ```python
     from psygnal import Signal, SignalGroup
 
+
     class MySignals(SignalGroup):
         sig1 = Signal()
         sig2 = Signal()
 
-    group = MySignals()
-    group.all.connect(print) # connect to all signals in the group
 
-    list(group)                  # ['sig1', 'sig2']
-    len(group)                   # 2
-    group.sig1 is group['sig1']  # True
+    group = MySignals()
+    group.all.connect(print)  # connect to all signals in the group
+
+    list(group)  # ['sig1', 'sig2']
+    len(group)  # 2
+    group.sig1 is group["sig1"]  # True
     ```
     """
 
@@ -315,13 +317,16 @@ class SignalGroup:
         ```python
         from psygnal import Signal, SignalGroup
 
+
         class MySignals(SignalGroup):
             sig1 = Signal()
             sig2 = Signal()
 
+
         group = MySignals()
         group.sig2.connect(...)  # connect to a single signal by name
         group.all.connect(...)  # connect to all signals in the group
+        ```
         """
         return self._psygnal_relay
 

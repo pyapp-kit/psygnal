@@ -385,8 +385,9 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
     class MyModel(EventedModel):
         x: int = 1
 
+
     m = MyModel()
-    m.events.x.connect(lambda v: print(f'new value is {v}'))
+    m.events.x.connect(lambda v: print(f"new value is {v}"))
     m.x = 3  # prints 'new value is 3'
     ```
 
@@ -410,10 +411,11 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
             allow_property_setters = True
             field_dependencies = {"c": ["a", "b"]}
 
+
     m = MyModel()
     assert m.c == [1, 1]
     m.events.c.connect(lambda v: print(f"c updated to {v}"))
-    m.a = 2 # prints 'c updated to [2, 1]'
+    m.a = 2  # prints 'c updated to [2, 1]'
     ```
 
     """

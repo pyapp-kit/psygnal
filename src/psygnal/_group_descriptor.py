@@ -182,12 +182,14 @@ def get_evented_namespace(obj: object) -> str | None:
     ```python
     from psygnal import evented, get_evented_namespace, is_evented
 
+
     @evented(events_namespace="my_events")
-    class Foo:
-        ...
+    class Foo: ...
+
 
     assert get_evented_namespace(Foo) == "my_events"
     assert is_evented(Foo)
+    ```
     """
     return getattr(obj, PSYGNAL_GROUP_NAME, None)
 
@@ -238,6 +240,7 @@ def evented_setattr(
         ```python
         class SignalInstanceProtocol(Protocol):
             def emit(self, *args: Any) -> Any: ...
+
 
         class SignalGroupProtocol(Protocol):
             def __getattr__(self, name: str) -> SignalInstanceProtocol: ...
@@ -306,6 +309,7 @@ class SignalGroupDescriptor:
         from dataclasses import dataclass
         from typing import ClassVar
 
+
         @dataclass
         class Foo:
             x: int
@@ -353,13 +357,15 @@ class SignalGroupDescriptor:
     from dataclasses import dataclass
     from psygnal import SignalGroupDescriptor
 
+
     @dataclass
     class Person:
         name: str
         age: int = 0
         events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
 
-    john = Person('John', 40)
+
+    john = Person("John", 40)
     john.events.age.connect(print)
     john.age += 1  # prints 41
     ```
