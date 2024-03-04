@@ -84,12 +84,12 @@ class _BaseMutableSet(MutableSet[_T]):
     def _pre_add_hook(self, item: _T) -> _T | BailType:
         return item  # pragma: no cover
 
-    def _post_add_hook(self, item: _T) -> None: ...  # pragma: no cover
+    def _post_add_hook(self, item: _T) -> None: ...
 
     def _pre_discard_hook(self, item: _T) -> _T | BailType:
         return item  # pragma: no cover
 
-    def _post_discard_hook(self, item: _T) -> None: ...  # pragma: no cover
+    def _post_discard_hook(self, item: _T) -> None: ...
 
     def _do_add(self, item: _T) -> None:
         self._data.add(item)

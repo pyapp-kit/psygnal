@@ -1053,3 +1053,21 @@ def test_call_priority() -> None:
 
     emitter.no_arg.emit()
     assert calls == [4, 2, 1, 3]
+
+
+def test_slotted_classes() -> None:
+    class T:
+        __slots__ = ("not_sig",)
+        sig = Signal()
+
+    t = T()
+    mock = Mock()
+
+    @t.sig.connect
+    def f():
+        mock()
+
+    t.sig.emit()
+    mock.assert_called_once()
+
+    assert t.sig is t.sig

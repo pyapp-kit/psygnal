@@ -107,6 +107,7 @@ def evented(
     from psygnal import evented
     from dataclasses import dataclass
 
+
     @evented
     @dataclass
     class Person:
@@ -118,6 +119,8 @@ def evented(
     def _decorate(cls: T) -> T:
         if not isinstance(cls, type):  # pragma: no cover
             raise TypeError("evented can only be used on classes")
+        if any(k.startswith("_psygnal") for k in getattr(cls, "__annotations__", {})):
+            raise TypeError("Fields on an evented class cannot start with '_psygnal'")
 
         descriptor = SignalGroupDescriptor(
             equality_operators=equality_operators,

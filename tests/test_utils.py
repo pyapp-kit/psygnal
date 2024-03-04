@@ -5,7 +5,7 @@ from unittest.mock import Mock, call
 
 import pytest
 
-from psygnal import EmissionInfo, Signal
+from psygnal import EmissionInfo, Signal, SignalGroup
 from psygnal.utils import decompile, monitor_events, recompile
 
 
@@ -91,6 +91,33 @@ def test_monitor_all() -> None:
         call(EmissionInfo(m2.sig, (3, 4))),
         call(EmissionInfo(m1.sig, (5, 6))),
         call(EmissionInfo(m2.sig, (7, 8))),
+    ]
+
+
+def test_monitor_group() -> None:
+    class MyGroup(SignalGroup):
+        sig1 = Signal(int, int)
+        sig2 = Signal(str, str)
+
+    m1 = MyGroup()
+    m2 = MyGroup()
+    _logger = Mock()
+
+    with monitor_events(logger=_logger):
+        m1.sig1.emit(1, 2)
+        m2.sig1.emit(3, 4)
+        m1.sig1.emit(5, 6)
+        m2.sig1.emit(7, 8)
+        m1.sig2.emit("9", "10")
+        m2.sig2.emit("11", "12")
+
+    assert _logger.call_args_list == [
+        call(EmissionInfo(m1.sig1, (1, 2))),
+        call(EmissionInfo(m2.sig1, (3, 4))),
+        call(EmissionInfo(m1.sig1, (5, 6))),
+        call(EmissionInfo(m2.sig1, (7, 8))),
+        call(EmissionInfo(m1.sig2, ("9", "10"))),
+        call(EmissionInfo(m2.sig2, ("11", "12"))),
     ]
 
 
