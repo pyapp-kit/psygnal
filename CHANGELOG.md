@@ -13,7 +13,7 @@
 
 **Fixed bugs:**
 
-- feat: deduplicate events emision in nested properties [\#279](https://github.com/pyapp-kit/psygnal/pull/279) ([Czaki](https://github.com/Czaki))
+- feat: deduplicate events emission in nested properties [\#279](https://github.com/pyapp-kit/psygnal/pull/279) ([Czaki](https://github.com/Czaki))
 - fix: fix connect\_setattr on dataclass field signals [\#258](https://github.com/pyapp-kit/psygnal/pull/258) ([tlambert03](https://github.com/tlambert03))
 - fix: add and fix copy operators [\#255](https://github.com/pyapp-kit/psygnal/pull/255) ([Czaki](https://github.com/Czaki))
 - fix: fix 3.7 build [\#250](https://github.com/pyapp-kit/psygnal/pull/250) ([tlambert03](https://github.com/tlambert03))
@@ -26,7 +26,7 @@
 
 - chore: remove asynchronous emit and other deprecations [\#282](https://github.com/pyapp-kit/psygnal/pull/282) ([tlambert03](https://github.com/tlambert03))
 - refactor: Unify pydantic evented model modules [\#280](https://github.com/pyapp-kit/psygnal/pull/280) ([tlambert03](https://github.com/tlambert03))
-- perf: Do not use reducer if there is no callback in `SingalInstance.resume` [\#278](https://github.com/pyapp-kit/psygnal/pull/278) ([Czaki](https://github.com/Czaki))
+- perf: Do not use reducer if there is no callback in `SignalInstance.resume` [\#278](https://github.com/pyapp-kit/psygnal/pull/278) ([Czaki](https://github.com/Czaki))
 - perf: Delay SignalRelay connection to when a callback is connected [\#277](https://github.com/pyapp-kit/psygnal/pull/277) ([tlambert03](https://github.com/tlambert03))
 - build: remove all dependencies [\#273](https://github.com/pyapp-kit/psygnal/pull/273) ([tlambert03](https://github.com/tlambert03))
 - docs: Update README.md with evented containers [\#272](https://github.com/pyapp-kit/psygnal/pull/272) ([tlambert03](https://github.com/tlambert03))

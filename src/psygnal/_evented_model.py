@@ -531,7 +531,7 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
         to_emit = []
         for name in self._primary_changes:
             # primary changes should contains only fields
-            # that are changed directly by assigment
+            # that are changed directly by assignment
             old_value = self._changes_queue[name]
             new_value = getattr(self, name)
             if not _check_field_equality(type(self), name, new_value, old_value):
@@ -563,7 +563,7 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
         ):
             # fallback to default behavior
             return self._super_setattr_(name, value)
-        # the _setattr_default method is overriden in __new__ to be one of
+        # the _setattr_default method is overridden in __new__ to be one of
         # `_setattr_no_dependants` or `_setattr_with_dependents`.
         self._setattr_default(name, value)
 

@@ -55,14 +55,14 @@ class QueuedCallback(WeakCallback):
                 f"`thread` must be a Thread instance, not {type(thread).__name__}"
             )
         # NOTE: for some strange reason, mypyc crashes if we use `self._thread` here
-        # so we use `self._thred` instead
-        self._thred = thread
+        # so we use `self._cbthread` instead
+        self._cbthread = thread
 
     def cb(self, args: tuple = ()) -> None:
-        if current_thread() is self._thred:
+        if current_thread() is self._cbthread:
             self._wrapped.cb(args)
         else:
-            QueuedCallback._GLOBAL_QUEUE[self._thred].put((self._wrapped.cb, args))
+            QueuedCallback._GLOBAL_QUEUE[self._cbthread].put((self._wrapped.cb, args))
 
     def dereference(self) -> Callable | None:
         return self._wrapped.dereference()
@@ -81,7 +81,7 @@ def emit_queued(thread: Thread | None = None) -> None:
     ------
     EmitLoopError
         If an exception is raised while invoking a queued callback.
-        This exception can be caught and optionally supressed or handled by the caller,
+        This exception can be caught and optionally suppressed or handled by the caller,
         allowing the emission of other queued callbacks to continue even if one of them
         raises an exception.
     """
