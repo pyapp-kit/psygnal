@@ -1,8 +1,8 @@
 # Changelog
 
-## [v0.10.0rc4](https://github.com/pyapp-kit/psygnal/tree/v0.10.0rc4) (2024-03-05)
+## [v0.10.0](https://github.com/pyapp-kit/psygnal/tree/v0.10.0) (2024-03-05)
 
-[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.5...v0.10.0rc4)
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.5...v0.10.0)
 
 **Implemented enhancements:**
 
