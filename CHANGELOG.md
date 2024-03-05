@@ -1,8 +1,8 @@
 # Changelog
 
-## [v0.10.0rc3](https://github.com/pyapp-kit/psygnal/tree/v0.10.0rc3) (2024-02-24)
+## [v0.10.0rc4](https://github.com/pyapp-kit/psygnal/tree/v0.10.0rc4) (2024-03-05)
 
-[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.5...v0.10.0rc3)
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.5...v0.10.0rc4)
 
 **Implemented enhancements:**
 
@@ -13,6 +13,7 @@
 
 **Fixed bugs:**
 
+- fix: ensure proper order of signal emission [\#281](https://github.com/pyapp-kit/psygnal/pull/281) ([Czaki](https://github.com/Czaki))
 - feat: deduplicate events emission in nested properties [\#279](https://github.com/pyapp-kit/psygnal/pull/279) ([Czaki](https://github.com/Czaki))
 - fix: fix connect\_setattr on dataclass field signals [\#258](https://github.com/pyapp-kit/psygnal/pull/258) ([tlambert03](https://github.com/tlambert03))
 - fix: add and fix copy operators [\#255](https://github.com/pyapp-kit/psygnal/pull/255) ([Czaki](https://github.com/Czaki))
@@ -20,10 +21,15 @@
 
 **Tests & CI:**
 
+- test: test for recursion error [\#284](https://github.com/pyapp-kit/psygnal/pull/284) ([tlambert03](https://github.com/tlambert03))
 - ci: inherit secrets in reusable workflow [\#266](https://github.com/pyapp-kit/psygnal/pull/266) ([tlambert03](https://github.com/tlambert03))
 
 **Merged pull requests:**
 
+- chore: un-deprecate SignalGroup.signals [\#288](https://github.com/pyapp-kit/psygnal/pull/288) ([tlambert03](https://github.com/tlambert03))
+- chore: use ruff format instead of black [\#287](https://github.com/pyapp-kit/psygnal/pull/287) ([tlambert03](https://github.com/tlambert03))
+- refactor: Add back SignalGroup methods [\#286](https://github.com/pyapp-kit/psygnal/pull/286) ([tlambert03](https://github.com/tlambert03))
+- feat: add priority to connect, to control callback order [\#285](https://github.com/pyapp-kit/psygnal/pull/285) ([tlambert03](https://github.com/tlambert03))
 - chore: remove asynchronous emit and other deprecations [\#282](https://github.com/pyapp-kit/psygnal/pull/282) ([tlambert03](https://github.com/tlambert03))
 - refactor: Unify pydantic evented model modules [\#280](https://github.com/pyapp-kit/psygnal/pull/280) ([tlambert03](https://github.com/tlambert03))
 - perf: Do not use reducer if there is no callback in `SignalInstance.resume` [\#278](https://github.com/pyapp-kit/psygnal/pull/278) ([Czaki](https://github.com/Czaki))
@@ -31,7 +37,7 @@
 - build: remove all dependencies [\#273](https://github.com/pyapp-kit/psygnal/pull/273) ([tlambert03](https://github.com/tlambert03))
 - docs: Update README.md with evented containers [\#272](https://github.com/pyapp-kit/psygnal/pull/272) ([tlambert03](https://github.com/tlambert03))
 - docs: Update README.md with `make build` [\#270](https://github.com/pyapp-kit/psygnal/pull/270) ([tlambert03](https://github.com/tlambert03))
-- Drop python 3.7 [\#268](https://github.com/pyapp-kit/psygnal/pull/268) ([tlambert03](https://github.com/tlambert03))
+- build: Drop python 3.7 [\#268](https://github.com/pyapp-kit/psygnal/pull/268) ([tlambert03](https://github.com/tlambert03))
 - ci\(dependabot\): bump pypa/cibuildwheel from 2.16.4 to 2.16.5 [\#263](https://github.com/pyapp-kit/psygnal/pull/263) ([dependabot[bot]](https://github.com/apps/dependabot))
 - ci\(dependabot\): bump pypa/cibuildwheel from 2.16.2 to 2.16.4 [\#256](https://github.com/pyapp-kit/psygnal/pull/256) ([dependabot[bot]](https://github.com/apps/dependabot))
 - ci\(dependabot\): bump actions/cache from 3 to 4 [\#253](https://github.com/pyapp-kit/psygnal/pull/253) ([dependabot[bot]](https://github.com/apps/dependabot))
