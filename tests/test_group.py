@@ -325,6 +325,7 @@ def test_group_iter() -> None:
         sig2 = Signal()
         sig3 = Signal()
 
+    # Delete Signal on Group class
     # You should never do that
     del Group1._psygnal_signals["sig1"]
 
@@ -333,6 +334,7 @@ def test_group_iter() -> None:
 
     g = Group1()
 
+    # Delete Signal on Group instance
     # You should never do that
     del g._psygnal_signals["sig2"]
 
@@ -354,6 +356,14 @@ def test_group_iter() -> None:
     sig2_t = g.sig2
     assert isinstance(sig2_t, SignalInstance)
     assert sig2_t.name == "sig2"
+
+    # Delete SignalInstance
+    del g._psygnal_instances["sig3"]
+
+    assert "sig3" not in g
+    assert set(g) == {"sig2"}
+    with pytest.raises(KeyError):
+        g["sig3"]
 
 
 def test_group_subclass() -> None:
