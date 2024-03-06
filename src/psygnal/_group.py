@@ -372,7 +372,7 @@ class SignalGroup:
 
     def __len__(self) -> int:
         """Return the number of signals in the group (not including the relay)."""
-        return len(self._psygnal_signals)
+        return len(self._psygnal_instances)
 
     def __getitem__(self, item: str) -> SignalInstance:
         """Get a signal instance by name."""
@@ -390,13 +390,13 @@ class SignalGroup:
 
     def __iter__(self) -> Iterator[str]:
         """Yield the names of all signals in the group."""
-        return iter(self._psygnal_signals)
+        return iter(self._psygnal_instances)
 
     def __contains__(self, item: str) -> bool:
         """Return True if the group contains a signal with the given name."""
         # this is redundant with __iter__ and can be removed, but only after
         # removing the deprecation warning in __getattr__
-        return item in self._psygnal_signals
+        return item in self._psygnal_instances
 
     def __repr__(self) -> str:
         """Return repr(self)."""
