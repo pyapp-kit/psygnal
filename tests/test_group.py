@@ -320,7 +320,6 @@ def test_group_conflicts() -> None:
 
 
 def test_group_iter() -> None:
-
     class Group1(SignalGroup):
         sig1 = Signal()
         sig2 = Signal()
@@ -329,7 +328,7 @@ def test_group_iter() -> None:
     # You should never do that
     del Group1._psygnal_signals["sig1"]
 
-    assert set(Group1._psygnal_signals) == set(["sig2", "sig3"])
+    assert set(Group1._psygnal_signals) == {"sig2", "sig3"}
     assert hasattr(Group1, "sig1")
 
     g = Group1()
@@ -339,10 +338,10 @@ def test_group_iter() -> None:
 
     assert "sig1" not in g
     assert "sig2" in g
-    assert set(g) == set(["sig2", "sig3"])
+    assert set(g) == {"sig2", "sig3"}
 
     with pytest.raises(KeyError):
-        sig1 = g["sig1"]
+        g["sig1"]
 
     sig1_t = g.sig1
     assert isinstance(sig1_t, SignalInstance)
@@ -355,7 +354,6 @@ def test_group_iter() -> None:
     sig2_t = g.sig2
     assert isinstance(sig2_t, SignalInstance)
     assert sig2_t.name == "sig2"
-
 
 
 def test_group_subclass() -> None:
