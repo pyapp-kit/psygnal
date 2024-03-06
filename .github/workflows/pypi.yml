@@ -2,10 +2,8 @@ name: Publish to PyPI
 
 on:
   push:
-    branches:
-      - main
-    tags:
-      - "v*"
+    branches: [main]
+    tags: [v*]
 
 jobs:
   main:
@@ -41,7 +39,6 @@ jobs:
           generate_release_notes: true
 
   mypyc:
-    if: startsWith(github.event.ref, 'refs/tags/v')
     name: mypyc wheels (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     strategy:
@@ -55,7 +52,7 @@ jobs:
           - os: macos-11
             name: macos-x86_64
             macos_arch: "x86_64"
-          - os: macos-11
+          - os: macos-14
             name: macos-arm64
             macos_arch: "arm64"
 
@@ -76,6 +73,7 @@ jobs:
           path: ./wheelhouse/*.whl
 
       - name: Upload wheels to PyPI via Twine
+        if: startsWith(github.event.ref, 'refs/tags/v')
         env:
           TWINE_PASSWORD: ${{ secrets.pypi_token }}
         run: pipx run twine upload --verbose -u '__token__' wheelhouse/*.whl
