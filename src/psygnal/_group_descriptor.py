@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import contextlib
+import copy
 import operator
 import sys
 import warnings
 import weakref
-from functools import lru_cache
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -141,11 +141,25 @@ class _DataclassFieldSignalInstance(SignalInstance):
         )
 
 
-@lru_cache(maxsize=None)
 def _build_dataclass_signal_group(
-    cls: type, equality_operators: Iterable[tuple[str, EqOperator]] | None = None
+    cls: type,
+    signal_group_class: type[SignalGroup] = SignalGroup,
+    equality_operators: Iterable[tuple[str, EqOperator]] | None = None,
 ) -> type[SignalGroup]:
-    """Build a SignalGroup with events for each field in a dataclass."""
+    """Build a SignalGroup with events for each field in a dataclass.
+
+    Parameters
+    ----------
+    cls : type
+        the dataclass to look for the fields to connect with signals.
+    signal_group_class: type[SignalGroup]
+        SignalGroup or a subclass of it, to use as a super class.
+        Default to SignalGroup
+    equality_operators: Iterable[tuple[str, EqOperator]] | None
+        If defined, a mapping of field name and equality operator to use to compare if
+        each field was modified after being set.
+        Default to None
+    """
     _equality_operators = dict(equality_operators) if equality_operators else {}
     signals = {}
     eq_map = _get_eq_operator_map(cls)
@@ -162,7 +176,9 @@ def _build_dataclass_signal_group(
         # patch in our custom SignalInstance class with maxargs=1 on connect_setattr
         sig._signal_instance_class = _DataclassFieldSignalInstance
 
-    return type(f"{cls.__name__}SignalGroup", (SignalGroup,), signals)
+    # Create `signal_group_class` subclass with the attached signals
+    group_name = f"{cls.__name__}{signal_group_class.__name__}"
+    return type(group_name, (signal_group_class,), signals)
 
 
 def is_evented(obj: object) -> bool:
@@ -335,8 +351,6 @@ class SignalGroupDescriptor:
         field to determine whether to emit an event. If not provided, the default
         equality operator is `operator.eq`, except for numpy arrays, where
         `np.array_equal` is used.
-    signal_group_class : type[SignalGroup], optional
-        A custom SignalGroup class to use, by default None
     warn_on_no_fields : bool, optional
         If `True` (the default), a warning will be emitted if no mutable dataclass-like
         fields are found on the object.
@@ -352,6 +366,13 @@ class SignalGroupDescriptor:
         events when fields change.  If `False`, no `__setattr__` method will be
         created.  (This will prevent signal emission, and assumes you are using a
         different mechanism to emit signals when fields change.)
+    signal_group_class : type[SignalGroup] | None, optional
+        A custom SignalGroup class to use, SignalGroup if None, by default None
+    collect_fields : bool, optional
+        Create a signal for each field in the dataclass. If True, the `SignalGroup`
+        instance will be a subclass of `signal_group_class` (SignalGroup if it is None).
+        If False, a deepcopy of `signal_group_class` will be used.
+        Default to True
 
     Examples
     --------
@@ -378,17 +399,21 @@ class SignalGroupDescriptor:
         self,
         *,
         equality_operators: dict[str, EqOperator] | None = None,
-        signal_group_class: type[SignalGroup] | None = None,
         warn_on_no_fields: bool = True,
         cache_on_instance: bool = True,
         patch_setattr: bool = True,
+        signal_group_class: type[SignalGroup] | None = None,
+        collect_fields: bool = True,
     ):
-        self._signal_group = signal_group_class
         self._name: str | None = None
         self._eqop = tuple(equality_operators.items()) if equality_operators else None
         self._warn_on_no_fields = warn_on_no_fields
         self._cache_on_instance = cache_on_instance
         self._patch_setattr = patch_setattr
+        self._signal_group_class = signal_group_class or SignalGroup
+        self._collect_fields = collect_fields
+
+        self._signal_groups: dict[int, type[SignalGroup]] = {}
 
     def __set_name__(self, owner: type, name: str) -> None:
         """Called when this descriptor is added to class `owner` as attribute `name`."""
@@ -434,13 +459,15 @@ class SignalGroupDescriptor:
         if instance is None:
             return self
 
+        signal_group = self._get_signal_group(owner)
+
         # if we haven't yet instantiated a SignalGroup for this instance,
         # do it now and cache it.  Note that we cache it here in addition to
         # the instance (in case the instance is not modifiable).
         obj_id = id(instance)
         if obj_id not in self._instance_map:
             # cache it
-            self._instance_map[obj_id] = self._create_group(owner)(instance)
+            self._instance_map[obj_id] = signal_group(instance)
             # also *try* to set it on the instance as well, since it will skip all the
             # __get__ logic in the future, but if it fails, no big deal.
             if self._name and self._cache_on_instance:
@@ -453,13 +480,31 @@ class SignalGroupDescriptor:
 
         return self._instance_map[obj_id]
 
+    def _get_signal_group(self, owner: type) -> type[SignalGroup]:
+        type_id = id(owner)
+        if type_id not in self._signal_groups:
+            self._signal_groups[type_id] = self._create_group(owner)
+        return self._signal_groups[type_id]
+
     def _create_group(self, owner: type) -> type[SignalGroup]:
-        Group = self._signal_group or _build_dataclass_signal_group(owner, self._eqop)
+        # Do not collect fields from owner class, copy the SignalGroup
+        if not self._collect_fields:
+            Group = copy.deepcopy(self._signal_group_class)
+
+        # Collect fields and create SignalGroup subclass
+        else:
+            Group = _build_dataclass_signal_group(
+                owner,
+                signal_group_class=self._signal_group_class,
+                equality_operators=self._eqop,
+            )
+
         if self._warn_on_no_fields and not Group._psygnal_signals:
             warnings.warn(
                 f"No mutable fields found on class {owner}: no events will be "
                 "emitted. (Is this a dataclass, attrs, msgspec, or pydantic model?)",
                 stacklevel=2,
             )
+
         self._do_patch_setattr(owner)
         return Group

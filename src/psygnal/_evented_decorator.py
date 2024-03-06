@@ -1,12 +1,10 @@
+from __future__ import annotations
+
 from typing import (
     Any,
     Callable,
-    Dict,
     Literal,
-    Optional,
-    Type,
     TypeVar,
-    Union,
     overload,
 )
 
@@ -14,11 +12,9 @@ from psygnal._group_descriptor import SignalGroupDescriptor
 
 __all__ = ["evented"]
 
-T = TypeVar("T", bound=Type)
+T = TypeVar("T", bound=type)
 
 EqOperator = Callable[[Any, Any], bool]
-PSYGNAL_GROUP_NAME = "_psygnal_group_"
-_NULL = object()
 
 
 @overload
@@ -26,7 +22,7 @@ def evented(
     cls: T,
     *,
     events_namespace: str = "events",
-    equality_operators: Optional[Dict[str, EqOperator]] = None,
+    equality_operators: dict[str, EqOperator] | None = None,
     warn_on_no_fields: bool = ...,
     cache_on_instance: bool = ...,
 ) -> T: ...
@@ -34,23 +30,23 @@ def evented(
 
 @overload
 def evented(
-    cls: "Optional[Literal[None]]" = None,
+    cls: Literal[None] | None = None,
     *,
     events_namespace: str = "events",
-    equality_operators: Optional[Dict[str, EqOperator]] = None,
+    equality_operators: dict[str, EqOperator] | None = None,
     warn_on_no_fields: bool = ...,
     cache_on_instance: bool = ...,
 ) -> Callable[[T], T]: ...
 
 
 def evented(
-    cls: Optional[T] = None,
+    cls: T | None = None,
     *,
     events_namespace: str = "events",
-    equality_operators: Optional[Dict[str, EqOperator]] = None,
+    equality_operators: dict[str, EqOperator] | None = None,
     warn_on_no_fields: bool = True,
     cache_on_instance: bool = True,
-) -> Union[Callable[[T], T], T]:
+) -> Callable[[T], T] | T:
     """A decorator to add events to a dataclass.
 
     See also the documentation for
@@ -71,7 +67,7 @@ def evented(
         The class to decorate.
     events_namespace : str
         The name of the namespace to add the events to, by default `"events"`
-    equality_operators : Optional[Dict[str, Callable]]
+    equality_operators : dict[str, Callable] | None
         A dictionary mapping field names to equality operators (a function that takes
         two values and returns `True` if they are equal). These will be used to
         determine if a field has changed when setting a new value.  By default, this
