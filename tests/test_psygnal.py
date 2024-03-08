@@ -979,8 +979,9 @@ def test_pickle():
 
 
 @pytest.mark.skipif(PY39 and WINDOWS and COMPILED, reason="fails")
-def test_recursion_error() -> None:
-    s = SignalInstance(recursion_mode="deferred")
+@pytest.mark.parametrize("recursion", ["immediate", "deferred"])
+def test_recursion_error(recursion: Literal["immediate", "deferred"]) -> None:
+    s = SignalInstance(recursion_mode=recursion)
 
     @s.connect
     def callback() -> None:
@@ -1023,9 +1024,10 @@ def test_callback_order(recursion: Literal["immediate", "deferred"]) -> None:
         assert a == [1, 10, 100, 2, 20, 200, 3, 30, 300]
 
 
-def test_signal_order_suspend():
+@pytest.mark.parametrize("recursion", ["immediate", "deferred"])
+def test_signal_order_suspend(recursion: Literal["immediate", "deferred"]) -> None:
     """Test that signals are emitted in the order they were connected."""
-    sig = SignalInstance((int,), recursion_mode="deferred")
+    sig = SignalInstance((int,), recursion_mode=recursion)
     mock1 = Mock()
     mock2 = Mock()
 
@@ -1051,7 +1053,10 @@ def test_signal_order_suspend():
     sig.emit(1)
 
     mock1.assert_has_calls([call(1), call(10), call(11), call(39)])
-    mock2.assert_has_calls([call(1), call(10), call(11), call(39)])
+    if recursion == "immediate":
+        mock2.assert_has_calls([call(11), call(39), call(10), call(1)])
+    else:
+        mock2.assert_has_calls([call(1), call(10), call(11), call(39)])
 
 
 def test_call_priority() -> None:
