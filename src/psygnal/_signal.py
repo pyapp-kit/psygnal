@@ -363,7 +363,7 @@ class SignalInstance:
                 "instance of `inspect.Signature`"
             )
 
-        if recursion_mode not in ("immediate", "deferred"):
+        if recursion_mode not in ("immediate", "deferred"):  # pragma: no cover
             raise ValueError(
                 "recursion_mode must be one of 'immediate' or 'deferred', not "
                 f"{recursion_mode!r}"
