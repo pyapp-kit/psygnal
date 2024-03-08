@@ -990,23 +990,37 @@ def test_recursion_error() -> None:
         s.emit()
 
 
-def test_signal_order():
-    """Test that signals are emitted in the order they were connected."""
-    emitter = Emitter()
-    mock1 = Mock()
-    mock2 = Mock()
+@pytest.mark.parametrize("recursion", ["immediate", "deferred"])
+def test_callback_order(recursion: Literal["immediate", "deferred"]) -> None:
+    sig = SignalInstance((int,), recursion_mode=recursion)
 
-    def callback(x):
-        if x != 10:
-            emitter.one_int.emit(10)
+    a = []
 
-    emitter.one_int.connect(mock1)
-    emitter.one_int.connect(callback)
-    emitter.one_int.connect(mock2)
-    emitter.one_int.emit(1)
+    def cb1(value: int) -> None:
+        a.append(value)
+        if value == 1:
+            sig.emit(2)
 
-    mock1.assert_has_calls([call(1), call(10)])
-    mock2.assert_has_calls([call(1), call(10)])
+    def cb2(value: int) -> None:
+        a.append(value * 10)
+        if value == 2:
+            sig.emit(3)
+
+    def cb3(value: int) -> None:
+        a.append(value * 100)
+
+    sig.connect(cb1)
+    sig.connect(cb2)
+    sig.connect(cb3)
+    sig.emit(1)
+
+    if recursion == "immediate":
+        # nested emission events occur immediately,
+        # before proceeding to the next callback
+        assert a == [1, 2, 20, 3, 30, 300, 200, 10, 100]
+    elif recursion == "deferred":
+        # all callbacks are called once before the next one is called
+        assert a == [1, 10, 100, 2, 20, 200, 3, 30, 300]
 
 
 def test_signal_order_suspend():
