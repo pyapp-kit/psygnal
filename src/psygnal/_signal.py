@@ -107,6 +107,16 @@ class Signal:
         Whether to check the callback parameter types against `signature` when
         connecting a new callback. This can also be provided at connection time using
         `.connect(..., check_types=True)`. By default, False.
+    recursion_mode : Literal["immediate", "deferred"]
+        How to handle recursive emissions, when this signal is emitted by a callback
+        while this signal is being emitted.
+
+        - "immediate": Nested emission events immediately begin a deeper emission loop:
+          calling all callbacks with the arguments of the nested emitter before
+          returning to continue the original emission loop.  This is the default
+          behavior.
+        - "deferred": Nested emission events are deferred until the current emission
+          loop is complete.  This is the default behavior.
     """
 
     # _signature: Signature  # callback signature for this signal
@@ -120,11 +130,13 @@ class Signal:
         name: str | None = None,
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
+        recursion_mode: Literal["immediate", "deferred"] = "immediate",
     ) -> None:
         self._name = name
         self.description = description
         self._check_nargs_on_connect = check_nargs_on_connect
         self._check_types_on_connect = check_types_on_connect
+        self._recursion_mode = recursion_mode
         self._signal_instance_class: type[SignalInstance] = SignalInstance
         self._signal_instance_cache: dict[int, SignalInstance] = {}
 
@@ -220,6 +232,7 @@ class Signal:
             name=name or self._name,
             check_nargs_on_connect=self._check_nargs_on_connect,
             check_types_on_connect=self._check_types_on_connect,
+            recursion_mode=self._recursion_mode,
         )
 
     @classmethod
@@ -340,7 +353,7 @@ class SignalInstance:
         name: str | None = None,
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
-        recursion_mode: Literal["immediate", "deferred"] = "deferred",
+        recursion_mode: Literal["immediate", "deferred"] = "immediate",
     ) -> None:
         if isinstance(signature, (list, tuple)):
             signature = _build_signature(*signature)
@@ -368,6 +381,12 @@ class SignalInstance:
         self._lock = threading.RLock()
         self._emit_queue: list[tuple] = []
         self._recursion_mode = recursion_mode
+        self._run_emit_loop: Callable[[tuple[Any, ...]], None]
+        if self._recursion_mode == "immediate":
+            self._run_emit_loop = self._run_emit_loop_immediate
+        else:
+            self._run_emit_loop = self._run_emit_loop_deferred
+
         # whether any slots in self._slots have a priority other than 0
         self._priority_in_use = False
 
@@ -1012,13 +1031,26 @@ class SignalInstance:
             check_types=check_types,
         )
 
-    def _run_emit_loop(self, args: tuple[Any, ...]) -> None:
-        if self._recursion_mode == "immediate":
-            self._run_emit_loop_immediate(args)
-        else:
-            self._run_emit_loop_deferred(args)
+    # def _run_emit_loop(self, args: tuple[Any, ...]) -> None:
+    #     if self._recursion_mode == "immediate":
+    #         self._run_emit_loop_immediate(args)
+    #     else:
+    #         self._run_emit_loop_deferred(args)
 
-    def _run_emit_loop_immediate(self, args: tuple[Any, ...]) -> None: ...
+    def _run_emit_loop_immediate(self, args: tuple[Any, ...]) -> None:
+        # allow receiver to query sender with Signal.current_emitter()
+        with self._lock:
+            with Signal._emitting(self):
+                for caller in self._slots:
+                    try:
+                        caller.cb(args)
+                    except Exception as e:
+                        raise EmitLoopError(
+                            cb=caller, args=args, exc=e, signal=self
+                        ) from e
+
+        return None
+
     def _run_emit_loop_deferred(self, args: tuple[Any, ...]) -> None:
         # allow receiver to query sender with Signal.current_emitter()
         with self._lock:
@@ -1218,6 +1250,10 @@ class SignalInstance:
             else:
                 setattr(self, k, v)
         self._lock = threading.RLock()
+        if self._recursion_mode == "immediate":
+            self._run_emit_loop = self._run_emit_loop_immediate
+        else:
+            self._run_emit_loop = self._run_emit_loop_deferred
 
 
 class _SignalBlocker:
