@@ -1252,7 +1252,7 @@ class SignalInstance:
         self._lock = threading.RLock()
         if self._recursion_mode == "immediate":
             self._run_emit_loop = self._run_emit_loop_immediate
-        else:
+        else:  # pragma: no cover
             self._run_emit_loop = self._run_emit_loop_deferred
 
 
