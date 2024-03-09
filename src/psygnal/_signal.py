@@ -49,11 +49,13 @@ if TYPE_CHECKING:
     # function that takes two args tuples. it will be passed to itertools.reduce
     ReducerTwoArgs = Callable[[tuple, tuple], tuple]
     ReducerFunc = Union[ReducerOneArg, ReducerTwoArgs]
+    RecursionMode = Literal["immediate", "deferred"]
 
 __all__ = ["Signal", "SignalInstance", "_compiled"]
 _NULL = object()
 F = TypeVar("F", bound=Callable)
 RECURSION_LIMIT = sys.getrecursionlimit()
+DEFAULT_RECURSION_MODE: RecursionMode = "immediate"
 
 
 class Signal:
@@ -130,7 +132,7 @@ class Signal:
         name: str | None = None,
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
-        recursion_mode: Literal["immediate", "deferred"] = "immediate",
+        recursion_mode: RecursionMode = DEFAULT_RECURSION_MODE,
     ) -> None:
         self._name = name
         self.description = description
@@ -353,7 +355,7 @@ class SignalInstance:
         name: str | None = None,
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
-        recursion_mode: Literal["immediate", "deferred"] = "immediate",
+        recursion_mode: RecursionMode = "immediate",
     ) -> None:
         if isinstance(signature, (list, tuple)):
             signature = _build_signature(*signature)
@@ -1030,12 +1032,6 @@ class SignalInstance:
             check_nargs=check_nargs,
             check_types=check_types,
         )
-
-    # def _run_emit_loop(self, args: tuple[Any, ...]) -> None:
-    #     if self._recursion_mode == "immediate":
-    #         self._run_emit_loop_immediate(args)
-    #     else:
-    #         self._run_emit_loop_deferred(args)
 
     def _run_emit_loop_immediate(self, args: tuple[Any, ...]) -> None:
         # allow receiver to query sender with Signal.current_emitter()
