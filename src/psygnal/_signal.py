@@ -116,7 +116,7 @@ class Signal:
           returning to continue the original emission loop.  This is the default
           behavior.
         - "deferred": Nested emission events are deferred until the current emission
-          loop is complete.  This is the default behavior.
+          loop is complete.
     """
 
     # _signature: Signature  # callback signature for this signal
