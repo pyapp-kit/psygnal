@@ -5,6 +5,7 @@ import sys
 import threading
 import warnings
 import weakref
+from collections import deque
 from contextlib import contextmanager, suppress
 from functools import lru_cache, partial, reduce
 from inspect import Parameter, Signature, isclass
@@ -381,13 +382,13 @@ class SignalInstance:
         self._is_blocked: bool = False
         self._is_paused: bool = False
         self._lock = threading.RLock()
-        self._emit_queue: list[tuple] = []
+        self._emit_queue: deque[tuple] = deque()
         self._recursion_mode = recursion_mode
-        self._run_emit_loop: Callable[[tuple[Any, ...]], None]
+        self._run_emit_loop_inner: Callable[[], None]
         if self._recursion_mode == "immediate":
-            self._run_emit_loop = self._run_emit_loop_immediate
+            self._run_emit_loop_inner = self._run_emit_loop_immediate
         else:
-            self._run_emit_loop = self._run_emit_loop_deferred
+            self._run_emit_loop_inner = self._run_emit_loop_deferred
 
         # whether any slots in self._slots have a priority other than 0
         self._priority_in_use = False
@@ -992,7 +993,7 @@ class SignalInstance:
             checks fail.
         """
         if self._is_blocked:
-            return None
+            return
 
         if check_nargs:
             try:
@@ -1014,7 +1015,7 @@ class SignalInstance:
 
         if self._is_paused:
             self._args_queue.append(args)
-            return None
+            return
 
         if SignalInstance._debug_hook is not None:
             from ._group import EmissionInfo
@@ -1033,53 +1034,45 @@ class SignalInstance:
             check_types=check_types,
         )
 
-    def _run_emit_loop_immediate(self, args: tuple[Any, ...]) -> None:
-        # allow receiver to query sender with Signal.current_emitter()
-        with self._lock:
-            with Signal._emitting(self):
-                for caller in self._slots:
-                    try:
-                        caller.cb(args)
-                    except RecursionError as e:
-                        raise RecursionError(
-                            f"RecursionError in {caller.slot_repr()} when "
-                            f"emitting signal {self.name!r} with args {args}"
-                        ) from e
-                    except Exception as e:
-                        raise EmitLoopError(
-                            cb=caller, args=args, exc=e, signal=self
-                        ) from e
-
-        return None
-
-    def _run_emit_loop_deferred(self, args: tuple[Any, ...]) -> None:
-        # allow receiver to query sender with Signal.current_emitter()
+    def _run_emit_loop(self, args: tuple[Any, ...]) -> None:
         with self._lock:
             self._emit_queue.append(args)
-
             if len(self._emit_queue) > 1:
-                return None
+                return
             try:
                 with Signal._emitting(self):
-                    i = 0
-                    while i < len(self._emit_queue):
-                        args = self._emit_queue[i]
-                        for caller in self._slots:
-                            caller.cb(args)
-                            if len(self._emit_queue) > RECURSION_LIMIT:
-                                raise RecursionError
-                        i += 1
+                    # allow receiver to query sender with Signal.current_emitter()
+                    self._run_emit_loop_inner()
             except RecursionError as e:
                 raise RecursionError(
-                    f"RecursionError in {caller.slot_repr()} when "
+                    f"RecursionError when "
                     f"emitting signal {self.name!r} with args {args}"
                 ) from e
             except Exception as e:
-                raise EmitLoopError(cb=caller, args=args, exc=e, signal=self) from e
+                raise EmitLoopError(
+                    cb=self._caller, args=self._args, exc=e, signal=self
+                ) from e
             finally:
                 self._emit_queue.clear()
 
-        return None
+    def _run_emit_loop_immediate(self) -> None:
+        self._args = args = self._emit_queue.popleft()
+        caller = None
+        for caller in self._slots:
+            self._caller = caller
+            caller.cb(args)
+
+    def _run_emit_loop_deferred(self) -> None:
+        i = 0
+        caller = None
+        while i < len(self._emit_queue):
+            self._args = args = self._emit_queue[i]
+            for caller in self._slots:
+                self._caller = caller
+                caller.cb(args)
+                if len(self._emit_queue) > RECURSION_LIMIT:
+                    raise RecursionError
+            i += 1
 
     def block(self, exclude: Iterable[str | SignalInstance] = ()) -> None:
         """Block this signal from emitting.
@@ -1252,9 +1245,9 @@ class SignalInstance:
                 setattr(self, k, v)
         self._lock = threading.RLock()
         if self._recursion_mode == "immediate":
-            self._run_emit_loop = self._run_emit_loop_immediate
-        else:  # pragma: no cover
-            self._run_emit_loop = self._run_emit_loop_deferred
+            self._run_emit_loop_inner = self._run_emit_loop_immediate
+        else:
+            self._run_emit_loop_inner = self._run_emit_loop_deferred
 
 
 class _SignalBlocker:
