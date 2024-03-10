@@ -1027,7 +1027,7 @@ class SignalInstance:
     def __call__(
         self, *args: Any, check_nargs: bool = False, check_types: bool = False
     ) -> None:
-        """Alias for `emit()`."""
+        """Alias for `emit()`. But prefer using `emit()` for clarity."""
         return self.emit(
             *args,
             check_nargs=check_nargs,
