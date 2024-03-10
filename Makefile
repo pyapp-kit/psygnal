@@ -28,12 +28,12 @@ clean:
 # run benchmarks for all commits since v0.1.0
 benchmark-all:
 	pip install asv
-	asv run -j 8 --show-stderr --interleave-processes --skip-existing v0.2.0..HEAD
+	MACOSX_DEPLOYMENT_TARGET=11.0 asv run -j 8 --show-stderr --interleave-processes --skip-existing v0.2.0..HEAD
 
 # compare HEAD against main
 benchmark-compare:
-	asv run --interleave-processes --skip-existing main^!
-	asv run --interleave-processes HEAD^!
+	MACOSX_DEPLOYMENT_TARGET=11.0 asv run --interleave-processes --skip-existing main^!
+	MACOSX_DEPLOYMENT_TARGET=11.0 asv run --interleave-processes HEAD^!
 	asv compare --split --factor 1.15 main HEAD
 
 typetest:
