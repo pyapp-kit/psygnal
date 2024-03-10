@@ -912,7 +912,7 @@ def test_if_event_is_emitted_only_once() -> None:
         "err",
     ],
 )
-def test_evented_model_recursion_mode(mode: str | dict) -> None:
+def test_evented_model_recursion_mode(mode: Union[str, dict]) -> None:
     err = mode == "err" or isinstance(mode, dict) and "err" in mode.values()
     with pytest.raises(ValueError, match="Invalid recursion") if err else nullcontext():
 
