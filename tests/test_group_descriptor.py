@@ -256,14 +256,6 @@ def test_collect_fields(collect: bool, klass: type[SignalGroup] | None) -> None:
     foo = Foo()
     bar = Bar()
 
-    # Cannot instantiate SignalGroup directly, use a subclass
-    if not collect and signal_class is SignalGroup:
-        with pytest.raises(TypeError):
-            _ = foo.events
-        with pytest.raises(TypeError):
-            _ = bar.events
-        return
-
     assert issubclass(type(foo.events), signal_class)
 
     if collect:
