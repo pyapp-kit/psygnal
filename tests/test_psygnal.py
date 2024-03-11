@@ -11,7 +11,6 @@ import pytest
 
 import psygnal
 from psygnal import EmitLoopError, Signal, SignalInstance
-from psygnal._signal import RecursionMode
 from psygnal._weak_callback import WeakCallback
 
 PY39 = sys.version_info[:2] == (3, 9)
@@ -981,7 +980,7 @@ def test_pickle():
 
 @pytest.mark.skipif(PY39 and WINDOWS and COMPILED, reason="fails")
 @pytest.mark.parametrize("recursion", ["immediate", "deferred"])
-def test_recursion_error(recursion: RecursionMode) -> None:
+def test_recursion_error(recursion: Literal["immediate", "deferred"]) -> None:
     s = SignalInstance(recursion_mode=recursion)
 
     @s.connect
@@ -992,8 +991,8 @@ def test_recursion_error(recursion: RecursionMode) -> None:
         s.emit()
 
 
-@pytest.mark.parametrize("recursion", ["immediate", "deferred", "immediate-drop"])
-def test_callback_order(recursion: RecursionMode) -> None:
+@pytest.mark.parametrize("recursion", ["immediate", "deferred"])
+def test_callback_order(recursion: Literal["immediate", "deferred"]) -> None:
     sig = SignalInstance((int,), recursion_mode=recursion)
 
     a = []
@@ -1020,18 +1019,13 @@ def test_callback_order(recursion: RecursionMode) -> None:
         # nested emission events occur immediately,
         # before proceeding to the next callback
         assert a == [1, 2, 20, 3, 30, 300, 200, 10, 100]
-    elif recursion == "immediate-drop":
-        # nested emission events occur immediately,
-        # before proceeding to the next callback
-        # AND any remaining emissions in the current loop level are cancelled
-        assert a == [1, 2, 20, 3, 30, 300]
     elif recursion == "deferred":
         # all callbacks are called once before the next one is called
         assert a == [1, 10, 100, 2, 20, 200, 3, 30, 300]
 
 
 @pytest.mark.parametrize("recursion", ["immediate", "deferred"])
-def test_signal_order_suspend(recursion: RecursionMode) -> None:
+def test_signal_order_suspend(recursion: Literal["immediate", "deferred"]) -> None:
     """Test that signals are emitted in the order they were connected."""
     sig = SignalInstance((int,), recursion_mode=recursion)
     mock1 = Mock()
