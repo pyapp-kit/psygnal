@@ -22,15 +22,9 @@ from pydantic import PrivateAttr
 
 from ._group import SignalGroup
 from ._group_descriptor import _check_field_equality, _pick_equality_operator
-from ._signal import DEFAULT_RECURSION_MODE, Signal
+from ._signal import Signal
 
-NULL = object()
-ALLOW_PROPERTY_SETTERS = "allow_property_setters"
-FIELD_DEPENDENCIES = "field_dependencies"
-GUESS_PROPERTY_DEPENDENCIES = "guess_property_dependencies"
-RECURSION_MODE = "recursion_mode"
 PYDANTIC_V1 = pydantic.version.VERSION.startswith("1")
-
 
 if TYPE_CHECKING:
     from inspect import Signature
@@ -58,6 +52,14 @@ else:
 
         def dataclass_transform(*args, **kwargs):
             return lambda a: a
+
+
+NULL = object()
+ALLOW_PROPERTY_SETTERS = "allow_property_setters"
+FIELD_DEPENDENCIES = "field_dependencies"
+GUESS_PROPERTY_DEPENDENCIES = "guess_property_dependencies"
+RECURSION_MODE = "recursion_mode"
+DEFAULT_RECURSION_MODE: "RecursionMode" = "deferred"
 
 
 @contextmanager

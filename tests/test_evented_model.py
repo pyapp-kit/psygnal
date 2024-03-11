@@ -913,6 +913,8 @@ def test_if_event_is_emitted_only_once() -> None:
     ],
 )
 def test_evented_model_recursion_mode(mode: Union[str, dict]) -> None:
+    from psygnal._evented_model import DEFAULT_RECURSION_MODE
+
     err = mode == "err" or isinstance(mode, dict) and "err" in mode.values()
     with pytest.raises(ValueError, match="Invalid recursion") if err else nullcontext():
 
@@ -932,8 +934,8 @@ def test_evented_model_recursion_mode(mode: Union[str, dict]) -> None:
 
     m = Model(a=1, b=2)
     if isinstance(mode, dict):
-        assert m.events.a._recursion_mode == mode.get("a", "immediate")
-        assert m.events.b._recursion_mode == mode.get("b", "immediate")
+        assert m.events.a._recursion_mode == mode.get("a", DEFAULT_RECURSION_MODE)
+        assert m.events.b._recursion_mode == mode.get("b", DEFAULT_RECURSION_MODE)
     else:
         assert m.events.a._recursion_mode == mode
         assert m.events.b._recursion_mode == mode
