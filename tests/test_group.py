@@ -121,7 +121,7 @@ def test_signal_group_connect_no_args() -> None:
     def my_slot() -> None:
         count.append(1)
 
-    group.all.connect(my_slot)
+    group.connect(my_slot)
     group.sig1.emit(1)
     group.sig2.emit("hi")
     assert len(count) == 2
@@ -133,7 +133,7 @@ def test_group_blocked() -> None:
     mock1 = Mock()
     mock2 = Mock()
 
-    group.all.connect(mock1)
+    group.connect(mock1)
     group.sig1.connect(mock2)
     group.sig1.emit(1)
 
@@ -185,7 +185,7 @@ def test_group_disconnect_single_slot() -> None:
     group.sig1.connect(mock1)
     group.sig2.connect(mock2)
 
-    group.all.disconnect(mock1)
+    group.disconnect(mock1)
     group.sig1.emit()
     mock1.assert_not_called()
 
@@ -203,7 +203,7 @@ def test_group_disconnect_all_slots() -> None:
     group.sig1.connect(mock1)
     group.sig2.connect(mock2)
 
-    group.all.disconnect()
+    group.disconnect()
     group.sig1.emit()
     group.sig2.emit()
 
@@ -259,14 +259,14 @@ def test_group_deepcopy(
     group = Group(obj)
     assert deepcopy(group) is not group  # but no warning
 
-    group.all.connect(obj.method)
+    group.connect(obj.method)
     group2 = deepcopy(group)
 
     assert not len(group2.all)
     mock = Mock()
     mock2 = Mock()
-    group.all.connect(mock)
-    group2.all.connect(mock2)
+    group.connect(mock)
+    group2.connect(mock2)
 
     # test that we can access signalinstances (either using getattr or __getitem__)
     siginst1 = get_sig(group, signame)
