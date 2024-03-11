@@ -11,7 +11,6 @@ from typing import (
     Any,
     Callable,
     ClassVar,
-    Generic,
     Iterable,
     Literal,
     Type,
@@ -34,7 +33,6 @@ __all__ = ["is_evented", "get_evented_namespace", "SignalGroupDescriptor"]
 
 T = TypeVar("T", bound=Type)
 S = TypeVar("S")
-GroupType = TypeVar("GroupType", bound=SignalGroup)
 
 
 EqOperator = Callable[[Any, Any], bool]
@@ -146,9 +144,9 @@ class _DataclassFieldSignalInstance(SignalInstance):
 
 def _build_dataclass_signal_group(
     cls: type,
-    signal_group_class: type[GroupType],
+    signal_group_class: type[SignalGroup],
     equality_operators: Iterable[tuple[str, EqOperator]] | None = None,
-) -> type[GroupType]:
+) -> type[SignalGroup]:
     """Build a SignalGroup with events for each field in a dataclass.
 
     Parameters
@@ -305,7 +303,7 @@ def evented_setattr(
     return _inner(super_setattr) if super_setattr else _inner
 
 
-class SignalGroupDescriptor(Generic[GroupType]):
+class SignalGroupDescriptor:
     """Create a [`psygnal.SignalGroup`][] on first instance attribute access.
 
     This descriptor is designed to be used as a class attribute on a dataclass-like
@@ -409,10 +407,10 @@ class SignalGroupDescriptor(Generic[GroupType]):
         warn_on_no_fields: bool = True,
         cache_on_instance: bool = True,
         patch_setattr: bool = True,
-        signal_group_class: type[GroupType] | None = None,
+        signal_group_class: type[SignalGroup] | None = None,
         collect_fields: bool = True,
     ):
-        grp_cls = signal_group_class or cast(Type[GroupType], SignalGroup)
+        grp_cls = signal_group_class or cast(Type[SignalGroup], SignalGroup)
         if not (isinstance(grp_cls, type) and issubclass(grp_cls, SignalGroup)):
             raise TypeError(  # pragma: no cover
                 f"'signal_group_class' must be a subclass of SignalGroup, "
@@ -430,9 +428,9 @@ class SignalGroupDescriptor(Generic[GroupType]):
         self._cache_on_instance = cache_on_instance
         self._patch_setattr = patch_setattr
 
-        self._signal_group_class: type[GroupType] = grp_cls
+        self._signal_group_class: type[SignalGroup] = grp_cls
         self._collect_fields = collect_fields
-        self._signal_groups: dict[int, type[GroupType]] = {}
+        self._signal_groups: dict[int, type[SignalGroup]] = {}
 
     def __set_name__(self, owner: type, name: str) -> None:
         """Called when this descriptor is added to class `owner` as attribute `name`."""
@@ -465,11 +463,11 @@ class SignalGroupDescriptor(Generic[GroupType]):
     def __get__(self, instance: None, owner: type) -> SignalGroupDescriptor: ...
 
     @overload
-    def __get__(self, instance: object, owner: type) -> GroupType: ...
+    def __get__(self, instance: object, owner: type) -> SignalGroup: ...
 
     def __get__(
         self, instance: object, owner: type
-    ) -> GroupType | SignalGroupDescriptor:
+    ) -> SignalGroup | SignalGroupDescriptor:
         """Return a SignalGroup instance for `instance`."""
         if instance is None:
             return self
@@ -493,15 +491,15 @@ class SignalGroupDescriptor(Generic[GroupType]):
             with contextlib.suppress(TypeError):  # if it's not weakref-able
                 weakref.finalize(instance, self._instance_map.pop, obj_id, None)
 
-        return cast("GroupType", self._instance_map[obj_id])
+        return self._instance_map[obj_id]
 
-    def _get_signal_group(self, owner: type) -> type[GroupType]:
+    def _get_signal_group(self, owner: type) -> type[SignalGroup]:
         type_id = id(owner)
         if type_id not in self._signal_groups:
             self._signal_groups[type_id] = self._create_group(owner)
         return self._signal_groups[type_id]
 
-    def _create_group(self, owner: type) -> type[GroupType]:
+    def _create_group(self, owner: type) -> type[SignalGroup]:
         # Do not collect fields from owner class, copy the SignalGroup
         if not self._collect_fields:
             Group = copy.deepcopy(self._signal_group_class)
