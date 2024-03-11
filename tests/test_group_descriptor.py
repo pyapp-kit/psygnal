@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 from dataclasses import dataclass
 from typing import Any, ClassVar
 from unittest.mock import Mock, patch
@@ -227,17 +228,24 @@ def test_evented_field_connect_setattr() -> None:
 
 @pytest.mark.parametrize("collect", [True, False])
 @pytest.mark.parametrize("klass", [None, SignalGroup, MyGroup])
-def test_collect_fields(collect, klass) -> None:
+def test_collect_fields(collect: bool, klass: type[SignalGroup] | None) -> None:
     signal_class = klass or SignalGroup
+    should_fail_def = signal_class is SignalGroup and collect is False
+    ctx = pytest.raises(ValueError) if should_fail_def else nullcontext()
 
-    @dataclass
-    class Foo:
-        events: ClassVar = SignalGroupDescriptor(
-            warn_on_no_fields=False,
-            signal_group_class=klass,
-            collect_fields=collect,
-        )
-        a: int = 1
+    with ctx:
+
+        @dataclass
+        class Foo:
+            events: ClassVar = SignalGroupDescriptor(
+                warn_on_no_fields=False,
+                signal_group_class=klass,
+                collect_fields=collect,
+            )
+            a: int = 1
+
+    if should_fail_def:
+        return
 
     @dataclass
     class Bar(Foo):
@@ -245,8 +253,6 @@ def test_collect_fields(collect, klass) -> None:
 
     foo = Foo()
     bar = Bar()
-
-    signal_class = klass or SignalGroup
 
     # Cannot instantiate SignalGroup directly, use a subclass
     if not collect and signal_class is SignalGroup:
