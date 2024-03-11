@@ -29,8 +29,7 @@ jobs:
           installer-url: https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-Linux-x86_64.sh
       - name: install
         run: |
-          pip install -U wheel
-          pip install -U asv
+          pip install -U wheel asv
           git checkout main && git checkout -
           asv machine --machine github-actions --yes
 

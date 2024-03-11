@@ -20,6 +20,7 @@ watch:
 nav:
   - Overview: index.md
   - Usage: usage.md
+  - Debugging: debugging.md
   - Evented Dataclasses: dataclasses.md
   - API:
     - Core API: API/index.md
