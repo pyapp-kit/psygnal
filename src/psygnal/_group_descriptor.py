@@ -6,7 +6,6 @@ import operator
 import sys
 import warnings
 import weakref
-from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -561,7 +560,9 @@ def connect_child_events(
             child_group = _find_signal_group(child)
             if child_group is not None:
                 child_group.connect(
-                    partial(_group._psygnal_relay._slot_relay, attr_name=attr_name)
+                    _group._psygnal_relay._relay_attr(attr_name),
+                    check_nargs=False,
+                    on_ref_error="ignore",
                 )
                 if recurse:
                     connect_child_events(child, recurse=True, _group=child_group)

@@ -107,6 +107,9 @@ class SignalRelay(SignalInstance):
             info = EmissionInfo(emitter, args, attr_name)
             self._run_emit_loop((info,))
 
+    def _relay_attr(self, attr_name: str) -> _relay_attr:
+        return _relay_attr(self, attr_name)
+
     def connect_direct(
         self,
         slot: Callable | None = None,
@@ -549,3 +552,18 @@ def _is_uniform(signals: Iterable[Signal]) -> bool:
             return False
         seen.add(v)
     return True
+
+
+class _relay_attr:
+    __slots__ = "relay", "attr_name", "__weakref__"
+    relay: SignalRelay
+    attr_name: str | None
+
+    def __new__(cls, relay: SignalRelay, attr_name: str | None = None) -> _relay_attr:
+        self = super().__new__(cls)
+        self.relay = relay
+        self.attr_name = attr_name
+        return self
+
+    def __call__(self, /, *args: Any) -> Any:
+        return self.relay._slot_relay(*args, attr_name=self.attr_name)
