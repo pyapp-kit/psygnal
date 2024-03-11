@@ -50,13 +50,16 @@ if TYPE_CHECKING:
     # function that takes two args tuples. it will be passed to itertools.reduce
     ReducerTwoArgs = Callable[[tuple, tuple], tuple]
     ReducerFunc = Union[ReducerOneArg, ReducerTwoArgs]
-    RecursionMode = Literal["immediate", "deferred"]
+
 
 __all__ = ["Signal", "SignalInstance", "_compiled"]
+RecursionMode = Literal["immediate", "deferred", "immediate-drop"]
+
 _NULL = object()
 F = TypeVar("F", bound=Callable)
 RECURSION_LIMIT = sys.getrecursionlimit()
 DEFAULT_RECURSION_MODE: RecursionMode = "immediate"
+RECURSION_MODES: set[RecursionMode] = set(RecursionMode.__args__)  # type: ignore
 
 
 class Signal:
@@ -118,6 +121,10 @@ class Signal:
           calling all callbacks with the arguments of the nested emitter before
           returning to continue the original emission loop.  This is the default
           behavior.
+        - "immediate-drop": Nested emission events immediately begin a deeper emission
+            loop, and the original emission loop is dis-continued.  This can be useful
+            when callbacks update their own state in response to their own emissions,
+            and the original emission loop is no longer relevant.
         - "deferred": Nested emission events are deferred until the current emission
           loop is complete.
     """
@@ -334,6 +341,10 @@ class SignalInstance:
           calling all callbacks with the arguments of the nested emitter before
           returning to continue the original emission loop.  This is the default
           behavior.
+        - "immediate-drop": Nested emission events immediately begin a deeper emission
+            loop, and the original emission loop is dis-continued.  This can be useful
+            when callbacks update their own state in response to their own emissions,
+            and the original emission loop is no longer relevant.
         - "deferred": Nested emission events are deferred until the current emission
           loop is complete.
 
@@ -356,7 +367,7 @@ class SignalInstance:
         name: str | None = None,
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
-        recursion_mode: RecursionMode = "immediate",
+        recursion_mode: RecursionMode = DEFAULT_RECURSION_MODE,
     ) -> None:
         if isinstance(signature, (list, tuple)):
             signature = _build_signature(*signature)
@@ -366,10 +377,10 @@ class SignalInstance:
                 "instance of `inspect.Signature`"
             )
 
-        if recursion_mode not in ("immediate", "deferred"):  # pragma: no cover
+        if recursion_mode not in RECURSION_MODES:  # pragma: no cover
             raise ValueError(
-                "recursion_mode must be one of 'immediate' or 'deferred', not "
-                f"{recursion_mode!r}"
+                f"recursion_mode must be one of {', '.join(RECURSION_MODES)}. "
+                f"Not {recursion_mode!r}"
             )
 
         self._name = name
@@ -383,12 +394,16 @@ class SignalInstance:
         self._is_paused: bool = False
         self._lock = threading.RLock()
         self._emit_queue: deque[tuple] = deque()
+        self._recursion_depth: int = 0
+        self._max_recursion_depth: int = 0
         self._recursion_mode = recursion_mode
         self._run_emit_loop_inner: Callable[[], None]
-        if self._recursion_mode == "immediate":
-            self._run_emit_loop_inner = self._run_emit_loop_immediate
-        else:
+        if self._recursion_mode == "deferred":
             self._run_emit_loop_inner = self._run_emit_loop_deferred
+        elif self._recursion_mode == "immediate-drop":
+            self._run_emit_loop_inner = self._run_emit_loop_immediate_drop
+        else:
+            self._run_emit_loop_inner = self._run_emit_loop_immediate
 
         # whether any slots in self._slots have a priority other than 0
         self._priority_in_use = False
@@ -1040,8 +1055,12 @@ class SignalInstance:
             if len(self._emit_queue) > 1:
                 return
             try:
+                # allow receiver to query sender with Signal.current_emitter()
+                self._recursion_depth += 1
+                self._max_recursion_depth = max(
+                    self._max_recursion_depth, self._recursion_depth
+                )
                 with Signal._emitting(self):
-                    # allow receiver to query sender with Signal.current_emitter()
                     self._run_emit_loop_inner()
             except RecursionError as e:
                 raise RecursionError(
@@ -1053,12 +1072,25 @@ class SignalInstance:
                     cb=self._caller, args=self._args, exc=e, signal=self
                 ) from e
             finally:
+                self._recursion_depth -= 1
+                # we're back to the root level of the emit loop, reset max_depth
+                if self._recursion_depth <= 0:
+                    self._max_recursion_depth = 0
                 self._emit_queue.clear()
 
     def _run_emit_loop_immediate(self) -> None:
         self._args = args = self._emit_queue.popleft()
-        caller = None
         for caller in self._slots:
+            self._caller = caller
+            caller.cb(args)
+
+    def _run_emit_loop_immediate_drop(self) -> None:
+        self._args = args = self._emit_queue.popleft()
+        for caller in self._slots:
+            if self._recursion_depth < self._max_recursion_depth:
+                # we've already entered a deeper emit loop
+                # we should drop the remaining slots in this round and return
+                break
             self._caller = caller
             caller.cb(args)
 
@@ -1222,6 +1254,8 @@ class SignalInstance:
             "_emit_queue",
             "_priority_in_use",
             "_recursion_mode",
+            "_max_recursion_depth",
+            "_recursion_depth",
         )
         dd = {slot: getattr(self, slot) for slot in attrs}
         dd["_instance"] = self._instance()
