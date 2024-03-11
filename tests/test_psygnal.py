@@ -979,8 +979,9 @@ def test_pickle():
 
 
 @pytest.mark.skipif(PY39 and WINDOWS and COMPILED, reason="fails")
-def test_recursion_error() -> None:
-    s = SignalInstance()
+@pytest.mark.parametrize("recursion", ["immediate", "deferred"])
+def test_recursion_error(recursion: Literal["immediate", "deferred"]) -> None:
+    s = SignalInstance(recursion_mode=recursion)
 
     @s.connect
     def callback() -> None:
@@ -990,54 +991,72 @@ def test_recursion_error() -> None:
         s.emit()
 
 
-def test_signal_order():
+@pytest.mark.parametrize("recursion", ["immediate", "deferred"])
+def test_callback_order(recursion: Literal["immediate", "deferred"]) -> None:
+    sig = SignalInstance((int,), recursion_mode=recursion)
+
+    a = []
+
+    def cb1(value: int) -> None:
+        a.append(value)
+        if value == 1:
+            sig.emit(2)
+
+    def cb2(value: int) -> None:
+        a.append(value * 10)
+        if value == 2:
+            sig.emit(3)
+
+    def cb3(value: int) -> None:
+        a.append(value * 100)
+
+    sig.connect(cb1)
+    sig.connect(cb2)
+    sig.connect(cb3)
+    sig.emit(1)
+
+    if recursion == "immediate":
+        # nested emission events occur immediately,
+        # before proceeding to the next callback
+        assert a == [1, 2, 20, 3, 30, 300, 200, 10, 100]
+    elif recursion == "deferred":
+        # all callbacks are called once before the next one is called
+        assert a == [1, 10, 100, 2, 20, 200, 3, 30, 300]
+
+
+@pytest.mark.parametrize("recursion", ["immediate", "deferred"])
+def test_signal_order_suspend(recursion: Literal["immediate", "deferred"]) -> None:
     """Test that signals are emitted in the order they were connected."""
-    emitter = Emitter()
-    mock1 = Mock()
-    mock2 = Mock()
-
-    def callback(x):
-        if x != 10:
-            emitter.one_int.emit(10)
-
-    emitter.one_int.connect(mock1)
-    emitter.one_int.connect(callback)
-    emitter.one_int.connect(mock2)
-    emitter.one_int.emit(1)
-
-    mock1.assert_has_calls([call(1), call(10)])
-    mock2.assert_has_calls([call(1), call(10)])
-
-
-def test_signal_order_suspend():
-    """Test that signals are emitted in the order they were connected."""
-    emitter = Emitter()
+    sig = SignalInstance((int,), recursion_mode=recursion)
     mock1 = Mock()
     mock2 = Mock()
 
     def callback(x):
         if x < 10:
-            emitter.one_int.emit(10)
+            sig.emit(10)
 
     def callback2(x):
         if x == 10:
-            emitter.one_int.emit(11)
+            sig.emit(11)
 
     def callback3(x):
         if x == 10:
-            with emitter.one_int.paused(reducer=lambda a, b: (a[0] + b[0],)):
+            with sig.paused(reducer=lambda a, b: (a[0] + b[0],)):
                 for i in range(12, 15):
-                    emitter.one_int.emit(i)
+                    sig.emit(i)
 
-    emitter.one_int.connect(mock1)
-    emitter.one_int.connect(callback)
-    emitter.one_int.connect(callback2)
-    emitter.one_int.connect(callback3)
-    emitter.one_int.connect(mock2)
-    emitter.one_int.emit(1)
+    sig.connect(mock1)
+    sig.connect(callback)
+    sig.connect(callback2)
+    sig.connect(callback3)
+    sig.connect(mock2)
+    sig.emit(1)
 
     mock1.assert_has_calls([call(1), call(10), call(11), call(39)])
-    mock2.assert_has_calls([call(1), call(10), call(11), call(39)])
+    if recursion == "immediate":
+        mock2.assert_has_calls([call(11), call(39), call(10), call(1)])
+    else:
+        mock2.assert_has_calls([call(1), call(10), call(11), call(39)])
 
 
 def test_call_priority() -> None:

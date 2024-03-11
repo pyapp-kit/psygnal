@@ -1,5 +1,6 @@
 import inspect
 import sys
+from contextlib import nullcontext
 from typing import Any, ClassVar, List, Protocol, Sequence, Union, runtime_checkable
 from unittest.mock import Mock, call, patch
 
@@ -897,3 +898,44 @@ def test_if_event_is_emitted_only_once() -> None:
     a_m.assert_called_once()
     c_m.assert_called_once()
     d_m.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "mode",
+    [
+        "immediate",
+        "deferred",
+        {"a": "immediate", "b": "deferred"},
+        {"a": "immediate", "b": "err"},
+        {"a": "deferred"},
+        {},
+        "err",
+    ],
+)
+def test_evented_model_recursion_mode(mode: Union[str, dict]) -> None:
+    from psygnal._evented_model import DEFAULT_RECURSION_MODE
+
+    err = mode == "err" or isinstance(mode, dict) and "err" in mode.values()
+    with pytest.raises(ValueError, match="Invalid recursion") if err else nullcontext():
+
+        class Model(EventedModel):
+            a: int
+            b: int
+
+            if PYDANTIC_V2:
+                model_config = {"recursion_mode": mode}
+            else:
+
+                class Config:
+                    recursion_mode = mode
+
+    if err:
+        return
+
+    m = Model(a=1, b=2)
+    if isinstance(mode, dict):
+        assert m.events.a._recursion_mode == mode.get("a", DEFAULT_RECURSION_MODE)
+        assert m.events.b._recursion_mode == mode.get("b", DEFAULT_RECURSION_MODE)
+    else:
+        assert m.events.a._recursion_mode == mode
+        assert m.events.b._recursion_mode == mode
