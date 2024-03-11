@@ -410,7 +410,7 @@ class SignalGroupDescriptor:
         signal_group_class: type[SignalGroup] | None = None,
         collect_fields: bool = True,
     ):
-        grp_cls = signal_group_class or cast(Type[SignalGroup], SignalGroup)
+        grp_cls = signal_group_class or SignalGroup
         if not (isinstance(grp_cls, type) and issubclass(grp_cls, SignalGroup)):
             raise TypeError(  # pragma: no cover
                 f"'signal_group_class' must be a subclass of SignalGroup, "
