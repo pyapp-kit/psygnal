@@ -118,7 +118,7 @@ def evented(
         if any(k.startswith("_psygnal") for k in getattr(cls, "__annotations__", {})):
             raise TypeError("Fields on an evented class cannot start with '_psygnal'")
 
-        descriptor = SignalGroupDescriptor(
+        descriptor: SignalGroupDescriptor = SignalGroupDescriptor(
             equality_operators=equality_operators,
             warn_on_no_fields=warn_on_no_fields,
             cache_on_instance=cache_on_instance,
