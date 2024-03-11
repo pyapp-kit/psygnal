@@ -45,11 +45,17 @@ class EmissionInfo(NamedTuple):
     Attributes
     ----------
     signal : SignalInstance
+        The SignalInstance doing the emitting
     args: tuple
+        The args that were emitted
+    attr_name: str | None
+        If the `SignalInstance` was a `SignalGroup` attribute on another object, this
+        will be the name of that attribute.  Otherwise, it will be `None`.
     """
 
     signal: SignalInstance
     args: tuple[Any, ...]
+    attr_name: str | None = None
 
 
 class SignalRelay(SignalInstance):
@@ -96,9 +102,9 @@ class SignalRelay(SignalInstance):
         for sig in self._signals.values():
             sig.disconnect(self._slot_relay)
 
-    def _slot_relay(self, *args: Any) -> None:
+    def _slot_relay(self, *args: Any, attr_name: str | None = None) -> None:
         if emitter := Signal.current_emitter():
-            info = EmissionInfo(emitter, args)
+            info = EmissionInfo(emitter, args, attr_name)
             self._run_emit_loop((info,))
 
     def connect_direct(
@@ -107,7 +113,7 @@ class SignalRelay(SignalInstance):
         *,
         check_nargs: bool | None = None,
         check_types: bool | None = None,
-        unique: bool | str = False,
+        unique: bool | Literal["raise"] = False,
         max_args: int | None = None,
     ) -> Callable[[Callable], Callable] | Callable:
         """Connect `slot` to be called whenever *any* Signal in this group is emitted.
@@ -128,7 +134,7 @@ class SignalRelay(SignalInstance):
             If `True`, An additional check will be performed to make sure that types
             declared in the slot signature are compatible with the signature
             declared by this signal, by default `False`.
-        unique : bool | str
+        unique : bool | Literal["raise"]
             If `True`, returns without connecting if the slot has already been
             connected.  If the literal string "raise" is passed to `unique`, then a
             `ValueError` will be raised if the slot is already connected.
@@ -437,7 +443,7 @@ class SignalGroup:
         thread: threading.Thread | Literal["main", "current"] | None = ...,
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
-        unique: bool | str = ...,
+        unique: bool | Literal["raise"] = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
         priority: int = ...,
@@ -451,7 +457,7 @@ class SignalGroup:
         thread: threading.Thread | Literal["main", "current"] | None = ...,
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
-        unique: bool | str = ...,
+        unique: bool | Literal["raise"] = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
         priority: int = ...,
@@ -464,7 +470,7 @@ class SignalGroup:
         thread: threading.Thread | Literal["main", "current"] | None = None,
         check_nargs: bool | None = None,
         check_types: bool | None = None,
-        unique: bool | str = False,
+        unique: bool | Literal["raise"] = False,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = "warn",
         priority: int = 0,
@@ -497,7 +503,7 @@ class SignalGroup:
         *,
         check_nargs: bool | None = None,
         check_types: bool | None = None,
-        unique: bool | str = False,
+        unique: bool | Literal["raise"] = False,
         max_args: int | None = None,
     ) -> Callable[[Callable], Callable] | Callable:
         return self._psygnal_relay.connect_direct(

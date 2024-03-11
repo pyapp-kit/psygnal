@@ -422,7 +422,7 @@ class EventedList(MutableSequence[_T]):
             and isinstance(emitter, SignalRelay)
             and isinstance(args[0], EmissionInfo)
         ):
-            emitter, args = args[0]
+            emitter, args, *_ = args[0]
 
         self.events.child_event.emit(idx, obj, emitter, args)
 

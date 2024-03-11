@@ -7,7 +7,7 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 
-from psygnal import SignalInstance
+from psygnal import EmissionInfo, SignalInstance
 from psygnal._group import SignalRelay
 
 try:
@@ -308,3 +308,52 @@ def test_name_conflicts() -> None:
         TypeError, match="Fields on an evented class cannot start with '_psygnal'"
     ):
         _ = evented(Foo3)
+
+
+def test_nesting() -> None:
+    from dataclasses import dataclass, field
+
+    from psygnal._group_descriptor import connect_child_events
+
+    @dataclass
+    class Foo:
+        events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
+        x: int = 1
+
+    @dataclass
+    class Bar:
+        events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
+        y: int = 2
+        foo: Foo = field(default_factory=Foo)
+
+    @dataclass
+    class Baz:
+        events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
+        z: int = 3
+        bar: Bar = field(default_factory=Bar)
+
+        def __post_init__(self) -> None:
+            connect_child_events(self, recurse=True)
+
+    baz = Baz()
+    mock = Mock()
+    baz.events.all.connect(mock)
+
+    baz.bar.foo.x = 3  # trigger nested event
+
+    # what we expect
+    inner_inner_info = EmissionInfo(baz.bar.foo.events.x, (3, 1), None)
+    inner_info = EmissionInfo(baz.bar.foo.events.all, (inner_inner_info,), "foo")
+    expected = EmissionInfo(baz.bar.events.all, (inner_info,), "bar")
+    mock.assert_called_with(expected)
+
+    # should be moved to lib somewhere
+    def _full_path(info: EmissionInfo) -> list[str]:
+        path = []
+        while info.attr_name and info.args:
+            path.append(info.attr_name)
+            info = info.args[0]
+        path.append(info.signal.name)
+        return path
+
+    assert _full_path(mock.call_args[0][0]) == ["bar", "foo", "x"]

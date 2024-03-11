@@ -1,12 +1,6 @@
 from __future__ import annotations
 
-from typing import (
-    Any,
-    Callable,
-    Literal,
-    TypeVar,
-    overload,
-)
+from typing import Any, Callable, Literal, TypeVar, overload
 
 from psygnal._group_descriptor import SignalGroupDescriptor
 
