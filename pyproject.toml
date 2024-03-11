@@ -63,7 +63,7 @@ test = [
     "pytest>=6.0",
     "pytest-cov",
     "wrapt",
-    "msgspec ; python_version >= '3.8'",
+    "msgspec",
     "toolz",
 ]
 testqt = ["pytest-qt", "qtpy"]
@@ -96,7 +96,7 @@ dependencies = [
     "mypy_extensions >=0.4.2",
     "pydantic",
     "types-attrs",
-    "msgspec ; python_version >= '3.8'",
+    "msgspec",
 ]
 exclude = [
     "src/psygnal/__init__.py",

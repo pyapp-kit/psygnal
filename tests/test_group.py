@@ -319,6 +319,53 @@ def test_group_conflicts() -> None:
     assert subgroup.other_signal.name == "other_signal"
 
 
+def test_group_iter() -> None:
+    class Group1(SignalGroup):
+        sig1 = Signal()
+        sig2 = Signal()
+        sig3 = Signal()
+
+    # Delete Signal on Group class
+    # You should never do that
+    del Group1._psygnal_signals["sig1"]
+
+    assert set(Group1._psygnal_signals) == {"sig2", "sig3"}
+    assert hasattr(Group1, "sig1")
+
+    g = Group1()
+
+    # Delete Signal on Group instance
+    # You should never do that
+    del g._psygnal_signals["sig2"]
+
+    assert "sig1" not in g
+    assert "sig2" in g
+    assert set(g) == {"sig2", "sig3"}
+
+    with pytest.raises(KeyError):
+        g["sig1"]
+
+    sig1_t = g.sig1
+    assert isinstance(sig1_t, SignalInstance)
+    assert sig1_t.name == "sig1"
+
+    sig2 = g["sig2"]
+    assert isinstance(sig2, SignalInstance)
+    assert sig2.name == "sig2"
+
+    sig2_t = g.sig2
+    assert isinstance(sig2_t, SignalInstance)
+    assert sig2_t.name == "sig2"
+
+    # Delete SignalInstance
+    del g._psygnal_instances["sig3"]
+
+    assert "sig3" not in g
+    assert set(g) == {"sig2"}
+    with pytest.raises(KeyError):
+        g["sig3"]
+
+
 def test_group_subclass() -> None:
     # Signals are passed to sub-classes
     class Group1(SignalGroup):
