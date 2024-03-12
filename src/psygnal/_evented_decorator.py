@@ -19,6 +19,7 @@ def evented(
     equality_operators: dict[str, EqOperator] | None = None,
     warn_on_no_fields: bool = ...,
     cache_on_instance: bool = ...,
+    connect_child_events: bool = True,
 ) -> T: ...
 
 
@@ -30,6 +31,7 @@ def evented(
     equality_operators: dict[str, EqOperator] | None = None,
     warn_on_no_fields: bool = ...,
     cache_on_instance: bool = ...,
+    connect_child_events: bool = True,
 ) -> Callable[[T], T]: ...
 
 
@@ -40,6 +42,7 @@ def evented(
     equality_operators: dict[str, EqOperator] | None = None,
     warn_on_no_fields: bool = True,
     cache_on_instance: bool = True,
+    connect_child_events: bool = True,
 ) -> Callable[[T], T] | T:
     """A decorator to add events to a dataclass.
 
@@ -79,6 +82,14 @@ def evented(
         access, but means that the owner instance will no longer be pickleable.  If
         `False`, the SignalGroup instance will *still* be cached, but not on the
         instance itself.
+    connect_child_events : bool, optional
+        If `True`, will connect events from all fields on the dataclass whose type is
+        also "evented" (as determined by the `is_evented` function in this module,
+        which returns True if the class has been decorated with `@evented`, or if it
+        has a SignalGroupDescriptor) to the group on the parent object. By default
+        False.
+        This is useful for nested evented dataclasses, where you want to monitor events
+        emitted from arbitrarily deep children on the parent object.
 
     Returns
     -------
@@ -116,6 +127,7 @@ def evented(
             equality_operators=equality_operators,
             warn_on_no_fields=warn_on_no_fields,
             cache_on_instance=cache_on_instance,
+            connect_child_events=connect_child_events,
         )
         # as a decorator, this will have already been called
         descriptor.__set_name__(cls, events_namespace)

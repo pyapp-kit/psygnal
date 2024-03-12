@@ -49,13 +49,32 @@ class EmissionInfo(NamedTuple):
     args: tuple
         The args that were emitted
     attr_name: str | None
-        If the `SignalInstance` was a `SignalGroup` attribute on another object, this
+        If the emitter was a `SignalGroup` attribute on another object, this
         will be the name of that attribute.  Otherwise, it will be `None`.
     """
 
     signal: SignalInstance
     args: tuple[Any, ...]
     attr_name: str | None = None
+
+    @property
+    def instance(self) -> Any:
+        """The object to which the signal is bound."""
+        return self.signal.instance
+
+    def attr_path(info: EmissionInfo) -> tuple[str, ...]:
+        """Return the name path of the possibly nested signal that emitted this info.
+
+        In the case of nested signals, this will return a tuple of the attribute names
+        of signals that were traversed to get to the final signal.  If the signal was
+        emitted directly, this will return a tuple with just the signal name.
+        """
+        path = []
+        while isinstance(info, EmissionInfo) and info.attr_name and info.args:
+            path.append(info.attr_name)
+            info = info.args[0]
+        path.append(info.signal.name)
+        return tuple(path)
 
 
 class SignalRelay(SignalInstance):
@@ -107,8 +126,9 @@ class SignalRelay(SignalInstance):
             info = EmissionInfo(emitter, args, attr_name)
             self._run_emit_loop((info,))
 
-    def _relay_attr(self, attr_name: str) -> _relay_attr:
-        return _relay_attr(self, attr_name)
+    def _relay_partial(self, attr_name: str | None) -> _relay_partial:
+        """Return special partial that will call _slot_relay with 'attr_name'."""
+        return _relay_partial(self, attr_name)
 
     def connect_direct(
         self,
@@ -554,16 +574,28 @@ def _is_uniform(signals: Iterable[Signal]) -> bool:
     return True
 
 
-class _relay_attr:
-    __slots__ = "relay", "attr_name", "__weakref__"
-    relay: SignalRelay
-    attr_name: str | None
+class _relay_partial:
+    """Small, single-purpose, mypyc-friendly variant of functools.partial.
 
-    def __new__(cls, relay: SignalRelay, attr_name: str | None = None) -> _relay_attr:
-        self = super().__new__(cls)
+    Used to call SignalRelay._slot_relay with a specific attr_name.
+    __hash__ and __eq__ are implemented to make this object hashable and
+    comparable to other _relay_partial objects, so that adding it to a set
+    twice will not create two separate entries.
+    """
+
+    __slots__ = ("relay", "attr_name")
+
+    def __init__(self, relay: SignalRelay, attr_name: str | None = None) -> None:
         self.relay = relay
         self.attr_name = attr_name
-        return self
 
-    def __call__(self, /, *args: Any) -> Any:
+    def __call__(self, *args: Any) -> Any:
         return self.relay._slot_relay(*args, attr_name=self.attr_name)
+
+    def __hash__(self) -> int:
+        return hash((self.relay, self.attr_name))
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, _relay_partial):
+            return False
+        return self.relay == other.relay and self.attr_name == other.attr_name

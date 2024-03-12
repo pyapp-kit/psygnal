@@ -540,7 +540,7 @@ class SignalInstance:
             If the provided slot fails validation, either due to mismatched positional
             argument requirements, or failed type checking.
         ValueError
-            If `unique` is `True` and `slot` has already been connected.
+            If `unique` is `'raise'` and `slot` has already been connected.
         """
         if check_nargs is None:
             check_nargs = self._check_nargs_on_connect

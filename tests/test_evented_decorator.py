@@ -7,7 +7,7 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 
-from psygnal import EmissionInfo, SignalInstance
+from psygnal import EmissionInfo, Signal, SignalGroup, SignalInstance
 from psygnal._group import SignalRelay
 
 try:
@@ -24,7 +24,6 @@ from psygnal import (
     get_evented_namespace,
     is_evented,
 )
-from psygnal._group import SignalGroup
 
 decorated_or_descriptor = pytest.mark.parametrize(
     "decorator", [True, False], ids=["decorator", "descriptor"]
@@ -313,31 +312,30 @@ def test_name_conflicts() -> None:
 def test_nesting() -> None:
     from dataclasses import dataclass, field
 
-    from psygnal._group_descriptor import connect_child_events
-
+    @evented
     @dataclass
     class Foo:
-        events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
         x: int = 1
 
+    @evented
     @dataclass
     class Bar:
-        events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
         y: int = 2
         foo: Foo = field(default_factory=Foo)
 
+    # @evented(connect_child_events=True)  # could also use this syntax
     @dataclass
     class Baz:
-        events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
+        events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor(
+            connect_child_events=True
+        )
         z: int = 3
         bar: Bar = field(default_factory=Bar)
 
-        def __post_init__(self) -> None:
-            connect_child_events(self, recurse=True)
-
     baz = Baz()
     mock = Mock()
-    baz.events.all.connect(mock)
+    events: SignalGroup = baz.events
+    events.all.connect(mock)
 
     baz.bar.foo.x = 3  # trigger nested event
 
@@ -347,13 +345,20 @@ def test_nesting() -> None:
     expected = EmissionInfo(baz.bar.events.all, (inner_info,), "bar")
     mock.assert_called_with(expected)
 
-    # should be moved to lib somewhere
-    def _full_path(info: EmissionInfo) -> list[str]:
-        path = []
-        while info.attr_name and info.args:
-            path.append(info.attr_name)
-            info = info.args[0]
-        path.append(info.signal.name)
-        return path
+    info: EmissionInfo = mock.call_args[0][0]
+    assert info.attr_path() == ("bar", "foo", "x")
 
-    assert _full_path(mock.call_args[0][0]) == ["bar", "foo", "x"]
+
+def test_signal_relay_partial():
+    """Test hash and eq methods on _relay_partial objects"""
+
+    class T(SignalGroup):
+        sig = Signal(int)
+
+    t = T()
+    a = set()
+    a.add(t.all._relay_partial("attr_name"))
+    a.add(t.all._relay_partial("attr_name"))
+    assert len(a) == 1
+
+    assert t.all._relay_partial("attr_name") in a
