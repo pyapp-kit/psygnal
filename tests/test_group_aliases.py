@@ -22,11 +22,9 @@ from psygnal import (
     ],
 )
 def test_alias_parameters(type_: str) -> None:
-
     class MyGroup(SignalGroup, signal_aliases={"b": None, "bb": None}):
         b = Signal(str, str)
         bb = Signal(str, str)
-
 
     foo_options = {"signal_aliases": {"_b": None}}
     bar_options = {
@@ -34,9 +32,9 @@ def test_alias_parameters(type_: str) -> None:
     }
     baz_options = {"signal_aliases": {"a": "a_changed", "_b": "b_changed"}}
     baz2_options = {
-        "signal_group_class": MyGroup, "signal_aliases": {"aa": "a", "bb": "b"}
+        "signal_group_class": MyGroup,
+        "signal_aliases": {"aa": "a", "bb": "b"},
     }
-
 
     if type_ == "dataclass":
         from dataclasses import dataclass, field
@@ -75,7 +73,6 @@ def test_alias_parameters(type_: str) -> None:
             b: str
             bb: str
 
-
     elif type_ == "attrs":
         from attrs import define, field
 
@@ -113,7 +110,6 @@ def test_alias_parameters(type_: str) -> None:
             b: str
             bb: str
 
-
     elif type_ == "pydantic":
         pytest.importorskip("pydantic", minversion="2")
         from pydantic import BaseModel
@@ -148,7 +144,6 @@ def test_alias_parameters(type_: str) -> None:
             b: str
             bb: str
 
-
     elif type_ == "msgspec":
         msgspec = pytest.importorskip("msgspec")
 
@@ -182,7 +177,6 @@ def test_alias_parameters(type_: str) -> None:
             b: str
             bb: str
 
-
     # Instantiate objects
     foo = Foo(a=1, _b="b")
     bar = Bar(a=1, _b="b")
@@ -215,12 +209,8 @@ def test_alias_parameters(type_: str) -> None:
     with pytest.warns(UserWarning) as record:
         assert set(baz2.events) == {"a", "b", "bb"}
     assert len(record) == 2
-    assert record[0].message.args[0].startswith(
-        "Skip signal \'a\', was already created"
-    )
-    assert record[1].message.args[0].startswith(
-        "Skip signal \'b\', was already defined"
-    )
+    assert record[0].message.args[0].startswith("Skip signal 'a', was already created")
+    assert record[1].message.args[0].startswith("Skip signal 'b', was already defined")
     assert hasattr(baz.events, "_psygnal_aliases")
     assert baz2.events._psygnal_aliases == {
         "a": "a",
@@ -298,7 +288,6 @@ def test_alias_parameters(type_: str) -> None:
 
 
 def test_direct_signal_group() -> None:
-
     class FooSignalGroup(SignalGroup, signal_aliases={"e": None}):
         a = Signal(int, int)
         b_changed = Signal(float, float)
@@ -357,11 +346,11 @@ def test_direct_signal_group() -> None:
 
     assert hasattr(foo.events, "_psygnal_aliases")
     assert foo.events._psygnal_aliases == {
-        'b': 'b_changed',
-        '_c': 'c',
-        'c': None,
-        'e': None,
-        '_e': 'e',
+        "b": "b_changed",
+        "_c": "c",
+        "c": None,
+        "e": None,
+        "_e": "e",
     }
 
     mock = Mock()
