@@ -322,9 +322,13 @@ def test_child_events():
     assert mock.call_count == 3
 
     expected = [
-        call(EmissionInfo(root.events.inserting, (0,))),
-        call(EmissionInfo(root.events.inserted, (0, e_obj))),
-        call(EmissionInfo(root.events.child_event, (0, e_obj, e_obj.test, ("hi",)))),
+        call(EmissionInfo(root.events.inserting, (0,), "inserting")),
+        call(EmissionInfo(root.events.inserted, (0, e_obj), "inserted")),
+        call(
+            EmissionInfo(
+                root.events.child_event, (0, e_obj, e_obj.test, ("hi",)), "child_event"
+            )
+        ),
     ]
     mock.assert_has_calls(expected)
 
@@ -361,11 +365,13 @@ def test_child_events_groups():
     # when an object in the list owns an emitter group, then any emitter in that group
     # will also be detected, and child_event will emit (index, sub-emitter, args)
     expected = [
-        call(EmissionInfo(root.events.inserting, (0,))),
-        call(EmissionInfo(root.events.inserted, (0, e_obj))),
+        call(EmissionInfo(root.events.inserting, (0,), "inserting")),
+        call(EmissionInfo(root.events.inserted, (0, e_obj), "inserted")),
         call(
             EmissionInfo(
-                root.events.child_event, (0, e_obj, e_obj.events.test2, ("hi",))
+                root.events.child_event,
+                (0, e_obj, e_obj.events.test2, ("hi",)),
+                "child_event",
             )
         ),
     ]
