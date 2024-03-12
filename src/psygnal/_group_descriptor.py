@@ -187,13 +187,15 @@ def _build_dataclass_signal_group(
     # parse arguments
     _equality_operators = dict(equality_operators) if equality_operators else {}
     eq_map = _get_eq_operator_map(cls)
+    transform: FieldAliasFunc | None
     if callable(signal_aliases):
         transform = signal_aliases
         _signal_aliases = {}
     else:
-        transform = _identity
+        transform = None
         _signal_aliases = dict(signal_aliases) if signal_aliases else {}
     signal_group_sig_names = list(getattr(signal_group_class, "_psygnal_signals", {}))
+    signal_group_sig_aliases = dict(getattr(signal_group_class, "_psygnal_aliases", {}))
 
     signals = {}
     # create a Signal for each field in the dataclass
@@ -209,8 +211,12 @@ def _build_dataclass_signal_group(
         sig_name: str | None
         if name in _signal_aliases:
             sig_name = _signal_aliases[name]
-        else:
+        elif callable(transform):
             sig_name = transform(name)
+        elif name in signal_group_sig_aliases:
+            sig_name = signal_group_sig_aliases[name]
+        else:
+            sig_name = name
 
         # Add the field and signal name to the table of signals, to emit with `setattr`
         _signal_aliases[name] = sig_name
@@ -223,7 +229,7 @@ def _build_dataclass_signal_group(
         if sig_name in signals:
             key = next((k for k, v in _signal_aliases.items() if v == sig_name), None)
             warnings.warn(
-                f"Signal {sig_name} was already created in {group_name}, "
+                f"Skip signal {sig_name!r}, was already created in {group_name}, "
                 f"from field {key}",
                 UserWarning,
                 stacklevel=2,
@@ -231,7 +237,8 @@ def _build_dataclass_signal_group(
             continue
         if sig_name in signal_group_sig_names:
             warnings.warn(
-                f"Skip signal {sig_name}, was already defined by {signal_group_class}",
+                f"Skip signal {sig_name!r}, was already defined by "
+                f"{signal_group_class}",
                 UserWarning,
                 stacklevel=2,
             )
