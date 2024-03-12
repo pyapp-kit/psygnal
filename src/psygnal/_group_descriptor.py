@@ -14,6 +14,7 @@ from typing import (
     Iterable,
     Literal,
     Mapping,
+    Optional,
     Type,
     TypeVar,
     cast,
@@ -39,7 +40,7 @@ __all__ = [
 ]
 
 EqOperator = Callable[[Any, Any], bool]
-FieldAliasFunc = Callable[[str], str | None]
+FieldAliasFunc = Callable[[str], Optional[str]]
 T = TypeVar("T", bound=Type)
 S = TypeVar("S")
 
@@ -357,7 +358,7 @@ def evented_setattr(
 
             group: SignalGroup | None = getattr(self, signal_group_name, None)
             if not isinstance(group, SignalGroup):
-                return super_setattr(self, name, value)
+                return super_setattr(self, name, value)  # pragma: no cover
 
             # don't emit if the signal doesn't exist or has no listeners
             signal: SignalInstance | None = group.get_signal_by_alias(name)
@@ -586,7 +587,7 @@ class SignalGroupDescriptor:
 
             # Add aliases
             if callable(self._signal_aliases):
-                warnings.warn(
+                warnings.warn(  # pragma: no cover
                     "Skip signal aliases, cannot use a callable `signal_aliases` with "
                     "`collect_fields=False`",
                     UserWarning,
