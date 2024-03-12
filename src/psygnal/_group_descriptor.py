@@ -150,10 +150,6 @@ class _DataclassFieldSignalInstance(SignalInstance):
         )
 
 
-def _identity(x: str) -> str:
-    return x
-
-
 def _build_dataclass_signal_group(
     cls: type,
     signal_group_class: type[SignalGroup],
