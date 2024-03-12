@@ -340,13 +340,13 @@ def test_nesting() -> None:
     baz.bar.foo.x = 3  # trigger nested event
 
     # what we expect
-    inner_inner_info = EmissionInfo(baz.bar.foo.events.x, (3, 1), None)
+    inner_inner_info = EmissionInfo(baz.bar.foo.events.x, (3, 1), "x")
     inner_info = EmissionInfo(baz.bar.foo.events.all, (inner_inner_info,), "foo")
     expected = EmissionInfo(baz.bar.events.all, (inner_info,), "bar")
     mock.assert_called_with(expected)
 
     info: EmissionInfo = mock.call_args[0][0]
-    assert info.attr_path() == ("bar", "foo", "x")
+    assert info.flatten().loc == ("bar", "foo", "x")
 
 
 def test_signal_relay_partial():
@@ -357,8 +357,8 @@ def test_signal_relay_partial():
 
     t = T()
     a = set()
-    a.add(t.all._relay_partial("attr_name"))
-    a.add(t.all._relay_partial("attr_name"))
+    a.add(t.all._relay_partial("some_name"))
+    a.add(t.all._relay_partial("some_name"))
     assert len(a) == 1
 
-    assert t.all._relay_partial("attr_name") in a
+    assert t.all._relay_partial("some_name") in a

@@ -565,12 +565,12 @@ def connect_child_events(
     if _group is None and (_group := _find_signal_group(obj)) is None:
         return  # pragma: no cover  # not evented
 
-    for attr_name, attr_type in iter_fields(type(obj), exclude_frozen=True):
+    for loc, attr_type in iter_fields(type(obj), exclude_frozen=True):
         if is_evented(attr_type):
-            child = getattr(obj, attr_name, None)
+            child = getattr(obj, loc, None)
             if (child_group := _find_signal_group(child)) is not None:
                 child_group.connect(
-                    _group._psygnal_relay._relay_partial(attr_name),
+                    _group._psygnal_relay._relay_partial(loc),
                     check_nargs=False,
                     check_types=False,
                     on_ref_error="ignore",  # compiled objects are not weakref-able

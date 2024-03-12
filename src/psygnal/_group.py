@@ -48,28 +48,26 @@ class EmissionInfo(NamedTuple):
         The SignalInstance doing the emitting
     args: tuple
         The args that were emitted
-    attr_name: str | None
+    loc: str | None
         If the emitter was a `SignalGroup` attribute on another object, this
-        will be the name of that attribute.  Otherwise, it will be `None`.
+        will be the location of that emitter on the parent (e.g. name of that attribute
+        or index if the parent was an evented sequence).  Otherwise, it will be `None`.
     """
 
     signal: SignalInstance
     args: tuple[Any, ...]
-    attr_name: str | None = None
+    loc: str | int | None | tuple[int | str, ...] = None
 
-    def attr_path(info: EmissionInfo) -> tuple[str, ...]:
-        """Return the name path of the possibly nested signal that emitted this info.
-
-        In the case of nested signals, this will return a tuple of the attribute names
-        of signals that were traversed to get to the final signal.  If the signal was
-        emitted directly, this will return a tuple with just the signal name.
-        """
-        path = []
-        while isinstance(info, EmissionInfo) and info.attr_name and info.args:
-            path.append(info.attr_name)
+    def flatten(self) -> EmissionInfo:
+        """Return the final signal and args that were emitted."""
+        info = self
+        path: list[int | str] = []
+        while info.args and isinstance(info.args[0], EmissionInfo):
+            if isinstance(info.loc, (str, int)):
+                path.append(info.loc)
             info = info.args[0]
         path.append(info.signal.name)
-        return tuple(path)
+        return EmissionInfo(info.signal, info.args, tuple(path))
 
 
 class SignalRelay(SignalInstance):
@@ -116,14 +114,14 @@ class SignalRelay(SignalInstance):
         for sig in self._signals.values():
             sig.disconnect(self._slot_relay)
 
-    def _slot_relay(self, *args: Any, attr_name: str | None = None) -> None:
+    def _slot_relay(self, *args: Any, loc: str | int | None = None) -> None:
         if emitter := Signal.current_emitter():
-            info = EmissionInfo(emitter, args, attr_name)
+            info = EmissionInfo(emitter, args, loc or emitter.name or None)
             self._run_emit_loop((info,))
 
-    def _relay_partial(self, attr_name: str | None) -> _relay_partial:
-        """Return special partial that will call _slot_relay with 'attr_name'."""
-        return _relay_partial(self, attr_name)
+    def _relay_partial(self, loc: str | int | None) -> _relay_partial:
+        """Return special partial that will call _slot_relay with 'loc'."""
+        return _relay_partial(self, loc)
 
     def connect_direct(
         self,
@@ -572,25 +570,27 @@ def _is_uniform(signals: Iterable[Signal]) -> bool:
 class _relay_partial:
     """Small, single-purpose, mypyc-friendly variant of functools.partial.
 
-    Used to call SignalRelay._slot_relay with a specific attr_name.
+    Used to call SignalRelay._slot_relay with a specific loc.
     __hash__ and __eq__ are implemented to make this object hashable and
     comparable to other _relay_partial objects, so that adding it to a set
     twice will not create two separate entries.
     """
 
-    __slots__ = ("relay", "attr_name")
+    __slots__ = ("relay", "loc")
 
-    def __init__(self, relay: SignalRelay, attr_name: str | None = None) -> None:
+    def __init__(self, relay: SignalRelay, loc: str | int | None = None) -> None:
         self.relay = relay
-        self.attr_name = attr_name
+        self.loc = loc
 
     def __call__(self, *args: Any) -> Any:
-        return self.relay._slot_relay(*args, attr_name=self.attr_name)
+        return self.relay._slot_relay(*args, loc=self.loc)
 
     def __hash__(self) -> int:
-        return hash((self.relay, self.attr_name))
+        return hash((self.relay, self.loc))
 
     def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, _relay_partial):
-            return False  # pragma: no cover
-        return self.relay == other.relay and self.attr_name == other.attr_name
+        return (
+            isinstance(other, _relay_partial)
+            and self.relay == other.relay
+            and self.loc == other.loc
+        )
