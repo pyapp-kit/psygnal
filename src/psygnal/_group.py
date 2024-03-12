@@ -57,11 +57,6 @@ class EmissionInfo(NamedTuple):
     args: tuple[Any, ...]
     attr_name: str | None = None
 
-    @property
-    def instance(self) -> Any:
-        """The object to which the signal is bound."""
-        return self.signal.instance
-
     def attr_path(info: EmissionInfo) -> tuple[str, ...]:
         """Return the name path of the possibly nested signal that emitted this info.
 
@@ -597,5 +592,5 @@ class _relay_partial:
 
     def __eq__(self, other: Any) -> bool:
         if not isinstance(other, _relay_partial):
-            return False
+            return False  # pragma: no cover
         return self.relay == other.relay and self.attr_name == other.attr_name

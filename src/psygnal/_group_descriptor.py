@@ -563,7 +563,7 @@ def connect_child_events(
         `get_evented_namespace(obj)`. By default None.
     """
     if _group is None and (_group := _find_signal_group(obj)) is None:
-        return
+        return  # pragma: no cover  # not evented
 
     for attr_name, attr_type in iter_fields(type(obj), exclude_frozen=True):
         if is_evented(attr_type):
