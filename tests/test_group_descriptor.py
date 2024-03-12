@@ -1,10 +1,21 @@
+from contextlib import nullcontext
 from dataclasses import dataclass
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Optional, Type
 from unittest.mock import Mock, patch
 
 import pytest
 
-from psygnal import SignalGroupDescriptor, _compiled, _group_descriptor
+from psygnal import (
+    Signal,
+    SignalGroup,
+    SignalGroupDescriptor,
+    _compiled,
+    _group_descriptor,
+)
+
+
+class MyGroup(SignalGroup):
+    sig = Signal()
 
 
 @pytest.mark.parametrize("type_", ["dataclass", "pydantic", "attrs", "msgspec"])
@@ -213,3 +224,50 @@ def test_evented_field_connect_setattr() -> None:
     # when using connect_setattr with maxargs=None
     # remove this test if/when we change maxargs to default to 1 on SignalInstance
     assert bar.y == (2, 1)  # type: ignore
+
+
+@pytest.mark.parametrize("collect", [True, False])
+@pytest.mark.parametrize("klass", [None, SignalGroup, MyGroup])
+def test_collect_fields(collect: bool, klass: Optional[Type[SignalGroup]]) -> None:
+    signal_class = klass or SignalGroup
+    should_fail_def = signal_class is SignalGroup and collect is False
+    ctx = pytest.raises(ValueError) if should_fail_def else nullcontext()
+
+    with ctx:
+
+        @dataclass
+        class Foo:
+            events: ClassVar = SignalGroupDescriptor(
+                warn_on_no_fields=False,
+                signal_group_class=klass,
+                collect_fields=collect,
+            )
+            a: int = 1
+
+    if should_fail_def:
+        return
+
+    @dataclass
+    class Bar(Foo):
+        b: float = 2.0
+
+    foo = Foo()
+    bar = Bar()
+
+    assert issubclass(type(foo.events), signal_class)
+
+    if collect:
+        assert type(foo.events) is not signal_class
+        assert "a" in foo.events
+        assert "a" in bar.events
+        assert "b" in bar.events
+
+    else:
+        assert type(foo.events) == signal_class
+        assert "a" not in foo.events
+        assert "a" not in bar.events
+        assert "b" not in bar.events
+
+    if signal_class is MyGroup:
+        assert "sig" in foo.events
+        assert "sig" in bar.events

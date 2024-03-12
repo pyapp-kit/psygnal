@@ -1,5 +1,20 @@
 # Changelog
 
+## [v0.10.1](https://github.com/pyapp-kit/psygnal/tree/v0.10.1) (2024-03-11)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.10.0...v0.10.1)
+
+**Implemented enhancements:**
+
+- feat: Add recursion\_mode \('immediate' or 'deferred'\) to Signal and SignalInstance [\#293](https://github.com/pyapp-kit/psygnal/pull/293) ([tlambert03](https://github.com/tlambert03))
+- feat: add collect\_fields option to SignalGroupDescriptor, and accept a SignalGroup subclass [\#291](https://github.com/pyapp-kit/psygnal/pull/291) ([getzze](https://github.com/getzze))
+
+**Merged pull requests:**
+
+- ci\(dependabot\): bump softprops/action-gh-release from 1 to 2 [\#295](https://github.com/pyapp-kit/psygnal/pull/295) ([dependabot[bot]](https://github.com/apps/dependabot))
+- chore: patch asv config to work locally with arm64 macos on hatchling [\#294](https://github.com/pyapp-kit/psygnal/pull/294) ([tlambert03](https://github.com/tlambert03))
+- A bit more consistent SignalGroup iter [\#289](https://github.com/pyapp-kit/psygnal/pull/289) ([getzze](https://github.com/getzze))
+
 ## [v0.10.0](https://github.com/pyapp-kit/psygnal/tree/v0.10.0) (2024-03-05)
 
 [Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.9.5...v0.10.0)
