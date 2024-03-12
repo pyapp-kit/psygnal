@@ -48,10 +48,11 @@ class EmissionInfo(NamedTuple):
         The SignalInstance doing the emitting
     args: tuple
         The args that were emitted
-    loc: str | None
+    loc: str | int | None | tuple[int | str, ...]
         If the emitter was a `SignalGroup` attribute on another object, this
         will be the location of that emitter on the parent (e.g. name of that attribute
         or index if the parent was an evented sequence).  Otherwise, it will be `None`.
+        If this is a flattened EmissionInfo, then this will be a tuple of locations.
     """
 
     signal: SignalInstance
@@ -116,7 +117,7 @@ class SignalRelay(SignalInstance):
 
     def _slot_relay(self, *args: Any, loc: str | int | None = None) -> None:
         if emitter := Signal.current_emitter():
-            info = EmissionInfo(emitter, args, loc or emitter.name or None)
+            info = EmissionInfo(emitter, args, loc or emitter.name)
             self._run_emit_loop((info,))
 
     def _relay_partial(self, loc: str | int | None) -> _relay_partial:
@@ -301,6 +302,11 @@ class SignalGroup:
             for name, sig in cls._psygnal_signals.items()
         }
         self._psygnal_relay = SignalRelay(self._psygnal_instances, instance)
+
+    @property
+    def instance(self) -> Any:
+        """The object to which this `SignalGroup` is bound."""
+        return self._psygnal_relay.instance
 
     def __init_subclass__(cls, strict: bool = False) -> None:
         """Collects all Signal instances on the class under `cls._psygnal_signals`."""

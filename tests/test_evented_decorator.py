@@ -343,9 +343,10 @@ def test_nesting() -> None:
     inner_inner_info = EmissionInfo(baz.bar.foo.events.x, (3, 1), "x")
     inner_info = EmissionInfo(baz.bar.foo.events.all, (inner_inner_info,), "foo")
     expected = EmissionInfo(baz.bar.events.all, (inner_info,), "bar")
+    info: EmissionInfo = mock.call_args[0][0]
+
     mock.assert_called_with(expected)
 
-    info: EmissionInfo = mock.call_args[0][0]
     assert info.flatten().loc == ("bar", "foo", "x")
 
 
