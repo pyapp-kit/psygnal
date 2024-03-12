@@ -44,6 +44,7 @@ def test_signal_group() -> None:
     assert not group.psygnals_uniform()
     assert list(group) == ["sig1", "sig2"]  # testing __iter__
     assert group.sig1 is group["sig1"]
+    assert set(group.signals) == {"sig1", "sig2"}
 
     assert repr(group) == "<SignalGroup 'MyGroup' with 2 signals>"
 

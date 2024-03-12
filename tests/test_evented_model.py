@@ -70,7 +70,6 @@ def test_evented_model():
 
     # test event system
     assert isinstance(user.events, SignalGroup)
-    # with pytest.warns(FutureWarning):
     assert "id" in user.events
     assert "name" in user.events
 
