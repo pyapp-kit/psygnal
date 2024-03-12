@@ -7,7 +7,8 @@ import pytest
 from psygnal import EmissionInfo, SignalGroupDescriptor, evented
 from psygnal.containers import EventedDict, EventedList, EventedSet
 
-EL = EventedList([1, 2, 3])
+EL2 = EventedList([10, 20, 30])
+EL = EventedList([1, 2, EL2])  # TODO: re-emit events from nested lists
 ED: EventedDict[str, int] = EventedDict({"a": 1, "b": 2})
 ES = EventedSet({"x", "y", "z"})
 
@@ -25,9 +26,9 @@ def EventedClass():
         events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor(
             connect_child_events=True
         )
-        a: EventedList = field(default_factory=lambda: EL)
-        b: EventedDict = field(default_factory=lambda: ED)
-        c: EventedSet = field(default_factory=lambda: ES)
+        a: EventedList = field(default_factory=lambda: EL.copy())
+        b: EventedDict = field(default_factory=lambda: ED.copy())
+        c: EventedSet = field(default_factory=lambda: ES.copy())
         d: A = field(default_factory=A)
 
     return M
