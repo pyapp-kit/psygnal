@@ -28,6 +28,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    ClassVar,
     Iterable,
     Mapping,
     MutableSequence,
@@ -114,6 +115,7 @@ class EventedList(MutableSequence[_T]):
     """
 
     events: ListEvents  # pragma: no cover
+    _psygnal_group_: ClassVar[str] = "events"
 
     def __init__(
         self,

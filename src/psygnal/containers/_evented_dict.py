@@ -6,6 +6,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    ClassVar,
     Iterable,
     Iterator,
     Mapping,
@@ -168,6 +169,7 @@ class EventedDict(TypedMutableMapping[_K, _V]):
     """
 
     events: DictEvents  # pragma: no cover
+    _psygnal_group_: ClassVar[str] = "events"
 
     def __init__(
         self,
