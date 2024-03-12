@@ -243,7 +243,7 @@ def _build_dataclass_signal_group(
         # patch in our custom SignalInstance class with maxargs=1 on connect_setattr
         sig._signal_instance_class = _DataclassFieldSignalInstance
 
-    # Create SignalGroup subclass with the attached signals and signal_aliases
+    # Create `signal_group_class` subclass with the attached signals and signal_aliases
     return type(
         group_name, (signal_group_class,), signals, signal_aliases=_signal_aliases
     )
@@ -434,7 +434,7 @@ class SignalGroupDescriptor:
         events when fields change.  If `False`, no `__setattr__` method will be
         created.  (This will prevent signal emission, and assumes you are using a
         different mechanism to emit signals when fields change.)
-    signal_group_class : type[SignalGroup] | None, optionalq
+    signal_group_class : type[SignalGroup] | None, optional
         A custom SignalGroup class to use, SignalGroup if None, by default None
     collect_fields : bool, optional
         Create a signal for each field in the dataclass. If True, the `SignalGroup`
@@ -589,12 +589,8 @@ class SignalGroupDescriptor:
                     UserWarning,
                     stacklevel=2,
                 )
-                Group._psygnal_aliases = {}
             elif isinstance(self._signal_aliases, dict):
-                Group._psygnal_aliases = {
-                    **Group._psygnal_aliases,
-                    **self._signal_aliases,
-                }
+                Group._psygnal_aliases.update(self._signal_aliases)
 
         # Collect fields and create SignalGroup subclass
         else:
