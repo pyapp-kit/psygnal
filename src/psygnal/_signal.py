@@ -1076,6 +1076,7 @@ class SignalInstance:
                 # we're back to the root level of the emit loop, reset max_depth
                 if self._recursion_depth <= 0:
                     self._max_recursion_depth = 0
+                    self._recursion_depth = 0
                 self._emit_queue.clear()
 
     def _run_emit_loop_immediate(self) -> None:
