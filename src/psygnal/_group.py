@@ -260,7 +260,7 @@ class SignalGroup:
     _psygnal_signals: ClassVar[Mapping[str, Signal]]
     _psygnal_uniform: ClassVar[bool] = False
     _psygnal_name_conflicts: ClassVar[set[str]]
-    _psygnal_aliases: ClassVar[Mapping[str, str | None]]
+    _psygnal_aliases: ClassVar[dict[str, str | None]]
 
     _psygnal_instances: dict[str, SignalInstance]
 
