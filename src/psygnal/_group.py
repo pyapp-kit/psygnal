@@ -303,11 +303,6 @@ class SignalGroup:
         }
         self._psygnal_relay = SignalRelay(self._psygnal_instances, instance)
 
-    @property
-    def instance(self) -> Any:
-        """The object to which this `SignalGroup` is bound."""
-        return self._psygnal_relay.instance
-
     def __init_subclass__(cls, strict: bool = False) -> None:
         """Collects all Signal instances on the class under `cls._psygnal_signals`."""
         # Collect Signals and remove from class attributes
