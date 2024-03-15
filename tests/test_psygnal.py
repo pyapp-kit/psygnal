@@ -124,14 +124,20 @@ def test_decorator():
     err = ValueError()
 
     @emitter.one_int.connect
-    def boom(v: int):
+    def boom(v: int) -> None:
         raise err
 
     @emitter.one_int.connect(check_nargs=False)
     def bad_cb(a, b, c): ...
 
-    with pytest.raises(EmitLoopError) as e:
-        emitter.one_int.emit(1)
+    import re
+
+    error_re = re.compile(
+        "signal 'tests.test_psygnal.Emitter.one_int'" f".*{__file__}", re.DOTALL
+    )
+    with pytest.raises(EmitLoopError, match=error_re) as e:
+        emitter.one_int.emit(42)
+
     assert e.value.__cause__ is err
     assert e.value.__context__ is err
 

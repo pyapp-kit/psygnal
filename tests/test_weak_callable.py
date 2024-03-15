@@ -1,4 +1,5 @@
 import gc
+import re
 from functools import partial
 from typing import Any
 from unittest.mock import Mock
@@ -6,6 +7,7 @@ from weakref import ref
 
 import pytest
 
+from psygnal import SignalInstance
 from psygnal._weak_callback import WeakCallback, weak_callback
 
 
@@ -193,22 +195,38 @@ def test_queued_callbacks() -> None:
 def test_cb_raises() -> None:
     from psygnal import EmitLoopError
 
-    m = str(EmitLoopError(weak_callback(print), (1,), RuntimeError("test")))
-    assert "an error occurred in callback 'module.print'" in m
-    m = str(EmitLoopError(print, (1,), RuntimeError("test")))
-    assert " an error occurred in callback 'print'" in m
+    sig = SignalInstance((int,), name="sig")
 
     class T:
-        x = 1
+        @property
+        def x(self) -> int:
+            return 1
 
-        def __setitem__(self, *_: Any) -> Any:
-            pass
+        @x.setter
+        def x(self, value: int) -> None:
+            1 / value
+
+        def __setitem__(self, key: str, value: int) -> Any:
+            1 / value
+
+        def method(self, x: int) -> None:
+            1 / x
 
     t = T()
-    cb = weak_callback(setattr, t, "x")
-    m = str(EmitLoopError(cb, (2,), RuntimeError("test")))
-    assert 'an error occurred in callback "setattr' in m
 
-    cb = weak_callback(t.__setitem__, "x")
-    m = str(EmitLoopError(cb, (2,), RuntimeError("test")))
-    assert ".T.__setitem__" in m
+    sig.connect(t.method)
+    error_re = re.compile(f"emitting signal.*'sig'.*{__file__}.*method", re.DOTALL)
+    with pytest.raises(EmitLoopError, match=error_re):
+        sig.emit("a")
+    sig.disconnect(t.method)
+
+    sig.connect_setattr(t, "x", maxargs=1)
+    error_re = re.compile(f"emitting signal.*'sig'.*{__file__}.*x", re.DOTALL)
+    with pytest.raises(EmitLoopError, match=error_re):
+        sig.emit("a")
+    sig.disconnect_setattr(t, "x")
+
+    sig.connect_setitem(t, "x", maxargs=1)
+    error_re = re.compile(f"emitting signal.*'sig'.*{__file__}.*__setitem__", re.DOTALL)
+    with pytest.raises(EmitLoopError, match=error_re):
+        sig.emit("a")
