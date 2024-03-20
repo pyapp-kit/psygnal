@@ -392,3 +392,27 @@ def test_direct_signal_group() -> None:
     foo._e = 6
     mock.assert_called_once_with(6, 5)
     mock.reset_mock()
+
+
+def test_bad_siggroup_descriptor_init():
+    with pytest.raises(
+        TypeError,
+        match="'signal_group_class' must be a subclass of SignalGroup",
+    ):
+        SignalGroupDescriptor(signal_group_class=type)  # type: ignore
+
+    with pytest.raises(
+        ValueError,
+        match="Cannot use SignalGroup with `collect_fields=False`.",
+    ):
+        SignalGroupDescriptor(collect_fields=False)
+
+    with pytest.raises(
+        ValueError,
+        match="Cannot use a Callable for `signal_aliases` with `collect_fields=False`",
+    ):
+        SignalGroupDescriptor(
+            collect_fields=False,
+            signal_group_class=type("MyGroup", (SignalGroup,), {"x": Signal()}),
+            signal_aliases=lambda x: None,
+        )
