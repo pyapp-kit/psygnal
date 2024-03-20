@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 from ._weak_callback import WeakCallback
 
@@ -19,13 +19,13 @@ class EmitLoopError(Exception):
 
     def __init__(
         self,
-        cb: WeakCallback | Callable,
-        args: tuple,
+        cb: WeakCallback | Callable | None,
+        args: tuple[Any, ...] | None,
         exc: BaseException,
         signal: SignalInstance | None = None,
     ) -> None:
         self.exc = exc
-        self.args = args
+        self.args = args or ()
         self.__cause__ = exc  # mypyc doesn't set this, but uncompiled code would
         if signal is None:
             sig_name = ""
