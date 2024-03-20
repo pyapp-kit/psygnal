@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.10.2](https://github.com/pyapp-kit/psygnal/tree/v0.10.2) (2024-03-12)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.10.1...v0.10.2)
+
+**Fixed bugs:**
+
+- fix: fix hard reference to objects in emitted arguments [\#301](https://github.com/pyapp-kit/psygnal/pull/301) ([tlambert03](https://github.com/tlambert03))
+
 ## [v0.10.1](https://github.com/pyapp-kit/psygnal/tree/v0.10.1) (2024-03-11)
 
 [Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.10.0...v0.10.1)

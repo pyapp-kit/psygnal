@@ -1034,6 +1034,9 @@ class SignalInstance:
             check_types=check_types,
         )
 
+    _args: tuple[Any, ...]
+    _caller: WeakCallback | None
+
     def _run_emit_loop(self, args: tuple[Any, ...]) -> None:
         with self._lock:
             self._emit_queue.append(args)
@@ -1054,17 +1057,17 @@ class SignalInstance:
                 ) from e
             finally:
                 self._emit_queue.clear()
+                self._args = ()
+                self._caller = None
 
     def _run_emit_loop_immediate(self) -> None:
         self._args = args = self._emit_queue.popleft()
-        caller = None
         for caller in self._slots:
             self._caller = caller
             caller.cb(args)
 
     def _run_emit_loop_deferred(self) -> None:
         i = 0
-        caller = None
         while i < len(self._emit_queue):
             self._args = args = self._emit_queue[i]
             for caller in self._slots:
