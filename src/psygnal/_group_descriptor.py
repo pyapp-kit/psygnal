@@ -14,6 +14,7 @@ from typing import (
     Iterable,
     Literal,
     Mapping,
+    Optional,
     Type,
     TypeVar,
     cast,
@@ -31,7 +32,7 @@ if TYPE_CHECKING:
     from psygnal._weak_callback import RefErrorChoice, WeakCallback
 
     EqOperator: TypeAlias = Callable[[Any, Any], bool]
-    FieldAliasFunc: TypeAlias = Callable[[str], str | None]
+    FieldAliasFunc: TypeAlias = Callable[[str], Optional[str]]
 
 __all__ = ["is_evented", "get_evented_namespace", "SignalGroupDescriptor"]
 
