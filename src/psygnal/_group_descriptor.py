@@ -26,11 +26,12 @@ from ._signal import Signal, SignalInstance
 
 if TYPE_CHECKING:
     from _weakref import ref as ref
+    from typing_extensions import TypeAlias
 
     from psygnal._weak_callback import RefErrorChoice, WeakCallback
 
-    EqOperator = Callable[[Any, Any], bool]
-    FieldAliasFunc = Callable[[str], str | None]
+    EqOperator: TypeAlias = Callable[[Any, Any], bool]
+    FieldAliasFunc: TypeAlias = Callable[[str], str | None]
 
 __all__ = ["is_evented", "get_evented_namespace", "SignalGroupDescriptor"]
 
