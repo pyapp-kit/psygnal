@@ -335,7 +335,6 @@ class SignalGroup:
 
         aliases = getattr(cls, "_psygnal_aliases", {})
         cls._psygnal_aliases = {**aliases, **signal_aliases}
-
         cls._psygnal_uniform = _is_uniform(cls._psygnal_signals.values())
         if strict and not cls._psygnal_uniform:
             raise TypeError(

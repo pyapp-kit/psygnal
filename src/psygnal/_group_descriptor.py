@@ -207,14 +207,11 @@ def _build_dataclass_signal_group(
         if name in _signal_aliases:  # an alias has been provided in a mapping
             sig_name = _signal_aliases[name]
         elif callable(transform):  # a callable has been provided
-            sig_name = transform(name)
+            _signal_aliases[name] = sig_name = transform(name)
         elif name in signal_group_sig_aliases:  # an alias has been defined in the class
-            sig_name = signal_group_sig_aliases[name]
+            _signal_aliases[name] = sig_name = signal_group_sig_aliases[name]
         else:  # no alias has been defined, use the field name as the signal name
             sig_name = name
-
-        # Add the field and signal name to the table of signals, to emit with `setattr`
-        _signal_aliases[name] = sig_name
 
         # An alias mapping or callable returned `None`, skip this field
         if sig_name is None:
@@ -302,21 +299,27 @@ SetAttr = Callable[[Any, str, Any], None]
 
 
 @overload
-def evented_setattr(signal_group_name: str, super_setattr: SetAttr) -> SetAttr: ...
+def evented_setattr(
+    signal_group_name: str, super_setattr: SetAttr, with_aliases: bool = ...
+) -> SetAttr: ...
 
 
 @overload
 def evented_setattr(
-    signal_group_name: str, super_setattr: Literal[None] | None = None
+    signal_group_name: str,
+    super_setattr: Literal[None] | None = ...,
+    with_aliases: bool = ...,
 ) -> Callable[[SetAttr], SetAttr]: ...
 
 
 def evented_setattr(
-    signal_group_name: str, super_setattr: SetAttr | None = None
+    signal_group_name: str,
+    super_setattr: SetAttr | None = None,
+    with_aliases: bool = True,
 ) -> SetAttr | Callable[[SetAttr], SetAttr]:
     """Create a new __setattr__ method that emits events when fields change.
 
-    `signal_group_name` must point to an attribute on the `self` object provided to
+    `signal_group_name` MUST point to an attribute on the `self` object provided to
     __setattr__ that obeys the following "SignalGroup interface":
 
         1. For every "evented" field in the class, there must be a corresponding
@@ -342,6 +345,10 @@ def evented_setattr(
         default "_psygnal_group_".
     super_setattr: Callable
         The original __setattr__ method for the class.
+    with_aliases: bool, optional
+        Whether to lookup the signal name in the signal aliases mapping,
+        by default True.  This is slightly slower, and so can be set to False if you
+        know you don't have any signal aliases.
     """
 
     def _inner(super_setattr: SetAttr) -> SetAttr:
@@ -349,17 +356,22 @@ def evented_setattr(
         if getattr(super_setattr, PATCHED_BY_PSYGNAL, False):
             return super_setattr
 
+        # pick a slightly faster signal lookup if we don't need aliases
+        get_signal: Callable[[SignalGroup, str], SignalInstance | None] = (
+            SignalGroup.get_signal_by_alias if with_aliases else SignalGroup.__getitem__
+        )
+
         def _setattr_and_emit_(self: object, name: str, value: Any) -> None:
             """New __setattr__ method that emits events when fields change."""
             if name == signal_group_name:
                 return super_setattr(self, name, value)
 
-            group: SignalGroup | None = getattr(self, signal_group_name, None)
-            if not isinstance(group, SignalGroup):
-                return super_setattr(self, name, value)  # pragma: no cover
+            group = cast(SignalGroup, getattr(self, signal_group_name))
+            if not with_aliases and name not in group:
+                return super_setattr(self, name, value)
 
             # don't emit if the signal doesn't exist or has no listeners
-            signal: SignalInstance | None = group.get_signal_by_alias(name)
+            signal: SignalInstance | None = get_signal(group, name)
             if signal is None or len(signal) < 1:
                 return super_setattr(self, name, value)
 
@@ -525,18 +537,24 @@ class SignalGroupDescriptor:
             # This is the flag that identifies this object as evented
             setattr(owner, PSYGNAL_GROUP_NAME, name)
 
-    def _do_patch_setattr(self, owner: type) -> None:
+    def _do_patch_setattr(self, owner: type, with_aliases: bool = True) -> None:
         """Patch the owner class's __setattr__ method to emit events."""
         if not self._patch_setattr:
             return
         if getattr(owner.__setattr__, PATCHED_BY_PSYGNAL, False):
             return
 
+        if not ((name := self._name) and hasattr(owner, name)):  # pragma: no cover
+            # this should never happen... but if it does, we'll get errors
+            # every time we set an attribute on the class.  So raise now.
+            raise AttributeError("SignalGroupDescriptor has not been set on the class")
+
         try:
             # assign a new __setattr__ method to the class
             owner.__setattr__ = evented_setattr(  # type: ignore
-                cast(str, self._name),
+                name,
                 owner.__setattr__,  # type: ignore
+                with_aliases=with_aliases,
             )
         except Exception as e:  # pragma: no cover
             # not sure what might cause this ... but it will have consequences
@@ -610,5 +628,5 @@ class SignalGroupDescriptor:
                 stacklevel=2,
             )
 
-        self._do_patch_setattr(owner)
+        self._do_patch_setattr(owner, with_aliases=bool(Group._psygnal_aliases))
         return Group
