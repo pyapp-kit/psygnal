@@ -282,6 +282,28 @@ def get_evented_namespace(obj: object) -> str | None:
     return getattr(obj, PSYGNAL_GROUP_NAME, None)
 
 
+def get_signal_from_field(group: SignalGroup, name: str) -> SignalInstance | None:
+    """Get the signal from a SignalGroup corresponding to the field `name`.
+
+    Parameters
+    ----------
+    group: SignalGroup
+        the signal group attached to a dataclass.
+    name: str
+        the name of field
+
+    Returns
+    -------
+    SignalInstance | None
+        the `SignalInstance` corresponding with the field `name` or None if the field
+        was skipped or does not have an associated `SignalInstance`.
+    """
+    sig_name = group._psygnal_aliases.get(name, name)
+    if sig_name is None or sig_name not in group:
+        return None
+    return group[sig_name]
+
+
 class _changes_emitted:
     def __init__(self, obj: object, field: str, signal: SignalInstance) -> None:
         self.obj = obj
@@ -358,22 +380,18 @@ def evented_setattr(
         if getattr(super_setattr, PATCHED_BY_PSYGNAL, False):
             return super_setattr
 
-        # pick a slightly faster signal lookup if we don't need aliases
-        get_signal: Callable[[SignalGroup, str], SignalInstance | None] = (
-            SignalGroup.get_signal_by_alias if with_aliases else SignalGroup.__getitem__
-        )
-
         def _setattr_and_emit_(self: object, name: str, value: Any) -> None:
             """New __setattr__ method that emits events when fields change."""
             if name == signal_group_name:
                 return super_setattr(self, name, value)
 
             group = cast(SignalGroup, getattr(self, signal_group_name))
+            with_aliases = bool(group._psygnal_aliases)
             if not with_aliases and name not in group:
                 return super_setattr(self, name, value)
 
             # don't emit if the signal doesn't exist or has no listeners
-            signal: SignalInstance | None = get_signal(group, name)
+            signal: SignalInstance | None = get_signal_from_field(group, name)
             if signal is None or len(signal) < 1:
                 return super_setattr(self, name, value)
 
@@ -546,7 +564,8 @@ class SignalGroupDescriptor:
         if getattr(owner.__setattr__, PATCHED_BY_PSYGNAL, False):
             return
 
-        if not ((name := self._name) and hasattr(owner, name)):  # pragma: no cover
+        name = self._name
+        if not (name and hasattr(owner, name)):  # pragma: no cover
             # this should never happen... but if it does, we'll get errors
             # every time we set an attribute on the class.  So raise now.
             raise AttributeError("SignalGroupDescriptor has not been set on the class")

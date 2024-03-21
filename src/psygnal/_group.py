@@ -410,12 +410,6 @@ class SignalGroup:
         name = self.__class__.__name__
         return f"<SignalGroup {name!r} with {len(self)} signals>"
 
-    def get_signal_by_alias(self, name: str) -> SignalInstance | None:
-        sig_name = self._psygnal_aliases.get(name, name)
-        if sig_name is None or sig_name not in self:
-            return None
-        return self[sig_name]
-
     @classmethod
     def psygnals_uniform(cls) -> bool:
         """Return true if all signals in the group have the same signature."""

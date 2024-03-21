@@ -28,6 +28,7 @@ __all__ = [
     "evented",
     "EventedModel",
     "get_evented_namespace",
+    "get_signal_from_field",
     "is_evented",
     "Signal",
     "SignalGroup",
@@ -54,6 +55,7 @@ from ._group import EmissionInfo, SignalGroup
 from ._group_descriptor import (
     SignalGroupDescriptor,
     get_evented_namespace,
+    get_signal_from_field,
     is_evented,
 )
 from ._queue import emit_queued
