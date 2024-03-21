@@ -380,18 +380,22 @@ def evented_setattr(
         if getattr(super_setattr, PATCHED_BY_PSYGNAL, False):
             return super_setattr
 
+        # pick a slightly faster signal lookup if we don't need aliases
+        get_signal: Callable[[SignalGroup, str], SignalInstance | None] = (
+            get_signal_from_field if with_aliases else SignalGroup.__getitem__
+        )
+
         def _setattr_and_emit_(self: object, name: str, value: Any) -> None:
             """New __setattr__ method that emits events when fields change."""
             if name == signal_group_name:
                 return super_setattr(self, name, value)
 
             group = cast(SignalGroup, getattr(self, signal_group_name))
-            with_aliases = bool(group._psygnal_aliases)
             if not with_aliases and name not in group:
                 return super_setattr(self, name, value)
 
             # don't emit if the signal doesn't exist or has no listeners
-            signal: SignalInstance | None = get_signal_from_field(group, name)
+            signal: SignalInstance | None = get_signal(group, name)
             if signal is None or len(signal) < 1:
                 return super_setattr(self, name, value)
 
