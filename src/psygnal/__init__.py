@@ -28,7 +28,6 @@ __all__ = [
     "evented",
     "EventedModel",
     "get_evented_namespace",
-    "get_signal_from_field",
     "is_evented",
     "Signal",
     "SignalGroup",
@@ -52,12 +51,7 @@ if os.getenv("PSYGNAL_UNCOMPILED"):
 from ._evented_decorator import evented
 from ._exceptions import EmitLoopError
 from ._group import EmissionInfo, SignalGroup
-from ._group_descriptor import (
-    SignalGroupDescriptor,
-    get_evented_namespace,
-    get_signal_from_field,
-    is_evented,
-)
+from ._group_descriptor import SignalGroupDescriptor, get_evented_namespace, is_evented
 from ._queue import emit_queued
 from ._signal import Signal, SignalInstance, _compiled
 from ._throttler import debounced, throttled
