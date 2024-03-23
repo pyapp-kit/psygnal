@@ -1,3 +1,129 @@
+"""The main Signal class and SignalInstance class.
+
+A note on "emission_strategy" in Signal and SignalInstances.  Since it can be a little
+confusing, take the following example of a Signal that emits an integer.  We'll connect
+three callbacks to it, two of which re-emit the same signal with a different value
+(this is the tricky condition we're trying to handle here)
+
+```python
+from psygnal import SignalInstance
+
+# a signal that emits an integer
+sig = SignalInstance((int,), emission_mode="...")
+
+
+def cb1(value: int) -> None:
+    print(f"calling cb1 with: {value}")
+    if value == 1:
+        # cb1 ALSO triggers an emission of the value 2
+        sig.emit(2)
+
+
+def cb2(value: int) -> None:
+    print(f"calling cb2 with: {value}")
+    if value == 2:
+        # cb2 ALSO triggers an emission of the value 3
+        sig.emit(3)
+
+
+def cb3(value: int) -> None:
+    print(f"calling cb3 with: {value}")
+
+
+sig.connect(cb1)
+sig.connect(cb2)
+sig.connect(cb3)
+sig.emit(1)
+```
+
+with `emission_mode="sequential"` above: you see a breadth first pattern:
+ALL callbacks are called with the first emitted value, before ANY of them are called
+with the second emitted value (emitted by the first connected callback  cb1)
+
+```
+calling cb1 with: 1
+calling cb2 with: 1
+calling cb3 with: 1
+calling cb1 with: 2
+calling cb2 with: 2
+calling cb3 with: 2
+calling cb1 with: 3
+calling cb2 with: 3
+calling cb3 with: 3
+```
+
+with `emission_mode='nested'` signal emission from within
+any of the callbacks immediately goes into the next deeper nested loop of emission
+events, before returning back to the original loop to call the later callbacks with the
+original value.
+
+```
+calling cb1 with: 1
+calling cb1 with: 2
+calling cb2 with: 2
+calling cb1 with: 3
+calling cb2 with: 3
+calling cb3 with: 3
+calling cb3 with: 2
+calling cb2 with: 1
+calling cb3 with: 1
+```
+
+with `emission_mode='depth-first'` the signal emission from within
+any of the callbacks immediately goes into the next deeper nested loop of emission
+events, and does not return back to the original loop to call the later callbacks with
+the original value.
+
+```
+calling cb1 with: 1
+calling cb1 with: 2
+calling cb2 with: 2
+calling cb1 with: 3
+calling cb2 with: 3
+calling cb3 with: 3
+# cb2 is never called with 1
+# cb3 is never called with 1 or 2
+```
+
+The real-world scenario in which this usually arises is an EventedModel or dataclass.
+Evented models emit signals on `setattr`:
+
+
+```python
+class MyModel(EventedModel):
+    x: int = 1
+
+
+m = MyModel(x=1)
+print("starting value", m.x)
+
+
+@m.events.x.connect
+def ensure_at_least_20(val: int):
+    print("trying to set to", val)
+    m.x = max(val, 20)
+
+
+m.x = 5
+print("ending value", m.x)
+```
+
+```
+starting value 1
+trying to set to 5
+trying to set to 20
+ending value 20
+```
+
+So: with EventedModel.setattr you can easily end up with some complicated recursive
+behavior if you connect an on-change callback that also sets the value of the model.
+In this case `emit_mode='depth-first'` is probably the most appropriate, as it will
+prevent the callback from being called with the original (now-stale) value.  But
+one can conceive of other scenarios where `emit_mode='nested'` or
+`emit_mode='sequential'` might be more appropriate.
+
+"""
+
 from __future__ import annotations
 
 import inspect
