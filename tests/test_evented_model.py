@@ -903,39 +903,39 @@ def test_if_event_is_emitted_only_once() -> None:
 @pytest.mark.parametrize(
     "mode",
     [
-        "immediate",
-        "deferred",
-        {"a": "immediate", "b": "deferred"},
-        {"a": "immediate", "b": "err"},
-        {"a": "deferred"},
+        "nested",
+        "sequential",
+        {"a": "nested", "b": "sequential"},
+        {"a": "nested", "b": "err"},
+        {"a": "sequential"},
         {},
         "err",
     ],
 )
-def test_evented_model_recursion_mode(mode: Union[str, dict]) -> None:
-    from psygnal._evented_model import DEFAULT_RECURSION_MODE
+def test_evented_model_emission_strategy(mode: Union[str, dict]) -> None:
+    from psygnal._evented_model import DEFAULT_EMISSION_STRATEGY
 
     err = mode == "err" or isinstance(mode, dict) and "err" in mode.values()
-    with pytest.raises(ValueError, match="Invalid recursion") if err else nullcontext():
+    with pytest.raises(ValueError, match="Invalid emission") if err else nullcontext():
 
         class Model(EventedModel):
             a: int
             b: int
 
             if PYDANTIC_V2:
-                model_config = {"recursion_mode": mode}
+                model_config = {"emission_strategy": mode}
             else:
 
                 class Config:
-                    recursion_mode = mode
+                    emission_strategy = mode
 
     if err:
         return
 
     m = Model(a=1, b=2)
     if isinstance(mode, dict):
-        assert m.events.a._recursion_mode == mode.get("a", DEFAULT_RECURSION_MODE)
-        assert m.events.b._recursion_mode == mode.get("b", DEFAULT_RECURSION_MODE)
+        assert m.events.a._emission_strategy == mode.get("a", DEFAULT_EMISSION_STRATEGY)
+        assert m.events.b._emission_strategy == mode.get("b", DEFAULT_EMISSION_STRATEGY)
     else:
-        assert m.events.a._recursion_mode == mode
-        assert m.events.b._recursion_mode == mode
+        assert m.events.a._emission_strategy == mode
+        assert m.events.b._emission_strategy == mode

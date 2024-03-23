@@ -53,13 +53,13 @@ if TYPE_CHECKING:
 
 
 __all__ = ["Signal", "SignalInstance", "_compiled"]
-RecursionMode = Literal["immediate", "deferred", "immediate-drop"]
+EmissionStrategy = Literal["sequential", "nested", "depth-first"]
 
 _NULL = object()
 F = TypeVar("F", bound=Callable)
 RECURSION_LIMIT = sys.getrecursionlimit()
-DEFAULT_RECURSION_MODE: RecursionMode = "immediate"
-RECURSION_MODES: set[RecursionMode] = set(RecursionMode.__args__)  # type: ignore
+DEFAULT_EMISSION_STRATEGY: EmissionStrategy = "nested"
+EMISSION_STRATEGIES: set[EmissionStrategy] = set(EmissionStrategy.__args__)  # type: ignore
 
 
 class Signal:
@@ -98,35 +98,38 @@ class Signal:
 
     Parameters
     ----------
-    *types : Union[Type[Any], Signature]
+    *types : Type[Any] | Signature
         A sequence of individual types, or a *single* [`inspect.Signature`][] object.
     description : str
         Optional descriptive text for the signal.  (not used internally).
-    name : Optional[str]
+    name : str | None
         Optional name of the signal. If it is not specified then the name of the
         class attribute that is bound to the signal will be used. default None
     check_nargs_on_connect : bool
         Whether to check the number of positional args against `signature` when
         connecting a new callback. This can also be provided at connection time using
-        `.connect(..., check_nargs=True)`. By default, True.
+        `.connect(..., check_nargs=True)`. By default, `True`.
     check_types_on_connect : bool
         Whether to check the callback parameter types against `signature` when
         connecting a new callback. This can also be provided at connection time using
-        `.connect(..., check_types=True)`. By default, False.
-    recursion_mode : Literal["immediate", "deferred"]
-        How to handle recursive emissions, when this signal is emitted by a callback
-        while this signal is being emitted.
+        `.connect(..., check_types=True)`. By default, `False`.
+    emission_strategy : Literal['nested', 'sequential', 'depth-first'] | None
+        Determines the order and manner in which connected callbacks are invoked when a
+        callback re-emits a signal. Default is `"nested"`.
 
-        - "immediate": Nested emission events immediately begin a deeper emission loop:
-          calling all callbacks with the arguments of the nested emitter before
-          returning to continue the original emission loop.  This is the default
-          behavior.
-        - "immediate-drop": Nested emission events immediately begin a deeper emission
-            loop, and the original emission loop is dis-continued.  This can be useful
-            when callbacks update their own state in response to their own emissions,
-            and the original emission loop is no longer relevant.
-        - "deferred": Nested emission events are deferred until the current emission
-          loop is complete.
+        * `"nested"`: Signals emitted by callbacks are immediately processed in
+          a deeper emission loop, before returning to process signals emitted at the
+          current level.
+
+        * `"sequential"`: Ensures *all* connected callbacks are called with the first
+          emitted value, before *any* of them are called with values emitted while
+          calling callbacks. Signals emitted by callbacks are enqueued for emission
+          after the current level of emission is complete.
+
+        * `"depth-first"`: This is similar to `"nested"`, but control never returns to
+          the previous level of emission. When a callback emits a signal, a deeper
+          level of emission is started, and the current level is discontinued.
+          This strategy follows a depth-first execution without backtracking.
     """
 
     # _signature: Signature  # callback signature for this signal
@@ -140,13 +143,13 @@ class Signal:
         name: str | None = None,
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
-        recursion_mode: RecursionMode = DEFAULT_RECURSION_MODE,
+        emission_strategy: EmissionStrategy = DEFAULT_EMISSION_STRATEGY,
     ) -> None:
         self._name = name
         self.description = description
         self._check_nargs_on_connect = check_nargs_on_connect
         self._check_types_on_connect = check_types_on_connect
-        self._recursion_mode = recursion_mode
+        self._emission_strategy = emission_strategy
         self._signal_instance_class: type[SignalInstance] = SignalInstance
         self._signal_instance_cache: dict[int, SignalInstance] = {}
 
@@ -242,7 +245,7 @@ class Signal:
             name=name or self._name,
             check_nargs_on_connect=self._check_nargs_on_connect,
             check_types_on_connect=self._check_types_on_connect,
-            recursion_mode=self._recursion_mode,
+            emission_strategy=self._emission_strategy,
         )
 
     @classmethod
@@ -316,37 +319,26 @@ class SignalInstance:
 
     Parameters
     ----------
-    signature : Optional[inspect.Signature]
+    signature : Signature | None
         The signature that this signal accepts and will emit, by default `Signature()`.
-    instance : Optional[Any]
+    instance : Any
         An object to which this signal is bound. Normally this will be provided by the
         `Signal.__get__` method (see above).  However, an unbound `SignalInstance`
         may also be created directly. by default `None`.
-    name : Optional[str]
+    name : str | None
         An optional name for this signal.  Normally this will be provided by the
         `Signal.__get__` method. by default `None`
     check_nargs_on_connect : bool
         Whether to check the number of positional args against `signature` when
         connecting a new callback. This can also be provided at connection time using
-        `.connect(..., check_nargs=True)`. By default, True.
+        `.connect(..., check_nargs=True)`. By default, `True`.
     check_types_on_connect : bool
         Whether to check the callback parameter types against `signature` when
         connecting a new callback. This can also be provided at connection time using
-        `.connect(..., check_types=True)`. By default, False.
-    recursion_mode : Literal["immediate", "deferred"]
-        How to handle recursive emissions, when this signal is emitted by a callback
-        while this signal is being emitted.
-
-        - "immediate": Nested emission events immediately begin a deeper emission loop:
-          calling all callbacks with the arguments of the nested emitter before
-          returning to continue the original emission loop.  This is the default
-          behavior.
-        - "immediate-drop": Nested emission events immediately begin a deeper emission
-            loop, and the original emission loop is dis-continued.  This can be useful
-            when callbacks update their own state in response to their own emissions,
-            and the original emission loop is no longer relevant.
-        - "deferred": Nested emission events are deferred until the current emission
-          loop is complete.
+        `.connect(..., check_types=True)`. By default, `False`.
+    emission_strategy : Literal['nested', 'sequential', 'depth-first'] | None
+        See docstring for [`Signal`][psygnal.Signal] for details.
+        By default, `"nested"`.
 
     Raises
     ------
@@ -367,7 +359,7 @@ class SignalInstance:
         name: str | None = None,
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
-        recursion_mode: RecursionMode = DEFAULT_RECURSION_MODE,
+        emission_strategy: EmissionStrategy = DEFAULT_EMISSION_STRATEGY,
     ) -> None:
         if isinstance(signature, (list, tuple)):
             signature = _build_signature(*signature)
@@ -377,10 +369,10 @@ class SignalInstance:
                 "instance of `inspect.Signature`"
             )
 
-        if recursion_mode not in RECURSION_MODES:  # pragma: no cover
+        if emission_strategy not in EMISSION_STRATEGIES:  # pragma: no cover
             raise ValueError(
-                f"recursion_mode must be one of {', '.join(RECURSION_MODES)}. "
-                f"Not {recursion_mode!r}"
+                f"emission_strategy must be one of {', '.join(EMISSION_STRATEGIES)}. "
+                f"Not {emission_strategy!r}"
             )
 
         self._name = name
@@ -396,14 +388,14 @@ class SignalInstance:
         self._emit_queue: deque[tuple] = deque()
         self._recursion_depth: int = 0
         self._max_recursion_depth: int = 0
-        self._recursion_mode = recursion_mode
+        self._emission_strategy = emission_strategy
         self._run_emit_loop_inner: Callable[[], None]
-        if self._recursion_mode == "deferred":
-            self._run_emit_loop_inner = self._run_emit_loop_deferred
-        elif self._recursion_mode == "immediate-drop":
-            self._run_emit_loop_inner = self._run_emit_loop_immediate_drop
+        if self._emission_strategy == "sequential":
+            self._run_emit_loop_inner = self._run_emit_loop_sequential
+        elif self._emission_strategy == "depth-first":
+            self._run_emit_loop_inner = self._run_emit_loop_depth_first
         else:
-            self._run_emit_loop_inner = self._run_emit_loop_immediate
+            self._run_emit_loop_inner = self._run_emit_loop_nested
 
         # whether any slots in self._slots have a priority other than 0
         self._priority_in_use = False
@@ -1079,13 +1071,13 @@ class SignalInstance:
                     self._recursion_depth = 0
                 self._emit_queue.clear()
 
-    def _run_emit_loop_immediate(self) -> None:
+    def _run_emit_loop_nested(self) -> None:
         self._args = args = self._emit_queue.popleft()
         for caller in self._slots:
             self._caller = caller
             caller.cb(args)
 
-    def _run_emit_loop_immediate_drop(self) -> None:
+    def _run_emit_loop_depth_first(self) -> None:
         self._args = args = self._emit_queue.popleft()
         for caller in self._slots:
             if self._recursion_depth < self._max_recursion_depth:
@@ -1095,7 +1087,7 @@ class SignalInstance:
             self._caller = caller
             caller.cb(args)
 
-    def _run_emit_loop_deferred(self) -> None:
+    def _run_emit_loop_sequential(self) -> None:
         i = 0
         caller = None
         while i < len(self._emit_queue):
@@ -1254,7 +1246,7 @@ class SignalInstance:
             "_check_types_on_connect",
             "_emit_queue",
             "_priority_in_use",
-            "_recursion_mode",
+            "_emission_strategy",
             "_max_recursion_depth",
             "_recursion_depth",
         )
@@ -1279,10 +1271,12 @@ class SignalInstance:
             else:
                 setattr(self, k, v)
         self._lock = threading.RLock()
-        if self._recursion_mode == "immediate":
-            self._run_emit_loop_inner = self._run_emit_loop_immediate
-        else:  # pragma: no cover
-            self._run_emit_loop_inner = self._run_emit_loop_deferred
+        if self._emission_strategy == "sequential":
+            self._run_emit_loop_inner = self._run_emit_loop_sequential
+        elif self._emission_strategy == "depth-first":
+            self._run_emit_loop_inner = self._run_emit_loop_depth_first
+        else:
+            self._run_emit_loop_inner = self._run_emit_loop_nested
 
 
 class _SignalBlocker:

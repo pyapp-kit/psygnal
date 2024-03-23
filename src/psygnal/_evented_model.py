@@ -22,7 +22,7 @@ from pydantic import PrivateAttr
 
 from ._group import SignalGroup
 from ._group_descriptor import _check_field_equality, _pick_equality_operator
-from ._signal import Signal
+from ._signal import EMISSION_STRATEGIES, Signal
 
 PYDANTIC_V1 = pydantic.version.VERSION.startswith("1")
 
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from pydantic._internal import _utils as utils
     from typing_extensions import dataclass_transform as dataclass_transform  # py311
 
-    from ._signal import RecursionMode, SignalInstance
+    from ._signal import EmissionStrategy, SignalInstance
 
     EqOperator = Callable[[Any, Any], bool]
 else:
@@ -58,8 +58,8 @@ NULL = object()
 ALLOW_PROPERTY_SETTERS = "allow_property_setters"
 FIELD_DEPENDENCIES = "field_dependencies"
 GUESS_PROPERTY_DEPENDENCIES = "guess_property_dependencies"
-RECURSION_MODE = "recursion_mode"
-DEFAULT_RECURSION_MODE: "RecursionMode" = "deferred"
+EMISSION_STRATEGY = "emission_strategy"
+DEFAULT_EMISSION_STRATEGY: "EmissionStrategy" = "sequential"
 
 
 @contextmanager
@@ -217,31 +217,31 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
         model_fields = _get_fields(cls)
         model_config = _get_config(cls)
 
-        recursion_cfg = model_config.get(RECURSION_MODE, {})
-        default_recursion: RecursionMode = DEFAULT_RECURSION_MODE
-        recursion_map: Mapping[str, RecursionMode] = {}
-        if isinstance(recursion_cfg, str):
-            if recursion_cfg not in {"immediate", "deferred"}:
+        emission_cfg = model_config.get(EMISSION_STRATEGY, {})
+        default_strategy: EmissionStrategy = DEFAULT_EMISSION_STRATEGY
+        emission_map: Mapping[str, EmissionStrategy] = {}
+        if isinstance(emission_cfg, str):
+            if emission_cfg not in EMISSION_STRATEGIES:
                 raise ValueError(
-                    f"Invalid recursion mode {default_recursion!r}. Must be "
-                    "either 'immediate' or 'deferred'"
+                    f"Invalid emission strategy {default_strategy!r}. Must be "
+                    f"one of {EMISSION_STRATEGIES!r}"
                 )
-            default_recursion = recursion_cfg
+            default_strategy = emission_cfg
         else:
-            if not isinstance(recursion_cfg, Mapping) or not all(
-                x in {"immediate", "deferred"} for x in recursion_cfg.values()
+            if not isinstance(emission_cfg, Mapping) or not all(
+                x in EMISSION_STRATEGIES for x in emission_cfg.values()
             ):
                 raise ValueError(
-                    f"Invalid recursion mode {recursion_cfg!r}. Must be a mapping "
-                    "of field names to 'immediate' or 'deferred'."
+                    f"Invalid emission strategy {emission_cfg!r}. Must be a mapping "
+                    f"of field names to one of {EMISSION_STRATEGIES!r}."
                 )
-            recursion_map = recursion_cfg
+            emission_map = emission_cfg
 
         for n, f in model_fields.items():
             cls.__eq_operators__[n] = _pick_equality_operator(f.annotation)
             if not f.frozen:
-                recursion = recursion_map.get(n, default_recursion)
-                signals[n] = Signal(f.annotation, recursion_mode=recursion)
+                recursion = emission_map.get(n, default_strategy)
+                signals[n] = Signal(f.annotation, emission_strategy=recursion)
 
             # If a field type has a _json_encode method, add it to the json
             # encoders for this model.
@@ -269,8 +269,8 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
             for key, attr in namespace.items():
                 if isinstance(attr, property) and attr.fset is not None:
                     cls.__property_setters__[key] = attr
-                    recursion = recursion_map.get(key, default_recursion)
-                    signals[key] = Signal(object, recursion_mode=recursion)
+                    recursion = emission_map.get(key, default_strategy)
+                    signals[key] = Signal(object, emission_strategy=recursion)
         else:
             for b in cls.__bases__:
                 with suppress(AttributeError):

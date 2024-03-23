@@ -218,7 +218,7 @@ class SetEvents(SignalGroup):
         added or removed from the set.
     """
 
-    items_changed = Signal(tuple, tuple, recursion_mode="deferred")
+    items_changed = Signal(tuple, tuple, emission_strategy="sequential")
 
 
 class EventedSet(_BaseMutableSet[_T]):

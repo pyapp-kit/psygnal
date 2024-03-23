@@ -11,7 +11,7 @@ import pytest
 
 import psygnal
 from psygnal import EmitLoopError, Signal, SignalInstance
-from psygnal._signal import RecursionMode
+from psygnal._signal import EmissionStrategy
 from psygnal._weak_callback import WeakCallback
 
 PY39 = sys.version_info[:2] == (3, 9)
@@ -980,9 +980,9 @@ def test_pickle():
 
 
 @pytest.mark.skipif(PY39 and WINDOWS and COMPILED, reason="fails")
-@pytest.mark.parametrize("recursion", ["immediate", "deferred"])
-def test_recursion_error(recursion: RecursionMode) -> None:
-    s = SignalInstance(recursion_mode=recursion)
+@pytest.mark.parametrize("strategy", ["sequential", "nested"])
+def test_recursion_error(strategy: EmissionStrategy) -> None:
+    s = SignalInstance(emission_strategy=strategy)
 
     @s.connect
     def callback() -> None:
@@ -992,9 +992,9 @@ def test_recursion_error(recursion: RecursionMode) -> None:
         s.emit()
 
 
-@pytest.mark.parametrize("recursion", ["immediate", "deferred", "immediate-drop"])
-def test_callback_order(recursion: RecursionMode) -> None:
-    sig = SignalInstance((int,), recursion_mode=recursion)
+@pytest.mark.parametrize("strategy", ["sequential", "nested", "depth-first"])
+def test_callback_order(strategy: EmissionStrategy) -> None:
+    sig = SignalInstance((int,), emission_strategy=strategy)
 
     a = []
 
@@ -1016,24 +1016,23 @@ def test_callback_order(recursion: RecursionMode) -> None:
     sig.connect(cb3)
     sig.emit(1)
 
-    if recursion == "immediate":
-        # nested emission events occur immediately,
-        # before proceeding to the next callback
+    if strategy == "nested":
+        # nested emission events immediately trigger the next nested level
+        # before returning to process the remainder of the current loop
         assert a == [1, 2, 20, 3, 30, 300, 200, 10, 100]
-    elif recursion == "immediate-drop":
-        # nested emission events occur immediately,
-        # before proceeding to the next callback
-        # AND any remaining emissions in the current loop level are cancelled
+    elif strategy == "depth-first":
+        # nested emission events immediately trigger the next nested level
+        # and never return to process the remainder of the current loop
         assert a == [1, 2, 20, 3, 30, 300]
-    elif recursion == "deferred":
+    elif strategy == "sequential":
         # all callbacks are called once before the next one is called
         assert a == [1, 10, 100, 2, 20, 200, 3, 30, 300]
 
 
-@pytest.mark.parametrize("recursion", ["immediate", "deferred"])
-def test_signal_order_suspend(recursion: RecursionMode) -> None:
+@pytest.mark.parametrize("strategy", ["sequential", "nested"])
+def test_signal_order_suspend(strategy: EmissionStrategy) -> None:
     """Test that signals are emitted in the order they were connected."""
-    sig = SignalInstance((int,), recursion_mode=recursion)
+    sig = SignalInstance((int,), emission_strategy=strategy)
     mock1 = Mock()
     mock2 = Mock()
 
@@ -1059,9 +1058,9 @@ def test_signal_order_suspend(recursion: RecursionMode) -> None:
     sig.emit(1)
 
     mock1.assert_has_calls([call(1), call(10), call(11), call(39)])
-    if recursion == "immediate":
+    if strategy == "nested":
         mock2.assert_has_calls([call(11), call(39), call(10), call(1)])
-    else:
+    elif strategy == "sequential":
         mock2.assert_has_calls([call(1), call(10), call(11), call(39)])
 
 
