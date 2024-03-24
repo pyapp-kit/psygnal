@@ -202,7 +202,7 @@ class ReemissionMode:
 
     @staticmethod
     def validate(value: str) -> str:
-        value = str(value).lower().replace("_", "-")
+        value = str(value).lower()
         if value not in ReemissionMode._members():
             raise ValueError(
                 f"Invalid reemission value. Must be one of "
