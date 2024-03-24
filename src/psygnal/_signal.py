@@ -134,7 +134,6 @@ import warnings
 import weakref
 from collections import deque
 from contextlib import contextmanager, suppress
-from enum import Enum
 from functools import lru_cache, partial, reduce
 from inspect import Parameter, Signature, isclass
 from typing import (
@@ -143,6 +142,7 @@ from typing import (
     Callable,
     ClassVar,
     ContextManager,
+    Final,
     Iterable,
     Iterator,
     Literal,
@@ -186,31 +186,33 @@ _NULL = object()
 F = TypeVar("F", bound=Callable)
 RECURSION_LIMIT = sys.getrecursionlimit()
 
+ReemissionVal = Literal["immediate", "queued", "latest-only"]
+VALID_REEMISSION = set(ReemissionVal.__args__)  # type: ignore
+DEFAULT_REEMISSION: ReemissionVal = "immediate"
 
-class ReemissionMode(str, Enum):
+
+# using basic class instead of enum for easier mypyc compatibility
+# this isn't exposed publicly anyway.
+class ReemissionMode:
     """Enumeration of reemission strategies."""
 
-    IMMEDIATE = "immediate"
-    QUEUED = "queued"
-    LATEST = "latest-only"
+    IMMEDIATE: Final = "immediate"
+    QUEUED: Final = "queued"
+    LATEST: Final = "latest-only"
 
-    @classmethod
-    def cast(cls, value: str | ReemissionMode) -> ReemissionMode:
-        if isinstance(value, str):
-            value = value.lower().replace("_", "-")
-
-        try:
-            return cls(value)
-        except ValueError:
+    @staticmethod
+    def validate(value: str) -> str:
+        value = str(value).lower().replace("_", "-")
+        if value not in ReemissionMode._members():
             raise ValueError(
-                "Invalid reemission value. Must be one of "
-                f"{', '.join(repr(x.value) for x in cls)}. Not {value!r}"
-            ) from None
+                f"Invalid reemission value. Must be one of "
+                f"{', '.join(ReemissionMode._members())}. Not {value!r}"
+            )
+        return value
 
-
-ReemissionVal = Literal["immediate", "queued", "latest-only"]
-DEFAULT_REEMISSION: ReemissionVal = ReemissionMode.IMMEDIATE.value
-VALID_REEMISSION: set[ReemissionVal] = {R.value for R in ReemissionMode}
+    @staticmethod
+    def _members() -> set[str]:
+        return VALID_REEMISSION
 
 
 class Signal:
@@ -293,7 +295,7 @@ class Signal:
         name: str | None = None,
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
-        reemission: ReemissionVal | ReemissionMode = DEFAULT_REEMISSION,
+        reemission: ReemissionVal = DEFAULT_REEMISSION,
     ) -> None:
         self._name = name
         self.description = description
@@ -509,7 +511,7 @@ class SignalInstance:
         name: str | None = None,
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
-        reemission: ReemissionVal | ReemissionMode = DEFAULT_REEMISSION,
+        reemission: ReemissionVal = DEFAULT_REEMISSION,
     ) -> None:
         if isinstance(signature, (list, tuple)):
             signature = _build_signature(*signature)
@@ -519,7 +521,7 @@ class SignalInstance:
                 "instance of `inspect.Signature`"
             )
 
-        self._reemission = ReemissionMode.cast(reemission)
+        self._reemission = ReemissionMode.validate(reemission)
         self._name = name
         self._instance: Callable = self._instance_ref(instance)
         self._args_queue: list[tuple] = []  # filled when paused

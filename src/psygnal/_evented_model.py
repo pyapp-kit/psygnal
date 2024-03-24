@@ -220,14 +220,14 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
         default_strategy: ReemissionMode = ReemissionMode.LATEST
         emission_map: Mapping[str, ReemissionMode] = {}
         if isinstance(emission_cfg, (str, ReemissionMode)):
-            default_strategy = ReemissionMode.cast(emission_cfg)
+            default_strategy = ReemissionMode.validate(emission_cfg)
         else:
             try:
                 emission_map = {
-                    k: ReemissionMode.cast(v) for k, v in emission_cfg.items()
+                    k: ReemissionMode.validate(v) for k, v in emission_cfg.items()
                 }
             except (ValueError, TypeError) as e:
-                valid = ", ".join(repr(x.value) for x in ReemissionMode)
+                valid = ", ".join(repr(x) for x in ReemissionMode._members())
                 raise ValueError(
                     f"Invalid reemission value {emission_cfg!r}. Must be a mapping "
                     f"of field names to one of {valid}."
