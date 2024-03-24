@@ -11,6 +11,7 @@ import pytest
 
 import psygnal
 from psygnal import EmitLoopError, Signal, SignalInstance
+from psygnal._signal import ReemissionMode
 from psygnal._weak_callback import WeakCallback
 
 PY39 = sys.version_info[:2] == (3, 9)
@@ -979,9 +980,9 @@ def test_pickle():
 
 
 @pytest.mark.skipif(PY39 and WINDOWS and COMPILED, reason="fails")
-@pytest.mark.parametrize("recursion", ["immediate", "deferred"])
-def test_recursion_error(recursion: Literal["immediate", "deferred"]) -> None:
-    s = SignalInstance(recursion_mode=recursion)
+@pytest.mark.parametrize("strategy", [ReemissionMode.QUEUED, ReemissionMode.IMMEDIATE])
+def test_recursion_error(strategy: ReemissionMode) -> None:
+    s = SignalInstance(reemission=strategy)
 
     @s.connect
     def callback() -> None:
@@ -991,9 +992,11 @@ def test_recursion_error(recursion: Literal["immediate", "deferred"]) -> None:
         s.emit()
 
 
-@pytest.mark.parametrize("recursion", ["immediate", "deferred"])
-def test_callback_order(recursion: Literal["immediate", "deferred"]) -> None:
-    sig = SignalInstance((int,), recursion_mode=recursion)
+@pytest.mark.parametrize(
+    "strategy", [ReemissionMode.QUEUED, ReemissionMode.IMMEDIATE, ReemissionMode.LATEST]
+)
+def test_callback_order(strategy: ReemissionMode) -> None:
+    sig = SignalInstance((int,), reemission=strategy)
 
     a = []
 
@@ -1015,19 +1018,23 @@ def test_callback_order(recursion: Literal["immediate", "deferred"]) -> None:
     sig.connect(cb3)
     sig.emit(1)
 
-    if recursion == "immediate":
-        # nested emission events occur immediately,
-        # before proceeding to the next callback
+    if strategy == ReemissionMode.IMMEDIATE:
+        # nested emission events immediately trigger the next nested level
+        # before returning to process the remainder of the current loop
         assert a == [1, 2, 20, 3, 30, 300, 200, 10, 100]
-    elif recursion == "deferred":
+    elif strategy == ReemissionMode.LATEST:
+        # nested emission events immediately trigger the next nested level
+        # and never return to process the remainder of the current loop
+        assert a == [1, 2, 20, 3, 30, 300]
+    elif strategy == ReemissionMode.QUEUED:
         # all callbacks are called once before the next one is called
         assert a == [1, 10, 100, 2, 20, 200, 3, 30, 300]
 
 
-@pytest.mark.parametrize("recursion", ["immediate", "deferred"])
-def test_signal_order_suspend(recursion: Literal["immediate", "deferred"]) -> None:
+@pytest.mark.parametrize("strategy", [ReemissionMode.QUEUED, ReemissionMode.IMMEDIATE])
+def test_signal_order_suspend(strategy: ReemissionMode) -> None:
     """Test that signals are emitted in the order they were connected."""
-    sig = SignalInstance((int,), recursion_mode=recursion)
+    sig = SignalInstance((int,), reemission=strategy)
     mock1 = Mock()
     mock2 = Mock()
 
@@ -1053,9 +1060,9 @@ def test_signal_order_suspend(recursion: Literal["immediate", "deferred"]) -> No
     sig.emit(1)
 
     mock1.assert_has_calls([call(1), call(10), call(11), call(39)])
-    if recursion == "immediate":
+    if strategy == ReemissionMode.IMMEDIATE:
         mock2.assert_has_calls([call(11), call(39), call(10), call(1)])
-    else:
+    elif strategy == ReemissionMode.QUEUED:
         mock2.assert_has_calls([call(1), call(10), call(11), call(39)])
 
 

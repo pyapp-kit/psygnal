@@ -19,7 +19,7 @@ from typing import (
 from psygnal import Signal, SignalGroup
 
 if TYPE_CHECKING:
-    from typing import Self
+    from typing_extensions import Self
 
 
 _T = TypeVar("_T")
@@ -219,7 +219,7 @@ class SetEvents(SignalGroup):
         added or removed from the set.
     """
 
-    items_changed = Signal(tuple, tuple, recursion_mode="deferred")
+    items_changed = Signal(tuple, tuple, reemission="queued")
 
 
 class EventedSet(_BaseMutableSet[_T]):

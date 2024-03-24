@@ -1,3 +1,130 @@
+"""The main Signal class and SignalInstance class.
+
+A note on the "reemission" parameter in Signal and SignalInstances.  This controls the
+behavior of the signal when a callback emits the signal.
+
+Since it can be a little confusing, take the following example of a Signal that emits an
+integer.  We'll connect three callbacks to it, two of which re-emit the same signal with
+a different value:
+
+```python
+from psygnal import SignalInstance
+
+# a signal that emits an integer
+sig = SignalInstance((int,), reemission="...")
+
+
+def cb1(value: int) -> None:
+    print(f"calling cb1 with: {value}")
+    if value == 1:
+        # cb1 ALSO triggers an emission of the value 2
+        sig.emit(2)
+
+
+def cb2(value: int) -> None:
+    print(f"calling cb2 with: {value}")
+    if value == 2:
+        # cb2 ALSO triggers an emission of the value 3
+        sig.emit(3)
+
+
+def cb3(value: int) -> None:
+    print(f"calling cb3 with: {value}")
+
+
+sig.connect(cb1)
+sig.connect(cb2)
+sig.connect(cb3)
+sig.emit(1)
+```
+
+with `reemission="queued"` above: you see a breadth-first pattern:
+ALL callbacks are called with the first emitted value, before ANY of them are called
+with the second emitted value (emitted by the first connected callback  cb1)
+
+```
+calling cb1 with: 1
+calling cb2 with: 1
+calling cb3 with: 1
+calling cb1 with: 2
+calling cb2 with: 2
+calling cb3 with: 2
+calling cb1 with: 3
+calling cb2 with: 3
+calling cb3 with: 3
+```
+
+with `reemission='immediate'` signals emitted by callbacks are immediately processed by
+all callbacks in a deeper level, before returning back to the original loop level to
+call the remaining callbacks with the original value.
+
+```
+calling cb1 with: 1
+calling cb1 with: 2
+calling cb2 with: 2
+calling cb1 with: 3
+calling cb2 with: 3
+calling cb3 with: 3
+calling cb3 with: 2
+calling cb2 with: 1
+calling cb3 with: 1
+```
+
+with `reemission='latest'`, just as with 'immediate', signals emitted by callbacks are
+immediately processed by all callbacks in a deeper level.  But in this case, the
+remaining callbacks in the current level are never called with the original value.
+
+```
+calling cb1 with: 1
+calling cb1 with: 2
+calling cb2 with: 2
+calling cb1 with: 3
+calling cb2 with: 3
+calling cb3 with: 3
+# cb2 is never called with 1
+# cb3 is never called with 1 or 2
+```
+
+The real-world scenario in which this usually arises is an EventedModel or dataclass.
+Evented models emit signals on `setattr`:
+
+
+```python
+class MyModel(EventedModel):
+    x: int = 1
+
+
+m = MyModel(x=1)
+print("starting value", m.x)
+
+
+@m.events.x.connect
+def ensure_at_least_20(val: int):
+    print("trying to set to", val)
+    m.x = max(val, 20)
+
+
+m.x = 5
+print("ending value", m.x)
+```
+
+```
+starting value 1
+trying to set to 5
+trying to set to 20
+ending value 20
+```
+
+With EventedModel.__setattr__, you can easily end up with some complicated recursive
+behavior if you connect an on-change callback that also sets the value of the model. In
+this case `reemission='latest'` is probably the most appropriate, as it will prevent
+the callback from being called with the original (now-stale) value.  But one can
+conceive of other scenarios where `reemission='immediate'` or `reemission='queued'`
+might be more appropriate.  Qt's default behavior, for example, is similar to
+`immediate`, but can also be configured to be like `queued` by changing the
+connection type (in that case, depending on threading).
+"""
+
 from __future__ import annotations
 
 import inspect
@@ -15,6 +142,7 @@ from typing import (
     Callable,
     ClassVar,
     ContextManager,
+    Final,
     Iterable,
     Iterator,
     Literal,
@@ -50,13 +178,41 @@ if TYPE_CHECKING:
     # function that takes two args tuples. it will be passed to itertools.reduce
     ReducerTwoArgs = Callable[[tuple, tuple], tuple]
     ReducerFunc = Union[ReducerOneArg, ReducerTwoArgs]
-    RecursionMode = Literal["immediate", "deferred"]
+
 
 __all__ = ["Signal", "SignalInstance", "_compiled"]
+
 _NULL = object()
 F = TypeVar("F", bound=Callable)
 RECURSION_LIMIT = sys.getrecursionlimit()
-DEFAULT_RECURSION_MODE: RecursionMode = "immediate"
+
+ReemissionVal = Literal["immediate", "queued", "latest-only"]
+VALID_REEMISSION = set(ReemissionVal.__args__)  # type: ignore
+DEFAULT_REEMISSION: ReemissionVal = "immediate"
+
+
+# using basic class instead of enum for easier mypyc compatibility
+# this isn't exposed publicly anyway.
+class ReemissionMode:
+    """Enumeration of reemission strategies."""
+
+    IMMEDIATE: Final = "immediate"
+    QUEUED: Final = "queued"
+    LATEST: Final = "latest-only"
+
+    @staticmethod
+    def validate(value: str) -> str:
+        value = str(value).lower()
+        if value not in ReemissionMode._members():
+            raise ValueError(
+                f"Invalid reemission value. Must be one of "
+                f"{', '.join(ReemissionMode._members())}. Not {value!r}"
+            )
+        return value
+
+    @staticmethod
+    def _members() -> set[str]:
+        return VALID_REEMISSION
 
 
 class Signal:
@@ -95,31 +251,37 @@ class Signal:
 
     Parameters
     ----------
-    *types : Union[Type[Any], Signature]
+    *types : Type[Any] | Signature
         A sequence of individual types, or a *single* [`inspect.Signature`][] object.
     description : str
         Optional descriptive text for the signal.  (not used internally).
-    name : Optional[str]
+    name : str | None
         Optional name of the signal. If it is not specified then the name of the
         class attribute that is bound to the signal will be used. default None
     check_nargs_on_connect : bool
         Whether to check the number of positional args against `signature` when
         connecting a new callback. This can also be provided at connection time using
-        `.connect(..., check_nargs=True)`. By default, True.
+        `.connect(..., check_nargs=True)`. By default, `True`.
     check_types_on_connect : bool
         Whether to check the callback parameter types against `signature` when
         connecting a new callback. This can also be provided at connection time using
-        `.connect(..., check_types=True)`. By default, False.
-    recursion_mode : Literal["immediate", "deferred"]
-        How to handle recursive emissions, when this signal is emitted by a callback
-        while this signal is being emitted.
+        `.connect(..., check_types=True)`. By default, `False`.
+    reemission : Literal["immediate", "queued", "latest-only"] | None
+        Determines the order and manner in which connected callbacks are invoked when a
+        callback re-emits a signal. Default is `"immediate"`.
 
-        - "immediate": Nested emission events immediately begin a deeper emission loop:
-          calling all callbacks with the arguments of the nested emitter before
-          returning to continue the original emission loop.  This is the default
-          behavior.
-        - "deferred": Nested emission events are deferred until the current emission
-          loop is complete.
+        * `"immediate"`: Signals emitted by callbacks are immediately processed in a
+            deeper emission loop, before returning to process signals emitted at the
+            current level (after all callbacks in the deeper level have been called).
+
+        * `"queued"`: Signals emitted by callbacks are enqueued for emission after the
+            current level of emission is complete. This ensures *all* connected
+            callbacks are called with the first emitted value, before *any* of them are
+            called with values emitted while calling callbacks.
+
+        * `"latest-only"`: Signals emitted by callbacks are immediately processed in a
+            deeper emission loop, and remaining callbacks in the current level are never
+            called with the original value.
     """
 
     # _signature: Signature  # callback signature for this signal
@@ -133,13 +295,13 @@ class Signal:
         name: str | None = None,
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
-        recursion_mode: RecursionMode = DEFAULT_RECURSION_MODE,
+        reemission: ReemissionVal = DEFAULT_REEMISSION,
     ) -> None:
         self._name = name
         self.description = description
         self._check_nargs_on_connect = check_nargs_on_connect
         self._check_types_on_connect = check_types_on_connect
-        self._recursion_mode = recursion_mode
+        self._reemission = reemission
         self._signal_instance_class: type[SignalInstance] = SignalInstance
         self._signal_instance_cache: dict[int, SignalInstance] = {}
 
@@ -235,7 +397,7 @@ class Signal:
             name=name or self._name,
             check_nargs_on_connect=self._check_nargs_on_connect,
             check_types_on_connect=self._check_types_on_connect,
-            recursion_mode=self._recursion_mode,
+            reemission=self._reemission,
         )
 
     @classmethod
@@ -309,33 +471,26 @@ class SignalInstance:
 
     Parameters
     ----------
-    signature : Optional[inspect.Signature]
+    signature : Signature | None
         The signature that this signal accepts and will emit, by default `Signature()`.
-    instance : Optional[Any]
+    instance : Any
         An object to which this signal is bound. Normally this will be provided by the
         `Signal.__get__` method (see above).  However, an unbound `SignalInstance`
         may also be created directly. by default `None`.
-    name : Optional[str]
+    name : str | None
         An optional name for this signal.  Normally this will be provided by the
         `Signal.__get__` method. by default `None`
     check_nargs_on_connect : bool
         Whether to check the number of positional args against `signature` when
         connecting a new callback. This can also be provided at connection time using
-        `.connect(..., check_nargs=True)`. By default, True.
+        `.connect(..., check_nargs=True)`. By default, `True`.
     check_types_on_connect : bool
         Whether to check the callback parameter types against `signature` when
         connecting a new callback. This can also be provided at connection time using
-        `.connect(..., check_types=True)`. By default, False.
-    recursion_mode : Literal["immediate", "deferred"]
-        How to handle recursive emissions, when this signal is emitted by a callback
-        while this signal is being emitted.
-
-        - "immediate": Nested emission events immediately begin a deeper emission loop:
-          calling all callbacks with the arguments of the nested emitter before
-          returning to continue the original emission loop.  This is the default
-          behavior.
-        - "deferred": Nested emission events are deferred until the current emission
-          loop is complete.
+        `.connect(..., check_types=True)`. By default, `False`.
+    reemission : Literal["immediate", "queued", "latest-only"] | None
+        See docstring for [`Signal`][psygnal.Signal] for details.
+        By default, `"immediate"`.
 
     Raises
     ------
@@ -356,7 +511,7 @@ class SignalInstance:
         name: str | None = None,
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
-        recursion_mode: RecursionMode = "immediate",
+        reemission: ReemissionVal = DEFAULT_REEMISSION,
     ) -> None:
         if isinstance(signature, (list, tuple)):
             signature = _build_signature(*signature)
@@ -366,12 +521,7 @@ class SignalInstance:
                 "instance of `inspect.Signature`"
             )
 
-        if recursion_mode not in ("immediate", "deferred"):  # pragma: no cover
-            raise ValueError(
-                "recursion_mode must be one of 'immediate' or 'deferred', not "
-                f"{recursion_mode!r}"
-            )
-
+        self._reemission = ReemissionMode.validate(reemission)
         self._name = name
         self._instance: Callable = self._instance_ref(instance)
         self._args_queue: list[tuple] = []  # filled when paused
@@ -383,12 +533,15 @@ class SignalInstance:
         self._is_paused: bool = False
         self._lock = threading.RLock()
         self._emit_queue: deque[tuple] = deque()
-        self._recursion_mode = recursion_mode
+        self._recursion_depth: int = 0
+        self._max_recursion_depth: int = 0
         self._run_emit_loop_inner: Callable[[], None]
-        if self._recursion_mode == "immediate":
-            self._run_emit_loop_inner = self._run_emit_loop_immediate
+        if self._reemission == ReemissionMode.QUEUED:
+            self._run_emit_loop_inner = self._run_emit_loop_queued
+        elif self._reemission == ReemissionMode.LATEST:
+            self._run_emit_loop_inner = self._run_emit_loop_latest_only
         else:
-            self._run_emit_loop_inner = self._run_emit_loop_deferred
+            self._run_emit_loop_inner = self._run_emit_loop_immediate
 
         # whether any slots in self._slots have a priority other than 0
         self._priority_in_use = False
@@ -747,7 +900,6 @@ class SignalInstance:
         ValueError
             If `missing_ok` is `True` and no attribute setter is connected.
         """
-        # sourcery skip: merge-nested-ifs, use-next
         with self._lock:
             cb = WeakSetattr(obj, attr, on_ref_error="ignore")
             self._try_discard(cb, missing_ok)
@@ -862,7 +1014,6 @@ class SignalInstance:
         if not hasattr(obj, "__setitem__"):
             raise TypeError(f"Object {obj} does not support __setitem__")
 
-        # sourcery skip: merge-nested-ifs, use-next
         with self._lock:
             caller = WeakSetitem(obj, key, on_ref_error="ignore")
             self._try_discard(caller, missing_ok)
@@ -1043,8 +1194,12 @@ class SignalInstance:
             if len(self._emit_queue) > 1:
                 return
             try:
+                # allow receiver to query sender with Signal.current_emitter()
+                self._recursion_depth += 1
+                self._max_recursion_depth = max(
+                    self._max_recursion_depth, self._recursion_depth
+                )
                 with Signal._emitting(self):
-                    # allow receiver to query sender with Signal.current_emitter()
                     self._run_emit_loop_inner()
             except RecursionError as e:
                 raise RecursionError(
@@ -1056,6 +1211,11 @@ class SignalInstance:
                     cb=self._caller, args=self._args, exc=e, signal=self
                 ) from e
             finally:
+                self._recursion_depth -= 1
+                # we're back to the root level of the emit loop, reset max_depth
+                if self._recursion_depth <= 0:
+                    self._max_recursion_depth = 0
+                    self._recursion_depth = 0
                 self._emit_queue.clear()
                 self._args = ()
                 self._caller = None
@@ -1066,7 +1226,17 @@ class SignalInstance:
             self._caller = caller
             caller.cb(args)
 
-    def _run_emit_loop_deferred(self) -> None:
+    def _run_emit_loop_latest_only(self) -> None:
+        self._args = args = self._emit_queue.popleft()
+        for caller in self._slots:
+            if self._recursion_depth < self._max_recursion_depth:
+                # we've already entered a deeper emit loop
+                # we should drop the remaining slots in this round and return
+                break
+            self._caller = caller
+            caller.cb(args)
+
+    def _run_emit_loop_queued(self) -> None:
         i = 0
         while i < len(self._emit_queue):
             self._args = args = self._emit_queue[i]
@@ -1224,7 +1394,9 @@ class SignalInstance:
             "_check_types_on_connect",
             "_emit_queue",
             "_priority_in_use",
-            "_recursion_mode",
+            "_reemission",
+            "_max_recursion_depth",
+            "_recursion_depth",
         )
         dd = {slot: getattr(self, slot) for slot in attrs}
         dd["_instance"] = self._instance()
@@ -1247,10 +1419,12 @@ class SignalInstance:
             else:
                 setattr(self, k, v)
         self._lock = threading.RLock()
-        if self._recursion_mode == "immediate":
+        if self._reemission == ReemissionMode.QUEUED:  # pragma: no cover
+            self._run_emit_loop_inner = self._run_emit_loop_queued
+        elif self._reemission == ReemissionMode.LATEST:  # pragma: no cover
+            self._run_emit_loop_inner = self._run_emit_loop_latest_only
+        else:
             self._run_emit_loop_inner = self._run_emit_loop_immediate
-        else:  # pragma: no cover
-            self._run_emit_loop_inner = self._run_emit_loop_deferred
 
 
 class _SignalBlocker:
