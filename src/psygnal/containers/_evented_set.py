@@ -18,7 +18,7 @@ from typing import (
 from psygnal import Signal, SignalGroup
 
 if TYPE_CHECKING:
-    from typing import Self
+    from typing_extensions import Self
 
 
 _T = TypeVar("_T")

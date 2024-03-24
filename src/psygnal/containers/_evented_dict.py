@@ -19,7 +19,7 @@ from typing import (
 )
 
 if TYPE_CHECKING:
-    from typing import Self
+    from typing_extensions import Self
 
 from psygnal._group import SignalGroup
 from psygnal._signal import Signal

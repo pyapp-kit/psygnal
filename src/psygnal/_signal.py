@@ -1,15 +1,17 @@
 """The main Signal class and SignalInstance class.
 
-A note on "reemission" in Signal and SignalInstances.  Since it can be a little
-confusing, take the following example of a Signal that emits an integer.  We'll connect
-three callbacks to it, two of which re-emit the same signal with a different value
-(this is the tricky condition we're trying to handle here)
+A note on the "reemission" parameter in Signal and SignalInstances.  This controls the
+behavior of the signal when a callback emits the signal.
+
+Since it can be a little confusing, take the following example of a Signal that emits an
+integer.  We'll connect three callbacks to it, two of which re-emit the same signal with
+a different value:
 
 ```python
 from psygnal import SignalInstance
 
 # a signal that emits an integer
-sig = SignalInstance((int,), emission_mode="...")
+sig = SignalInstance((int,), reemission="...")
 
 
 def cb1(value: int) -> None:
@@ -36,7 +38,7 @@ sig.connect(cb3)
 sig.emit(1)
 ```
 
-with `emission_mode="sequential"` above: you see a breadth first pattern:
+with `reemission="queued"` above: you see a breadth-first pattern:
 ALL callbacks are called with the first emitted value, before ANY of them are called
 with the second emitted value (emitted by the first connected callback  cb1)
 
@@ -52,10 +54,9 @@ calling cb2 with: 3
 calling cb3 with: 3
 ```
 
-with `emission_mode='immediate'` signal emission from within
-any of the callbacks immediately goes into the next deeper nested loop of emission
-events, before returning back to the original loop to call the later callbacks with the
-original value.
+with `reemission='immediate'` signals emitted by callbacks are immediately processed by
+all callbacks in a deeper level, before returning back to the original loop level to
+call the remaining callbacks with the original value.
 
 ```
 calling cb1 with: 1
@@ -69,10 +70,9 @@ calling cb2 with: 1
 calling cb3 with: 1
 ```
 
-with `emission_mode='depth-first'` the signal emission from within
-any of the callbacks immediately goes into the next deeper nested loop of emission
-events, and does not return back to the original loop to call the later callbacks with
-the original value.
+with `reemission='latest'`, just as with 'immediate', signals emitted by callbacks are
+immediately processed by all callbacks in a deeper level.  But in this case, the
+remaining callbacks in the current level are never called with the original value.
 
 ```
 calling cb1 with: 1
@@ -115,13 +115,14 @@ trying to set to 20
 ending value 20
 ```
 
-So: with EventedModel.setattr you can easily end up with some complicated recursive
-behavior if you connect an on-change callback that also sets the value of the model.
-In this case `emit_mode='depth-first'` is probably the most appropriate, as it will
-prevent the callback from being called with the original (now-stale) value.  But
-one can conceive of other scenarios where `emit_mode='immediate'` or
-`emit_mode='sequential'` might be more appropriate.
-
+With EventedModel.__setattr__, you can easily end up with some complicated recursive
+behavior if you connect an on-change callback that also sets the value of the model. In
+this case `reemission='latest'` is probably the most appropriate, as it will prevent
+the callback from being called with the original (now-stale) value.  But one can
+conceive of other scenarios where `reemission='immediate'` or `reemission='queued'`
+might be more appropriate.  Qt's default behavior, for example, is similar to
+`immediate`, but can also be configured to be like `queued` by changing the
+connection type (in that case, depending on threading).
 """
 
 from __future__ import annotations
@@ -168,8 +169,6 @@ from ._weak_callback import (
 )
 
 if TYPE_CHECKING:
-    from typing import Self
-
     from ._group import EmissionInfo
     from ._weak_callback import RefErrorChoice
 
@@ -188,9 +187,6 @@ F = TypeVar("F", bound=Callable)
 RECURSION_LIMIT = sys.getrecursionlimit()
 
 
-ReemissionVal = Literal["immediate", "queued", "latest-only"]
-
-
 class ReemissionMode(str, Enum):
     """Enumeration of reemission strategies."""
 
@@ -199,7 +195,7 @@ class ReemissionMode(str, Enum):
     LATEST = "latest-only"
 
     @classmethod
-    def cast(cls, value: str | ReemissionMode) -> Self:
+    def cast(cls, value: str | ReemissionMode) -> ReemissionMode:
         if isinstance(value, str):
             value = value.lower().replace("_", "-")
 
@@ -212,6 +208,7 @@ class ReemissionMode(str, Enum):
             ) from None
 
 
+ReemissionVal = Literal["immediate", "queued", "latest-only"]
 DEFAULT_REEMISSION: ReemissionVal = ReemissionMode.IMMEDIATE.value
 VALID_REEMISSION: set[ReemissionVal] = {R.value for R in ReemissionMode}
 
