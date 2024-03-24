@@ -1097,3 +1097,23 @@ def test_slotted_classes() -> None:
     mock.assert_called_once()
 
     assert t.sig is t.sig
+
+
+def test_emit_should_not_prevent_gc():
+    from weakref import WeakSet
+
+    from psygnal import Signal
+
+    class Obj:
+        pass
+
+    class SomethingWithSignal:
+        changed = Signal(object)
+
+    object_instances: WeakSet[Obj] = WeakSet()
+    something = SomethingWithSignal()
+    obj = Obj()
+    object_instances.add(obj)
+    something.changed.emit(obj)
+    del obj
+    assert len(object_instances) == 0

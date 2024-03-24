@@ -13,6 +13,8 @@ from typing import (
     ClassVar,
     Iterable,
     Literal,
+    Mapping,
+    Optional,
     Type,
     TypeVar,
     cast,
@@ -25,17 +27,20 @@ from ._signal import Signal, SignalInstance
 
 if TYPE_CHECKING:
     from _weakref import ref as ref
+    from typing_extensions import TypeAlias
 
     from psygnal._weak_callback import RefErrorChoice, WeakCallback
 
+    EqOperator: TypeAlias = Callable[[Any, Any], bool]
+    FieldAliasFunc: TypeAlias = Callable[[str], Optional[str]]
 
 __all__ = ["is_evented", "get_evented_namespace", "SignalGroupDescriptor"]
+
 
 T = TypeVar("T", bound=Type)
 S = TypeVar("S")
 
 
-EqOperator = Callable[[Any, Any], bool]
 _EQ_OPERATORS: dict[type, dict[str, EqOperator]] = {}
 _EQ_OPERATOR_NAME = "__eq_operators__"
 PSYGNAL_GROUP_NAME = "_psygnal_group_"
@@ -146,6 +151,7 @@ def _build_dataclass_signal_group(
     cls: type,
     signal_group_class: type[SignalGroup],
     equality_operators: Iterable[tuple[str, EqOperator]] | None = None,
+    signal_aliases: Mapping[str, str | None] | FieldAliasFunc | None = None,
 ) -> type[SignalGroup]:
     """Build a SignalGroup with events for each field in a dataclass.
 
@@ -160,10 +166,35 @@ def _build_dataclass_signal_group(
         If defined, a mapping of field name and equality operator to use to compare if
         each field was modified after being set.
         Default to None
+    signal_aliases: Mapping[str, str | None] | Callable[[str], str | None] | None
+        If defined, a mapping between field name and signal name. Field names that are
+        not `signal_aliases` keys are not aliased (the signal name is the field name).
+        If the dict value is None, do not create a signal associated with this field.
+        If a callable, the signal name is the output of the function applied to the
+        field name. If the output is None, no signal is created for this field.
+        If None, defaults to an empty dict, no aliases.
+        Default to None
+
     """
+    group_name = f"{cls.__name__}{signal_group_class.__name__}"
+    # parse arguments
     _equality_operators = dict(equality_operators) if equality_operators else {}
-    signals = {}
     eq_map = _get_eq_operator_map(cls)
+
+    # prepare signal_aliases lookup
+    transform: FieldAliasFunc | None = None
+    _signal_aliases: dict[str, str | None] = {}
+    if callable(signal_aliases):
+        transform = signal_aliases
+    else:
+        _signal_aliases = dict(signal_aliases) if signal_aliases else {}
+    signal_group_sig_names = list(getattr(signal_group_class, "_psygnal_signals", {}))
+    signal_group_sig_aliases = cast(
+        "dict[str, str | None]",
+        dict(getattr(signal_group_class, "_psygnal_aliases", {})),
+    )
+
+    signals = {}
     # create a Signal for each field in the dataclass
     for name, type_ in iter_fields(cls):
         if name in _equality_operators:
@@ -172,14 +203,51 @@ def _build_dataclass_signal_group(
             eq_map[name] = _equality_operators[name]
         else:
             eq_map[name] = _pick_equality_operator(type_)
+
+        # Resolve the signal name for the field
+        sig_name: str | None
+        if name in _signal_aliases:  # an alias has been provided in a mapping
+            sig_name = _signal_aliases[name]
+        elif callable(transform):  # a callable has been provided
+            _signal_aliases[name] = sig_name = transform(name)
+        elif name in signal_group_sig_aliases:  # an alias has been defined in the class
+            _signal_aliases[name] = sig_name = signal_group_sig_aliases[name]
+        else:  # no alias has been defined, use the field name as the signal name
+            sig_name = name
+
+        # An alias mapping or callable returned `None`, skip this field
+        if sig_name is None:
+            continue
+
+        # Repeated signal
+        if sig_name in signals:
+            key = next((k for k, v in _signal_aliases.items() if v == sig_name), None)
+            warnings.warn(
+                f"Skip signal {sig_name!r}, was already created in {group_name}, "
+                f"from field {key}",
+                UserWarning,
+                stacklevel=2,
+            )
+            continue
+        if sig_name in signal_group_sig_names:
+            warnings.warn(
+                f"Skip signal {sig_name!r}, was already defined by "
+                f"{signal_group_class}",
+                UserWarning,
+                stacklevel=2,
+            )
+            continue
+
+        # Create the Signal
         field_type = object if type_ is None else type_
-        signals[name] = sig = Signal(field_type, field_type)
+        signals[sig_name] = sig = Signal(field_type, field_type)
         # patch in our custom SignalInstance class with maxargs=1 on connect_setattr
         sig._signal_instance_class = _DataclassFieldSignalInstance
 
-    # Create `signal_group_class` subclass with the attached signals
-    group_name = f"{cls.__name__}{signal_group_class.__name__}"
-    return type(group_name, (signal_group_class,), signals)
+    # Create `signal_group_class` subclass with the attached signals and signal_aliases
+    return type(
+        group_name, (signal_group_class,), signals, signal_aliases=_signal_aliases
+    )
 
 
 def is_evented(obj: object) -> bool:
@@ -214,6 +282,28 @@ def get_evented_namespace(obj: object) -> str | None:
     return getattr(obj, PSYGNAL_GROUP_NAME, None)
 
 
+def get_signal_from_field(group: SignalGroup, name: str) -> SignalInstance | None:
+    """Get the signal from a SignalGroup corresponding to the field `name`.
+
+    Parameters
+    ----------
+    group: SignalGroup
+        the signal group attached to a dataclass.
+    name: str
+        the name of field
+
+    Returns
+    -------
+    SignalInstance | None
+        the `SignalInstance` corresponding with the field `name` or None if the field
+        was skipped or does not have an associated `SignalInstance`.
+    """
+    sig_name = group._psygnal_aliases.get(name, name)
+    if sig_name is None or sig_name not in group:
+        return None
+    return group[sig_name]
+
+
 class _changes_emitted:
     def __init__(self, obj: object, field: str, signal: SignalInstance) -> None:
         self.obj = obj
@@ -233,21 +323,27 @@ SetAttr = Callable[[Any, str, Any], None]
 
 
 @overload
-def evented_setattr(signal_group_name: str, super_setattr: SetAttr) -> SetAttr: ...
+def evented_setattr(
+    signal_group_name: str, super_setattr: SetAttr, with_aliases: bool = ...
+) -> SetAttr: ...
 
 
 @overload
 def evented_setattr(
-    signal_group_name: str, super_setattr: Literal[None] | None = None
+    signal_group_name: str,
+    super_setattr: Literal[None] | None = ...,
+    with_aliases: bool = ...,
 ) -> Callable[[SetAttr], SetAttr]: ...
 
 
 def evented_setattr(
-    signal_group_name: str, super_setattr: SetAttr | None = None
+    signal_group_name: str,
+    super_setattr: SetAttr | None = None,
+    with_aliases: bool = True,
 ) -> SetAttr | Callable[[SetAttr], SetAttr]:
     """Create a new __setattr__ method that emits events when fields change.
 
-    `signal_group_name` must point to an attribute on the `self` object provided to
+    `signal_group_name` MUST point to an attribute on the `self` object provided to
     __setattr__ that obeys the following "SignalGroup interface":
 
         1. For every "evented" field in the class, there must be a corresponding
@@ -273,6 +369,10 @@ def evented_setattr(
         default "_psygnal_group_".
     super_setattr: Callable
         The original __setattr__ method for the class.
+    with_aliases: bool, optional
+        Whether to lookup the signal name in the signal aliases mapping,
+        by default True.  This is slightly slower, and so can be set to False if you
+        know you don't have any signal aliases.
     """
 
     def _inner(super_setattr: SetAttr) -> SetAttr:
@@ -280,18 +380,23 @@ def evented_setattr(
         if getattr(super_setattr, PATCHED_BY_PSYGNAL, False):
             return super_setattr
 
+        # pick a slightly faster signal lookup if we don't need aliases
+        get_signal: Callable[[SignalGroup, str], SignalInstance | None] = (
+            get_signal_from_field if with_aliases else SignalGroup.__getitem__
+        )
+
         def _setattr_and_emit_(self: object, name: str, value: Any) -> None:
             """New __setattr__ method that emits events when fields change."""
             if name == signal_group_name:
                 return super_setattr(self, name, value)
 
-            group: SignalGroup | None = getattr(self, signal_group_name, None)
-            if not isinstance(group, SignalGroup) or name not in group:
+            group = cast(SignalGroup, getattr(self, signal_group_name))
+            if not with_aliases and name not in group:
                 return super_setattr(self, name, value)
 
             # don't emit if the signal doesn't exist or has no listeners
-            signal: SignalInstance = group[name]
-            if len(signal) < 1:
+            signal: SignalInstance | None = get_signal(group, name)
+            if signal is None or len(signal) < 1:
                 return super_setattr(self, name, value)
 
             with _changes_emitted(self, name, signal):
@@ -374,6 +479,14 @@ class SignalGroupDescriptor:
         instance will be a subclass of `signal_group_class` (SignalGroup if it is None).
         If False, a deepcopy of `signal_group_class` will be used.
         Default to True
+    signal_aliases: Mapping[str, str | None] | Callable[[str], str | None] | None
+        If defined, a mapping between field name and signal name. Field names that are
+        not `signal_aliases` keys are not aliased (the signal name is the field name).
+        If the dict value is None, do not create a signal associated with this field.
+        If a callable, the signal name is the output of the function applied to the
+        field name. If the output is None, no signal is created for this field.
+        If None, defaults to an empty dict, no aliases.
+        Default to None
 
     Examples
     --------
@@ -409,6 +522,7 @@ class SignalGroupDescriptor:
         patch_setattr: bool = True,
         signal_group_class: type[SignalGroup] | None = None,
         collect_fields: bool = True,
+        signal_aliases: Mapping[str, str | None] | FieldAliasFunc | None = None,
     ):
         grp_cls = signal_group_class or SignalGroup
         if not (isinstance(grp_cls, type) and issubclass(grp_cls, SignalGroup)):
@@ -416,20 +530,28 @@ class SignalGroupDescriptor:
                 f"'signal_group_class' must be a subclass of SignalGroup, "
                 f"not {grp_cls}"
             )
-        if grp_cls is SignalGroup and collect_fields is False:
-            raise ValueError(
-                "Cannot use SignalGroup with collect_fields=False. "
-                "Use a custom SignalGroup subclass instead."
-            )
+        if not collect_fields:
+            if grp_cls is SignalGroup:
+                raise ValueError(
+                    "Cannot use SignalGroup with `collect_fields=False`. "
+                    "Use a custom SignalGroup subclass instead."
+                )
+
+            if callable(signal_aliases):
+                raise ValueError(
+                    "Cannot use a Callable for `signal_aliases` with "
+                    "`collect_fields=False`"
+                )
 
         self._name: str | None = None
         self._eqop = tuple(equality_operators.items()) if equality_operators else None
         self._warn_on_no_fields = warn_on_no_fields
         self._cache_on_instance = cache_on_instance
         self._patch_setattr = patch_setattr
-
         self._signal_group_class: type[SignalGroup] = grp_cls
         self._collect_fields = collect_fields
+        self._signal_aliases = signal_aliases
+
         self._signal_groups: dict[int, type[SignalGroup]] = {}
 
     def __set_name__(self, owner: type, name: str) -> None:
@@ -439,18 +561,25 @@ class SignalGroupDescriptor:
             # This is the flag that identifies this object as evented
             setattr(owner, PSYGNAL_GROUP_NAME, name)
 
-    def _do_patch_setattr(self, owner: type) -> None:
+    def _do_patch_setattr(self, owner: type, with_aliases: bool = True) -> None:
         """Patch the owner class's __setattr__ method to emit events."""
         if not self._patch_setattr:
             return
         if getattr(owner.__setattr__, PATCHED_BY_PSYGNAL, False):
             return
 
+        name = self._name
+        if not (name and hasattr(owner, name)):  # pragma: no cover
+            # this should never happen... but if it does, we'll get errors
+            # every time we set an attribute on the class.  So raise now.
+            raise AttributeError("SignalGroupDescriptor has not been set on the class")
+
         try:
             # assign a new __setattr__ method to the class
             owner.__setattr__ = evented_setattr(  # type: ignore
-                cast(str, self._name),
+                name,
                 owner.__setattr__,  # type: ignore
+                with_aliases=with_aliases,
             )
         except Exception as e:  # pragma: no cover
             # not sure what might cause this ... but it will have consequences
@@ -500,15 +629,23 @@ class SignalGroupDescriptor:
         return self._signal_groups[type_id]
 
     def _create_group(self, owner: type) -> type[SignalGroup]:
-        # Do not collect fields from owner class, copy the SignalGroup
         if not self._collect_fields:
+            # Do not collect fields from owner class
             Group = copy.deepcopy(self._signal_group_class)
 
-        # Collect fields and create SignalGroup subclass
+            # Add aliases
+            if isinstance(self._signal_aliases, dict):
+                Group._psygnal_aliases.update(self._signal_aliases)
+
         else:
+            # Collect fields and create SignalGroup subclass
             Group = _build_dataclass_signal_group(
-                owner, self._signal_group_class, equality_operators=self._eqop
+                owner,
+                self._signal_group_class,
+                equality_operators=self._eqop,
+                signal_aliases=self._signal_aliases,
             )
+
         if self._warn_on_no_fields and not Group._psygnal_signals:
             warnings.warn(
                 f"No mutable fields found on class {owner}: no events will be "
@@ -516,5 +653,5 @@ class SignalGroupDescriptor:
                 stacklevel=2,
             )
 
-        self._do_patch_setattr(owner)
+        self._do_patch_setattr(owner, with_aliases=bool(Group._psygnal_aliases))
         return Group
