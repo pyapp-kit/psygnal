@@ -11,7 +11,7 @@ import pytest
 
 import psygnal
 from psygnal import EmitLoopError, Signal, SignalInstance
-from psygnal._signal import EmissionStrategy
+from psygnal._signal import ReemissionMode
 from psygnal._weak_callback import WeakCallback
 
 PY39 = sys.version_info[:2] == (3, 9)
@@ -980,9 +980,9 @@ def test_pickle():
 
 
 @pytest.mark.skipif(PY39 and WINDOWS and COMPILED, reason="fails")
-@pytest.mark.parametrize("strategy", ["sequential", "nested"])
-def test_recursion_error(strategy: EmissionStrategy) -> None:
-    s = SignalInstance(emission_strategy=strategy)
+@pytest.mark.parametrize("strategy", [ReemissionMode.QUEUED, ReemissionMode.IMMEDIATE])
+def test_recursion_error(strategy: ReemissionMode) -> None:
+    s = SignalInstance(reemission=strategy)
 
     @s.connect
     def callback() -> None:
@@ -992,9 +992,11 @@ def test_recursion_error(strategy: EmissionStrategy) -> None:
         s.emit()
 
 
-@pytest.mark.parametrize("strategy", ["sequential", "nested", "depth-first"])
-def test_callback_order(strategy: EmissionStrategy) -> None:
-    sig = SignalInstance((int,), emission_strategy=strategy)
+@pytest.mark.parametrize(
+    "strategy", [ReemissionMode.QUEUED, ReemissionMode.IMMEDIATE, ReemissionMode.LATEST]
+)
+def test_callback_order(strategy: ReemissionMode) -> None:
+    sig = SignalInstance((int,), reemission=strategy)
 
     a = []
 
@@ -1016,23 +1018,23 @@ def test_callback_order(strategy: EmissionStrategy) -> None:
     sig.connect(cb3)
     sig.emit(1)
 
-    if strategy == "nested":
+    if strategy == ReemissionMode.IMMEDIATE:
         # nested emission events immediately trigger the next nested level
         # before returning to process the remainder of the current loop
         assert a == [1, 2, 20, 3, 30, 300, 200, 10, 100]
-    elif strategy == "depth-first":
+    elif strategy == ReemissionMode.LATEST:
         # nested emission events immediately trigger the next nested level
         # and never return to process the remainder of the current loop
         assert a == [1, 2, 20, 3, 30, 300]
-    elif strategy == "sequential":
+    elif strategy == ReemissionMode.QUEUED:
         # all callbacks are called once before the next one is called
         assert a == [1, 10, 100, 2, 20, 200, 3, 30, 300]
 
 
-@pytest.mark.parametrize("strategy", ["sequential", "nested"])
-def test_signal_order_suspend(strategy: EmissionStrategy) -> None:
+@pytest.mark.parametrize("strategy", [ReemissionMode.QUEUED, ReemissionMode.IMMEDIATE])
+def test_signal_order_suspend(strategy: ReemissionMode) -> None:
     """Test that signals are emitted in the order they were connected."""
-    sig = SignalInstance((int,), emission_strategy=strategy)
+    sig = SignalInstance((int,), reemission=strategy)
     mock1 = Mock()
     mock2 = Mock()
 
@@ -1058,9 +1060,9 @@ def test_signal_order_suspend(strategy: EmissionStrategy) -> None:
     sig.emit(1)
 
     mock1.assert_has_calls([call(1), call(10), call(11), call(39)])
-    if strategy == "nested":
+    if strategy == ReemissionMode.IMMEDIATE:
         mock2.assert_has_calls([call(11), call(39), call(10), call(1)])
-    elif strategy == "sequential":
+    elif strategy == ReemissionMode.QUEUED:
         mock2.assert_has_calls([call(1), call(10), call(11), call(39)])
 
 

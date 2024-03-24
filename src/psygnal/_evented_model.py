@@ -22,7 +22,7 @@ from pydantic import PrivateAttr
 
 from ._group import SignalGroup
 from ._group_descriptor import _check_field_equality, _pick_equality_operator
-from ._signal import EMISSION_STRATEGIES, Signal
+from ._signal import ReemissionMode, Signal
 
 PYDANTIC_V1 = pydantic.version.VERSION.startswith("1")
 
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from pydantic._internal import _utils as utils
     from typing_extensions import dataclass_transform as dataclass_transform  # py311
 
-    from ._signal import EmissionStrategy, SignalInstance
+    from ._signal import SignalInstance
 
     EqOperator = Callable[[Any, Any], bool]
 else:
@@ -58,8 +58,7 @@ NULL = object()
 ALLOW_PROPERTY_SETTERS = "allow_property_setters"
 FIELD_DEPENDENCIES = "field_dependencies"
 GUESS_PROPERTY_DEPENDENCIES = "guess_property_dependencies"
-EMISSION_STRATEGY = "emission_strategy"
-DEFAULT_EMISSION_STRATEGY: "EmissionStrategy" = "sequential"
+REEMISSION = "reemission"
 
 
 @contextmanager
@@ -217,31 +216,28 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
         model_fields = _get_fields(cls)
         model_config = _get_config(cls)
 
-        emission_cfg = model_config.get(EMISSION_STRATEGY, {})
-        default_strategy: EmissionStrategy = DEFAULT_EMISSION_STRATEGY
-        emission_map: Mapping[str, EmissionStrategy] = {}
-        if isinstance(emission_cfg, str):
-            if emission_cfg not in EMISSION_STRATEGIES:
-                raise ValueError(
-                    f"Invalid emission strategy {default_strategy!r}. Must be "
-                    f"one of {EMISSION_STRATEGIES!r}"
-                )
-            default_strategy = emission_cfg
+        emission_cfg = model_config.get(REEMISSION, {})
+        default_strategy: ReemissionMode = ReemissionMode.LATEST
+        emission_map: Mapping[str, ReemissionMode] = {}
+        if isinstance(emission_cfg, (str, ReemissionMode)):
+            default_strategy = ReemissionMode.cast(emission_cfg)
         else:
-            if not isinstance(emission_cfg, Mapping) or not all(
-                x in EMISSION_STRATEGIES for x in emission_cfg.values()
-            ):
+            try:
+                emission_map = {
+                    k: ReemissionMode.cast(v) for k, v in emission_cfg.items()
+                }
+            except (ValueError, TypeError) as e:
+                valid = ", ".join(repr(x.value) for x in ReemissionMode)
                 raise ValueError(
-                    f"Invalid emission strategy {emission_cfg!r}. Must be a mapping "
-                    f"of field names to one of {EMISSION_STRATEGIES!r}."
-                )
-            emission_map = emission_cfg
+                    f"Invalid reemission value {emission_cfg!r}. Must be a mapping "
+                    f"of field names to one of {valid}."
+                ) from e
 
         for n, f in model_fields.items():
             cls.__eq_operators__[n] = _pick_equality_operator(f.annotation)
             if not f.frozen:
                 recursion = emission_map.get(n, default_strategy)
-                signals[n] = Signal(f.annotation, emission_strategy=recursion)
+                signals[n] = Signal(f.annotation, reemission=recursion)
 
             # If a field type has a _json_encode method, add it to the json
             # encoders for this model.
@@ -270,7 +266,7 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
                 if isinstance(attr, property) and attr.fset is not None:
                     cls.__property_setters__[key] = attr
                     recursion = emission_map.get(key, default_strategy)
-                    signals[key] = Signal(object, emission_strategy=recursion)
+                    signals[key] = Signal(object, reemission=recursion)
         else:
             for b in cls.__bases__:
                 with suppress(AttributeError):

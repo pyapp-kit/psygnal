@@ -17,6 +17,7 @@ from pydantic import BaseModel
 
 from psygnal import EmissionInfo, EventedModel
 from psygnal._group import SignalGroup
+from psygnal._signal import ReemissionMode
 
 PYDANTIC_V2 = pydantic.version.VERSION.startswith("2")
 
@@ -903,39 +904,39 @@ def test_if_event_is_emitted_only_once() -> None:
 @pytest.mark.parametrize(
     "mode",
     [
-        "nested",
-        "sequential",
-        {"a": "nested", "b": "sequential"},
-        {"a": "nested", "b": "err"},
-        {"a": "sequential"},
+        ReemissionMode.IMMEDIATE,
+        ReemissionMode.QUEUED,
+        {"a": ReemissionMode.IMMEDIATE, "b": ReemissionMode.QUEUED},
+        {"a": ReemissionMode.IMMEDIATE, "b": "err"},
+        {"a": ReemissionMode.QUEUED},
         {},
         "err",
     ],
 )
-def test_evented_model_emission_strategy(mode: Union[str, dict]) -> None:
-    from psygnal._evented_model import DEFAULT_EMISSION_STRATEGY
-
+def test_evented_model_reemission(mode: Union[str, dict]) -> None:
     err = mode == "err" or isinstance(mode, dict) and "err" in mode.values()
-    with pytest.raises(ValueError, match="Invalid emission") if err else nullcontext():
+    with pytest.raises(
+        ValueError, match="Invalid reemission"
+    ) if err else nullcontext():
 
         class Model(EventedModel):
             a: int
             b: int
 
             if PYDANTIC_V2:
-                model_config = {"emission_strategy": mode}
+                model_config = {"reemission": mode}
             else:
 
                 class Config:
-                    emission_strategy = mode
+                    reemission = mode
 
     if err:
         return
 
     m = Model(a=1, b=2)
     if isinstance(mode, dict):
-        assert m.events.a._emission_strategy == mode.get("a", DEFAULT_EMISSION_STRATEGY)
-        assert m.events.b._emission_strategy == mode.get("b", DEFAULT_EMISSION_STRATEGY)
+        assert m.events.a._reemission == mode.get("a", ReemissionMode.LATEST)
+        assert m.events.b._reemission == mode.get("b", ReemissionMode.LATEST)
     else:
-        assert m.events.a._emission_strategy == mode
-        assert m.events.b._emission_strategy == mode
+        assert m.events.a._reemission == mode
+        assert m.events.b._reemission == mode

@@ -1,6 +1,6 @@
 """The main Signal class and SignalInstance class.
 
-A note on "emission_strategy" in Signal and SignalInstances.  Since it can be a little
+A note on "reemission" in Signal and SignalInstances.  Since it can be a little
 confusing, take the following example of a Signal that emits an integer.  We'll connect
 three callbacks to it, two of which re-emit the same signal with a different value
 (this is the tricky condition we're trying to handle here)
@@ -52,7 +52,7 @@ calling cb2 with: 3
 calling cb3 with: 3
 ```
 
-with `emission_mode='nested'` signal emission from within
+with `emission_mode='immediate'` signal emission from within
 any of the callbacks immediately goes into the next deeper nested loop of emission
 events, before returning back to the original loop to call the later callbacks with the
 original value.
@@ -119,7 +119,7 @@ So: with EventedModel.setattr you can easily end up with some complicated recurs
 behavior if you connect an on-change callback that also sets the value of the model.
 In this case `emit_mode='depth-first'` is probably the most appropriate, as it will
 prevent the callback from being called with the original (now-stale) value.  But
-one can conceive of other scenarios where `emit_mode='nested'` or
+one can conceive of other scenarios where `emit_mode='immediate'` or
 `emit_mode='sequential'` might be more appropriate.
 
 """
@@ -133,6 +133,7 @@ import warnings
 import weakref
 from collections import deque
 from contextlib import contextmanager, suppress
+from enum import Enum
 from functools import lru_cache, partial, reduce
 from inspect import Parameter, Signature, isclass
 from typing import (
@@ -167,6 +168,8 @@ from ._weak_callback import (
 )
 
 if TYPE_CHECKING:
+    from typing import Self
+
     from ._group import EmissionInfo
     from ._weak_callback import RefErrorChoice
 
@@ -179,13 +182,38 @@ if TYPE_CHECKING:
 
 
 __all__ = ["Signal", "SignalInstance", "_compiled"]
-EmissionStrategy = Literal["sequential", "nested", "depth-first"]
 
 _NULL = object()
 F = TypeVar("F", bound=Callable)
 RECURSION_LIMIT = sys.getrecursionlimit()
-DEFAULT_EMISSION_STRATEGY: EmissionStrategy = "nested"
-EMISSION_STRATEGIES: set[EmissionStrategy] = set(EmissionStrategy.__args__)  # type: ignore
+
+
+ReemissionVal = Literal["immediate", "queued", "latest-only"]
+
+
+class ReemissionMode(str, Enum):
+    """Enumeration of reemission strategies."""
+
+    IMMEDIATE = "immediate"
+    QUEUED = "queued"
+    LATEST = "latest-only"
+
+    @classmethod
+    def cast(cls, value: str | ReemissionMode) -> Self:
+        if isinstance(value, str):
+            value = value.lower().replace("_", "-")
+
+        try:
+            return cls(value)
+        except ValueError:
+            raise ValueError(
+                "Invalid reemission value. Must be one of "
+                f"{', '.join(repr(x.value) for x in cls)}. Not {value!r}"
+            ) from None
+
+
+DEFAULT_REEMISSION: ReemissionVal = ReemissionMode.IMMEDIATE.value
+VALID_REEMISSION: set[ReemissionVal] = {R.value for R in ReemissionMode}
 
 
 class Signal:
@@ -239,23 +267,22 @@ class Signal:
         Whether to check the callback parameter types against `signature` when
         connecting a new callback. This can also be provided at connection time using
         `.connect(..., check_types=True)`. By default, `False`.
-    emission_strategy : Literal['nested', 'sequential', 'depth-first'] | None
+    reemission : Literal["immediate", "queued", "latest-only"] | None
         Determines the order and manner in which connected callbacks are invoked when a
-        callback re-emits a signal. Default is `"nested"`.
+        callback re-emits a signal. Default is `"immediate"`.
 
-        * `"nested"`: Signals emitted by callbacks are immediately processed in
-          a deeper emission loop, before returning to process signals emitted at the
-          current level.
+        * `"immediate"`: Signals emitted by callbacks are immediately processed in a
+            deeper emission loop, before returning to process signals emitted at the
+            current level (after all callbacks in the deeper level have been called).
 
-        * `"sequential"`: Ensures *all* connected callbacks are called with the first
-          emitted value, before *any* of them are called with values emitted while
-          calling callbacks. Signals emitted by callbacks are enqueued for emission
-          after the current level of emission is complete.
+        * `"queued"`: Signals emitted by callbacks are enqueued for emission after the
+            current level of emission is complete. This ensures *all* connected
+            callbacks are called with the first emitted value, before *any* of them are
+            called with values emitted while calling callbacks.
 
-        * `"depth-first"`: This is similar to `"nested"`, but control never returns to
-          the previous level of emission. When a callback emits a signal, a deeper
-          level of emission is started, and the current level is discontinued.
-          This strategy follows a depth-first execution without backtracking.
+        * `"latest-only"`: Signals emitted by callbacks are immediately processed in a
+            deeper emission loop, and remaining callbacks in the current level are never
+            called with the original value.
     """
 
     # _signature: Signature  # callback signature for this signal
@@ -269,13 +296,13 @@ class Signal:
         name: str | None = None,
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
-        emission_strategy: EmissionStrategy = DEFAULT_EMISSION_STRATEGY,
+        reemission: ReemissionVal | ReemissionMode = DEFAULT_REEMISSION,
     ) -> None:
         self._name = name
         self.description = description
         self._check_nargs_on_connect = check_nargs_on_connect
         self._check_types_on_connect = check_types_on_connect
-        self._emission_strategy = emission_strategy
+        self._reemission = reemission
         self._signal_instance_class: type[SignalInstance] = SignalInstance
         self._signal_instance_cache: dict[int, SignalInstance] = {}
 
@@ -371,7 +398,7 @@ class Signal:
             name=name or self._name,
             check_nargs_on_connect=self._check_nargs_on_connect,
             check_types_on_connect=self._check_types_on_connect,
-            emission_strategy=self._emission_strategy,
+            reemission=self._reemission,
         )
 
     @classmethod
@@ -462,9 +489,9 @@ class SignalInstance:
         Whether to check the callback parameter types against `signature` when
         connecting a new callback. This can also be provided at connection time using
         `.connect(..., check_types=True)`. By default, `False`.
-    emission_strategy : Literal['nested', 'sequential', 'depth-first'] | None
+    reemission : Literal["immediate", "queued", "latest-only"] | None
         See docstring for [`Signal`][psygnal.Signal] for details.
-        By default, `"nested"`.
+        By default, `"immediate"`.
 
     Raises
     ------
@@ -485,7 +512,7 @@ class SignalInstance:
         name: str | None = None,
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
-        emission_strategy: EmissionStrategy = DEFAULT_EMISSION_STRATEGY,
+        reemission: ReemissionVal | ReemissionMode = DEFAULT_REEMISSION,
     ) -> None:
         if isinstance(signature, (list, tuple)):
             signature = _build_signature(*signature)
@@ -495,12 +522,7 @@ class SignalInstance:
                 "instance of `inspect.Signature`"
             )
 
-        if emission_strategy not in EMISSION_STRATEGIES:  # pragma: no cover
-            raise ValueError(
-                f"emission_strategy must be one of {', '.join(EMISSION_STRATEGIES)}. "
-                f"Not {emission_strategy!r}"
-            )
-
+        self._reemission = ReemissionMode.cast(reemission)
         self._name = name
         self._instance: Callable = self._instance_ref(instance)
         self._args_queue: list[tuple] = []  # filled when paused
@@ -514,14 +536,13 @@ class SignalInstance:
         self._emit_queue: deque[tuple] = deque()
         self._recursion_depth: int = 0
         self._max_recursion_depth: int = 0
-        self._emission_strategy = emission_strategy
         self._run_emit_loop_inner: Callable[[], None]
-        if self._emission_strategy == "sequential":
-            self._run_emit_loop_inner = self._run_emit_loop_sequential
-        elif self._emission_strategy == "depth-first":
-            self._run_emit_loop_inner = self._run_emit_loop_depth_first
+        if self._reemission == ReemissionMode.QUEUED:
+            self._run_emit_loop_inner = self._run_emit_loop_queued
+        elif self._reemission == ReemissionMode.LATEST:
+            self._run_emit_loop_inner = self._run_emit_loop_latest_only
         else:
-            self._run_emit_loop_inner = self._run_emit_loop_nested
+            self._run_emit_loop_inner = self._run_emit_loop_immediate
 
         # whether any slots in self._slots have a priority other than 0
         self._priority_in_use = False
@@ -880,7 +901,6 @@ class SignalInstance:
         ValueError
             If `missing_ok` is `True` and no attribute setter is connected.
         """
-        # sourcery skip: merge-nested-ifs, use-next
         with self._lock:
             cb = WeakSetattr(obj, attr, on_ref_error="ignore")
             self._try_discard(cb, missing_ok)
@@ -995,7 +1015,6 @@ class SignalInstance:
         if not hasattr(obj, "__setitem__"):
             raise TypeError(f"Object {obj} does not support __setitem__")
 
-        # sourcery skip: merge-nested-ifs, use-next
         with self._lock:
             caller = WeakSetitem(obj, key, on_ref_error="ignore")
             self._try_discard(caller, missing_ok)
@@ -1197,13 +1216,13 @@ class SignalInstance:
                     self._recursion_depth = 0
                 self._emit_queue.clear()
 
-    def _run_emit_loop_nested(self) -> None:
+    def _run_emit_loop_immediate(self) -> None:
         self._args = args = self._emit_queue.popleft()
         for caller in self._slots:
             self._caller = caller
             caller.cb(args)
 
-    def _run_emit_loop_depth_first(self) -> None:
+    def _run_emit_loop_latest_only(self) -> None:
         self._args = args = self._emit_queue.popleft()
         for caller in self._slots:
             if self._recursion_depth < self._max_recursion_depth:
@@ -1213,7 +1232,7 @@ class SignalInstance:
             self._caller = caller
             caller.cb(args)
 
-    def _run_emit_loop_sequential(self) -> None:
+    def _run_emit_loop_queued(self) -> None:
         i = 0
         caller = None
         while i < len(self._emit_queue):
@@ -1372,7 +1391,7 @@ class SignalInstance:
             "_check_types_on_connect",
             "_emit_queue",
             "_priority_in_use",
-            "_emission_strategy",
+            "_reemission",
             "_max_recursion_depth",
             "_recursion_depth",
         )
@@ -1397,12 +1416,12 @@ class SignalInstance:
             else:
                 setattr(self, k, v)
         self._lock = threading.RLock()
-        if self._emission_strategy == "sequential":
-            self._run_emit_loop_inner = self._run_emit_loop_sequential
-        elif self._emission_strategy == "depth-first":
-            self._run_emit_loop_inner = self._run_emit_loop_depth_first
+        if self._reemission == ReemissionMode.QUEUED:  # pragma: no cover
+            self._run_emit_loop_inner = self._run_emit_loop_queued
+        elif self._reemission == ReemissionMode.LATEST:  # pragma: no cover
+            self._run_emit_loop_inner = self._run_emit_loop_latest_only
         else:
-            self._run_emit_loop_inner = self._run_emit_loop_nested
+            self._run_emit_loop_inner = self._run_emit_loop_immediate
 
 
 class _SignalBlocker:
