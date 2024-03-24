@@ -6,6 +6,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    ClassVar,
     Final,
     Iterable,
     Iterator,
@@ -254,6 +255,7 @@ class EventedSet(_BaseMutableSet[_T]):
     """
 
     events: SetEvents  # pragma: no cover
+    _psygnal_group_: ClassVar[str] = "events"
 
     def __init__(self, iterable: Iterable[_T] = ()):
         self.events = self._get_events_class()

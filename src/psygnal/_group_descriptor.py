@@ -479,6 +479,14 @@ class SignalGroupDescriptor:
         instance will be a subclass of `signal_group_class` (SignalGroup if it is None).
         If False, a deepcopy of `signal_group_class` will be used.
         Default to True
+    connect_child_events : bool, optional
+        If `True`, will connect events from all fields on the dataclass whose type is
+        also "evented" (as determined by the `is_evented` function in this module,
+        which returns True if the class has been decorated with `@evented`, or if it
+        has a SignalGroupDescriptor) to the group on the parent object. By default
+        False.
+        This is useful for nested evented dataclasses, where you want to monitor events
+        emitted from arbitrarily deep children on the parent object.
     signal_aliases: Mapping[str, str | None] | Callable[[str], str | None] | None
         If defined, a mapping between field name and signal name. Field names that are
         not `signal_aliases` keys are not aliased (the signal name is the field name).
@@ -522,6 +530,7 @@ class SignalGroupDescriptor:
         patch_setattr: bool = True,
         signal_group_class: type[SignalGroup] | None = None,
         collect_fields: bool = True,
+        connect_child_events: bool = False,
         signal_aliases: Mapping[str, str | None] | FieldAliasFunc | None = None,
     ):
         grp_cls = signal_group_class or SignalGroup
@@ -548,6 +557,8 @@ class SignalGroupDescriptor:
         self._warn_on_no_fields = warn_on_no_fields
         self._cache_on_instance = cache_on_instance
         self._patch_setattr = patch_setattr
+        self._connect_child_events = connect_child_events
+
         self._signal_group_class: type[SignalGroup] = grp_cls
         self._collect_fields = collect_fields
         self._signal_aliases = signal_aliases
@@ -609,16 +620,21 @@ class SignalGroupDescriptor:
         obj_id = id(instance)
         if obj_id not in self._instance_map:
             # cache it
-            self._instance_map[obj_id] = signal_group(instance)
+            self._instance_map[obj_id] = grp = signal_group(instance)
             # also *try* to set it on the instance as well, since it will skip all the
             # __get__ logic in the future, but if it fails, no big deal.
             if self._name and self._cache_on_instance:
                 with contextlib.suppress(Exception):
-                    setattr(instance, self._name, self._instance_map[obj_id])
+                    setattr(instance, self._name, grp)
 
             # clean up the cache when the instance is deleted
             with contextlib.suppress(TypeError):  # if it's not weakref-able
                 weakref.finalize(instance, self._instance_map.pop, obj_id, None)
+
+            # setup nested event emission if requested
+            if self._connect_child_events:
+                # TODO: expose "recurse" somehow?
+                connect_child_events(instance, recurse=True, _group=grp)
 
         return self._instance_map[obj_id]
 
@@ -655,3 +671,48 @@ class SignalGroupDescriptor:
 
         self._do_patch_setattr(owner, with_aliases=bool(Group._psygnal_aliases))
         return Group
+
+
+def _find_signal_group(obj: object, default_name: str = "events") -> SignalGroup | None:
+    # look for default "events" name as well
+    maybe_group = getattr(obj, get_evented_namespace(obj) or default_name, None)
+    return maybe_group if isinstance(maybe_group, SignalGroup) else None
+
+
+def connect_child_events(
+    obj: object, recurse: bool = False, _group: SignalGroup | None = None
+) -> None:
+    """Connect events from evented children to a parent SignalGroup.
+
+    `obj` must be an evented dataclass-style object.
+    This is useful when you have a tree of objects, and you want to connect all
+    events from the children to the parent.
+
+    Parameters.
+    ----------
+    obj : object
+        The object to connect events from.  If it is not evented, this function will
+        do nothing.
+    recurse : bool, optional
+        If `True`, will also connect events from all evented children of `obj`, by
+        default `False`.
+    _group : SignalGroup, optional
+        (This is used internally during recursion.)
+        The SignalGroup to connect to.  If not provided, will be found by calling
+        `get_evented_namespace(obj)`. By default None.
+    """
+    if _group is None and (_group := _find_signal_group(obj)) is None:
+        return  # pragma: no cover  # not evented
+
+    for loc, attr_type in iter_fields(type(obj), exclude_frozen=True):
+        if is_evented(attr_type):
+            child = getattr(obj, loc, None)
+            if (child_group := _find_signal_group(child)) is not None:
+                child_group.connect(
+                    _group._psygnal_relay._relay_partial(loc),
+                    check_nargs=False,
+                    check_types=False,
+                    on_ref_error="ignore",  # compiled objects are not weakref-able
+                )
+                if recurse:
+                    connect_child_events(child, recurse=True, _group=child_group)
