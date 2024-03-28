@@ -1124,9 +1124,7 @@ def test_emit_loop_error_message_construction(strategy: ReemissionVal) -> None:
     sig.connect(lambda v: v == 1 and sig.emit(2))  # type: ignore
     sig.connect(lambda v: v == 2 and sig.emit(0))  # type: ignore
     sig.connect(lambda v: 1 / v)
-    with pytest.raises(
-        EmitLoopError, match="While emitting signal <SignalInstance>"
-    ) as e:
+    with pytest.raises(EmitLoopError, match="While emitting signal") as e:
         sig.emit(1)
 
     if strategy == "queued":

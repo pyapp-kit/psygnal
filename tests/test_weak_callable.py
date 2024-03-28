@@ -28,7 +28,7 @@ from psygnal._weak_callback import WeakCallback, weak_callback
         "print",
     ],
 )
-def test_slot_types(type_: str, capsys) -> None:
+def test_slot_types(type_: str, capsys: Any) -> None:
     mock = Mock()
     final_mock = Mock()
 
@@ -86,6 +86,7 @@ def test_slot_types(type_: str, capsys) -> None:
         cb = weak_callback(print, finalize=final_mock)
 
     assert isinstance(cb, WeakCallback)
+    assert isinstance(cb.slot_repr(), str)
     cb.cb((2,))
     assert cb.dereference() is not None
     if type_ == "print":
