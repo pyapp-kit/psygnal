@@ -3,7 +3,6 @@ from __future__ import annotations
 import inspect
 from contextlib import suppress
 from pathlib import Path
-from textwrap import wrap
 from typing import TYPE_CHECKING, Any, Sequence
 
 import psygnal
@@ -53,12 +52,7 @@ class EmitLoopError(Exception):
         )
         if recursion_depth:
             s = "s" if recursion_depth > 1 else ""
-            msg += f"\nnested {recursion_depth} level{s} deep."
-            msg += (
-                "\n(A callback triggered by a signal"
-                + ", emitted by a signal" * recursion_depth
-                + ")"
-            )
+            msg += f"\nnested {recursion_depth} level{s} deep"
         if tb := exc.__traceback__:
             msg += ":\n"
 
@@ -76,26 +70,21 @@ class EmitLoopError(Exception):
                 if fi.code_context:
                     msg += f"    >  {fi.code_context[0].strip()}\n"
                 if flocals := fi.frame.f_locals:
-                    msg += "    Local variables:\n"
+                    msg += "\n    Local variables:\n"
                     for name, value in flocals.items():
                         if name not in ("self", "cls"):
-                            msg += f"       {name} = {value!r}\n"
+                            val_repr = repr(value)
+                            if len(val_repr) > 60:
+                                val_repr = val_repr[:60] + "..."  # pragma: no cover
+                            msg += f"       {name} = {val_repr}\n"
 
         # queued emission can be confusing, because the `signal.emit()` call shown
         # in the traceback will not match the emission that actually raised the error.
         if reemission == "queued" and (depth := len(emit_queue) - 1):
             msg += (
                 "\nNOTE: reemission is set to 'queued', and this error occurred "
-                f"at a queue-depth of {depth}.\n"
+                f"at a queue-depth of {depth}.\nEmitting arguments: {emit_queue[-1]})\n"
             )
-            emitted_by = wrap(
-                f"(A callback triggered by a signal{', emitted by a signal' * (depth)}"
-                f"... with arguments: {emit_queue[-1]})",
-                width=86,
-            )
-            msg += "\n".join(emitted_by)
-            msg += "\n"
-
         msg += f"\nSee {etype} above for original traceback."
 
         super().__init__(msg)
