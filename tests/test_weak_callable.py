@@ -215,7 +215,9 @@ def test_cb_raises() -> None:
     t = T()
 
     sig.connect(t.method)
-    error_re = re.compile(f"emitting signal.*'sig'.*{__file__}.*method", re.DOTALL)
+    error_re = re.compile(
+        f"emitting signal.*'sig'.*{re.escape(__file__)}.*method", re.DOTALL
+    )
     with pytest.raises(EmitLoopError, match=error_re):
         sig.emit("a")
     sig.disconnect(t.method)

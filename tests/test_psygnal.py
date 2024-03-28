@@ -134,7 +134,8 @@ def test_decorator():
     import re
 
     error_re = re.compile(
-        "signal 'tests.test_psygnal.Emitter.one_int'" f".*{__file__}", re.DOTALL
+        "signal 'tests.test_psygnal.Emitter.one_int'" f".*{re.escape(__file__)}",
+        re.DOTALL,
     )
     with pytest.raises(EmitLoopError, match=error_re) as e:
         emitter.one_int.emit(42)
