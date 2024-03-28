@@ -18,7 +18,7 @@ class EmitLoopError(Exception):
     ) -> None:
         self.__cause__ = exc  # mypyc doesn't set this, but uncompiled code would
 
-        if signal is None:
+        if signal is None:  # pragma: no cover
             sig_name = ""
         else:
             if instsance := signal.instance:
