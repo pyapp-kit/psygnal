@@ -88,7 +88,7 @@ def evented(
         instance itself.
     connect_child_events : bool, optional
         If `True`, will connect events from all fields on the dataclass whose type is
-        also "evented" (as determined by the `is_evented` function in this module,
+        also "evented" (as determined by the `psygnal.is_evented` function,
         which returns True if the class has been decorated with `@evented`, or if it
         has a SignalGroupDescriptor) to the group on the parent object. By default
         False.
