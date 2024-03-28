@@ -1185,9 +1185,6 @@ class SignalInstance:
             check_types=check_types,
         )
 
-    _args: tuple[Any, ...]
-    _caller: WeakCallback | None
-
     def _run_emit_loop(self, args: tuple[Any, ...]) -> None:
         with self._lock:
             self._emit_queue.append(args)
@@ -1207,9 +1204,7 @@ class SignalInstance:
                     f"emitting signal {self.name!r} with args {args}"
                 ) from e
             except Exception as e:
-                raise EmitLoopError(
-                    cb=self._caller, args=self._args, exc=e, signal=self
-                ) from e
+                raise EmitLoopError(exc=e, signal=self) from e
             finally:
                 self._recursion_depth -= 1
                 # we're back to the root level of the emit loop, reset max_depth
@@ -1217,13 +1212,10 @@ class SignalInstance:
                     self._max_recursion_depth = 0
                     self._recursion_depth = 0
                 self._emit_queue.clear()
-                self._args = ()
-                self._caller = None
 
     def _run_emit_loop_immediate(self) -> None:
-        self._args = args = self._emit_queue.popleft()
+        args = self._emit_queue.popleft()
         for caller in self._slots:
-            self._caller = caller
             caller.cb(args)
 
     def _run_emit_loop_latest_only(self) -> None:
@@ -1239,9 +1231,8 @@ class SignalInstance:
     def _run_emit_loop_queued(self) -> None:
         i = 0
         while i < len(self._emit_queue):
-            self._args = args = self._emit_queue[i]
+            args = self._emit_queue[i]
             for caller in self._slots:
-                self._caller = caller
                 caller.cb(args)
                 if len(self._emit_queue) > RECURSION_LIMIT:
                     raise RecursionError
