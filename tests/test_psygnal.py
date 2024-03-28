@@ -11,7 +11,7 @@ import pytest
 
 import psygnal
 from psygnal import EmitLoopError, Signal, SignalInstance
-from psygnal._signal import ReemissionMode
+from psygnal._signal import ReemissionMode, ReemissionVal
 from psygnal._weak_callback import WeakCallback
 
 PY39 = sys.version_info[:2] == (3, 9)
@@ -125,14 +125,21 @@ def test_decorator():
     err = ValueError()
 
     @emitter.one_int.connect
-    def boom(v: int):
+    def boom(v: int) -> None:
         raise err
 
     @emitter.one_int.connect(check_nargs=False)
     def bad_cb(a, b, c): ...
 
-    with pytest.raises(EmitLoopError) as e:
-        emitter.one_int.emit(1)
+    import re
+
+    error_re = re.compile(
+        "signal 'tests.test_psygnal.Emitter.one_int'" f".*{re.escape(__file__)}",
+        re.DOTALL,
+    )
+    with pytest.raises(EmitLoopError, match=error_re) as e:
+        emitter.one_int.emit(42)
+
     assert e.value.__cause__ is err
     assert e.value.__context__ is err
 
@@ -394,7 +401,7 @@ def test_weakref(slot):
         "partial",
     ],
 )
-def test_group_weakref(slot) -> None:
+def test_group_weakref(slot: str) -> None:
     """Test that a connected method doesn't hold strong ref."""
     from psygnal import SignalGroup
 
@@ -810,14 +817,6 @@ def test_emit_loop_exceptions():
     mock1.assert_called_once_with(2)
 
 
-# def test_partial_weakref():
-#     """Test that a connected method doesn't hold strong ref."""
-
-#     obj = MyObj()
-#     cb = partial(obj.f_int_int, 1)
-#     assert _partial_weakref(cb) == _partial_weakref(cb)
-
-
 @pytest.mark.parametrize(
     "slot",
     [
@@ -1117,3 +1116,17 @@ def test_emit_should_not_prevent_gc():
     something.changed.emit(obj)
     del obj
     assert len(object_instances) == 0
+
+
+@pytest.mark.parametrize("strategy", ReemissionMode._members())
+def test_emit_loop_error_message_construction(strategy: ReemissionVal) -> None:
+    sig = SignalInstance((int,), reemission=strategy)
+    sig.connect(lambda v: v == 1 and sig.emit(2))  # type: ignore
+    sig.connect(lambda v: v == 2 and sig.emit(0))  # type: ignore
+    sig.connect(lambda v: 1 / v)
+    with pytest.raises(EmitLoopError, match="While emitting signal") as e:
+        sig.emit(1)
+
+    if strategy == "queued":
+        # check that we show a useful message for confusign queued signals
+        assert "NOTE" in str(e.value)
