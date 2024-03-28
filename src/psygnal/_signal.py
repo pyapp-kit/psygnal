@@ -1179,11 +1179,7 @@ class SignalInstance:
         self, *args: Any, check_nargs: bool = False, check_types: bool = False
     ) -> None:
         """Alias for `emit()`. But prefer using `emit()` for clarity."""
-        return self.emit(
-            *args,
-            check_nargs=check_nargs,
-            check_types=check_types,
-        )
+        return self.emit(*args, check_nargs=check_nargs, check_types=check_types)
 
     def _run_emit_loop(self, args: tuple[Any, ...]) -> None:
         with self._lock:
@@ -1203,8 +1199,12 @@ class SignalInstance:
                     f"RecursionError when "
                     f"emitting signal {self.name!r} with args {args}"
                 ) from e
-            except Exception as e:
-                raise EmitLoopError(exc=e, signal=self) from e
+            except Exception as cb_err:
+                loop_err = EmitLoopError(exc=cb_err, signal=self).with_traceback(
+                    cb_err.__traceback__
+                )
+                # this comment will show up in the traceback
+                raise loop_err from cb_err  # emit() call ABOVE || callback error BELOW
             finally:
                 self._recursion_depth -= 1
                 # we're back to the root level of the emit loop, reset max_depth
