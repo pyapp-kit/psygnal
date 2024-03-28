@@ -1,20 +1,15 @@
 from __future__ import annotations
 
-from typing import (
-    Any,
-    Callable,
-    Literal,
-    TypeVar,
-    overload,
-)
+from typing import TYPE_CHECKING, Callable, Literal, Mapping, TypeVar, overload
 
 from psygnal._group_descriptor import SignalGroupDescriptor
+
+if TYPE_CHECKING:
+    from psygnal._group_descriptor import EqOperator, FieldAliasFunc
 
 __all__ = ["evented"]
 
 T = TypeVar("T", bound=type)
-
-EqOperator = Callable[[Any, Any], bool]
 
 
 @overload
@@ -25,6 +20,7 @@ def evented(
     equality_operators: dict[str, EqOperator] | None = None,
     warn_on_no_fields: bool = ...,
     cache_on_instance: bool = ...,
+    signal_aliases: Mapping[str, str | None] | FieldAliasFunc | None = ...,
 ) -> T: ...
 
 
@@ -36,6 +32,7 @@ def evented(
     equality_operators: dict[str, EqOperator] | None = None,
     warn_on_no_fields: bool = ...,
     cache_on_instance: bool = ...,
+    signal_aliases: Mapping[str, str | None] | FieldAliasFunc | None = ...,
 ) -> Callable[[T], T]: ...
 
 
@@ -46,6 +43,7 @@ def evented(
     equality_operators: dict[str, EqOperator] | None = None,
     warn_on_no_fields: bool = True,
     cache_on_instance: bool = True,
+    signal_aliases: Mapping[str, str | None] | FieldAliasFunc | None = None,
 ) -> Callable[[T], T] | T:
     """A decorator to add events to a dataclass.
 
@@ -85,6 +83,14 @@ def evented(
         access, but means that the owner instance will no longer be pickleable.  If
         `False`, the SignalGroup instance will *still* be cached, but not on the
         instance itself.
+    signal_aliases: Mapping[str, str | None] | Callable[[str], str | None] | None
+        If defined, a mapping between field name and signal name. Field names that are
+        not `signal_aliases` keys are not aliased (the signal name is the field name).
+        If the dict value is None, do not create a signal associated with this field.
+        If a callable, the signal name is the output of the function applied to the
+        field name. If the output is None, no signal is created for this field.
+        If None, defaults to an empty dict, no aliases.
+        Default to None
 
     Returns
     -------
@@ -122,6 +128,7 @@ def evented(
             equality_operators=equality_operators,
             warn_on_no_fields=warn_on_no_fields,
             cache_on_instance=cache_on_instance,
+            signal_aliases=signal_aliases,
         )
         # as a decorator, this will have already been called
         descriptor.__set_name__(cls, events_namespace)

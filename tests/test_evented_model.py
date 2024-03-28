@@ -17,6 +17,7 @@ from pydantic import BaseModel
 
 from psygnal import EmissionInfo, EventedModel
 from psygnal._group import SignalGroup
+from psygnal._signal import ReemissionMode
 
 PYDANTIC_V2 = pydantic.version.VERSION.startswith("2")
 
@@ -70,9 +71,8 @@ def test_evented_model():
 
     # test event system
     assert isinstance(user.events, SignalGroup)
-    # with pytest.warns(FutureWarning):
-    assert "id" in user.events.signals
-    assert "name" in user.events.signals
+    assert "id" in user.events
+    assert "name" in user.events
 
     # ClassVars are excluded from events
     assert "age" not in user.events
@@ -903,39 +903,39 @@ def test_if_event_is_emitted_only_once() -> None:
 @pytest.mark.parametrize(
     "mode",
     [
-        "immediate",
-        "deferred",
-        {"a": "immediate", "b": "deferred"},
-        {"a": "immediate", "b": "err"},
-        {"a": "deferred"},
+        ReemissionMode.IMMEDIATE,
+        ReemissionMode.QUEUED,
+        {"a": ReemissionMode.IMMEDIATE, "b": ReemissionMode.QUEUED},
+        {"a": ReemissionMode.IMMEDIATE, "b": "err"},
+        {"a": ReemissionMode.QUEUED},
         {},
         "err",
     ],
 )
-def test_evented_model_recursion_mode(mode: Union[str, dict]) -> None:
-    from psygnal._evented_model import DEFAULT_RECURSION_MODE
-
+def test_evented_model_reemission(mode: Union[str, dict]) -> None:
     err = mode == "err" or isinstance(mode, dict) and "err" in mode.values()
-    with pytest.raises(ValueError, match="Invalid recursion") if err else nullcontext():
+    with pytest.raises(
+        ValueError, match="Invalid reemission"
+    ) if err else nullcontext():
 
         class Model(EventedModel):
             a: int
             b: int
 
             if PYDANTIC_V2:
-                model_config = {"recursion_mode": mode}
+                model_config = {"reemission": mode}
             else:
 
                 class Config:
-                    recursion_mode = mode
+                    reemission = mode
 
     if err:
         return
 
     m = Model(a=1, b=2)
     if isinstance(mode, dict):
-        assert m.events.a._recursion_mode == mode.get("a", DEFAULT_RECURSION_MODE)
-        assert m.events.b._recursion_mode == mode.get("b", DEFAULT_RECURSION_MODE)
+        assert m.events.a._reemission == mode.get("a", ReemissionMode.LATEST)
+        assert m.events.b._reemission == mode.get("b", ReemissionMode.LATEST)
     else:
-        assert m.events.a._recursion_mode == mode
-        assert m.events.b._recursion_mode == mode
+        assert m.events.a._reemission == mode
+        assert m.events.b._reemission == mode

@@ -46,7 +46,7 @@ _T = TypeVar("_T")
 Index = Union[int, slice]
 
 if TYPE_CHECKING:
-    from typing import Self
+    from typing_extensions import Self
 
 
 class ListEvents(SignalGroup):
