@@ -223,12 +223,16 @@ def test_cb_raises() -> None:
     sig.disconnect(t.method)
 
     sig.connect_setattr(t, "x", maxargs=1)
-    error_re = re.compile(f"emitting signal.*'sig'.*{__file__}.*x", re.DOTALL)
+    error_re = re.compile(
+        f"emitting signal.*'sig'.*{re.escape(__file__)}.*x", re.DOTALL
+    )
     with pytest.raises(EmitLoopError, match=error_re):
         sig.emit("a")
     sig.disconnect_setattr(t, "x")
 
     sig.connect_setitem(t, "x", maxargs=1)
-    error_re = re.compile(f"emitting signal.*'sig'.*{__file__}.*__setitem__", re.DOTALL)
+    error_re = re.compile(
+        f"emitting signal.*'sig'.*{re.escape(__file__)}.*__setitem__", re.DOTALL
+    )
     with pytest.raises(EmitLoopError, match=error_re):
         sig.emit("a")
