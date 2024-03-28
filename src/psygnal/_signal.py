@@ -1200,9 +1200,15 @@ class SignalInstance:
                     f"emitting signal {self.name!r} with args {args}"
                 ) from e
             except Exception as cb_err:
-                loop_err = EmitLoopError(exc=cb_err, signal=self).with_traceback(
-                    cb_err.__traceback__
-                )
+                if isinstance(cb_err, EmitLoopError):
+                    raise cb_err
+                loop_err = EmitLoopError(
+                    exc=cb_err,
+                    signal=self,
+                    recursion_depth=self._recursion_depth - 1,
+                    reemission=self._reemission,
+                    emit_queue=self._emit_queue,
+                ).with_traceback(cb_err.__traceback__)
                 # this comment will show up in the traceback
                 raise loop_err from cb_err  # emit() call ABOVE || callback error BELOW
             finally:
