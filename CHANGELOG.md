@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.11.0](https://github.com/pyapp-kit/psygnal/tree/v0.11.0) (2024-03-29)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.10.2...v0.11.0)
+
+**Implemented enhancements:**
+
+- refactor: change EmitLoopError message, and mechanism of info gathering [\#302](https://github.com/pyapp-kit/psygnal/pull/302) ([tlambert03](https://github.com/tlambert03))
+- feat: add signal aliases on SignalGroup [\#299](https://github.com/pyapp-kit/psygnal/pull/299) ([getzze](https://github.com/getzze))
+- feat!: Rename `recursion_mode` to `reemission`.  Rename `deferred` to `queued`.  Add `latest-only` mode. \(technically breaking\) [\#296](https://github.com/pyapp-kit/psygnal/pull/296) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.16.5 to 2.17.0 [\#303](https://github.com/pyapp-kit/psygnal/pull/303) ([dependabot[bot]](https://github.com/apps/dependabot))
+
 ## [v0.10.2](https://github.com/pyapp-kit/psygnal/tree/v0.10.2) (2024-03-12)
 
 [Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.10.1...v0.10.2)
@@ -17,11 +31,14 @@
 - feat: Add recursion\_mode \('immediate' or 'deferred'\) to Signal and SignalInstance [\#293](https://github.com/pyapp-kit/psygnal/pull/293) ([tlambert03](https://github.com/tlambert03))
 - feat: add collect\_fields option to SignalGroupDescriptor, and accept a SignalGroup subclass [\#291](https://github.com/pyapp-kit/psygnal/pull/291) ([getzze](https://github.com/getzze))
 
+**Fixed bugs:**
+
+- A bit more consistent SignalGroup iter [\#289](https://github.com/pyapp-kit/psygnal/pull/289) ([getzze](https://github.com/getzze))
+
 **Merged pull requests:**
 
 - ci\(dependabot\): bump softprops/action-gh-release from 1 to 2 [\#295](https://github.com/pyapp-kit/psygnal/pull/295) ([dependabot[bot]](https://github.com/apps/dependabot))
 - chore: patch asv config to work locally with arm64 macos on hatchling [\#294](https://github.com/pyapp-kit/psygnal/pull/294) ([tlambert03](https://github.com/tlambert03))
-- A bit more consistent SignalGroup iter [\#289](https://github.com/pyapp-kit/psygnal/pull/289) ([getzze](https://github.com/getzze))
 
 ## [v0.10.0](https://github.com/pyapp-kit/psygnal/tree/v0.10.0) (2024-03-05)
 
@@ -29,6 +46,7 @@
 
 **Implemented enhancements:**
 
+- feat: add priority to connect, to control callback order [\#285](https://github.com/pyapp-kit/psygnal/pull/285) ([tlambert03](https://github.com/tlambert03))
 - feat: support for evented containers as pydantic v2 fields [\#283](https://github.com/pyapp-kit/psygnal/pull/283) ([tlambert03](https://github.com/tlambert03))
 - perf: Fixing performance of evented set [\#275](https://github.com/pyapp-kit/psygnal/pull/275) ([Czaki](https://github.com/Czaki))
 - refactor!: New SignalGroup that does not subclass SignalInstance [\#269](https://github.com/pyapp-kit/psygnal/pull/269) ([tlambert03](https://github.com/tlambert03))
@@ -52,7 +70,6 @@
 - chore: un-deprecate SignalGroup.signals [\#288](https://github.com/pyapp-kit/psygnal/pull/288) ([tlambert03](https://github.com/tlambert03))
 - chore: use ruff format instead of black [\#287](https://github.com/pyapp-kit/psygnal/pull/287) ([tlambert03](https://github.com/tlambert03))
 - refactor: Add back SignalGroup methods [\#286](https://github.com/pyapp-kit/psygnal/pull/286) ([tlambert03](https://github.com/tlambert03))
-- feat: add priority to connect, to control callback order [\#285](https://github.com/pyapp-kit/psygnal/pull/285) ([tlambert03](https://github.com/tlambert03))
 - chore: remove asynchronous emit and other deprecations [\#282](https://github.com/pyapp-kit/psygnal/pull/282) ([tlambert03](https://github.com/tlambert03))
 - refactor: Unify pydantic evented model modules [\#280](https://github.com/pyapp-kit/psygnal/pull/280) ([tlambert03](https://github.com/tlambert03))
 - perf: Do not use reducer if there is no callback in `SignalInstance.resume` [\#278](https://github.com/pyapp-kit/psygnal/pull/278) ([Czaki](https://github.com/Czaki))
