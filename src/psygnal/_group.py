@@ -475,7 +475,7 @@ class SignalGroup:
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = "warn",
         priority: int = 0,
-    ) -> Callable[[F], F] | F:
+    ) -> Callable:
         if slot is None:
             return self._psygnal_relay.connect(
                 thread=thread,

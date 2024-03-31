@@ -143,12 +143,14 @@ from typing import (
     ClassVar,
     ContextManager,
     Final,
+    Generic,
     Iterable,
     Iterator,
     Literal,
     NoReturn,
     Type,
     TypeVar,
+    TypeVarTuple,
     Union,
     cast,
     get_args,
@@ -179,6 +181,12 @@ if TYPE_CHECKING:
     ReducerTwoArgs = Callable[[tuple, tuple], tuple]
     ReducerFunc = Union[ReducerOneArg, ReducerTwoArgs]
 
+
+T1 = TypeVar("T1")
+T2 = TypeVar("T2")
+T3 = TypeVar("T3")
+T4 = TypeVar("T4")
+Ts = TypeVarTuple("Ts")
 
 __all__ = ["Signal", "SignalInstance", "_compiled"]
 
@@ -215,7 +223,7 @@ class ReemissionMode:
         return VALID_REEMISSION
 
 
-class Signal:
+class Signal(Generic[*Ts]):
     """Declares a signal emitter on a class.
 
     This is class implements the [descriptor
@@ -290,7 +298,7 @@ class Signal:
 
     def __init__(
         self,
-        *types: type[Any] | Signature,
+        *types: *Ts,
         description: str = "",
         name: str | None = None,
         check_nargs_on_connect: bool = True,
@@ -310,7 +318,7 @@ class Signal:
             if len(types) > 1:
                 warnings.warn(
                     "Only a single argument is accepted when directly providing a"
-                    f" `Signature`.  These args were ignored: {types[1:]}",
+                    f" `Signature`.  These args were ignored: {types[1:]}",  # type: ignore
                     stacklevel=2,
                 )
         else:
@@ -327,16 +335,18 @@ class Signal:
             self._name = name
 
     @overload
-    def __get__(self, instance: None, owner: type[Any] | None = None) -> Signal: ...
+    def __get__(
+        self, instance: None, owner: type[Any] | None = None
+    ) -> Signal[*Ts]: ...
 
     @overload
     def __get__(
         self, instance: Any, owner: type[Any] | None = None
-    ) -> SignalInstance: ...
+    ) -> SignalInstance[*Ts]: ...
 
     def __get__(
         self, instance: Any, owner: type[Any] | None = None
-    ) -> Signal | SignalInstance:
+    ) -> Signal[*Ts] | SignalInstance[*Ts]:
         """Get signal instance.
 
         This is called when accessing a Signal instance.  If accessed as an
@@ -390,7 +400,7 @@ class Signal:
 
     def _create_signal_instance(
         self, instance: Any, name: str | None = None
-    ) -> SignalInstance:
+    ) -> SignalInstance[*Ts]:
         return self._signal_instance_class(
             self.signature,
             instance=instance,
@@ -441,7 +451,7 @@ _empty_signature = Signature()
 
 
 @mypyc_attr(allow_interpreted_subclasses=True)
-class SignalInstance:
+class SignalInstance(Generic[*Ts]):
     """A signal instance (optionally) bound to an object.
 
     In most cases, users will not create a `SignalInstance` directly -- instead
@@ -505,7 +515,7 @@ class SignalInstance:
 
     def __init__(
         self,
-        signature: Signature | tuple = _empty_signature,
+        signature: tuple | Signature = _empty_signature,
         *,
         instance: Any = None,
         name: str | None = None,
@@ -590,11 +600,10 @@ class SignalInstance:
         on_ref_error: RefErrorChoice = ...,
         priority: int = ...,
     ) -> Callable[[F], F]: ...
-
     @overload
     def connect(
-        self,
-        slot: F,
+        self: SignalInstance[()],
+        slot: Callable[[], Any],
         *,
         thread: threading.Thread | Literal["main", "current"] | None = ...,
         check_nargs: bool | None = ...,
@@ -603,11 +612,53 @@ class SignalInstance:
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
         priority: int = ...,
-    ) -> F: ...
+    ) -> Callable[[], Any]: ...
+    @overload
+    def connect(
+        self: SignalInstance[type[T1]],
+        slot: Callable[[], Any] | Callable[[T1], Any],
+        *,
+        thread: threading.Thread | Literal["main", "current"] | None = ...,
+        check_nargs: bool | None = ...,
+        check_types: bool | None = ...,
+        unique: bool | str = ...,
+        max_args: int | None = None,
+        on_ref_error: RefErrorChoice = ...,
+        priority: int = ...,
+    ) -> Callable[[], Any]: ...
+    @overload
+    def connect(
+        self: SignalInstance[type[T1], type[T2]],
+        slot: Callable[[], Any] | Callable[[T1], Any] | Callable[[T1, T2], Any],
+        *,
+        thread: threading.Thread | Literal["main", "current"] | None = ...,
+        check_nargs: bool | None = ...,
+        check_types: bool | None = ...,
+        unique: bool | str = ...,
+        max_args: int | None = None,
+        on_ref_error: RefErrorChoice = ...,
+        priority: int = ...,
+    ) -> Callable[[], Any]: ...
+    @overload
+    def connect(
+        self: SignalInstance[type[T1], type[T2], type[T3]],
+        slot: Callable[[], Any]
+        | Callable[[T1], Any]
+        | Callable[[T1, T2], Any]
+        | Callable[[T1, T2, T3], Any],
+        *,
+        thread: threading.Thread | Literal["main", "current"] | None = ...,
+        check_nargs: bool | None = ...,
+        check_types: bool | None = ...,
+        unique: bool | str = ...,
+        max_args: int | None = None,
+        on_ref_error: RefErrorChoice = ...,
+        priority: int = ...,
+    ) -> Callable[[], Any]: ...
 
     def connect(
         self,
-        slot: F | None = None,
+        slot: Callable | None = None,
         *,
         thread: threading.Thread | Literal["main", "current"] | None = None,
         check_nargs: bool | None = None,
@@ -616,7 +667,7 @@ class SignalInstance:
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = "warn",
         priority: int = 0,
-    ) -> Callable[[F], F] | F:
+    ) -> Callable:
         """Connect a callback (`slot`) to this signal.
 
         `slot` is compatible if:
@@ -701,10 +752,10 @@ class SignalInstance:
             check_types = self._check_types_on_connect
 
         def _wrapper(
-            slot: F,
+            slot: Callable,
             max_args: int | None = max_args,
             _on_ref_err: RefErrorChoice = on_ref_error,
-        ) -> F:
+        ) -> Callable:
             if not callable(slot):
                 raise TypeError(f"Cannot connect to non-callable object: {slot}")
 
@@ -740,7 +791,7 @@ class SignalInstance:
                 self._append_slot(cb)
             return slot
 
-        return _wrapper if slot is None else _wrapper(slot)
+        return _wrapper if slot is None else _wrapper(slot)  # type: ignore
 
     def _append_slot(self, slot: WeakCallback) -> None:
         """Append a slot to the list of slots.
