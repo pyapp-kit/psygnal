@@ -32,9 +32,13 @@ from ._mypyc import mypyc_attr
 
 if TYPE_CHECKING:
     import threading
+    from typing import TypeVarTuple
 
     from psygnal._signal import F, ReducerFunc
     from psygnal._weak_callback import RefErrorChoice, WeakCallback
+
+    Ts = TypeVarTuple("Ts")
+
 
 __all__ = ["EmissionInfo", "SignalGroup"]
 
@@ -52,7 +56,7 @@ class EmissionInfo(NamedTuple):
     args: tuple[Any, ...]
 
 
-class SignalRelay(SignalInstance):
+class SignalRelay(SignalInstance[type[EmissionInfo]]):
     """Special SignalInstance that can be used to connect to all signals in a group.
 
     This class will rarely be instantiated by a user (or anything other than a
@@ -381,7 +385,7 @@ class SignalGroup:
         """Return the number of signals in the group (not including the relay)."""
         return len(self._psygnal_instances)
 
-    def __getitem__(self, item: str) -> SignalInstance:
+    def __getitem__(self, item: str) -> SignalInstance[*Ts]:
         """Get a signal instance by name."""
         return self._psygnal_instances[item]
 
@@ -389,7 +393,7 @@ class SignalGroup:
     # where the SignalGroup comes from the SignalGroupDescriptor
     # (such as in evented dataclasses).  In those cases, it's hard to indicate
     # to mypy that all remaining attributes are SignalInstances.
-    def __getattr__(self, __name: str) -> SignalInstance:
+    def __getattr__(self, __name: str) -> SignalInstance[*Ts]:
         """Get a signal instance by name."""
         raise AttributeError(  # pragma: no cover
             f"{type(self).__name__!r} object has no attribute {__name!r}"
@@ -466,7 +470,7 @@ class SignalGroup:
 
     def connect(
         self,
-        slot: F | None = None,
+        slot: Callable | None = None,
         *,
         thread: threading.Thread | Literal["main", "current"] | None = None,
         check_nargs: bool | None = None,

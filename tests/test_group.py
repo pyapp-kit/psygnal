@@ -433,7 +433,7 @@ def test_group_relay_signatures() -> None:
             group_sig = signature(getattr(SignalGroup, name))
             relay_sig = signature(getattr(SignalRelay, name))
 
-            assert group_sig == relay_sig
+            assert group_sig == relay_sig, f"{name}: {group_sig} != {relay_sig}"
 
 
 def test_group_relay_passthrough() -> None:

@@ -513,6 +513,27 @@ class SignalInstance(Generic[*Ts]):
     _is_paused: bool = False
     _debug_hook: ClassVar[Callable[[EmissionInfo], None] | None] = None
 
+    @overload
+    def __init__(
+        self: SignalInstance[()],
+        *,
+        instance: Any = None,
+        name: str | None = None,
+        check_nargs_on_connect: bool = True,
+        check_types_on_connect: bool = False,
+        reemission: ReemissionVal = DEFAULT_REEMISSION,
+    ) -> None: ...
+    @overload
+    def __init__(
+        self,
+        signature: tuple[*Ts] | Signature = _empty_signature,
+        *,
+        instance: Any = None,
+        name: str | None = None,
+        check_nargs_on_connect: bool = True,
+        check_types_on_connect: bool = False,
+        reemission: ReemissionVal = DEFAULT_REEMISSION,
+    ) -> None: ...
     def __init__(
         self,
         signature: tuple[*Ts] | Signature = _empty_signature,
@@ -590,18 +611,6 @@ class SignalInstance(Generic[*Ts]):
 
     @overload
     def connect(
-        self,
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[F], F]: ...
-    @overload
-    def connect(
         self: SignalInstance[()],
         slot: Callable[[], Any],
         *,
@@ -655,7 +664,33 @@ class SignalInstance(Generic[*Ts]):
         on_ref_error: RefErrorChoice = ...,
         priority: int = ...,
     ) -> Callable[[], Any]: ...
-
+    # fallback overload for unparameterized version
+    # takes any function and returns it
+    @overload
+    def connect(
+        self,
+        slot: F,
+        *,
+        thread: threading.Thread | Literal["main", "current"] | None = ...,
+        check_nargs: bool | None = ...,
+        check_types: bool | None = ...,
+        unique: bool | str = ...,
+        max_args: int | None = None,
+        on_ref_error: RefErrorChoice = ...,
+        priority: int = ...,
+    ) -> F: ...
+    @overload  # decorator version with no parameters
+    def connect(
+        self,
+        *,
+        thread: threading.Thread | Literal["main", "current"] | None = ...,
+        check_nargs: bool | None = ...,
+        check_types: bool | None = ...,
+        unique: bool | str = ...,
+        max_args: int | None = None,
+        on_ref_error: RefErrorChoice = ...,
+        priority: int = ...,
+    ) -> Callable[[F], F]: ...
     def connect(
         self,
         slot: Callable | None = None,
@@ -752,10 +787,10 @@ class SignalInstance(Generic[*Ts]):
             check_types = self._check_types_on_connect
 
         def _wrapper(
-            slot: Callable,
+            slot: F,
             max_args: int | None = max_args,
             _on_ref_err: RefErrorChoice = on_ref_error,
-        ) -> Callable:
+        ) -> F:
             if not callable(slot):
                 raise TypeError(f"Cannot connect to non-callable object: {slot}")
 
