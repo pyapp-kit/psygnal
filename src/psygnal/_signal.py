@@ -515,7 +515,7 @@ class SignalInstance(Generic[*Ts]):
 
     def __init__(
         self,
-        signature: tuple | Signature = _empty_signature,
+        signature: tuple[*Ts] | Signature = _empty_signature,
         *,
         instance: Any = None,
         name: str | None = None,
@@ -1562,7 +1562,7 @@ def _stub_sig(obj: Any) -> Signature:
     raise ValueError("unknown object")
 
 
-def _build_signature(*types: type[Any]) -> Signature:
+def _build_signature(*types: Any) -> Signature:
     params = [
         Parameter(name=f"p{i}", kind=Parameter.POSITIONAL_ONLY, annotation=t)
         for i, t in enumerate(types)

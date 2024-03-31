@@ -6,18 +6,17 @@
         s = Signal()
 
     t = T()
-    reveal_type(T.s)  # N: Revealed type is "psygnal._signal.Signal"
-    reveal_type(t.s)  # N: Revealed type is "psygnal._signal.SignalInstance"
+    reveal_type(T.s)  # N: Revealed type is "psygnal._signal.Signal[()]"
+    reveal_type(t.s)  # N: Revealed type is "psygnal._signal.SignalInstance[()]"
 
 - case: signal_params
   main: |
     from psygnal import Signal
     from inspect import Signature
     s = Signal()
-    s = Signal(int, str)
-    s = Signal(object)
-    s = Signal(Signature())
-    s = Signal(1) # ER: Argument 1 to "Signal" has incompatible type "int"; .*
+    s2 = Signal(int, str)
+    s3 = Signal(object)
+    s4 = Signal(Signature())
 
 - case: signal_connection
   main: |
