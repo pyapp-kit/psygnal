@@ -17,7 +17,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: pipx run check-manifest
+      - run: |
+          pipx run check-manifest
+
+  check-templates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          pip install jinja2
+          CHECK_JINJA=1 python scripts/generate_select.py
 
   test:
     name: Test

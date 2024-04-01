@@ -18,23 +18,52 @@
     s3 = Signal(object)
     s4 = Signal(Signature())
 
-- case: signal_connection
+- case: signal_connection_checks_types
+  main: |
+    from psygnal import Signal
+
+    class Emitter:
+        changed = Signal(int, bool)
+
+    emitter = Emitter()
+
+    @emitter.changed.connect  # ER: Argument 1 to "connect" of "SignalInstance" has incompatible.*
+    def f(x: int, y: bool, z: str) -> str:
+        return ""
+
+    @emitter.changed.connect  # ER: Argument 1 to "connect" of "SignalInstance" has incompatible.*
+    def f2(x: int, y: str) -> str:
+        return ""
+
+    @emitter.changed.connect
+    def f3(x: int, y: bool) -> str:
+        return ""
+
+    @emitter.changed.connect
+    def f4(x: int) -> str:
+        return ""
+
+    @emitter.changed.connect
+    def f5() -> str:
+        return ""
+
+- case: signal_connection_preserves_function
   main: |
     from psygnal import SignalInstance
     from typing import Any
-    s = SignalInstance()
+    s = SignalInstance((int, str))
 
     def a(x: int, y: str) -> Any: ...
     x = s.connect(a)
-    reveal_type(x)  # N: Revealed type is "def (x: builtins.int, y: builtins.str) -> Any"
+    reveal_type(x)  # N: Revealed type is "def (builtins.int, builtins.str) -> Any"
 
     @s.connect
-    def b(x: str) -> int: return 1
-    reveal_type(b)  # N: Revealed type is "def (x: builtins.str) -> builtins.int"
+    def b(x: int) -> int: return 1
+    reveal_type(b)  # N: Revealed type is "def (builtins.int) -> builtins.int"
 
     def c(x: int, y: str) -> Any: ...
     y = s.connect(c, check_nargs=False)
-    reveal_type(y)  # N: Revealed type is "def (x: builtins.int, y: builtins.str) -> Any"
+    reveal_type(y)  # N: Revealed type is "def (builtins.int, builtins.str) -> Any"
 
     @s.connect(check_nargs=False)
     def d(x: str) -> None: ...

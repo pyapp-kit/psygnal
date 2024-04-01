@@ -26,7 +26,13 @@ from typing import (
     overload,
 )
 
-from psygnal._signal import _NULL, Signal, SignalInstance, _SignalBlocker
+from psygnal._signal import (
+    _NULL,
+    GroupSignalInstance,
+    Signal,
+    SignalInstance,
+    _SignalBlocker,
+)
 
 from ._mypyc import mypyc_attr
 
@@ -73,7 +79,7 @@ class SignalRelay(SignalInstance[type[EmissionInfo]]):
     def __init__(
         self, signals: Mapping[str, SignalInstance], instance: Any = None
     ) -> None:
-        super().__init__(signature=(EmissionInfo,), instance=instance)
+        super().__init__((EmissionInfo,), instance=instance)
         self._signals = MappingProxyType(signals)
         self._sig_was_blocked: dict[str, bool] = {}
 
@@ -385,7 +391,7 @@ class SignalGroup:
         """Return the number of signals in the group (not including the relay)."""
         return len(self._psygnal_instances)
 
-    def __getitem__(self, item: str) -> SignalInstance[*Ts]:
+    def __getitem__(self, item: str) -> SignalInstance[GroupSignalInstance]:
         """Get a signal instance by name."""
         return self._psygnal_instances[item]
 
@@ -393,7 +399,7 @@ class SignalGroup:
     # where the SignalGroup comes from the SignalGroupDescriptor
     # (such as in evented dataclasses).  In those cases, it's hard to indicate
     # to mypy that all remaining attributes are SignalInstances.
-    def __getattr__(self, __name: str) -> SignalInstance[*Ts]:
+    def __getattr__(self, __name: str) -> SignalInstance[GroupSignalInstance]:
         """Get a signal instance by name."""
         raise AttributeError(  # pragma: no cover
             f"{type(self).__name__!r} object has no attribute {__name!r}"
