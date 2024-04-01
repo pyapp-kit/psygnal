@@ -23,6 +23,7 @@ from typing import (
     Literal,
     Mapping,
     NamedTuple,
+    Type,
     overload,
 )
 
@@ -59,7 +60,7 @@ class EmissionInfo(NamedTuple):
     args: tuple[Any, ...]
 
 
-class SignalRelay(SignalInstance[type[EmissionInfo]]):
+class SignalRelay(SignalInstance[Type[EmissionInfo]]):
     """Special SignalInstance that can be used to connect to all signals in a group.
 
     This class will rarely be instantiated by a user (or anything other than a
