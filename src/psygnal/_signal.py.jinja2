@@ -311,6 +311,15 @@ class Signal(Generic[Unpack[Ts]]):
         check_types_on_connect: bool = False,
         reemission: ReemissionVal = DEFAULT_REEMISSION,
     ) -> None:
+        if types and isinstance(types[0], Signature):
+            if len(types) > 1:
+                warnings.warn(
+                    "Only a single argument is accepted when directly providing a"
+                    f" `Signature`.  These args were ignored: {types[1:]}",  # type: ignore
+                    stacklevel=2,
+                )
+            types = tuple(x.annotation for x in types[0].parameters.values())
+
         self._name = name
         self.description = description
         self._check_nargs_on_connect = check_nargs_on_connect
@@ -323,7 +332,7 @@ class Signal(Generic[Unpack[Ts]]):
     @property
     def signature(self) -> Signature:
         """[Signature][inspect.Signature] supported by this Signal."""
-        return _build_signature(self._types)
+        return _build_signature(*self._types)
 
     def __set_name__(self, owner: type[Any], name: str) -> None:
         """Set name of signal when declared as a class attribute on `owner`."""
@@ -511,13 +520,19 @@ class SignalInstance(Generic[Unpack[Ts]]):
 
     def __init__(
         self,
-        types: tuple[Unpack[Ts]] = (),  # type: ignore
+        types: tuple[Unpack[Ts]] | Signature = (),  # type: ignore
         instance: Any = None,
         name: str | None = None,
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
         reemission: ReemissionVal = DEFAULT_REEMISSION,
     ) -> None:
+        if isinstance(types, Signature):
+            types = tuple(
+                x.annotation
+                for x in types.parameters.values()
+                if x.kind is x.POSITIONAL_OR_KEYWORD
+            )
         if not isinstance(types, (list, tuple, Signature)):
             raise TypeError(  # pragma: no cover
                 "`signature` must be either a sequence of types, or an "

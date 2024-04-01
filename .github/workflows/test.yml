@@ -29,7 +29,7 @@ jobs:
           python-version: "3.x"
       - run: |
           pip install jinja2
-          CHECK_JINJA=1 python scripts/generate_select.py
+          CHECK_JINJA=1 python scripts/render_connect_overloads.py
 
   test:
     name: Test
