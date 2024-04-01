@@ -212,6 +212,7 @@ omit = ["*/_pyinstaller_util/hook-psygnal.py"]
 ignore = [
     ".ruff_cache/**/*",
     ".github_changelog_generator",
+    "scripts/*",
     ".pre-commit-config.yaml",
     "tests/**/*",
     "typesafety/*",
