@@ -320,7 +320,7 @@ class Signal(Generic[Unpack[Ts]]):
             if len(types) > 1:
                 warnings.warn(
                     "Only a single argument is accepted when directly providing a"
-                    f" `Signature`.  These args were ignored: {types[1:]}",  # type: ignore
+                    " `Signature`. Extra args ignored.",
                     stacklevel=2,
                 )
             types = tuple(x.annotation for x in types[0].parameters.values())
