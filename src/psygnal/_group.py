@@ -38,12 +38,9 @@ from ._mypyc import mypyc_attr
 
 if TYPE_CHECKING:
     import threading
-    from typing import TypeVarTuple
 
     from psygnal._signal import F, ReducerFunc
     from psygnal._weak_callback import RefErrorChoice, WeakCallback
-
-    Ts = TypeVarTuple("Ts")
 
 
 __all__ = ["EmissionInfo", "SignalGroup"]

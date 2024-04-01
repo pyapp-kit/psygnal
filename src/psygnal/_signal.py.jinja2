@@ -150,7 +150,6 @@ from typing import (
     NewType,
     NoReturn,
     TypeVar,
-    TypeVarTuple,
     Union,
     cast,
     get_args,
@@ -158,6 +157,8 @@ from typing import (
     get_type_hints,
     overload,
 )
+
+from typing_extensions import TypeVarTuple, Unpack
 
 from ._exceptions import EmitLoopError
 from ._mypyc import mypyc_attr
@@ -228,7 +229,7 @@ class ReemissionMode:
         return VALID_REEMISSION
 
 
-class Signal(Generic[*Ts]):
+class Signal(Generic[Unpack[Ts]]):
     """Declares a signal emitter on a class.
 
     This is class implements the [descriptor
@@ -303,7 +304,7 @@ class Signal(Generic[*Ts]):
 
     def __init__(
         self,
-        *types: *Ts,
+        *types: Unpack[Ts],
         description: str = "",
         name: str | None = None,
         check_nargs_on_connect: bool = True,
@@ -332,16 +333,16 @@ class Signal(Generic[*Ts]):
     @overload
     def __get__(
         self, instance: None, owner: type[Any] | None = None
-    ) -> Signal[*Ts]: ...
+    ) -> Signal[Unpack[Ts]]: ...
 
     @overload
     def __get__(
         self, instance: Any, owner: type[Any] | None = None
-    ) -> SignalInstance[*Ts]: ...
+    ) -> SignalInstance[Unpack[Ts]]: ...
 
     def __get__(
         self, instance: Any, owner: type[Any] | None = None
-    ) -> Signal[*Ts] | SignalInstance[*Ts]:
+    ) -> Signal[Unpack[Ts]] | SignalInstance[Unpack[Ts]]:
         """Get signal instance.
 
         This is called when accessing a Signal instance.  If accessed as an
@@ -395,7 +396,7 @@ class Signal(Generic[*Ts]):
 
     def _create_signal_instance(
         self, instance: Any, name: str | None = None
-    ) -> SignalInstance[*Ts]:
+    ) -> SignalInstance[Unpack[Ts]]:
         return self._signal_instance_class(
             self._types,
             instance=instance,
@@ -446,7 +447,7 @@ _empty_signature = Signature()
 
 
 @mypyc_attr(allow_interpreted_subclasses=True)
-class SignalInstance(Generic[*Ts]):
+class SignalInstance(Generic[Unpack[Ts]]):
     """A signal instance (optionally) bound to an object.
 
     In most cases, users will not create a `SignalInstance` directly -- instead
@@ -510,7 +511,7 @@ class SignalInstance(Generic[*Ts]):
 
     def __init__(
         self,
-        types: tuple[*Ts] = (),  # type: ignore
+        types: tuple[Unpack[Ts]] = (),  # type: ignore
         instance: Any = None,
         name: str | None = None,
         check_nargs_on_connect: bool = True,
