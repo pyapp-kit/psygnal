@@ -129,7 +129,7 @@ def test_numpy_proxy():
         assert np.array_equal(value, [2, 2, 2, 2])
         mock.reset_mock()
 
-        t[2:] = np.arange(8).reshape(2, 4)
+        t[2:] = np.arrange(8).reshape(2, 4)
 
         signal, (key, value) = next(iter(mock.call_args))[0]
         assert signal.name == "item_set"
