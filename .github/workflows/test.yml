@@ -28,7 +28,7 @@ jobs:
         with:
           python-version: "3.x"
       - run: |
-          pip install ruff
+          pip install ruff mypy
           CHECK_STUBS=1 python scripts/build_stub.py
 
   test:
