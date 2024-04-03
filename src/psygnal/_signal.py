@@ -199,13 +199,14 @@ GroupSignalInstance = NewType("GroupSignalInstance", object)
 RetT = TypeVar("RetT")
 Ts = TypeVarTuple("Ts")
 
-__all__ = ["Signal", "SignalInstance", "_compiled"]
+__all__ = ["Signal", "SignalInstance", "_compiled", "ReemissionVal", "Unparametrized"]
 
 _NULL = object()
 F = TypeVar("F", bound=Callable)
 RECURSION_LIMIT = sys.getrecursionlimit()
 
 ReemissionVal = Literal["immediate", "queued", "latest-only"]
+Unparametrized = NewType("Unparametrized", object)
 VALID_REEMISSION = set(ReemissionVal.__args__)  # type: ignore
 DEFAULT_REEMISSION: ReemissionVal = "immediate"
 
@@ -601,310 +602,31 @@ class SignalInstance(Generic[Unpack[Ts]]):
         instance = f" on {self.instance!r}" if self.instance is not None else ""
         return f"<{type(self).__name__}{name}{instance}>"
 
-    # ---- BEGIN autgenerated connect overloads
-    @overload
-    def connect(
-        self: SignalInstance[()],
-        slot: Callable[[], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[], RetT]: ...
-    @overload
-    def connect(
-        self: SignalInstance[type[_T1]],
-        slot: Callable[[], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[], RetT]: ...
-    @overload
-    def connect(
-        self: SignalInstance[type[_T1]],
-        slot: Callable[[_T1], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[_T1], RetT]: ...
-    @overload
-    def connect(
-        self: SignalInstance[type[_T1], type[_T2]],
-        slot: Callable[[], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[], RetT]: ...
-    @overload
-    def connect(
-        self: SignalInstance[type[_T1], type[_T2]],
-        slot: Callable[[_T1], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[_T1], RetT]: ...
-    @overload
-    def connect(
-        self: SignalInstance[type[_T1], type[_T2]],
-        slot: Callable[[_T1, _T2], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[_T1, _T2], RetT]: ...
-    @overload
-    def connect(
-        self: SignalInstance[type[_T1], type[_T2], type[_T3]],
-        slot: Callable[[], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[], RetT]: ...
-    @overload
-    def connect(
-        self: SignalInstance[type[_T1], type[_T2], type[_T3]],
-        slot: Callable[[_T1], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[_T1], RetT]: ...
-    @overload
-    def connect(
-        self: SignalInstance[type[_T1], type[_T2], type[_T3]],
-        slot: Callable[[_T1, _T2], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[_T1, _T2], RetT]: ...
-    @overload
-    def connect(
-        self: SignalInstance[type[_T1], type[_T2], type[_T3]],
-        slot: Callable[[_T1, _T2, _T3], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[_T1, _T2, _T3], RetT]: ...
-    @overload
-    def connect(
-        self: SignalInstance[type[_T1], type[_T2], type[_T3], type[_T4]],
-        slot: Callable[[], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[], RetT]: ...
-    @overload
-    def connect(
-        self: SignalInstance[type[_T1], type[_T2], type[_T3], type[_T4]],
-        slot: Callable[[_T1], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[_T1], RetT]: ...
-    @overload
-    def connect(
-        self: SignalInstance[type[_T1], type[_T2], type[_T3], type[_T4]],
-        slot: Callable[[_T1, _T2], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[_T1, _T2], RetT]: ...
-    @overload
-    def connect(
-        self: SignalInstance[type[_T1], type[_T2], type[_T3], type[_T4]],
-        slot: Callable[[_T1, _T2, _T3], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[_T1, _T2, _T3], RetT]: ...
-    @overload
-    def connect(
-        self: SignalInstance[type[_T1], type[_T2], type[_T3], type[_T4]],
-        slot: Callable[[_T1, _T2, _T3, _T4], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[_T1, _T2, _T3, _T4], RetT]: ...
-    @overload
-    def connect(
-        self: SignalInstance[type[_T1], type[_T2], type[_T3], type[_T4], type[_T5]],
-        slot: Callable[[], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[], RetT]: ...
-    @overload
-    def connect(
-        self: SignalInstance[type[_T1], type[_T2], type[_T3], type[_T4], type[_T5]],
-        slot: Callable[[_T1], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[_T1], RetT]: ...
-    @overload
-    def connect(
-        self: SignalInstance[type[_T1], type[_T2], type[_T3], type[_T4], type[_T5]],
-        slot: Callable[[_T1, _T2], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[_T1, _T2], RetT]: ...
-    @overload
-    def connect(
-        self: SignalInstance[type[_T1], type[_T2], type[_T3], type[_T4], type[_T5]],
-        slot: Callable[[_T1, _T2, _T3], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[_T1, _T2, _T3], RetT]: ...
-    @overload
-    def connect(
-        self: SignalInstance[type[_T1], type[_T2], type[_T3], type[_T4], type[_T5]],
-        slot: Callable[[_T1, _T2, _T3, _T4], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[_T1, _T2, _T3, _T4], RetT]: ...
-    @overload
-    def connect(
-        self: SignalInstance[type[_T1], type[_T2], type[_T3], type[_T4], type[_T5]],
-        slot: Callable[[_T1, _T2, _T3, _T4, _T5], RetT],
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> Callable[[_T1, _T2, _T3, _T4, _T5], RetT]: ...
-
-    # typing these are hard... we fall back slot: F -> F
-    # ---- END autgenerated connect overloads
-    @overload
-    def connect(
-        self: SignalInstance[GroupSignalInstance],
-        slot: F,
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-    ) -> F: ...
-    # decorator version with no parameters
     @overload
     def connect(
         self,
         *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | str = ...,
+        thread: threading.Thread | Literal["main", "current"] | None = None,
+        check_nargs: bool | None = None,
+        check_types: bool | None = None,
+        unique: bool | str = False,
         max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
+        on_ref_error: RefErrorChoice = "warn",
+        priority: int = 0,
     ) -> Callable[[F], F]: ...
-    # implementation
+    @overload
+    def connect(
+        self,
+        slot: F,
+        *,
+        thread: threading.Thread | Literal["main", "current"] | None = None,
+        check_nargs: bool | None = None,
+        check_types: bool | None = None,
+        unique: bool | str = False,
+        max_args: int | None = None,
+        on_ref_error: RefErrorChoice = "warn",
+        priority: int = 0,
+    ) -> F: ...
     def connect(
         self,
         slot: Callable | None = None,
@@ -916,7 +638,7 @@ class SignalInstance(Generic[Unpack[Ts]]):
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = "warn",
         priority: int = 0,
-    ) -> Callable:
+    ) -> F | Callable[[F], F]:
         """Connect a callback (`slot`) to this signal.
 
         `slot` is compatible if:

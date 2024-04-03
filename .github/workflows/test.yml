@@ -28,8 +28,8 @@ jobs:
         with:
           python-version: "3.x"
       - run: |
-          pip install jinja2 ruff
-          CHECK_JINJA=1 python scripts/render_connect_overloads.py
+          pip install ruff
+          CHECK_STUBS=1 python scripts/build_stub.py
 
   test:
     name: Test

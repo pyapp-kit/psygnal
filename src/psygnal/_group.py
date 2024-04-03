@@ -29,9 +29,9 @@ from typing import (
 
 from psygnal._signal import (
     _NULL,
-    GroupSignalInstance,
     Signal,
     SignalInstance,
+    Unparametrized,
     _SignalBlocker,
 )
 
@@ -389,7 +389,7 @@ class SignalGroup:
         """Return the number of signals in the group (not including the relay)."""
         return len(self._psygnal_instances)
 
-    def __getitem__(self, item: str) -> SignalInstance[GroupSignalInstance]:
+    def __getitem__(self, item: str) -> SignalInstance[Unparametrized]:
         """Get a signal instance by name."""
         return self._psygnal_instances[item]
 
@@ -397,7 +397,7 @@ class SignalGroup:
     # where the SignalGroup comes from the SignalGroupDescriptor
     # (such as in evented dataclasses).  In those cases, it's hard to indicate
     # to mypy that all remaining attributes are SignalInstances.
-    def __getattr__(self, __name: str) -> SignalInstance[GroupSignalInstance]:
+    def __getattr__(self, __name: str) -> SignalInstance[Unparametrized]:
         """Get a signal instance by name."""
         raise AttributeError(  # pragma: no cover
             f"{type(self).__name__!r} object has no attribute {__name!r}"
