@@ -550,6 +550,7 @@ class SignalInstance(Generic[Unpack[Ts]]):
         self._instance: Callable = self._instance_ref(instance)
         self._args_queue: list[tuple] = []  # filled when paused
         self._types = types
+        self._signature = _build_signature(*types)
         self._check_nargs_on_connect = check_nargs_on_connect
         self._check_types_on_connect = check_types_on_connect
         self._slots: list[WeakCallback] = []
@@ -584,7 +585,7 @@ class SignalInstance(Generic[Unpack[Ts]]):
     @property
     def signature(self) -> Signature:
         """Signature supported by this `SignalInstance`."""
-        return _build_signature(*self._types)
+        return self._signature
 
     @property
     def instance(self) -> Any:
