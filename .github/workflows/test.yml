@@ -68,6 +68,12 @@ jobs:
         os: [macos-latest, windows-latest]
         qt: [PyQt5, PyQt6, PySide2, PySide6]
         compile: [true, false]
+        exclude:
+          - os: macos-latest
+            qt: PySide2
+        include:
+          - os: macos-13
+            qt: PySide2
 
   test-magicgui:
     uses: pyapp-kit/workflows/.github/workflows/test-dependents.yml@v1
