@@ -21,16 +21,14 @@ jobs:
 
   test:
     name: Test
-    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v1
+    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v2
     with:
       os: ${{ matrix.os }}
       python-version: ${{ matrix.python-version }}
       pip-post-installs: ${{ matrix.pydantic }}
-      fail-on-coverage-error: false
       hatch-build-hooks-enable: ${{ matrix.compile }}
       pip-install-pre-release: ${{ github.event_name == 'schedule' }}
-      report-failures: ${{ github.event_name == 'schedule' }}
-    secrets: inherit
+      coverage-upload: artifact
     strategy:
       fail-fast: false
       matrix:
@@ -51,7 +49,7 @@ jobs:
 
   test-qt:
     name: Test Qt
-    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v1
+    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v2
     with:
       os: ${{ matrix.os }}
       python-version: ${{ matrix.python-version }}
@@ -59,8 +57,7 @@ jobs:
       extras: "test,testqt"
       hatch-build-hooks-enable: ${{ matrix.compile }}
       pip-install-pre-release: ${{ github.event_name == 'schedule' }}
-      report-failures: ${{ github.event_name == 'schedule' }}
-    secrets: inherit
+      coverage-upload: artifact
     strategy:
       fail-fast: false
       matrix:
@@ -74,9 +71,15 @@ jobs:
         include:
           - os: macos-13
             qt: PySide2
+  
+  upload_coverage:
+    if: always()
+    needs: [test, test-qt]
+    uses: pyapp-kit/workflows/.github/workflows/upload-coverage.yml@v2
+    secrets: inherit
 
   test-magicgui:
-    uses: pyapp-kit/workflows/.github/workflows/test-dependents.yml@v1
+    uses: pyapp-kit/workflows/.github/workflows/test-dependents.yml@v2
     with:
       dependency-repo: pyapp-kit/magicgui
       dependency-extras: "test"
