@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.11.1](https://github.com/pyapp-kit/psygnal/tree/v0.11.1) (2024-05-07)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.11.0...v0.11.1)
+
+**Merged pull requests:**
+
+- perf: let EventedSet use clear\(\) method of underlying set [\#307](https://github.com/pyapp-kit/psygnal/pull/307) ([DanGonite57](https://github.com/DanGonite57))
+
 ## [v0.11.0](https://github.com/pyapp-kit/psygnal/tree/v0.11.0) (2024-03-29)
 
 [Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.10.2...v0.11.0)
