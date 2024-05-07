@@ -47,6 +47,9 @@ jobs:
     needs: deploy-sdist
     name: mypyc wheels (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
+    permissions:
+      id-token: write
+      contents: write
     strategy:
       fail-fast: false
       matrix:
