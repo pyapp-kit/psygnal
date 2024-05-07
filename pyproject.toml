@@ -206,7 +206,7 @@ show_missing = true
 
 [tool.coverage.run]
 source = ["psygnal"]
-omit = ["*/_pyinstaller_util"]
+omit = ["*/_pyinstaller_util/*"]
 
 # https://github.com/mgedmin/check-manifest#configuration
 [tool.check-manifest]
