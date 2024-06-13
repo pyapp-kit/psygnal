@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Callable, Dict, Generic, List, TypeVar
+from typing import Any, Callable, ClassVar, Dict, Generic, List, TypeVar
 from weakref import finalize
 
 try:
@@ -66,6 +66,8 @@ class EventedObjectProxy(ObjectProxy, Generic[T]):
     target : Any
         An object to wrap
     """
+
+    _psygnal_group_: ClassVar[str] = "events"
 
     def __init__(self, target: Any):
         super().__init__(target)
