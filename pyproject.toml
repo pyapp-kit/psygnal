@@ -168,7 +168,8 @@ filterwarnings = [
     "error",
     "ignore:The distutils package is deprecated:DeprecationWarning:",
     "ignore:.*BackendFinder.find_spec()",                             # pyinstaller import
-    "ignore:.*not using a cooperative constructor:pytest.PytestDeprecationWarning:"
+    "ignore:.*not using a cooperative constructor:pytest.PytestDeprecationWarning:",
+    "ignore:Failed to disconnect::pytestqt"
 ]
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
