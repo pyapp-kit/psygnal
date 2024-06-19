@@ -512,7 +512,7 @@ class SignalGroupDescriptor:
         class. If False, the SignalGroup will not be created until the first access of
         the descriptor on an instance.  If None, the SignalGroup will be created when
         the descriptor is set on the class only if validators are found in the class
-        annotations.
+        annotations.  By default None
 
     Examples
     --------
