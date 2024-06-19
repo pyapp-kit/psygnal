@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import inspect
 import operator
 import sys
 import warnings
@@ -13,6 +14,7 @@ from typing import (
     Any,
     Callable,
     ClassVar,
+    ForwardRef,
     Iterable,
     Literal,
     Mapping,
@@ -587,10 +589,19 @@ class SignalGroupDescriptor:
     def _find_validators(self, owner: type) -> dict[str, list[Validator]]:
         validators: dict[str, list[Validator]] = {}
         for field, annotation in owner.__annotations__.items():
-            if get_origin(annotation) is Annotated:
-                for item in get_args(annotation)[1:]:
-                    if isinstance(item, Validator):
-                        validators.setdefault(field, []).append(item)
+            try:
+                annotation = _resolve(annotation, owner)
+                if get_origin(annotation) is Annotated:
+                    for item in get_args(annotation)[1:]:
+                        if isinstance(item, Validator):
+                            validators.setdefault(field, []).append(item)
+            except Exception:
+                warnings.warn(
+                    f"Unable to resolve type annotation {annotation}"
+                    "Psygnal Validator will not work",
+                    stacklevel=2,
+                )
+
         return validators
 
     def _do_patch_setattr(self, owner: type, with_aliases: bool = True) -> None:
@@ -725,3 +736,13 @@ class Validator:
                 f"Error setting value {value!r} for field {name!r} "
                 f"on type {type(owner)}: {e}"
             ) from e
+
+
+def _resolve(annotation: Any, owner: Any) -> Any:
+    if isinstance(annotation, str):
+        annotation = ForwardRef(annotation)
+    if isinstance(annotation, ForwardRef):
+        guard: frozenset = frozenset()
+        _globals = inspect.getmodule(owner).__dict__
+        annotation = annotation._evaluate(_globals, {}, guard)
+    return annotation
