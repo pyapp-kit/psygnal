@@ -507,6 +507,12 @@ class SignalGroupDescriptor:
         field name. If the output is None, no signal is created for this field.
         If None, defaults to an empty dict, no aliases.
         Default to None
+    eager: bool | None, optional
+        If True, the SignalGroup will be created when the descriptor is set on the
+        class. If False, the SignalGroup will not be created until the first access of
+        the descriptor on an instance.  If None, the SignalGroup will be created when
+        the descriptor is set on the class only if validators are found in the class
+        annotations.
 
     Examples
     --------
