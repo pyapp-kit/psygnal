@@ -133,6 +133,7 @@ def evented(
         # as a decorator, this will have already been called
         descriptor.__set_name__(cls, events_namespace)
         setattr(cls, events_namespace, descriptor)
+        descriptor._do_patch_setattr(cls)
         return cls
 
     return _decorate(cls) if cls is not None else _decorate
