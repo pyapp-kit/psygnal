@@ -709,7 +709,7 @@ class SignalGroupDescriptor:
 
 @dataclass
 class Validator:
-    """Annotated metadatax that marks a function validates a value before setting.
+    """Annotated metadata marking that a function validates a value before setting.
 
     Examples
     --------
