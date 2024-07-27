@@ -27,6 +27,7 @@ from ._signal import Signal, SignalInstance
 
 if TYPE_CHECKING:
     from _weakref import ref as ref
+
     from typing_extensions import TypeAlias
 
     from psygnal._weak_callback import RefErrorChoice, WeakCallback
