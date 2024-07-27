@@ -45,11 +45,30 @@ class EmissionInfo(NamedTuple):
     Attributes
     ----------
     signal : SignalInstance
+        The SignalInstance doing the emitting
     args: tuple
+        The args that were emitted
+    loc: str | int | None | tuple[int | str, ...]
+        If the emitter was a `SignalGroup` attribute on another object, this
+        will be the location of that emitter on the parent (e.g. name of that attribute
+        or index if the parent was an evented sequence).  Otherwise, it will be `None`.
+        If this is a flattened EmissionInfo, then this will be a tuple of locations.
     """
 
     signal: SignalInstance
     args: tuple[Any, ...]
+    loc: str | int | None | tuple[int | str, ...] = None
+
+    def flatten(self) -> EmissionInfo:
+        """Return the final signal and args that were emitted."""
+        info = self
+        path: list[int | str] = []
+        while info.args and isinstance(info.args[0], EmissionInfo):
+            if isinstance(info.loc, (str, int)):
+                path.append(info.loc)
+            info = info.args[0]
+        path.append(info.signal.name)
+        return EmissionInfo(info.signal, info.args, tuple(path))
 
 
 class SignalRelay(SignalInstance):
@@ -96,10 +115,14 @@ class SignalRelay(SignalInstance):
         for sig in self._signals.values():
             sig.disconnect(self._slot_relay)
 
-    def _slot_relay(self, *args: Any) -> None:
+    def _slot_relay(self, *args: Any, loc: str | int | None = None) -> None:
         if emitter := Signal.current_emitter():
-            info = EmissionInfo(emitter, args)
+            info = EmissionInfo(emitter, args, loc or emitter.name)
             self._run_emit_loop((info,))
+
+    def _relay_partial(self, loc: str | int | None) -> _relay_partial:
+        """Return special partial that will call _slot_relay with 'loc'."""
+        return _relay_partial(self, loc)
 
     def connect_direct(
         self,
@@ -107,7 +130,7 @@ class SignalRelay(SignalInstance):
         *,
         check_nargs: bool | None = None,
         check_types: bool | None = None,
-        unique: bool | str = False,
+        unique: bool | Literal["raise"] = False,
         max_args: int | None = None,
     ) -> Callable[[Callable], Callable] | Callable:
         """Connect `slot` to be called whenever *any* Signal in this group is emitted.
@@ -128,7 +151,7 @@ class SignalRelay(SignalInstance):
             If `True`, An additional check will be performed to make sure that types
             declared in the slot signature are compatible with the signature
             declared by this signal, by default `False`.
-        unique : bool | str
+        unique : bool | Literal["raise"]
             If `True`, returns without connecting if the slot has already been
             connected.  If the literal string "raise" is passed to `unique`, then a
             `ValueError` will be raised if the slot is already connected.
@@ -444,7 +467,7 @@ class SignalGroup:
         thread: threading.Thread | Literal["main", "current"] | None = ...,
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
-        unique: bool | str = ...,
+        unique: bool | Literal["raise"] = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
         priority: int = ...,
@@ -458,7 +481,7 @@ class SignalGroup:
         thread: threading.Thread | Literal["main", "current"] | None = ...,
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
-        unique: bool | str = ...,
+        unique: bool | Literal["raise"] = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
         priority: int = ...,
@@ -471,7 +494,7 @@ class SignalGroup:
         thread: threading.Thread | Literal["main", "current"] | None = None,
         check_nargs: bool | None = None,
         check_types: bool | None = None,
-        unique: bool | str = False,
+        unique: bool | Literal["raise"] = False,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = "warn",
         priority: int = 0,
@@ -504,7 +527,7 @@ class SignalGroup:
         *,
         check_nargs: bool | None = None,
         check_types: bool | None = None,
-        unique: bool | str = False,
+        unique: bool | Literal["raise"] = False,
         max_args: int | None = None,
     ) -> Callable[[Callable], Callable] | Callable:
         return self._psygnal_relay.connect_direct(
@@ -550,3 +573,32 @@ def _is_uniform(signals: Iterable[Signal]) -> bool:
             return False
         seen.add(v)
     return True
+
+
+class _relay_partial:
+    """Small, single-purpose, mypyc-friendly variant of functools.partial.
+
+    Used to call SignalRelay._slot_relay with a specific loc.
+    __hash__ and __eq__ are implemented to make this object hashable and
+    comparable to other _relay_partial objects, so that adding it to a set
+    twice will not create two separate entries.
+    """
+
+    __slots__ = ("relay", "loc")
+
+    def __init__(self, relay: SignalRelay, loc: str | int | None = None) -> None:
+        self.relay = relay
+        self.loc = loc
+
+    def __call__(self, *args: Any) -> Any:
+        return self.relay._slot_relay(*args, loc=self.loc)
+
+    def __hash__(self) -> int:
+        return hash((self.relay, self.loc))
+
+    def __eq__(self, other: Any) -> bool:
+        return (
+            isinstance(other, _relay_partial)
+            and self.relay == other.relay
+            and self.loc == other.loc
+        )
