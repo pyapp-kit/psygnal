@@ -56,12 +56,12 @@ jobs:
         include:
           - os: ubuntu-latest
             name: linux-x86_64
-          - os: windows-2019
+          - os: windows-latest
             name: windows-amd64
-          - os: macos-11
+          - os: macos-13
             name: macos-x86_64
             macos_arch: "x86_64"
-          - os: macos-11
+          - os: macos-14
             name: macos-arm64
             macos_arch: "arm64"
 
