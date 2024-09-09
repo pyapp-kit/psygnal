@@ -46,6 +46,8 @@ jobs:
           # still working on ci test errors
           - os: windows-latest
             python-version: "3.12"
+          - compile: true
+            python-version: "3.13"
 
   test-qt:
     name: Test Qt
@@ -71,7 +73,7 @@ jobs:
         include:
           - os: macos-13
             qt: PySide2
-  
+
   upload_coverage:
     if: always()
     needs: [test, test-qt]
