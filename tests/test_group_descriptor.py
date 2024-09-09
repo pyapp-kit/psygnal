@@ -263,7 +263,7 @@ def test_collect_fields(collect: bool, klass: Optional[Type[SignalGroup]]) -> No
         assert "b" in bar.events
 
     else:
-        assert type(foo.events) == signal_class
+        assert type(foo.events) is signal_class
         assert "a" not in foo.events
         assert "a" not in bar.events
         assert "b" not in bar.events
