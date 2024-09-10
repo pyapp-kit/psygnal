@@ -63,7 +63,7 @@ test = [
     "pytest>=6.0",
     "pytest-cov",
     "wrapt",
-    "msgspec",
+    "msgspec; python_version < '3.13'",
     "toolz",
 ]
 testqt = ["pytest-qt", "qtpy"]
