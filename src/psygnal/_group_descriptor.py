@@ -2,22 +2,29 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import inspect
 import operator
 import sys
 import warnings
 import weakref
+from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
+    Annotated,
     Any,
     Callable,
     ClassVar,
+    ForwardRef,
     Iterable,
     Literal,
     Mapping,
     Optional,
+    Sequence,
     Type,
     TypeVar,
     cast,
+    get_args,
+    get_origin,
     overload,
 )
 
@@ -325,7 +332,10 @@ SetAttr = Callable[[Any, str, Any], None]
 
 @overload
 def evented_setattr(
-    signal_group_name: str, super_setattr: SetAttr, with_aliases: bool = ...
+    signal_group_name: str,
+    super_setattr: SetAttr,
+    with_aliases: bool = ...,
+    validators: Mapping[str, Sequence[Validator]] | None = ...,
 ) -> SetAttr: ...
 
 
@@ -334,6 +344,7 @@ def evented_setattr(
     signal_group_name: str,
     super_setattr: Literal[None] | None = ...,
     with_aliases: bool = ...,
+    validators: Mapping[str, Sequence[Validator]] | None = ...,
 ) -> Callable[[SetAttr], SetAttr]: ...
 
 
@@ -341,6 +352,7 @@ def evented_setattr(
     signal_group_name: str,
     super_setattr: SetAttr | None = None,
     with_aliases: bool = True,
+    validators: Mapping[str, Sequence[Validator]] | None = None,
 ) -> SetAttr | Callable[[SetAttr], SetAttr]:
     """Create a new __setattr__ method that emits events when fields change.
 
@@ -374,7 +386,11 @@ def evented_setattr(
         Whether to lookup the signal name in the signal aliases mapping,
         by default True.  This is slightly slower, and so can be set to False if you
         know you don't have any signal aliases.
+    validators: Mapping[str, Sequence[Validator]] | None
+        A mapping of field name to a sequence of validators to run on the value before
+        setting it.  If None, no validators are run. Default to None
     """
+    validators = validators or {}
 
     def _inner(super_setattr: SetAttr) -> SetAttr:
         # don't patch twice
@@ -390,6 +406,9 @@ def evented_setattr(
             """New __setattr__ method that emits events when fields change."""
             if name == signal_group_name:
                 return super_setattr(self, name, value)
+
+            for validator in validators.get(name, ()):
+                value = validator(value, name=name, owner=self)
 
             group = cast(SignalGroup, getattr(self, signal_group_name))
             if not with_aliases and name not in group:
@@ -488,6 +507,12 @@ class SignalGroupDescriptor:
         field name. If the output is None, no signal is created for this field.
         If None, defaults to an empty dict, no aliases.
         Default to None
+    eager: bool | None, optional
+        If True, the SignalGroup will be created when the descriptor is set on the
+        class. If False, the SignalGroup will not be created until the first access of
+        the descriptor on an instance.  If None, the SignalGroup will be created when
+        the descriptor is set on the class only if validators are found in the class
+        annotations.  By default None
 
     Examples
     --------
@@ -524,6 +549,7 @@ class SignalGroupDescriptor:
         signal_group_class: type[SignalGroup] | None = None,
         collect_fields: bool = True,
         signal_aliases: Mapping[str, str | None] | FieldAliasFunc | None = None,
+        eager: bool | None = None,
     ):
         grp_cls = signal_group_class or SignalGroup
         if not (isinstance(grp_cls, type) and issubclass(grp_cls, SignalGroup)):
@@ -552,6 +578,7 @@ class SignalGroupDescriptor:
         self._signal_group_class: type[SignalGroup] = grp_cls
         self._collect_fields = collect_fields
         self._signal_aliases = signal_aliases
+        self._eager = eager
 
         self._signal_groups: dict[int, type[SignalGroup]] = {}
 
@@ -561,6 +588,27 @@ class SignalGroupDescriptor:
         with contextlib.suppress(AttributeError):
             # This is the flag that identifies this object as evented
             setattr(owner, PSYGNAL_GROUP_NAME, name)
+            if self._eager is not False:
+                if self._find_validators(owner):
+                    self._get_signal_group(owner)
+
+    def _find_validators(self, owner: type) -> dict[str, list[Validator]]:
+        validators: dict[str, list[Validator]] = {}
+        for field, annotation in owner.__annotations__.items():
+            try:
+                annotation = _resolve(annotation, owner)
+                if get_origin(annotation) is Annotated:
+                    for item in get_args(annotation)[1:]:
+                        if isinstance(item, Validator):
+                            validators.setdefault(field, []).append(item)
+            except Exception:
+                warnings.warn(
+                    f"Unable to resolve type annotation {annotation}"
+                    "Psygnal Validator will not work",
+                    stacklevel=2,
+                )
+
+        return validators
 
     def _do_patch_setattr(self, owner: type, with_aliases: bool = True) -> None:
         """Patch the owner class's __setattr__ method to emit events."""
@@ -581,6 +629,7 @@ class SignalGroupDescriptor:
                 name,
                 owner.__setattr__,  # type: ignore
                 with_aliases=with_aliases,
+                validators=self._find_validators(owner),
             )
         except Exception as e:  # pragma: no cover
             # not sure what might cause this ... but it will have consequences
@@ -656,3 +705,50 @@ class SignalGroupDescriptor:
 
         self._do_patch_setattr(owner, with_aliases=bool(Group._psygnal_aliases))
         return Group
+
+
+@dataclass
+class Validator:
+    """Annotated metadata marking that a function validates a value before setting.
+
+    Examples
+    --------
+    ```python
+    from psygnal import Validator, evented
+
+
+    def is_positive(value: int) -> int:
+        if not value > 0:
+            raise ValueError("Value must be positive")
+        return value
+
+
+    @evented
+    @dataclass
+    class Foo:
+        x: Annotated[int, Validator(is_positive)]
+    ```
+
+    """
+
+    func: Callable[[Any], Any]
+
+    def __call__(self, value: Any, *, name: str, owner: Any) -> Any:
+        """Validate the input."""
+        try:
+            return self.func(value)
+        except Exception as e:
+            raise ValueError(
+                f"Error setting value {value!r} for field {name!r} "
+                f"on type {type(owner)}: {e}"
+            ) from e
+
+
+def _resolve(annotation: Any, owner: Any) -> Any:
+    if isinstance(annotation, str):
+        annotation = ForwardRef(annotation)
+    if isinstance(annotation, ForwardRef):
+        guard: frozenset = frozenset()
+        _globals = inspect.getmodule(owner).__dict__
+        annotation = annotation._evaluate(_globals, {}, guard)
+    return annotation
