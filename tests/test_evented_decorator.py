@@ -7,7 +7,7 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 
-from psygnal import SignalInstance
+from psygnal import EmissionInfo, Signal, SignalGroup, SignalInstance
 from psygnal._group import SignalRelay
 
 try:
@@ -24,7 +24,6 @@ from psygnal import (
     get_evented_namespace,
     is_evented,
 )
-from psygnal._group import SignalGroup
 
 decorated_or_descriptor = pytest.mark.parametrize(
     "decorator", [True, False], ids=["decorator", "descriptor"]
@@ -308,3 +307,59 @@ def test_name_conflicts() -> None:
         TypeError, match="Fields on an evented class cannot start with '_psygnal'"
     ):
         _ = evented(Foo3)
+
+
+def test_nesting() -> None:
+    from dataclasses import dataclass, field
+
+    @evented
+    @dataclass
+    class Foo:
+        x: int = 1
+
+    @evented
+    @dataclass
+    class Bar:
+        y: int = 2
+        foo: Foo = field(default_factory=Foo)
+
+    # @evented(connect_child_events=True)  # could also use this syntax
+    @dataclass
+    class Baz:
+        events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor(
+            connect_child_events=True
+        )
+        z: int = 3
+        bar: Bar = field(default_factory=Bar)
+
+    baz = Baz()
+    mock = Mock()
+    events: SignalGroup = baz.events
+    events.all.connect(mock)
+
+    baz.bar.foo.x = 3  # trigger nested event
+
+    # what we expect
+    inner_inner_info = EmissionInfo(baz.bar.foo.events.x, (3, 1), "x")
+    inner_info = EmissionInfo(baz.bar.foo.events.all, (inner_inner_info,), "foo")
+    expected = EmissionInfo(baz.bar.events.all, (inner_info,), "bar")
+    info: EmissionInfo = mock.call_args[0][0]
+
+    mock.assert_called_with(expected)
+
+    assert info.flatten().loc == ("bar", "foo", "x")
+
+
+def test_signal_relay_partial():
+    """Test hash and eq methods on _relay_partial objects"""
+
+    class T(SignalGroup):
+        sig = Signal(int)
+
+    t = T()
+    a = set()
+    a.add(t.all._relay_partial("some_name"))
+    a.add(t.all._relay_partial("some_name"))
+    assert len(a) == 1
+
+    assert t.all._relay_partial("some_name") in a

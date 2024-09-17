@@ -115,15 +115,15 @@ def test_in_place_proxies():
         mock.assert_called_with(EmissionInfo(t.events.in_place, ("or", 13)))
 
 
-def test_numpy_proxy():
+def test_numpy_proxy() -> None:
     ary = np.ones((4, 4))
-    t = EventedObjectProxy(ary)
+    t: EventedObjectProxy[np.ndarray] = EventedObjectProxy(ary)
     assert repr(t) == repr(ary)
 
     mock = Mock()
     with monitor_events(t.events, mock):
         t[0] = 2
-        signal, (key, value) = next(iter(mock.call_args))[0]
+        signal, (key, value), *_ = next(iter(mock.call_args))[0]
         assert signal.name == "item_set"
         assert key == 0
         assert np.array_equal(value, [2, 2, 2, 2])
@@ -131,7 +131,7 @@ def test_numpy_proxy():
 
         t[2:] = np.arange(8).reshape(2, 4)
 
-        signal, (key, value) = next(iter(mock.call_args))[0]
+        signal, (key, value), *_ = next(iter(mock.call_args))[0]
         assert signal.name == "item_set"
         assert key == slice(2, None, None)
         assert np.array_equal(value, [[0, 1, 2, 3], [4, 5, 6, 7]])

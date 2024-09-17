@@ -28,6 +28,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    ClassVar,
     Iterable,
     Mapping,
     MutableSequence,
@@ -114,6 +115,7 @@ class EventedList(MutableSequence[_T]):
     """
 
     events: ListEvents  # pragma: no cover
+    _psygnal_group_: ClassVar[str] = "events"
 
     def __init__(
         self,
@@ -422,7 +424,7 @@ class EventedList(MutableSequence[_T]):
             and isinstance(emitter, SignalRelay)
             and isinstance(args[0], EmissionInfo)
         ):
-            emitter, args = args[0]
+            emitter, args, *_ = args[0]
 
         self.events.child_event.emit(idx, obj, emitter, args)
 
