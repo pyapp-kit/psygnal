@@ -1175,6 +1175,52 @@ class SignalInstance:
 
         self._run_emit_loop(args)
 
+    def emit_fast(self, *args: Any) -> None:
+        """Fast emit without any checks.
+
+        This method can be up to 10x faster than `emit()`, but it lacks most of the
+        features and safety checks of `emit()`. Use with caution.  Specifically:
+
+        - It does not support `check_nargs` or `check_types`
+        - It does not use any thread safety locks.
+        - It is not possible to query the emitter with `Signal.current_emitter()`
+        - It is not possible to query the sender with `Signal.sender()`
+        - It does not support "queued" or "latest-only" reemission modes for nested
+          emits. It will always use "immediate" mode, wherein signals emitted by
+          callbacks are immediately processed in a deeper emission loop.
+
+        It DOES, however, support `paused()` and `blocked()`
+
+        Parameters
+        ----------
+        *args : Any
+            These arguments will be passed when calling each slot (unless the slot
+            accepts fewer arguments, in which case extra args will be discarded.)
+        """
+        if self._is_blocked:
+            return
+
+        if self._is_paused:
+            self._args_queue.append(args)
+            return
+
+        try:
+            for caller in self._slots:
+                caller.cb(args)
+        except RecursionError as e:
+            raise RecursionError(
+                f"RecursionError when "
+                f"emitting signal {self.name!r} with args {args}"
+            ) from e
+        except EmitLoopError as e:  # pragma: no cover
+            raise e
+        except Exception as cb_err:
+            loop_err = EmitLoopError(exc=cb_err, signal=self).with_traceback(
+                cb_err.__traceback__
+            )
+            # this comment will show up in the traceback
+            raise loop_err from cb_err  # emit() call ABOVE || callback error BELOW
+
     def __call__(
         self, *args: Any, check_nargs: bool = False, check_types: bool = False
     ) -> None:
@@ -1199,9 +1245,9 @@ class SignalInstance:
                     f"RecursionError when "
                     f"emitting signal {self.name!r} with args {args}"
                 ) from e
+            except EmitLoopError as e:
+                raise e
             except Exception as cb_err:
-                if isinstance(cb_err, EmitLoopError):
-                    raise cb_err
                 loop_err = EmitLoopError(
                     exc=cb_err,
                     signal=self,
