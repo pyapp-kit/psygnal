@@ -258,6 +258,9 @@ class EventedSetSuite:
     def time_update_overlap(self, n):
         self.my_set.update(range(n // 2, n + n // 2))
 
+    def time_clear(self, _):
+        self.my_set.clear()
+
 
 class EventedSetWithCallbackSuite(EventedSetSuite):
     def setup(self, n):

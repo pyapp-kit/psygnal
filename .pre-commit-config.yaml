@@ -7,24 +7,24 @@ exclude: .asv
 
 repos:
   - repo: https://github.com/crate-ci/typos
-    rev: v1.19.0
+    rev: v1.24.5
     hooks:
       - id: typos
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.3.0
+    rev: v0.6.4
     hooks:
       - id: ruff
         args: [--fix, --unsafe-fixes]
       - id: ruff-format
 
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.16
+    rev: v0.19
     hooks:
       - id: validate-pyproject
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.8.0
+    rev: v1.11.2
     hooks:
       - id: mypy
         exclude: tests|_throttler.pyi|.*_signal.pyi

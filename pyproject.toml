@@ -21,6 +21,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Typing :: Typed",
 ]
 dynamic = ["version"]
@@ -63,7 +64,7 @@ test = [
     "pytest>=6.0",
     "pytest-cov",
     "wrapt",
-    "msgspec",
+    "msgspec; python_version < '3.13'",
     "toolz",
 ]
 testqt = ["pytest-qt", "qtpy"]
@@ -167,8 +168,9 @@ testpaths = ["tests"]
 filterwarnings = [
     "error",
     "ignore:The distutils package is deprecated:DeprecationWarning:",
-    "ignore:.*BackendFinder.find_spec()",                                            # pyinstaller import
+    "ignore:.*BackendFinder.find_spec()",                             # pyinstaller import
     "ignore:.*not using a cooperative constructor:pytest.PytestDeprecationWarning:",
+    "ignore:Failed to disconnect::pytestqt"
 ]
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
@@ -204,9 +206,10 @@ exclude_lines = [
     "raise NotImplementedError()",
 ]
 show_missing = true
+
 [tool.coverage.run]
 source = ["psygnal"]
-omit = ["*/_pyinstaller_util/hook-psygnal.py"]
+omit = ["*/_pyinstaller_util/*"]
 
 # https://github.com/mgedmin/check-manifest#configuration
 [tool.check-manifest]
