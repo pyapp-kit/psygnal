@@ -132,6 +132,57 @@ def test_emit_fast():
     # calling directly also works
     emitter.one_int(1)
     mock.assert_called_once_with(1)
+    mock.reset_mock()
+
+    with emitter.one_int.blocked():
+        emitter.one_int.emit_fast(2)
+    mock.assert_not_called()
+
+    with emitter.one_int.paused():
+        emitter.one_int.emit_fast(3)
+        mock.assert_not_called()
+        emitter.one_int.emit_fast(4)
+    mock.assert_has_calls([call(3), call(4)])
+
+
+def test_emit_fast_errors():
+    emitter = Emitter()
+    err = ValueError()
+
+    @emitter.one_int.connect
+    def boom(v: int) -> None:
+        raise err
+
+    import re
+
+    error_re = re.compile(
+        "signal 'tests.test_psygnal.Emitter.one_int'" f".*{re.escape(__file__)}",
+        re.DOTALL,
+    )
+    with pytest.raises(EmitLoopError, match=error_re):
+        emitter.one_int.emit_fast(42)
+
+
+def test_emit_fast_recursion_errors():
+    """Test emit_fast method."""
+    emitter = Emitter()
+    emitter.one_int.emit_fast(1)
+
+    @emitter.one_int.connect
+    def callback() -> None:
+        emitter.one_int.emit(2)
+
+    with pytest.raises(RecursionError):
+        emitter.one_int.emit_fast(3)
+
+    emitter.one_int.disconnect(callback)
+
+    @emitter.one_int.connect
+    def callback() -> None:
+        emitter.one_int.emit_fast(2)
+
+    with pytest.raises(RecursionError):
+        emitter.one_int.emit_fast(3)
 
 
 def test_decorator():

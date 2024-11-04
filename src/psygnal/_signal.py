@@ -1212,9 +1212,9 @@ class SignalInstance:
                 f"RecursionError when "
                 f"emitting signal {self.name!r} with args {args}"
             ) from e
+        except EmitLoopError as e:  # pragma: no cover
+            raise e
         except Exception as cb_err:
-            if isinstance(cb_err, EmitLoopError):
-                raise cb_err
             loop_err = EmitLoopError(exc=cb_err, signal=self).with_traceback(
                 cb_err.__traceback__
             )
@@ -1245,9 +1245,9 @@ class SignalInstance:
                     f"RecursionError when "
                     f"emitting signal {self.name!r} with args {args}"
                 ) from e
+            except EmitLoopError as e:
+                raise e
             except Exception as cb_err:
-                if isinstance(cb_err, EmitLoopError):
-                    raise cb_err
                 loop_err = EmitLoopError(
                     exc=cb_err,
                     signal=self,
