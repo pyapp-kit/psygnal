@@ -120,6 +120,20 @@ def test_basic_signal():
     mock.assert_called_once_with(1)
 
 
+def test_emit_fast():
+    """Test emit_fast method."""
+    emitter = Emitter()
+    mock = MagicMock()
+    emitter.one_int.connect(mock)
+    emitter.one_int.emit_fast(1)
+    mock.assert_called_once_with(1)
+    mock.reset_mock()
+
+    # calling directly also works
+    emitter.one_int(1)
+    mock.assert_called_once_with(1)
+
+
 def test_decorator():
     emitter = Emitter()
     err = ValueError()

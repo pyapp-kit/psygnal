@@ -138,6 +138,11 @@ class EmitSuite:
     def time_emit_to_partial(self, n: int) -> None:
         self.emitter6.changed.emit(1)
 
+    if hasattr(SignalInstance, "emit_fast"):
+
+        def time_emit_fast_to_function(self, n: int) -> None:
+            self.emitter1.changed.emit_fast(1)
+
 
 class EventedModelSuite:
     params = [10, 100]
