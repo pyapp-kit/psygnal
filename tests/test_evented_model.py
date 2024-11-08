@@ -939,3 +939,26 @@ def test_evented_model_reemission(mode: Union[str, dict]) -> None:
     else:
         assert m.events.a._reemission == mode
         assert m.events.b._reemission == mode
+
+
+@pytest.mark.skipif(not PYDANTIC_V2, reason="computed_field added in v2")
+def test_computed_field() -> None:
+    from pydantic import computed_field
+
+    class MyModel(EventedModel):
+        a: int = 1
+        b: int = 1
+
+        @computed_field
+        @property
+        def c(self) -> List[int]:
+            return [self.a, self.b]
+
+        @c.setter
+        def c(self, val: Sequence[int]) -> None:
+            self.a, self.b = val
+
+        model_config = {
+            "allow_property_setters": True,
+            "field_dependencies": {"c": ["a", "b"]},
+        }

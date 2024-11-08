@@ -12,6 +12,7 @@ from typing import (
     NamedTuple,
     Set,
     Type,
+    TypeGuard,
     Union,
     cast,
     no_type_check,
@@ -32,6 +33,7 @@ if TYPE_CHECKING:
     from pydantic import ConfigDict
     from pydantic._internal import _model_construction as pydantic_main
     from pydantic._internal import _utils as utils
+    from pydantic._internal._decorators import PydanticDescriptorProxy
     from typing_extensions import dataclass_transform as dataclass_transform  # py311
 
     from ._signal import SignalInstance
@@ -133,6 +135,15 @@ if not PYDANTIC_V1:
     def _model_dump(obj: pydantic.BaseModel) -> dict:
         return obj.model_dump()
 
+    def _is_pydantic_descriptor_proxy(obj: Any) -> TypeGuard["PydanticDescriptorProxy"]:
+        if (
+            type(obj).__module__.startswith("pydantic")
+            and type(obj).__name__ == "PydanticDescriptorProxy"
+            and isinstance(getattr(obj, "wrapped", None), property)
+        ):
+            return True
+        return False
+
 else:
 
     @no_type_check
@@ -170,6 +181,9 @@ else:
 
     def _model_dump(obj: pydantic.BaseModel) -> dict:
         return obj.dict()
+
+    def _is_pydantic_descriptor_proxy(obj: Any) -> TypeGuard["PydanticDescriptorProxy"]:
+        return False
 
 
 class ComparisonDelayer:
@@ -259,10 +273,14 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
         # in EventedModel.__setattr__
         cls.__property_setters__ = {}
         if allow_props:
+            # inherit property setters from base classes
             for b in reversed(cls.__bases__):
                 if hasattr(b, "__property_setters__"):
                     cls.__property_setters__.update(b.__property_setters__)
+            # add property setters from this class
             for key, attr in namespace.items():
+                if _is_pydantic_descriptor_proxy(attr):
+                    attr = attr.wrapped
                 if isinstance(attr, property) and attr.fset is not None:
                     cls.__property_setters__[key] = attr
                     recursion = emission_map.get(key, default_strategy)
