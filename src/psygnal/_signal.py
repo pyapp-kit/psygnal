@@ -1039,7 +1039,7 @@ class SignalInstance:
         except ValueError as e:
             warnings.warn(
                 f"{e}. To silence this warning, connect with " "`check_nargs=False`",
-                stacklevel=2,
+                stacklevel=4,
             )
             return None, None, False
         try:

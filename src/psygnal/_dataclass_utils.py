@@ -72,7 +72,7 @@ def is_attrs_class(obj: object) -> TypeGuard[type[AttrsType]]:
     """Return True if the class is an attrs class."""
     attr = sys.modules.get("attr", None)
     cls = obj if isinstance(obj, type) else type(obj)
-    return attr.has(cls) if attr is not None else False  # type: ignore [no-any-return]
+    return attr.has(cls) if attr is not None else False
 
 
 @overload
