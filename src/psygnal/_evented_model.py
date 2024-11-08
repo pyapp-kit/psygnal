@@ -12,7 +12,6 @@ from typing import (
     NamedTuple,
     Set,
     Type,
-    TypeGuard,
     Union,
     cast,
     no_type_check,
@@ -34,6 +33,7 @@ if TYPE_CHECKING:
     from pydantic._internal import _model_construction as pydantic_main
     from pydantic._internal import _utils as utils
     from pydantic._internal._decorators import PydanticDescriptorProxy
+    from typing_extensions import TypeGuard  # py310
     from typing_extensions import dataclass_transform as dataclass_transform  # py311
 
     from ._signal import SignalInstance
@@ -135,7 +135,7 @@ if not PYDANTIC_V1:
     def _model_dump(obj: pydantic.BaseModel) -> dict:
         return obj.model_dump()
 
-    def _is_pydantic_descriptor_proxy(obj: Any) -> TypeGuard["PydanticDescriptorProxy"]:
+    def _is_pydantic_descriptor_proxy(obj: Any) -> "TypeGuard[PydanticDescriptorProxy]":
         if (
             type(obj).__module__.startswith("pydantic")
             and type(obj).__name__ == "PydanticDescriptorProxy"
@@ -182,7 +182,7 @@ else:
     def _model_dump(obj: pydantic.BaseModel) -> dict:
         return obj.dict()
 
-    def _is_pydantic_descriptor_proxy(obj: Any) -> TypeGuard["PydanticDescriptorProxy"]:
+    def _is_pydantic_descriptor_proxy(obj: Any) -> "TypeGuard[PydanticDescriptorProxy]":
         return False
 
 
@@ -353,7 +353,7 @@ def _get_field_dependents(
         for prop, fields in cfg_deps.items():
             if prop not in {*model_fields, *cls.__property_setters__}:
                 raise ValueError(
-                    "Fields with dependencies must be fields or property.setters."
+                    "Fields with dependencies must be fields or property.setters. "
                     f"{prop!r} is not."
                 )
             for field in fields:
