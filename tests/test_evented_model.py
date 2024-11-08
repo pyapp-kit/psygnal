@@ -962,3 +962,23 @@ def test_computed_field() -> None:
             "allow_property_setters": True,
             "field_dependencies": {"c": ["a", "b"]},
         }
+
+    mock_a = Mock()
+    mock_b = Mock()
+    mock_c = Mock()
+    m = MyModel()
+    m.events.a.connect(mock_a)
+    m.events.b.connect(mock_b)
+    m.events.c.connect(mock_c)
+
+    m.c = [10, 20]
+    mock_a.assert_called_with(10)
+    mock_b.assert_called_with(20)
+    mock_c.assert_called_with([10, 20])
+
+    mock_a.reset_mock()
+    mock_c.reset_mock()
+
+    m.a = 5
+    mock_a.assert_called_with(5)
+    mock_c.assert_called_with([5, 20])
