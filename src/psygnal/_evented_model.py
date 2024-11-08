@@ -312,7 +312,7 @@ def _get_field_dependents(
                 self.a, self.b = val
 
             class Config:
-                property_dependencies={'c': ['a', 'b']}
+                field_dependencies={'c': ['a', 'b']}
     """
     deps: Dict[str, Set[str]] = {}
 
@@ -330,7 +330,7 @@ def _get_field_dependents(
     if cfg_deps:
         if not isinstance(cfg_deps, dict):  # pragma: no cover
             raise TypeError(
-                f"Config property_dependencies must be a dict, not {cfg_deps!r}"
+                f"Config field_dependencies must be a dict, not {cfg_deps!r}"
             )
         for prop, fields in cfg_deps.items():
             if prop not in {*model_fields, *cls.__property_setters__}:
@@ -345,7 +345,7 @@ def _get_field_dependents(
                     )
                 deps.setdefault(field, set()).add(prop)
     if model_config.get(GUESS_PROPERTY_DEPENDENCIES, False):
-        # if property_dependencies haven't been explicitly defined, we can glean
+        # if field_dependencies haven't been explicitly defined, we can glean
         # them from the property.fget code object:
         # SKIP THIS MAGIC FOR NOW?
         for prop, setter in cls.__property_setters__.items():
@@ -383,7 +383,7 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
        one of the model fields it depends on is mutated you must set one of the
        following options in the `Config`:
 
-        - `property_dependencies` may be a `Dict[str, List[str]]`, where the
+        - `field_dependencies` may be a `Dict[str, List[str]]`, where the
           keys are the names of properties, and the values are a list of field names
           (strings) that the property depends on for its value
         - `guess_property_dependencies` may be set to `True` to "guess" property
