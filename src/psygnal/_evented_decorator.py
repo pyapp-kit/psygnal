@@ -5,7 +5,10 @@ from typing import TYPE_CHECKING, Callable, Literal, Mapping, TypeVar, overload
 from psygnal._group_descriptor import SignalGroupDescriptor
 
 if TYPE_CHECKING:
-    from psygnal._group_descriptor import EqOperator, FieldAliasFunc
+    from psygnal._group_descriptor import (  # type: ignore[attr-defined]
+        EqOperator,
+        FieldAliasFunc,
+    )
 
 __all__ = ["evented"]
 
