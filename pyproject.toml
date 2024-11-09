@@ -150,7 +150,7 @@ select = [
     "RUF",  # ruff-specific rules
 ]
 ignore = [
-    "D401",   # First line should be in imperative mood
+    "D401", # First line should be in imperative mood
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -181,6 +181,7 @@ disallow_any_generics = false
 disallow_subclassing_any = false
 show_error_codes = true
 pretty = true
+
 
 [[tool.mypy.overrides]]
 module = ["numpy.*", "wrapt", "pydantic.*"]
@@ -215,6 +216,7 @@ omit = ["*/_pyinstaller_util/*"]
 ignore = [
     ".ruff_cache/**/*",
     ".github_changelog_generator",
+    "scripts/*",
     ".pre-commit-config.yaml",
     "tests/**/*",
     "typesafety/*",
