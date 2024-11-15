@@ -21,7 +21,7 @@ from typing import (
     overload,
 )
 
-from ._dataclass_utils import iter_fields
+from ._dataclass_utils import iter_fields_with_options
 from ._group import SignalGroup
 from ._signal import Signal, SignalInstance
 
@@ -32,7 +32,8 @@ if TYPE_CHECKING:
 
     from psygnal._weak_callback import RefErrorChoice, WeakCallback
 
-    EqOperator: TypeAlias = Callable[[Any, Any], bool]
+    from ._dataclass_utils import EqOperator
+
     FieldAliasFunc: TypeAlias = Callable[[str], Optional[str]]
 
 __all__ = ["is_evented", "get_evented_namespace", "SignalGroupDescriptor"]
@@ -197,28 +198,43 @@ def _build_dataclass_signal_group(
 
     signals = {}
     # create a Signal for each field in the dataclass
-    for name, type_ in iter_fields(cls):
-        if name in _equality_operators:
-            if not callable(_equality_operators[name]):  # pragma: no cover
+    for f in iter_fields_with_options(cls):
+        # skip this field
+        if f.skip:
+            continue
+
+        # Equality operator
+        if f.eq is not None:
+            if not callable(f.eq):  # pragma: no cover
+                raise TypeError("`eq` field metadata must be callable")
+            eq_map[f.name] = f.eq
+        elif f.name in _equality_operators:
+            if not callable(_equality_operators[f.name]):  # pragma: no cover
                 raise TypeError("EqOperator must be callable")
-            eq_map[name] = _equality_operators[name]
+            eq_map[f.name] = _equality_operators[f.name]
         else:
-            eq_map[name] = _pick_equality_operator(type_)
+            eq_map[f.name] = _pick_equality_operator(f.type_)
 
         # Resolve the signal name for the field
         sig_name: str | None
-        if name in _signal_aliases:  # an alias has been provided in a mapping
-            sig_name = _signal_aliases[name]
+        if f.alias is not None:  # an alias has been provided in the field metadata
+            _signal_aliases[f.name] = sig_name = f.alias
+        elif f.name in _signal_aliases:  # an alias has been provided in a mapping
+            sig_name = _signal_aliases[f.name]
         elif callable(transform):  # a callable has been provided
-            _signal_aliases[name] = sig_name = transform(name)
-        elif name in signal_group_sig_aliases:  # an alias has been defined in the class
-            _signal_aliases[name] = sig_name = signal_group_sig_aliases[name]
+            _signal_aliases[f.name] = sig_name = transform(f.name)
+        elif f.name in signal_group_sig_aliases:  # an alias was defined in the class
+            _signal_aliases[f.name] = sig_name = signal_group_sig_aliases[f.name]
         else:  # no alias has been defined, use the field name as the signal name
-            sig_name = name
+            sig_name = f.name
 
         # An alias mapping or callable returned `None`, skip this field
         if sig_name is None:
             continue
+
+        # Create the signal, but the alias is set to None
+        if f.disable_setattr:
+            _signal_aliases[f.name] = None
 
         # Repeated signal
         if sig_name in signals:
@@ -240,7 +256,7 @@ def _build_dataclass_signal_group(
             continue
 
         # Create the Signal
-        field_type = object if type_ is None else type_
+        field_type = object if f.type_ is None else f.type_
         signals[sig_name] = sig = Signal(field_type, field_type)
         # patch in our custom SignalInstance class with maxargs=1 on connect_setattr
         sig._signal_instance_class = _DataclassFieldSignalInstance
