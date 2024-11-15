@@ -1195,3 +1195,13 @@ def test_emit_loop_error_message_construction(strategy: ReemissionVal) -> None:
     if strategy == "queued":
         # check that we show a useful message for confusign queued signals
         assert "NOTE" in str(e.value)
+
+
+def test_description():
+    description = "A signal"
+
+    class T:
+        sig = Signal(description=description)
+
+    assert T.sig.description == description
+    assert T().sig.description == description
