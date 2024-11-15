@@ -395,6 +395,7 @@ class Signal:
             self.signature,
             instance=instance,
             name=name or self._name,
+            description=self.description,
             check_nargs_on_connect=self._check_nargs_on_connect,
             check_types_on_connect=self._check_types_on_connect,
             reemission=self._reemission,
@@ -491,6 +492,19 @@ class SignalInstance:
     reemission : Literal["immediate", "queued", "latest-only"] | None
         See docstring for [`Signal`][psygnal.Signal] for details.
         By default, `"immediate"`.
+    description : str
+        Optional descriptive text for the signal.  (not used internally).
+
+    Attributes
+    ----------
+    signature : Signature
+        Signature supported by this `SignalInstance`.
+    instance : Any
+        Object that emits this `SignalInstance`.
+    name : str
+        Name of this `SignalInstance`.
+    description : str
+        Description of this `SignalInstance`.
 
     Raises
     ------
@@ -509,6 +523,7 @@ class SignalInstance:
         *,
         instance: Any = None,
         name: str | None = None,
+        description: str = "",
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
         reemission: ReemissionVal = DEFAULT_REEMISSION,
@@ -521,6 +536,7 @@ class SignalInstance:
                 "instance of `inspect.Signature`"
             )
 
+        self._description = description
         self._reemission = ReemissionMode.validate(reemission)
         self._name = name
         self._instance: Callable = self._instance_ref(instance)
@@ -571,6 +587,11 @@ class SignalInstance:
     def name(self) -> str:
         """Name of this `SignalInstance`."""
         return self._name or ""
+
+    @property
+    def description(self) -> str:
+        """Description of this `SignalInstance`."""
+        return self._description
 
     def __repr__(self) -> str:
         """Return repr."""
