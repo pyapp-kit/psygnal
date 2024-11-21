@@ -587,11 +587,15 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
             # that are changed directly by assignment
             old_value = self._changes_queue[name]
             new_value = getattr(self, name)
-            if name not in self._events:
-                must_continue = name in self.__field_dependents__
-            else:
-                if not _check_field_equality(type(self), name, new_value, old_value):
+
+            if not _check_field_equality(type(self), name, new_value, old_value):
+                if name in self._events:
                     to_emit.append((name, new_value))
+                else:
+                    # An attribute is changing that is not in the SignalGroup
+                    # if it has field dependents, we must still continue
+                    # to check the _changes_queue
+                    must_continue = name in self.__field_dependents__
             self._changes_queue.pop(name)
         if not to_emit and not must_continue:
             # If no direct changes was made then we can skip whole machinery
