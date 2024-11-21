@@ -586,7 +586,7 @@ def test_non_setter_with_dependencies() -> None:
 
 
 def test_unrecognized_property_dependencies():
-    with pytest.warns(UserWarning, match="Unrecognized field dependency: 'b'"):
+    with pytest.warns(UserWarning, match="cannot depend on unrecognized attribute"):
 
         class M(EventedModel):
             x: int

@@ -363,7 +363,7 @@ def _get_field_dependents(
                     f"{prop!r} is not."
                 )
             for field in fields:
-                if not hasattr(cls, field):
+                if field not in model_fields and not hasattr(cls, field):
                     warnings.warn(
                         f"property {prop!r} cannot depend on unrecognized attribute "
                         f"name: {field!r}",
