@@ -94,7 +94,7 @@ dependencies = [
     "hatch-mypyc>=0.13.0",
     "mypy>=0.991",
     "mypy_extensions >=0.4.2",
-    "pydantic",
+    "pydantic!=2.10.0",
     "types-attrs",
     "msgspec",
 ]
@@ -149,7 +149,7 @@ select = [
     "RUF",  # ruff-specific rules
 ]
 ignore = [
-    "D401",   # First line should be in imperative mood
+    "D401", # First line should be in imperative mood
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -167,9 +167,9 @@ testpaths = ["tests"]
 filterwarnings = [
     "error",
     "ignore:The distutils package is deprecated:DeprecationWarning:",
-    "ignore:.*BackendFinder.find_spec()",                             # pyinstaller import
+    "ignore:.*BackendFinder.find_spec()",                                            # pyinstaller import
     "ignore:.*not using a cooperative constructor:pytest.PytestDeprecationWarning:",
-    "ignore:Failed to disconnect::pytestqt"
+    "ignore:Failed to disconnect::pytestqt",
 ]
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
