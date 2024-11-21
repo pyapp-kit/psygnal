@@ -365,7 +365,9 @@ def _get_field_dependents(
             for field in fields:
                 if not hasattr(cls, field):
                     warnings.warn(
-                        f"Unrecognized field dependency: {field!r}", stacklevel=2
+                        f"property {prop!r} cannot depend on unrecognized attribute "
+                        f"name: {field!r}",
+                        stacklevel=2,
                     )
                 deps.setdefault(field, set()).add(prop)
     if model_config.get(GUESS_PROPERTY_DEPENDENCIES, False):
