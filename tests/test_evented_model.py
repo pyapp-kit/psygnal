@@ -982,3 +982,49 @@ def test_computed_field() -> None:
     m.a = 5
     mock_a.assert_called_with(5)
     mock_c.assert_called_with([5, 20])
+
+
+@pytest.mark.skipif(not PYDANTIC_V2, reason="computed_field added in v2")
+def test_private_field_dependents():
+    from pydantic import PrivateAttr, computed_field
+
+    from psygnal import EventedModel
+
+    class MyModel(EventedModel):
+        _items_dict: dict[str, int] = PrivateAttr(default_factory=dict)
+
+        @computed_field  # type: ignore [prop-decorator]
+        @property
+        def item_names(self) -> list[str]:
+            return list(self._items_dict)
+
+        @computed_field  # type: ignore [prop-decorator]
+        @property
+        def item_sum(self) -> int:
+            return sum(self._items_dict.values())
+
+        def add_item(self, name: str, value: int) -> None:
+            if name in self._items_dict:
+                raise ValueError(f"Name {name} already exists!")
+            self._items_dict = {**self._items_dict, name: value}
+
+        # Ideally the following would work
+        model_config = {  # type: ignore [typeddict-unknown-key]
+            "field_dependencies": {
+                "item_names": ["_items_dict"],
+                "item_sum": ["_items_dict"],
+            }
+        }
+
+    m = MyModel()
+    item_sum_mock = Mock()
+    item_names_mock = Mock()
+    m.events.item_sum.connect(item_sum_mock)
+    m.events.item_names.connect(item_names_mock)
+    m.add_item("a", 1)
+    item_sum_mock.assert_called_with(1)
+    item_names_mock.assert_called_with(["a"])
+    item_sum_mock.reset_mock()
+    m.add_item("b", 2)
+    item_sum_mock.assert_called_with(3)
+    item_names_mock.assert_called_with(["a", "b"])
