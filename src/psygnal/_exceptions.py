@@ -3,11 +3,13 @@ from __future__ import annotations
 import inspect
 from contextlib import suppress
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import TYPE_CHECKING, Any
 
 import psygnal
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from ._signal import SignalInstance
 
 

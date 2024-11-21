@@ -127,7 +127,7 @@ HATCH_BUILD_HOOKS_ENABLE = "1"
 # https://docs.astral.sh/ruff/
 [tool.ruff]
 line-length = 88
-target-version = "py37"
+target-version = "py39"
 src = ["src", "tests"]
 
 [tool.ruff.lint]

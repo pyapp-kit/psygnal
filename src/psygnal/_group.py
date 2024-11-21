@@ -17,11 +17,7 @@ from typing import (
     Any,
     Callable,
     ClassVar,
-    ContextManager,
-    Iterable,
-    Iterator,
     Literal,
-    Mapping,
     NamedTuple,
     overload,
 )
@@ -32,6 +28,8 @@ from ._mypyc import mypyc_attr
 
 if TYPE_CHECKING:
     import threading
+    from collections.abc import Iterable, Iterator, Mapping
+    from contextlib import AbstractContextManager
 
     from psygnal._signal import F, ReducerFunc
     from psygnal._weak_callback import RefErrorChoice, WeakCallback
@@ -175,7 +173,7 @@ class SignalRelay(SignalInstance):
 
     def blocked(
         self, exclude: Iterable[str | SignalInstance] = ()
-    ) -> ContextManager[None]:
+    ) -> AbstractContextManager[None]:
         """Context manager to temporarily block all emitters in this group.
 
         Parameters
@@ -526,7 +524,7 @@ class SignalGroup:
 
     def blocked(
         self, exclude: Iterable[str | SignalInstance] = ()
-    ) -> ContextManager[None]:
+    ) -> AbstractContextManager[None]:
         return self._psygnal_relay.blocked(exclude=exclude)
 
     def pause(self) -> None:
@@ -537,7 +535,7 @@ class SignalGroup:
 
     def paused(
         self, reducer: ReducerFunc | None = None, initial: Any = _NULL
-    ) -> ContextManager[None]:
+    ) -> AbstractContextManager[None]:
         return self._psygnal_relay.paused(reducer=reducer, initial=initial)
 
 

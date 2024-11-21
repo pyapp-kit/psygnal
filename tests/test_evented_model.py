@@ -1,7 +1,8 @@
 import inspect
 import sys
+from collections.abc import Sequence
 from contextlib import nullcontext
-from typing import Any, ClassVar, List, Protocol, Sequence, Union, runtime_checkable
+from typing import Any, ClassVar, Protocol, Union, runtime_checkable
 from unittest.mock import Mock, call, patch
 
 import numpy as np
@@ -422,7 +423,7 @@ class T(EventedModel):
     b: int = 1
 
     @property
-    def c(self) -> List[int]:
+    def c(self) -> list[int]:
         return [self.a, self.b]
 
     @c.setter
@@ -485,7 +486,7 @@ def test_properties_with_explicit_property_dependencies():
         b: int = 1
 
         @property
-        def c(self) -> List[int]:
+        def c(self) -> list[int]:
             return [self.a, self.b]
 
         @c.setter
@@ -914,9 +915,9 @@ def test_if_event_is_emitted_only_once() -> None:
 )
 def test_evented_model_reemission(mode: Union[str, dict]) -> None:
     err = mode == "err" or isinstance(mode, dict) and "err" in mode.values()
-    with pytest.raises(
-        ValueError, match="Invalid reemission"
-    ) if err else nullcontext():
+    with (
+        pytest.raises(ValueError, match="Invalid reemission") if err else nullcontext()
+    ):
 
         class Model(EventedModel):
             a: int
@@ -951,7 +952,7 @@ def test_computed_field() -> None:
 
         @computed_field
         @property
-        def c(self) -> List[int]:
+        def c(self) -> list[int]:
             return [self.a, self.b]
 
         @c.setter

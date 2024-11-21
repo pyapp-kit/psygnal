@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Callable, Dict, Generic, List, TypeVar
+from typing import Any, Callable, Generic, TypeVar
 from weakref import finalize
 
 try:
@@ -35,7 +35,7 @@ class CallableProxyEvents(ProxyEvents):
 # we're using a cache instead of setting the events object directly on the proxy
 # because when wrapt is compiled as a C extensions, the ObjectProxy is not allowed
 # to add any new attributes.
-_OBJ_CACHE: Dict[int, ProxyEvents] = {}
+_OBJ_CACHE: dict[int, ProxyEvents] = {}
 
 
 class EventedObjectProxy(ObjectProxy, Generic[T]):
@@ -102,7 +102,7 @@ class EventedObjectProxy(ObjectProxy, Generic[T]):
     def __repr__(self) -> str:
         return repr(self.__wrapped__)
 
-    def __dir__(self) -> List[str]:
+    def __dir__(self) -> list[str]:
         return [*dir(self.__wrapped__), "events"]
 
     def __iadd__(self, other: Any) -> T:
