@@ -59,7 +59,7 @@ jobs:
       extras: "test,testqt"
       hatch-build-hooks-enable: ${{ matrix.compile }}
       pip-install-pre-release: ${{ github.event_name == 'schedule' }}
-      pip-post-installs: "numpy<2" # for pyside2 :/
+      pip-post-installs: "'numpy<2'" # for pyside2 :/
       coverage-upload: artifact
     strategy:
       fail-fast: false
