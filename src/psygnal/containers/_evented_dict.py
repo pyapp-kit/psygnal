@@ -2,17 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Iterator, Mapping, MutableMapping, Sequence
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Iterable,
-    Iterator,
-    Mapping,
-    MutableMapping,
-    Sequence,
-    Tuple,
-    Type,
     TypeVar,
     Union,
     get_args,
@@ -26,8 +20,8 @@ from psygnal._signal import Signal
 
 _K = TypeVar("_K")
 _V = TypeVar("_V")
-TypeOrSequenceOfTypes = Union[Type[_V], Sequence[Type[_V]]]
-DictArg = Union[Mapping[_K, _V], Iterable[Tuple[_K, _V]]]
+TypeOrSequenceOfTypes = Union[type[_V], Sequence[type[_V]]]
+DictArg = Union[Mapping[_K, _V], Iterable[tuple[_K, _V]]]
 
 
 class TypedMutableMapping(MutableMapping[_K, _V]):

@@ -133,21 +133,17 @@ import threading
 import warnings
 import weakref
 from collections import deque
-from contextlib import contextmanager, suppress
-from functools import lru_cache, partial, reduce
+from contextlib import AbstractContextManager, contextmanager, suppress
+from functools import cache, partial, reduce
 from inspect import Parameter, Signature, isclass
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
-    ContextManager,
     Final,
-    Iterable,
-    Iterator,
     Literal,
     NoReturn,
-    Type,
     TypeVar,
     Union,
     cast,
@@ -169,6 +165,8 @@ from ._weak_callback import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable, Iterator
+
     from ._group import EmissionInfo
     from ._weak_callback import RefErrorChoice
 
@@ -314,7 +312,7 @@ class Signal:
                     stacklevel=2,
                 )
         else:
-            self._signature = _build_signature(*cast("tuple[Type[Any], ...]", types))
+            self._signature = _build_signature(*cast("tuple[type[Any], ...]", types))
 
     @property
     def signature(self) -> Signature:
@@ -1323,7 +1321,7 @@ class SignalInstance:
         """Unblock this signal, allowing it to emit."""
         self._is_blocked = False
 
-    def blocked(self) -> ContextManager[None]:
+    def blocked(self) -> AbstractContextManager[None]:
         """Context manager to temporarily block this signal.
 
         Useful if you need to temporarily block all emission of a given signal,
@@ -1414,7 +1412,7 @@ class SignalInstance:
 
     def paused(
         self, reducer: ReducerFunc | None = None, initial: Any = _NULL
-    ) -> ContextManager[None]:
+    ) -> AbstractContextManager[None]:
         """Context manager to temporarily pause this signal.
 
         Parameters
@@ -1550,7 +1548,7 @@ _ANYSIG = Signature(
 )
 
 
-@lru_cache(maxsize=None)
+@cache
 def _stub_sig(obj: Any) -> Signature:
     """Called as a backup when inspect.signature fails."""
     import builtins

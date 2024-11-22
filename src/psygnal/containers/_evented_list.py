@@ -24,13 +24,11 @@ cover this in test_evented_list.py)
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping, MutableSequence
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Iterable,
-    Mapping,
-    MutableSequence,
     TypeVar,
     Union,
     cast,

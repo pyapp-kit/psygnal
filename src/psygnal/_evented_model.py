@@ -1,17 +1,13 @@
 import sys
 import warnings
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager, suppress
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
-    Dict,
-    Iterator,
-    Mapping,
     NamedTuple,
-    Set,
-    Type,
     Union,
     cast,
     no_type_check,
@@ -111,8 +107,8 @@ def no_class_attributes() -> Iterator[None]:  # pragma: no cover
 if not PYDANTIC_V1:
 
     def _get_defaults(
-        obj: Union[pydantic.BaseModel, Type[pydantic.BaseModel]],
-    ) -> Dict[str, Any]:
+        obj: Union[pydantic.BaseModel, type[pydantic.BaseModel]],
+    ) -> dict[str, Any]:
         """Get possibly nested default values for a Model object."""
         dflt = {}
         for k, v in obj.model_fields.items():
@@ -131,7 +127,7 @@ if not PYDANTIC_V1:
 
     def _get_fields(
         cls: pydantic.BaseModel,
-    ) -> Dict[str, pydantic.fields.FieldInfo]:
+    ) -> dict[str, pydantic.fields.FieldInfo]:
         comp_fields = {
             name: pydantic.fields.FieldInfo(annotation=f.return_type, frozen=False)
             for name, f in cls.model_computed_fields.items()
@@ -153,7 +149,7 @@ if not PYDANTIC_V1:
 else:
 
     @no_type_check
-    def _get_defaults(obj: pydantic.BaseModel) -> Dict[str, Any]:
+    def _get_defaults(obj: pydantic.BaseModel) -> dict[str, Any]:
         """Get possibly nested default values for a Model object."""
         dflt = {}
         for k, v in obj.__fields__.items():
@@ -175,11 +171,11 @@ else:
         return GetAttrAsItem(cls.__config__)
 
     class FieldInfo(NamedTuple):
-        annotation: Union[Type[Any], None]
+        annotation: Union[type[Any], None]
         frozen: Union[bool, None]
 
     @no_type_check
-    def _get_fields(cls: type) -> Dict[str, FieldInfo]:
+    def _get_fields(cls: type) -> dict[str, FieldInfo]:
         return {
             k: FieldInfo(annotation=f.type_, frozen=not f.field_info.allow_mutation)
             for k, f in cls.__fields__.items()
@@ -220,7 +216,7 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
     when each instance of an ``EventedModel`` is instantiated).
     """
 
-    __property_setters__: Dict[str, property]
+    __property_setters__: dict[str, property]
 
     @no_type_check
     def __new__(
@@ -314,7 +310,7 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
 
 def _get_field_dependents(
     cls: "EventedMetaclass", model_config: dict, model_fields: dict
-) -> Dict[str, Set[str]]:
+) -> dict[str, set[str]]:
     """Return mapping of field name -> dependent set of property names.
 
     Dependencies may be declared in the Model Config to emit an event
@@ -338,7 +334,7 @@ def _get_field_dependents(
             class Config:
                 field_dependencies={'c': ['a', 'b']}
     """
-    deps: Dict[str, Set[str]] = {}
+    deps: dict[str, set[str]] = {}
 
     cfg_deps = model_config.get(FIELD_DEPENDENCIES, {})  # sourcery skip
     if not cfg_deps:
@@ -472,17 +468,17 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
     _events: ClassVar[SignalGroup] = PrivateAttr()
 
     # mapping of name -> property obj for methods that are property setters
-    __property_setters__: ClassVar[Dict[str, property]]
+    __property_setters__: ClassVar[dict[str, property]]
     # mapping of field name -> dependent set of property names
     # when field is changed, an event for dependent properties will be emitted.
-    __field_dependents__: ClassVar[Dict[str, Set[str]]]
-    __eq_operators__: ClassVar[Dict[str, "EqOperator"]]
+    __field_dependents__: ClassVar[dict[str, set[str]]]
+    __eq_operators__: ClassVar[dict[str, "EqOperator"]]
     __slots__ = {"__weakref__"}
-    __signal_group__: ClassVar[Type[SignalGroup]]
-    _changes_queue: Dict[str, Any] = PrivateAttr(default_factory=dict)
-    _primary_changes: Set[str] = PrivateAttr(default_factory=set)
+    __signal_group__: ClassVar[type[SignalGroup]]
+    _changes_queue: dict[str, Any] = PrivateAttr(default_factory=dict)
+    _primary_changes: set[str] = PrivateAttr(default_factory=set)
     _delay_check_semaphore: int = PrivateAttr(0)
-    _names_that_need_emission: Set[str] = PrivateAttr(default_factory=set)
+    _names_that_need_emission: set[str] = PrivateAttr(default_factory=set)
 
     if PYDANTIC_V1:
 
@@ -508,7 +504,7 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
         return self._events
 
     @property
-    def _defaults(self) -> Dict[str, Any]:
+    def _defaults(self) -> dict[str, Any]:
         return _get_defaults(self)
 
     def __eq__(self, other: Any) -> bool:

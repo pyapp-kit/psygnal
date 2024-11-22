@@ -8,7 +8,7 @@ build-backend = "hatchling.build"
 name = "psygnal"
 description = "Fast python callback/event system modeled after Qt Signals"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = { text = "BSD 3-Clause License" }
 authors = [{ name = "Talley Lambert", email = "talley.lambert@gmail.com" }]
 classifiers = [
@@ -16,7 +16,6 @@ classifiers = [
     "License :: OSI Approved :: BSD License",
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -112,7 +111,7 @@ exclude = [
 [tool.cibuildwheel]
 # Skip 32-bit builds & PyPy wheels on all platforms
 skip = ["*-manylinux_i686", "*-musllinux_i686", "*-win32", "pp*"]
-build = ["cp38-*", "cp39-*", "cp310-*", "cp311-*", "cp312-*"]
+build = ["cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
 test-extras = ["test"]
 test-command = "pytest {project}/tests -v"
 test-skip = ["*-musllinux*", "cp312-win*", "*-macosx_arm64"]
@@ -128,7 +127,7 @@ HATCH_BUILD_HOOKS_ENABLE = "1"
 # https://docs.astral.sh/ruff/
 [tool.ruff]
 line-length = 88
-target-version = "py37"
+target-version = "py39"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
