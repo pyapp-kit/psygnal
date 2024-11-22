@@ -65,13 +65,13 @@ jobs:
       matrix:
         python-version: ["3.10"]
         os: [macos-latest, windows-latest]
-        qt: [PyQt5, PyQt6, "PySide2 'numpy<2'", PySide6]
+        qt: [PyQt5, PyQt6, PySide6]
         compile: [true, false]
-        exclude:
-          - os: macos-latest
-            qt: "PySide2 'numpy<2'"
         include:
           - os: macos-13
+            qt: "PySide2 'numpy<2'"
+          - os: windows-latest
+            python-version: "3.9"
             qt: "PySide2 'numpy<2'"
 
   upload_coverage:
