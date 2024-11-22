@@ -59,21 +59,20 @@ jobs:
       extras: "test,testqt"
       hatch-build-hooks-enable: ${{ matrix.compile }}
       pip-install-pre-release: ${{ github.event_name == 'schedule' }}
-      pip-post-installs: "'numpy<2'" # for pyside2 :/
       coverage-upload: artifact
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.10"]
         os: [macos-latest, windows-latest]
-        qt: [PyQt5, PyQt6, PySide2, PySide6]
+        qt: [PyQt5, PyQt6, "PySide2 'numpy<2'", PySide6]
         compile: [true, false]
         exclude:
           - os: macos-latest
-            qt: PySide2
+            qt: "PySide2 'numpy<2'"
         include:
           - os: macos-13
-            qt: PySide2
+            qt: "PySide2 'numpy<2'"
 
   upload_coverage:
     if: always()
