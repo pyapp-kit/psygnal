@@ -11,11 +11,8 @@ from typing import (
     Any,
     Callable,
     ClassVar,
-    Iterable,
     Literal,
-    Mapping,
     Optional,
-    Type,
     TypeVar,
     cast,
     overload,
@@ -27,6 +24,7 @@ from ._signal import Signal, SignalInstance
 
 if TYPE_CHECKING:
     from _weakref import ref as ref
+    from collections.abc import Iterable, Mapping
 
     from typing_extensions import TypeAlias
 
@@ -38,7 +36,7 @@ if TYPE_CHECKING:
 __all__ = ["is_evented", "get_evented_namespace", "SignalGroupDescriptor"]
 
 
-T = TypeVar("T", bound=Type)
+T = TypeVar("T", bound=type)
 S = TypeVar("S")
 
 

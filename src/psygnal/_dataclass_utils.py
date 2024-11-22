@@ -4,9 +4,11 @@ import contextlib
 import dataclasses
 import sys
 import types
-from typing import TYPE_CHECKING, Any, Iterator, List, Protocol, cast, overload
+from typing import TYPE_CHECKING, Any, Protocol, cast, overload
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     import attrs
     import msgspec
     from pydantic import BaseModel
@@ -22,7 +24,7 @@ class _DataclassParams(Protocol):
     frozen: bool
 
 
-GenericAlias = getattr(types, "GenericAlias", type(List[int]))  # safe for < py 3.9
+GenericAlias = getattr(types, "GenericAlias", type(list[int]))  # safe for < py 3.9
 
 
 class AttrsType:

@@ -10,7 +10,7 @@
   "show_commit_url": "https://github.com/pyapp-kit/psygnal/commit/",
   "pythons": ["3.11"],
   "build_command": [
-    "python -m pip install build 'hatchling==1.21.1' hatch-vcs hatch-mypyc mypy pydantic types-attrs msgspec",
+    "python -m pip install build 'hatchling==1.21.1' hatch-vcs hatch-mypyc mypy pydantic!=2.10.0 types-attrs msgspec",
     "python -c \"import os; from pathlib import Path; import hatchling.builders.wheel as h; p = Path(h.__file__); targ = os.environ.get('MACOSX_DEPLOYMENT_TARGET', '10_16').replace('.', '_'); txt = p.read_text().replace('10_16', targ); p.write_text(txt)\"",
     "python -m build --wheel -o {build_cache_dir} {build_dir} --no-isolation"
   ],
