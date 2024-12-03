@@ -914,7 +914,7 @@ def test_if_event_is_emitted_only_once() -> None:
     ],
 )
 def test_evented_model_reemission(mode: Union[str, dict]) -> None:
-    err = mode == "err" or isinstance(mode, dict) and "err" in mode.values()
+    err = mode == "err" or (isinstance(mode, dict) and "err" in mode.values())
     with (
         pytest.raises(ValueError, match="Invalid reemission") if err else nullcontext()
     ):

@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
     RefErrorChoice: TypeAlias = Literal["raise", "warn", "ignore"]
 
-__all__ = ["weak_callback", "WeakCallback"]
+__all__ = ["WeakCallback", "weak_callback"]
 _T = TypeVar("_T")
 _R = TypeVar("_R")  # return type of cb
 

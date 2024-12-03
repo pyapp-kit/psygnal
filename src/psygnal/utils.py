@@ -14,7 +14,7 @@ from ._signal import SignalInstance
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
 
-__all__ = ["monitor_events", "iter_signal_instances"]
+__all__ = ["iter_signal_instances", "monitor_events"]
 
 
 def _default_event_monitor(info: EmissionInfo) -> None:
