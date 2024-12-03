@@ -554,7 +554,7 @@ def test_connect_validation(func_name, sig_name, mode, typed):
     signal: SignalInstance = getattr(e, sig_name)
     bad_count = COUNT_INCOMPATIBLE[sig_name]
     bad_sig = SIG_INCOMPATIBLE[sig_name]
-    if func_name in bad_count or check_types and func_name in bad_sig:
+    if func_name in bad_count or (check_types and func_name in bad_sig):
         with pytest.raises(ValueError) as er:
             signal.connect(func, check_types=check_types)
         assert "Accepted signature:" in str(er)

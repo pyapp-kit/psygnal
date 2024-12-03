@@ -1,6 +1,6 @@
 import sys
 import warnings
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator
 from contextlib import contextmanager, suppress
 from typing import (
     TYPE_CHECKING,
