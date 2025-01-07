@@ -159,7 +159,7 @@ class SignalRelay(SignalInstance):
         """Block this signal and all emitters from emitting."""
         super().block()
         for name, sig in self._signals.items():
-            if exclude and sig in exclude or name in exclude:
+            if (exclude and sig in exclude) or name in exclude:
                 continue
             self._sig_was_blocked[name] = sig._is_blocked
             sig.block()

@@ -33,7 +33,7 @@ if TYPE_CHECKING:
     EqOperator: TypeAlias = Callable[[Any, Any], bool]
     FieldAliasFunc: TypeAlias = Callable[[str], Optional[str]]
 
-__all__ = ["is_evented", "get_evented_namespace", "SignalGroupDescriptor"]
+__all__ = ["SignalGroupDescriptor", "get_evented_namespace", "is_evented"]
 
 
 T = TypeVar("T", bound=type)
