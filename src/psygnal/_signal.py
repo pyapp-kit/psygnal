@@ -1057,7 +1057,7 @@ class SignalInstance:
             slot_sig = _get_signature_possibly_qt(slot)
         except ValueError as e:
             warnings.warn(
-                f"{e}. To silence this warning, connect with " "`check_nargs=False`",
+                f"{e}. To silence this warning, connect with `check_nargs=False`",
                 stacklevel=4,
             )
             return None, None, False
@@ -1228,8 +1228,7 @@ class SignalInstance:
                 caller.cb(args)
         except RecursionError as e:
             raise RecursionError(
-                f"RecursionError when "
-                f"emitting signal {self.name!r} with args {args}"
+                f"RecursionError when emitting signal {self.name!r} with args {args}"
             ) from e
         except EmitLoopError as e:  # pragma: no cover
             raise e

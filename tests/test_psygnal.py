@@ -156,7 +156,7 @@ def test_emit_fast_errors():
     import re
 
     error_re = re.compile(
-        "signal 'tests.test_psygnal.Emitter.one_int'" f".*{re.escape(__file__)}",
+        f"signal 'tests.test_psygnal.Emitter.one_int'.*{re.escape(__file__)}",
         re.DOTALL,
     )
     with pytest.raises(EmitLoopError, match=error_re):
@@ -199,7 +199,7 @@ def test_decorator():
     import re
 
     error_re = re.compile(
-        "signal 'tests.test_psygnal.Emitter.one_int'" f".*{re.escape(__file__)}",
+        f"signal 'tests.test_psygnal.Emitter.one_int'.*{re.escape(__file__)}",
         re.DOTALL,
     )
     with pytest.raises(EmitLoopError, match=error_re) as e:

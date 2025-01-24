@@ -526,8 +526,7 @@ class SignalGroupDescriptor:
         grp_cls = signal_group_class or SignalGroup
         if not (isinstance(grp_cls, type) and issubclass(grp_cls, SignalGroup)):
             raise TypeError(  # pragma: no cover
-                f"'signal_group_class' must be a subclass of SignalGroup, "
-                f"not {grp_cls}"
+                f"'signal_group_class' must be a subclass of SignalGroup, not {grp_cls}"
             )
         if not collect_fields:
             if grp_cls is SignalGroup:
