@@ -165,7 +165,7 @@ from ._weak_callback import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable, Iterator
+    from collections.abc import Container, Iterable, Iterator
 
     from ._group import EmissionInfo
     from ._weak_callback import RefErrorChoice
@@ -1057,7 +1057,7 @@ class SignalInstance:
             slot_sig = _get_signature_possibly_qt(slot)
         except ValueError as e:
             warnings.warn(
-                f"{e}. To silence this warning, connect with " "`check_nargs=False`",
+                f"{e}. To silence this warning, connect with `check_nargs=False`",
                 stacklevel=4,
             )
             return None, None, False
@@ -1228,8 +1228,7 @@ class SignalInstance:
                 caller.cb(args)
         except RecursionError as e:
             raise RecursionError(
-                f"RecursionError when "
-                f"emitting signal {self.name!r} with args {args}"
+                f"RecursionError when emitting signal {self.name!r} with args {args}"
             ) from e
         except EmitLoopError as e:  # pragma: no cover
             raise e
@@ -1309,7 +1308,7 @@ class SignalInstance:
                     raise RecursionError
             i += 1
 
-    def block(self, exclude: Iterable[str | SignalInstance] = ()) -> None:
+    def block(self, exclude: Container[str | SignalInstance] = ()) -> None:
         """Block this signal from emitting.
 
         NOTE: the `exclude` argument is only for SignalGroup subclass, but we
@@ -1493,7 +1492,7 @@ class _SignalBlocker:
     """Context manager to block and unblock a signal."""
 
     def __init__(
-        self, signal: SignalInstance, exclude: Iterable[str | SignalInstance] = ()
+        self, signal: SignalInstance, exclude: Container[str | SignalInstance] = ()
     ) -> None:
         self._signal = signal
         self._exclude = exclude
