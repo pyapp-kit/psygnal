@@ -693,7 +693,7 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
 
         @classmethod
         @contextmanager
-        def enums_as_values(
+        def enums_as_values(  # type: ignore [misc] # Incompatible redefinition
             cls, as_values: bool = True
         ) -> Iterator[None]:  # pragma: no cover
             """Temporarily override how enums are retrieved.
