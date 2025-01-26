@@ -4,7 +4,7 @@ import inspect
 import os
 from contextlib import suppress
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import psygnal
 
@@ -38,16 +38,15 @@ class EmitLoopError(Exception):
 
         # grab the signal name or repr
         if signal is None:  # pragma: no cover
-            sig_name: Any = ""
+            sig_name: str = ""
+        elif instance := signal.instance:
+            inst_class = instance.__class__
+            mod = getattr(inst_class, "__module__", "")
+            if mod:
+                mod += "."
+            sig_name = f"{mod}{inst_class.__qualname__}.{signal.name}"
         else:
-            if instsance := signal.instance:
-                inst_class = instsance.__class__
-                mod = getattr(inst_class, "__module__", "")
-                if mod:
-                    mod += "."
-                sig_name = f"{mod}{inst_class.__qualname__}.{signal.name}"
-            else:
-                sig_name = signal
+            sig_name = signal.name
 
         msg = _build_psygnal_exception_msg(sig_name, exc, recursion_depth)
 
@@ -87,7 +86,7 @@ def _build_psygnal_exception_msg(
     if tb := exc.__traceback__:
         with suppress(Exception):
             if not (inner := inspect.getinnerframes(tb)):
-                return msg
+                return msg  # pragma: no cover
 
             except_frame = inner[-1]
 
