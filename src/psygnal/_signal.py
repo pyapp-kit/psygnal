@@ -182,7 +182,14 @@ __all__ = ["Signal", "SignalInstance", "_compiled"]
 
 _NULL = object()
 F = TypeVar("F", bound=Callable)
-RECURSION_LIMIT = sys.getrecursionlimit()
+
+# using 300 instead of sys.getrecursionlimit()
+# in a mypyc-compiled program, hitting an actual RecursionError can cause
+# a segfault (rather than raise a python exception), so we really MUST
+# avoid it.  Windows has a lower stack limit than other platforms, so we
+# use 300 as a cross-platform "safe" limit, determined via testing.  It's
+# probably plenty large for most reasonable use-cases.
+RECURSION_LIMIT = 300
 
 ReemissionVal = Literal["immediate", "queued", "latest-only"]
 VALID_REEMISSION = set(ReemissionVal.__args__)  # type: ignore
@@ -1223,6 +1230,13 @@ class SignalInstance:
             self._args_queue.append(args)
             return
 
+        if self._recursion_depth >= RECURSION_LIMIT:
+            raise RecursionError(
+                f"Psygnal recursion limit ({RECURSION_LIMIT}) reached when emitting "
+                f"signal {self.name!r} with args {args}"
+            )
+
+        self._recursion_depth += 1
         try:
             for caller in self._slots:
                 caller.cb(args)
@@ -1238,6 +1252,9 @@ class SignalInstance:
             )
             # this comment will show up in the traceback
             raise loop_err from cb_err  # emit() call ABOVE || callback error BELOW
+        finally:
+            if self._recursion_depth > 0:
+                self._recursion_depth -= 1
 
     def __call__(
         self, *args: Any, check_nargs: bool = False, check_types: bool = False
@@ -1246,6 +1263,9 @@ class SignalInstance:
         return self.emit(*args, check_nargs=check_nargs, check_types=check_types)
 
     def _run_emit_loop(self, args: tuple[Any, ...]) -> None:
+        if self._recursion_depth >= RECURSION_LIMIT:
+            raise RecursionError("Recursion limit reached!")
+
         with self._lock:
             self._emit_queue.append(args)
             if len(self._emit_queue) > 1:
