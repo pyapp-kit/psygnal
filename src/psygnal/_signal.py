@@ -128,7 +128,6 @@ connection type (in that case, depending on threading).
 from __future__ import annotations
 
 import inspect
-import sys
 import threading
 import warnings
 import weakref
