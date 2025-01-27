@@ -118,6 +118,10 @@ test-extras = ["test"]
 test-command = "pytest {project}/tests -v"
 test-skip = ["*-musllinux*", "cp312-win*", "*-macosx_arm64"]
 
+[tool.cibuildwheel.macos]
+# https://cibuildwheel.readthedocs.io/en/stable/faq/#apple-silicon
+archs = ["x86_64", "arm64"]
+
 [[tool.cibuildwheel.overrides]]
 select = "*-manylinux_i686*"
 before-all = "yum install -y python3-devel"
