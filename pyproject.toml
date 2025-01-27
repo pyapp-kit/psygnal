@@ -32,17 +32,6 @@ dependencies = [
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 [project.optional-dependencies]
-dev = [
-    "ipython",
-    "mypy",
-    "mypy_extensions",
-    "pre-commit",
-    "PyQt5",
-    "pytest-mypy-plugins",
-    "rich",
-    "ruff",
-    "typing-extensions",
-]
 docs = [
     "griffe==0.25.5",
     "mkdocs-material==8.5.10",
@@ -55,18 +44,31 @@ docs = [
 proxy = ["wrapt"]
 pydantic = ["pydantic"]
 test = [
-    "dask",
+    "dask[array]>=2024.0.0",
     "attrs",
-    "numpy",
+    "numpy >1.21.6",
     "pydantic",
     "pyinstaller>=4.0",
     "pytest>=6.0",
     "pytest-cov",
     "wrapt",
-    "msgspec; python_version < '3.13'",
+    "msgspec",
     "toolz",
 ]
 testqt = ["pytest-qt", "qtpy"]
+
+dev = [
+    "psygnal[test, testqt]",
+    "PyQt6",
+    "ipython",
+    "mypy",
+    "mypy_extensions",
+    "pre-commit",
+    "pytest-mypy-plugins",
+    "rich",
+    "ruff",
+    "typing-extensions",
+]
 
 [project.urls]
 homepage = "https://github.com/pyapp-kit/psygnal"
