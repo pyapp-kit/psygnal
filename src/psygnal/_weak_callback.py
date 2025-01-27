@@ -259,7 +259,7 @@ class WeakCallback(Generic[_R]):
             if self._on_ref_error == "raise":
                 raise
             if self._on_ref_error == "warn":
-                safe_repr = f"<{type(obj).__name__} at {hex(id(obj))}>"
+                safe_repr = object.__repr__(obj)
                 warn(
                     f"failed to create weakref for {safe_repr}, returning strong ref",
                     stacklevel=2,
