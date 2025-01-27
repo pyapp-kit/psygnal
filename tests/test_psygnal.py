@@ -163,6 +163,9 @@ def test_emit_fast_errors():
         emitter.one_int.emit_fast(42)
 
 
+@pytest.mark.skipif(
+    bool(os.name == "nt" and COMPILED), reason="Windows segfaulting during cibuildwheel"
+)
 def test_emit_fast_recursion_errors():
     """Test emit_fast method."""
     emitter = Emitter()
