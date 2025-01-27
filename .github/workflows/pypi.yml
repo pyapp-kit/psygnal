@@ -66,11 +66,11 @@ jobs:
         with:
           output-dir: dist
 
-      # - name: Upload wheels as workflow artifacts
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: ${{ matrix.name }}-mypyc-wheels
-      #     path: ./dist/*.whl
+      - name: Upload wheels as workflow artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}-mypyc-wheels
+          path: ./dist/*.whl
 
       # - name: 🚢 Publish to PyPI
       #   uses: pypa/gh-action-pypi-publish@release/v1
