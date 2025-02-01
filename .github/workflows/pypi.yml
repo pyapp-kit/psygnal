@@ -7,11 +7,11 @@ on:
   pull_request:
 
 jobs:
-  # test:
-  #   uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v2
-  #   with:
-  #     hatch-build-hooks-enable: true
-  #     coverage-upload: none
+  test:
+    uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v2
+    with:
+      hatch-build-hooks-enable: true
+      coverage-upload: none
 
   build-sdist:
     name: 🐍 sdist
