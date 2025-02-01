@@ -120,17 +120,12 @@ test-extras = ["test"]
 test-command = "pytest {project}/tests -v"
 test-skip = ["*-musllinux*", "cp312-win*", "*-macosx_arm64"]
 
-[tool.cibuildwheel.macos]
-# https://cibuildwheel.readthedocs.io/en/stable/faq/#apple-silicon
-archs = ["x86_64", "arm64"]
-
 [[tool.cibuildwheel.overrides]]
 select = "*-manylinux_i686*"
 before-all = "yum install -y python3-devel"
 
 [tool.cibuildwheel.environment]
 HATCH_BUILD_HOOKS_ENABLE = "1"
-
 
 # https://docs.astral.sh/ruff/
 [tool.ruff]
@@ -152,7 +147,7 @@ select = [
     "C4",   # flake8-comprehensions
     "B",    # flake8-bugbear
     "A001", # flake8-builtins
-    "TCH",  # flake8-typecheck
+    "TC",  # flake8-typecheck
     "TID",  # flake8-tidy-imports
     "RUF",  # ruff-specific rules
 ]
