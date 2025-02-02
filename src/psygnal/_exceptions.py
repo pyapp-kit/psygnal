@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 ROOT = str(Path(psygnal.__file__).parent)
 
 
-class EmitLoopError(Exception):
+class EmitLoopError(RuntimeError):
     """Error type raised when an exception occurs during a callback."""
 
     __module__ = "psygnal"
