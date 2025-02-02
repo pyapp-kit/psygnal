@@ -4,7 +4,6 @@ on:
   push:
     branches: [main]
     tags: [v*]
-  pull_request:
 
 jobs:
   test:
@@ -69,10 +68,10 @@ jobs:
           python -m pip install --upgrade twine
           ls -l dist
 
-      # - name: 🚢 Publish to PyPI
-      #   uses: pypa/gh-action-pypi-publish@release/v1
+      - name: 🚢 Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
 
-      # - uses: softprops/action-gh-release@v2
-      #   with:
-      #     generate_release_notes: true
-      #     files: "./dist/*"
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: "./dist/*"
