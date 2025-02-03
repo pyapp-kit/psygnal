@@ -12,27 +12,56 @@ jobs:
       hatch-build-hooks-enable: true
       coverage-upload: none
 
-  deploy-sdist:
-    needs: test
-    if: success() && startsWith(github.ref, 'refs/tags/v')
+  build-sdist:
+    name: 🐍 sdist
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: write
-
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - uses: actions/setup-python@v5
+      - uses: hynek/build-and-inspect-python-package@v2
         with:
-          python-version: "3.x"
+          skip-wheel: true
 
-      - name: 👷 Build
-        run: |
-          python -m pip install build
-          python -m build
+  build-wheels:
+    name: mypyc wheels (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-13, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Build wheels via cibuildwheel
+        uses: pypa/cibuildwheel@v2.22
+      - name: Upload wheels artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cibw-wheels-${{ runner.os }}-${{ runner.arch }}
+          path: ./wheelhouse/*.whl
+
+  publish:
+    name: Publish to PyPI
+    needs: [test, build-sdist, build-wheels]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Get sdist
+        uses: actions/download-artifact@v4
+        with:
+          name: Packages
+          path: dist
+      - name: Get wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: cibw-wheels-*
+          path: dist
+          merge-multiple: true
 
       - name: 🚢 Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
@@ -41,47 +70,3 @@ jobs:
         with:
           generate_release_notes: true
           files: "./dist/*"
-
-  deploy-wheel:
-    if: startsWith(github.event.ref, 'refs/tags/v')
-    needs: deploy-sdist
-    name: mypyc wheels (${{ matrix.name }})
-    runs-on: ${{ matrix.os }}
-    permissions:
-      id-token: write
-      contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            name: linux-x86_64
-          - os: windows-latest
-            name: windows-amd64
-          - os: macos-13
-            name: macos-x86_64
-            macos_arch: "x86_64"
-          - os: macos-14
-            name: macos-arm64
-            macos_arch: "arm64"
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Build wheels via cibuildwheel
-        uses: pypa/cibuildwheel@v2.22.0
-        with:
-          output-dir: dist
-        env:
-          CIBW_ARCHS_MACOS: "${{ matrix.macos_arch }}"
-
-      - name: Upload wheels as workflow artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.name }}-mypyc-wheels
-          path: ./dist/*.whl
-
-      - name: 🚢 Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
