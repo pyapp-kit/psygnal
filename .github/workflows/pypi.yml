@@ -45,7 +45,7 @@ jobs:
   publish:
     name: Publish to PyPI
     needs: [test, build-sdist, build-wheels]
-    # if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -62,11 +62,6 @@ jobs:
           pattern: cibw-wheels-*
           path: dist
           merge-multiple: true
-
-      - run: |
-          python -m pip install --upgrade pip
-          python -m pip install --upgrade twine
-          ls -l dist
 
       - name: 🚢 Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
