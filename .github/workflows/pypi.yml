@@ -14,7 +14,7 @@ jobs:
       coverage-upload: none
 
   build-sdist:
-    name: 🐍 sdist
+    name: 🐍 sdist and universal wheel
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
