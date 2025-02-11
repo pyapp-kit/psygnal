@@ -127,6 +127,10 @@ before-all = "yum install -y python3-devel"
 [tool.cibuildwheel.environment]
 HATCH_BUILD_HOOKS_ENABLE = "1"
 
+[tool.check-wheel-contents]
+# W004: Module is not located at importable path (hook-psygnal.py)
+ignore = ["W004"]
+
 # https://docs.astral.sh/ruff/
 [tool.ruff]
 line-length = 88

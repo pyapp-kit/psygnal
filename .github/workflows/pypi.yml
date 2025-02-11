@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     tags: [v*]
+  # pull_request:
 
 jobs:
   test:
@@ -13,15 +14,13 @@ jobs:
       coverage-upload: none
 
   build-sdist:
-    name: 🐍 sdist
+    name: 🐍 sdist and universal wheel
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: hynek/build-and-inspect-python-package@v2
-        with:
-          skip-wheel: true
 
   build-wheels:
     name: mypyc wheels (${{ matrix.os }})
