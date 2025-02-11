@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     tags: [v*]
+  pull_request:
 
 jobs:
   test:
@@ -20,8 +21,6 @@ jobs:
         with:
           fetch-depth: 0
       - uses: hynek/build-and-inspect-python-package@v2
-        with:
-          skip-wheel: true
 
   build-wheels:
     name: mypyc wheels (${{ matrix.os }})
