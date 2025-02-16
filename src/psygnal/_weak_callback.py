@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import sys
 import weakref
 from functools import partial
@@ -8,6 +9,7 @@ from types import BuiltinMethodType, FunctionType, MethodType, MethodWrapperType
 from typing import (
     TYPE_CHECKING,
     Any,
+    Awaitable,
     Callable,
     Generic,
     Literal,
@@ -17,11 +19,10 @@ from typing import (
 )
 from warnings import warn
 
+from ._async import get_async_backend
 from ._mypyc import mypyc_attr
 
 if TYPE_CHECKING:
-    from collections.abc import Coroutine
-
     import toolz
     from typing_extensions import TypeAlias, TypeGuard  # py310
 
@@ -30,9 +31,6 @@ if TYPE_CHECKING:
 __all__ = ["WeakCallback", "weak_callback"]
 _T = TypeVar("_T")
 _R = TypeVar("_R")  # return type of cb
-
-# reference to all background tasks created by Coroutine WeakCallbacks
-_BACKGROUND_TASKS: set[asyncio.Task] = set()
 
 
 def _is_toolz_curry(obj: Any) -> TypeGuard[toolz.curry]:
@@ -130,7 +128,12 @@ def weak_callback(
         kwargs = cb.keywords
         cb = cb.func
 
-    is_coro = asyncio.iscoroutinefunction(cb)
+    is_coro = inspect.iscoroutinefunction(cb)
+    if is_coro:
+        if get_async_backend() is None:
+            raise RuntimeError("No async backend set: call `set_async_backend()`")
+        if not get_async_backend()._running:
+            raise RuntimeError("Async backend not running (launch `get_async_backend().run()` in a background task)")
 
     if isinstance(cb, FunctionType):
         if strong_func:
@@ -386,16 +389,12 @@ class StrongFunction(WeakCallback):
 class StrongCoroutineFunction(StrongFunction):
     """Wrapper around a strong coroutine function reference."""
 
-    _f: Callable[..., Coroutine]
+    _f: Awaitable[Any]
 
-    def cb(self, args: tuple[Any, ...] = ()) -> Coroutine:
+    def cb(self, args: tuple[Any, ...] = ()) -> Any:
         if self._max_args is not None:
             args = args[: self._max_args]
-        coroutine = self._f(*self._args, *args, **self._kwargs)
-        task = asyncio.create_task(coroutine)
-        _BACKGROUND_TASKS.add(task)
-        task.add_done_callback(_BACKGROUND_TASKS.discard)
-        return coroutine
+        get_async_backend()._put((self._f, *self._args, *args, self._kwargs))
 
 
 class WeakFunction(WeakCallback):
@@ -437,18 +436,13 @@ class WeakFunction(WeakCallback):
 
 
 class WeakCoroutineFunction(WeakFunction):
-    def cb(self, args: tuple[Any, ...] = ()) -> Coroutine:
+    def cb(self, args: tuple[Any, ...] = ()) -> Any:
         f = self._f()
         if f is None:
             raise ReferenceError("weakly-referenced object no longer exists")
         if self._max_args is not None:
             args = args[: self._max_args]
-        coroutine = f(*self._args, *args, **self._kwargs)
-
-        task = asyncio.create_task(coroutine)
-        _BACKGROUND_TASKS.add(task)
-        task.add_done_callback(_BACKGROUND_TASKS.discard)
-        return coroutine
+        get_async_backend()._put((f, *self._args, *args, self._kwargs))
 
 
 class WeakMethod(WeakCallback):
@@ -507,7 +501,7 @@ class WeakMethod(WeakCallback):
 
 
 class WeakCoroutineMethod(WeakMethod):
-    def cb(self, args: tuple[Any, ...] = ()) -> Coroutine:
+    def cb(self, args: tuple[Any, ...] = ()) -> Any:
         obj = self._obj_ref()
         func = self._func_ref()
         if obj is None or func is None:
@@ -515,12 +509,7 @@ class WeakCoroutineMethod(WeakMethod):
 
         if self._max_args is not None:
             args = args[: self._max_args]
-        coroutine = func(obj, *self._args, *args, **self._kwargs)
-
-        task = asyncio.create_task(coroutine)
-        _BACKGROUND_TASKS.add(task)
-        task.add_done_callback(_BACKGROUND_TASKS.discard)
-        return coroutine
+        get_async_backend()._put((func, obj, *self._args, *args, self._kwargs))
 
 
 class WeakBuiltin(WeakCallback):
