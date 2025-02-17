@@ -20,6 +20,7 @@ def set_async_backend(backend: str = "asyncio"):
                 self._backend = backend
                 self._queue = asyncio.Queue()
                 self.__running = False
+                self._task = asyncio.create_task(self.run())
 
             @property
             def _running(self) -> bool:
@@ -32,6 +33,9 @@ def set_async_backend(backend: str = "asyncio"):
                 return await self._queue.get()
 
             async def run(self) -> None:
+                if self.__running:
+                    return
+
                 self.__running = True
                 while True:
                     item = await self._get()
@@ -63,6 +67,9 @@ def set_async_backend(backend: str = "asyncio"):
                 return await self._receive_stream.receive()
 
             async def run(self) -> None:
+                if self.__running:
+                    return
+
                 self.__running = True
                 async with self._receive_stream:
                     async for item in self._receive_stream:
