@@ -32,3 +32,5 @@ repos:
           - types-attrs
           - pydantic
           - typing_extensions
+          - anyio
+          - trio
