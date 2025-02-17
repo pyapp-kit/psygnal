@@ -17,12 +17,14 @@ from typing import (
 )
 from warnings import warn
 
-from ._async import _AsyncBackend, get_async_backend
+from ._async import get_async_backend
 from ._mypyc import mypyc_attr
 
 if TYPE_CHECKING:
     import toolz
     from typing_extensions import TypeAlias, TypeGuard  # py310
+
+    from ._async import _AsyncBackend
 
     RefErrorChoice: TypeAlias = Literal["raise", "warn", "ignore"]
 
@@ -137,12 +139,27 @@ def weak_callback(
             )
 
     if isinstance(cb, FunctionType):
+        # NOTE: I know it looks like this should be easy to express in much shorter
+        # syntax ... but mypyc will likely fail at runtime.
+        # Make sure to test compiled version if you change this.
         if strong_func:
-            cls = StrongCoroutineFunction if is_coro else StrongFunction
-            return cls(cb, max_args, args, kwargs, priority=priority)
+            if is_coro:
+                return StrongCoroutineFunction(
+                    cb, max_args, args, kwargs, priority=priority
+                )
+            return StrongFunction(cb, max_args, args, kwargs, priority=priority)
         else:
-            wcls = WeakCoroutineFunction if is_coro else WeakFunction
-            return wcls(
+            if is_coro:
+                return WeakCoroutineFunction(
+                    cb,
+                    max_args,
+                    args,
+                    kwargs,
+                    finalize,
+                    on_ref_error=on_ref_error,
+                    priority=priority,
+                )
+            return WeakFunction(
                 cb, max_args, args, kwargs, finalize, on_ref_error, priority=priority
             )
 
@@ -158,8 +175,12 @@ def weak_callback(
             return WeakSetitem(
                 obj, key, max_args, finalize, on_ref_error, priority=priority
             )
-        mcls = WeakCoroutineMethod if is_coro else WeakMethod
-        return mcls(
+
+        if is_coro:
+            return WeakCoroutineMethod(
+                cb, max_args, args, kwargs, finalize, on_ref_error, priority=priority
+            )
+        return WeakMethod(
             cb, max_args, args, kwargs, finalize, on_ref_error, priority=priority
         )
 
@@ -239,7 +260,7 @@ class WeakCallback(Generic[_R]):
 
         self.priority: int = priority
 
-    def cb(self, args: tuple[Any, ...] = ()) -> Any:
+    def cb(self, args: tuple[Any, ...] = ()) -> None:
         """Call the callback with `args`. Args will be spread when calling the func."""
         raise NotImplementedError()
 
@@ -368,7 +389,7 @@ class StrongFunction(WeakCallback):
         if args:
             self._object_repr = f"{self._object_repr}{(*args,)!r}".replace(")", " ...)")
 
-    def cb(self, args: tuple[Any, ...] = ()) -> Any:
+    def cb(self, args: tuple[Any, ...] = ()) -> None:
         if self._max_args is not None:
             args = args[: self._max_args]
         self._f(*self._args, *args, **self._kwargs)
@@ -408,7 +429,7 @@ class WeakFunction(WeakCallback):
         if args:
             self._object_repr = f"{self._object_repr}{(*args,)!r}".replace(")", " ...)")
 
-    def cb(self, args: tuple[Any, ...] = ()) -> Any:
+    def cb(self, args: tuple[Any, ...] = ()) -> None:
         f = self._f()
         if f is None:
             raise ReferenceError("weakly-referenced object no longer exists")
@@ -459,7 +480,7 @@ class WeakMethod(WeakCallback):
         func_name = getattr(self._func_ref(), "__name__", "<method>")
         return f"{self._obj_module}.{obj.__class__.__qualname__}.{func_name}"
 
-    def cb(self, args: tuple[Any, ...] = ()) -> Any:
+    def cb(self, args: tuple[Any, ...] = ()) -> None:
         obj = self._obj_ref()
         func = self._func_ref()
         if obj is None or func is None:
@@ -598,11 +619,11 @@ class WeakSetitem(WeakCallback):
         return None if obj is None else partial(obj.__setitem__, self._itemkey)
 
 
-# --------------------------- Coroutines --------------------
+# --------------------------- Coroutines ---------------------------
 
 
 class WeakCoroutineFunction(WeakFunction):
-    def cb(self, args: tuple[Any, ...] = ()) -> Any:
+    def cb(self, args: tuple[Any, ...] = ()) -> None:
         if self._f() is None:
             raise ReferenceError("weakly-referenced object no longer exists")
         if self._max_args is not None:
@@ -614,7 +635,7 @@ class WeakCoroutineFunction(WeakFunction):
 class StrongCoroutineFunction(StrongFunction):
     """Wrapper around a strong coroutine function reference."""
 
-    def cb(self, args: tuple[Any, ...] = ()) -> Any:
+    def cb(self, args: tuple[Any, ...] = ()) -> None:
         if self._max_args is not None:
             args = args[: self._max_args]
 
@@ -622,7 +643,7 @@ class StrongCoroutineFunction(StrongFunction):
 
 
 class WeakCoroutineMethod(WeakMethod):
-    def cb(self, args: tuple[Any, ...] = ()) -> Any:
+    def cb(self, args: tuple[Any, ...] = ()) -> None:
         if self._obj_ref() is None or self._func_ref() is None:
             raise ReferenceError("weakly-referenced object no longer exists")
 
