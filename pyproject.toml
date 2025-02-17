@@ -32,17 +32,6 @@ dependencies = [
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 [project.optional-dependencies]
-dev = [
-    "ipython",
-    "mypy",
-    "mypy_extensions",
-    "pre-commit",
-    "PyQt5",
-    "pytest-mypy-plugins",
-    "rich",
-    "ruff",
-    "typing-extensions",
-]
 docs = [
     "griffe==0.25.5",
     "mkdocs-material==8.5.10",
@@ -55,18 +44,31 @@ docs = [
 proxy = ["wrapt"]
 pydantic = ["pydantic"]
 test = [
-    "dask",
+    "dask[array]>=2024.0.0",
     "attrs",
-    "numpy",
+    "numpy >1.21.6",
     "pydantic",
     "pyinstaller>=4.0",
     "pytest>=6.0",
     "pytest-cov",
     "wrapt",
-    "msgspec; python_version < '3.13'",
+    "msgspec",
     "toolz",
 ]
 testqt = ["pytest-qt", "qtpy"]
+
+dev = [
+    "psygnal[test, testqt]",
+    "PyQt6",
+    "ipython",
+    "mypy",
+    "mypy_extensions",
+    "pre-commit",
+    "pytest-mypy-plugins",
+    "rich",
+    "ruff",
+    "typing-extensions",
+]
 
 [project.urls]
 homepage = "https://github.com/pyapp-kit/psygnal"
@@ -92,7 +94,9 @@ enable-by-default = false
 require-runtime-dependencies = true
 dependencies = [
     "hatch-mypyc>=0.13.0",
-    "mypy>=0.991",
+    # FIXME: something happened in 1.14.0 that broke the build
+    # https://github.com/pyapp-kit/psygnal/issues/350
+    "mypy==1.13.0",
     "mypy_extensions >=0.4.2",
     "pydantic!=2.10.0",
     "types-attrs",
@@ -123,6 +127,9 @@ before-all = "yum install -y python3-devel"
 [tool.cibuildwheel.environment]
 HATCH_BUILD_HOOKS_ENABLE = "1"
 
+[tool.check-wheel-contents]
+# W004: Module is not located at importable path (hook-psygnal.py)
+ignore = ["W004"]
 
 # https://docs.astral.sh/ruff/
 [tool.ruff]
@@ -144,7 +151,7 @@ select = [
     "C4",   # flake8-comprehensions
     "B",    # flake8-bugbear
     "A001", # flake8-builtins
-    "TCH",  # flake8-typecheck
+    "TC",  # flake8-typecheck
     "TID",  # flake8-tidy-imports
     "RUF",  # ruff-specific rules
 ]
