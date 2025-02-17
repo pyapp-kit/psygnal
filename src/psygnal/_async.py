@@ -5,6 +5,8 @@ from math import inf
 from typing import TYPE_CHECKING, Any, overload
 
 if TYPE_CHECKING:
+    import anyio.streams.memory
+    import trio
     from typing_extensions import Literal, TypeAlias
 
     from psygnal._weak_callback import WeakCallback
@@ -111,11 +113,8 @@ class AsyncioBackend(_AsyncBackend):
 
 
 class AnyioBackend(_AsyncBackend):
-    if TYPE_CHECKING:
-        import anyio.streams.memory
-
-        _send_stream: anyio.streams.memory.MemoryObjectSendStream[QueueItem]
-        _receive_stream: anyio.streams.memory.MemoryObjectReceiveStream[QueueItem]
+    _send_stream: anyio.streams.memory.MemoryObjectSendStream[QueueItem]
+    _receive_stream: anyio.streams.memory.MemoryObjectReceiveStream[QueueItem]
 
     def __init__(self) -> None:
         super().__init__("anyio")
@@ -142,11 +141,8 @@ class AnyioBackend(_AsyncBackend):
 
 
 class TrioBackend(_AsyncBackend):
-    if TYPE_CHECKING:
-        import trio
-
-        _send_channel: trio._channel.MemorySendChannel[QueueItem]
-        _receive_channel: trio.abc.ReceiveChannel[QueueItem]
+    _send_channel: trio._channel.MemorySendChannel[QueueItem]
+    _receive_channel: trio.abc.ReceiveChannel[QueueItem]
 
     def __init__(self) -> None:
         super().__init__("trio")

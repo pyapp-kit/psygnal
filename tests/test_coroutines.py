@@ -76,5 +76,3 @@ async def test_slot_types(type_: str, capsys: Any) -> None:
             await asyncio.sleep(0.01)
         with pytest.raises(ReferenceError):
             await cb(2)
-
-    backend._task.cancel()
