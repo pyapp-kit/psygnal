@@ -27,6 +27,7 @@ async def test_slot_types(type_: str, capsys: Any) -> None:
     mock = Mock()
     final_mock = Mock()
 
+    obj: Any
     if type_ in {"coroutinefunc", "weak_coroutinefunc"}:
 
         async def obj(x: int) -> int:
@@ -74,38 +75,6 @@ async def test_slot_types(type_: str, capsys: Any) -> None:
             cb.cb((2,))
             await asyncio.sleep(0.01)
         with pytest.raises(ReferenceError):
-            cb(2)
-            await asyncio.sleep(0.01)
+            await cb(2)
 
     backend._task.cancel()
-
-
-@pytest.mark.asyncio
-async def testsimple() -> None:
-    backend = _async.set_async_backend("asyncio")
-    assert backend is _async.get_async_backend() is not None
-    await asyncio.sleep(0)
-
-    final_mock = Mock()
-    mock = Mock()
-
-    class MyObj:
-        async def coroutine_method(self, x: int) -> int:
-            mock(x)
-            return x
-
-    obj = MyObj()
-    cb = weak_callback(obj.coroutine_method, finalize=final_mock)
-
-    assert isinstance(cb, WeakCallback)
-    assert isinstance(cb.slot_repr(), str)
-    assert cb.dereference() is not None
-
-    cb.cb((2,))
-    await asyncio.sleep(0.01)
-    mock.assert_called_once_with(2)
-
-    del obj
-    gc.collect()
-    await asyncio.sleep(0.01)
-    final_mock.assert_called_once()

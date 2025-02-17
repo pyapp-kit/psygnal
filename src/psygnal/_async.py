@@ -98,19 +98,24 @@ class AsyncioBackend(_AsyncBackend):
         except asyncio.CancelledError:
             pass
         except RuntimeError as e:
-            if self._loop.is_closed():
-                pass
-            else:
+            if not self._loop.is_closed():
                 raise e
 
 
 class AnyioBackend(_AsyncBackend):
+    if TYPE_CHECKING:
+        import anyio.streams.memory
+
+        _send_stream: anyio.streams.memory.MemoryObjectSendStream[QueueItem]
+        _receive_stream: anyio.streams.memory.MemoryObjectReceiveStream[QueueItem]
+
     def __init__(self) -> None:
         super().__init__("anyio")
         import anyio
 
-        streams = anyio.create_memory_object_stream(max_buffer_size=inf)
-        self._send_stream, self._receive_stream = streams
+        self._send_stream, self._receive_stream = anyio.create_memory_object_stream(
+            max_buffer_size=inf
+        )
 
     def _put(self, item: QueueItem) -> None:
         self._send_stream.send_nowait(item)
@@ -129,12 +134,19 @@ class AnyioBackend(_AsyncBackend):
 
 
 class TrioBackend(_AsyncBackend):
+    if TYPE_CHECKING:
+        import trio
+
+        _send_channel: trio._channel.MemorySendChannel[QueueItem]
+        _receive_channel: trio.abc.ReceiveChannel[QueueItem]
+
     def __init__(self) -> None:
         super().__init__("trio")
         import trio
 
-        streams = trio.open_memory_channel(max_buffer_size=inf)
-        self._send_channel, self._receive_channel = streams
+        self._send_channel, self._receive_channel = trio.open_memory_channel(
+            max_buffer_size=inf
+        )
 
     def _put(self, item: tuple) -> None:
         self._send_channel.send_nowait(item)

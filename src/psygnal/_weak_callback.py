@@ -17,12 +17,10 @@ from typing import (
 )
 from warnings import warn
 
-from ._async import get_async_backend
+from ._async import _AsyncBackend, get_async_backend
 from ._mypyc import mypyc_attr
 
 if TYPE_CHECKING:
-    from collections.abc import Awaitable
-
     import toolz
     from typing_extensions import TypeAlias, TypeGuard  # py310
 
@@ -389,17 +387,6 @@ class StrongFunction(WeakCallback):
             setattr(self, k, v)
 
 
-class StrongCoroutineFunction(StrongFunction):
-    """Wrapper around a strong coroutine function reference."""
-
-    _f: Awaitable[Any]
-
-    def cb(self, args: tuple[Any, ...] = ()) -> Any:
-        if self._max_args is not None:
-            args = args[: self._max_args]
-        get_async_backend()._put((self, args))
-
-
 class WeakFunction(WeakCallback):
     """Wrapper around a weak function reference."""
 
@@ -436,15 +423,6 @@ class WeakFunction(WeakCallback):
         if self._args or self._kwargs:
             return partial(f, *self._args, **self._kwargs)
         return f
-
-
-class WeakCoroutineFunction(WeakFunction):
-    def cb(self, args: tuple[Any, ...] = ()) -> Any:
-        if self._f() is None:
-            raise ReferenceError("weakly-referenced object no longer exists")
-        if self._max_args is not None:
-            args = args[: self._max_args]
-        get_async_backend()._put((self, args))
 
 
 class WeakMethod(WeakCallback):
@@ -500,16 +478,6 @@ class WeakMethod(WeakCallback):
         if self._args or self._kwargs:
             return partial(method, *self._args, **self._kwargs)
         return method
-
-
-class WeakCoroutineMethod(WeakMethod):
-    def cb(self, args: tuple[Any, ...] = ()) -> Any:
-        if self._obj_ref() is None or self._func_ref() is None:
-            raise ReferenceError("weakly-referenced object no longer exists")
-
-        if self._max_args is not None:
-            args = args[: self._max_args]
-        get_async_backend()._put((self, args))
 
 
 class WeakBuiltin(WeakCallback):
@@ -628,3 +596,37 @@ class WeakSetitem(WeakCallback):
     def dereference(self) -> partial | None:
         obj = self._obj_ref()
         return None if obj is None else partial(obj.__setitem__, self._itemkey)
+
+
+# --------------------------- Coroutines --------------------
+
+
+class WeakCoroutineFunction(WeakFunction):
+    def cb(self, args: tuple[Any, ...] = ()) -> Any:
+        if self._f() is None:
+            raise ReferenceError("weakly-referenced object no longer exists")
+        if self._max_args is not None:
+            args = args[: self._max_args]
+
+        cast("_AsyncBackend", get_async_backend())._put((self, args))
+
+
+class StrongCoroutineFunction(StrongFunction):
+    """Wrapper around a strong coroutine function reference."""
+
+    def cb(self, args: tuple[Any, ...] = ()) -> Any:
+        if self._max_args is not None:
+            args = args[: self._max_args]
+
+        cast("_AsyncBackend", get_async_backend())._put((self, args))
+
+
+class WeakCoroutineMethod(WeakMethod):
+    def cb(self, args: tuple[Any, ...] = ()) -> Any:
+        if self._obj_ref() is None or self._func_ref() is None:
+            raise ReferenceError("weakly-referenced object no longer exists")
+
+        if self._max_args is not None:
+            args = args[: self._max_args]
+
+        cast("_AsyncBackend", get_async_backend())._put((self, args))
