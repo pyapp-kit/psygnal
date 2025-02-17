@@ -12,9 +12,9 @@ from psygnal._weak_callback import WeakCallback, weak_callback
 @pytest.mark.parametrize(
     "type_",
     [
-        # "coroutinefunc",
+        "coroutinefunc",
         "weak_coroutinefunc",
-        # "coroutinemethod",
+        "coroutinemethod",
     ],
 )
 @pytest.mark.asyncio
