@@ -21,8 +21,8 @@ from psygnal._weak_callback import WeakCallback, weak_callback
 async def test_slot_types(type_: str, capsys: Any) -> None:
     backend = _async.set_async_backend("asyncio")
     assert backend is _async.get_async_backend() is not None
-
-    await asyncio.sleep(0)
+    while not backend.running:
+        await asyncio.sleep(0)
 
     mock = Mock()
     final_mock = Mock()
