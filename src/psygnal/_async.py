@@ -5,7 +5,7 @@ from math import inf
 from typing import TYPE_CHECKING, Any, overload
 
 if TYPE_CHECKING:
-    from typing import Literal, TypeAlias
+    from typing_extensions import Literal, TypeAlias
 
     from psygnal._weak_callback import WeakCallback
 
