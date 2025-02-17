@@ -2,17 +2,23 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from math import inf
-from typing import TYPE_CHECKING, Any, Literal, TypeAlias, overload
+from typing import TYPE_CHECKING, Any, overload
 
 if TYPE_CHECKING:
+    from typing import Literal, TypeAlias
+
     from psygnal._weak_callback import WeakCallback
 
-SupportedBackend = Literal["asyncio", "anyio", "trio"]
-_async_backend: _AsyncBackend | None = None
+    SupportedBackend: TypeAlias = Literal["asyncio", "anyio", "trio"]
+    QueueItem: TypeAlias = tuple["WeakCallback", tuple[Any, ...]]
+
+
+_ASYNC_BACKEND: _AsyncBackend | None = None
 
 
 def get_async_backend() -> _AsyncBackend | None:
-    return _async_backend
+    """Get the current async backend. Returns None if no backend is set."""
+    return _ASYNC_BACKEND
 
 
 @overload
@@ -22,27 +28,30 @@ def set_async_backend(backend: Literal["anyio"]) -> AnyioBackend: ...
 @overload
 def set_async_backend(backend: Literal["trio"]) -> TrioBackend: ...
 def set_async_backend(backend: SupportedBackend = "asyncio") -> _AsyncBackend:
-    global _async_backend
+    """Set the async backend to use. Must be one of: 'asyncio', 'anyio', 'trio'.
 
-    if _async_backend is not None and _async_backend._backend != backend:
-        raise RuntimeError(f"Async backend already set to: {_async_backend._backend}")
+    This should be done as early as possible, and *must* be called before calling
+    `SignalInstance.connect` with a coroutine function.
+    """
+    global _ASYNC_BACKEND
+
+    if _ASYNC_BACKEND is not None and _ASYNC_BACKEND._backend != backend:
+        # allow setting the same backend multiple times, for tests
+        raise RuntimeError(f"Async backend already set to: {_ASYNC_BACKEND._backend}")
 
     if backend == "asyncio":
-        _async_backend = AsyncioBackend()
+        _ASYNC_BACKEND = AsyncioBackend()
     elif backend == "anyio":
-        _async_backend = AnyioBackend()
+        _ASYNC_BACKEND = AnyioBackend()
     elif backend == "trio":
-        _async_backend = TrioBackend()
+        _ASYNC_BACKEND = TrioBackend()
     else:
         raise RuntimeError(
             f"Async backend not supported: {backend}.  "
             "Must be one of: 'asyncio', 'anyio', 'trio'"
         )
 
-    return _async_backend
-
-
-QueueItem: TypeAlias = tuple["WeakCallback", tuple[Any, ...]]
+    return _ASYNC_BACKEND
 
 
 class _AsyncBackend(ABC):
@@ -74,6 +83,7 @@ class AsyncioBackend(_AsyncBackend):
         super().__init__("asyncio")
         import asyncio
 
+        self._asyncio = asyncio
         self._queue: asyncio.Queue[tuple] = asyncio.Queue()
         self._task = asyncio.create_task(self.run())
         self._loop = asyncio.get_running_loop()
@@ -85,8 +95,6 @@ class AsyncioBackend(_AsyncBackend):
         return await self._queue.get()
 
     async def run(self) -> None:
-        import asyncio
-
         if self.running:
             return
 
@@ -95,7 +103,7 @@ class AsyncioBackend(_AsyncBackend):
             while True:
                 item = await self._get()
                 await self.call_back(item)
-        except asyncio.CancelledError:
+        except self._asyncio.CancelledError:
             pass
         except RuntimeError as e:
             if not self._loop.is_closed():
