@@ -1,4 +1,3 @@
-import asyncio
 import gc
 import re
 from functools import partial
@@ -16,13 +15,10 @@ from psygnal._weak_callback import WeakCallback, weak_callback
     "type_",
     [
         "function",
-        "coroutinefunc",
         "toolz_function",
         "weak_func",
-        "weak_coroutinefunc",
         "lambda",
         "method",
-        "coroutinemethod",
         "partial_method",
         "toolz_method",
         "setattr",
@@ -37,11 +33,7 @@ def test_slot_types(type_: str, capsys: Any) -> None:
     final_mock = Mock()
 
     class MyObj:
-        def method(self, x: int) -> int:
-            mock(x)
-            return x
-
-        async def coroutine_method(self, x: int) -> int:
+        def method(self, x: int) -> None:
             mock(x)
             return x
 
@@ -49,12 +41,12 @@ def test_slot_types(type_: str, capsys: Any) -> None:
             mock(value)
             return value
 
-        def __setattr__(self, __name: str, __value: Any) -> Any:
+        def __setattr__(self, __name: str, __value) -> None:
             if __name == "x":
                 mock(__value)
                 return __value
 
-    obj: Any = MyObj()
+    obj = MyObj()
 
     if type_ == "setattr":
         cb = weak_callback(setattr, obj, "x", finalize=final_mock)
@@ -62,25 +54,16 @@ def test_slot_types(type_: str, capsys: Any) -> None:
         cb = weak_callback(obj.__setitem__, "x", finalize=final_mock)
     elif type_ in {"function", "weak_func"}:
 
-        def obj(x: int) -> int:
+        def obj(x: int) -> None:
             mock(x)
             return x
 
         cb = weak_callback(obj, strong_func=(type_ == "function"), finalize=final_mock)
-    elif type_ in {"coroutinefunc", "weak_coroutinefunc"}:
-
-        async def obj(x: int) -> int:
-            mock(x)
-            return x
-
-        cb = weak_callback(
-            obj, strong_func=(type_ == "coroutinefunc"), finalize=final_mock
-        )
     elif type_ == "toolz_function":
         toolz = pytest.importorskip("toolz")
 
         @toolz.curry
-        def obj(z: int, x: int) -> int:
+        def obj(z: int, x: int) -> None:
             mock(x)
             return x
 
@@ -89,8 +72,6 @@ def test_slot_types(type_: str, capsys: Any) -> None:
         cb = weak_callback(lambda x: mock(x) and x, finalize=final_mock)
     elif type_ == "method":
         cb = weak_callback(obj.method, finalize=final_mock)
-    elif type_ == "coroutinemethod":
-        cb = weak_callback(obj.coroutine_method, finalize=final_mock)
     elif type_ == "partial_method":
         cb = weak_callback(partial(obj.method, 2), max_args=0, finalize=final_mock)
     elif type_ == "toolz_method":
@@ -106,15 +87,7 @@ def test_slot_types(type_: str, capsys: Any) -> None:
 
     assert isinstance(cb, WeakCallback)
     assert isinstance(cb.slot_repr(), str)
-
-    if "coroutine" in type_:
-
-        async def main() -> None:
-            await cb.cb((2,))
-
-        asyncio.run(main())
-    else:
-        cb.cb((2,))
+    cb.cb((2,))
     assert cb.dereference() is not None
     if type_ == "print":
         assert capsys.readouterr().out == "2\n"
@@ -122,24 +95,14 @@ def test_slot_types(type_: str, capsys: Any) -> None:
 
     mock.assert_called_once_with(2)
     mock.reset_mock()
-
-    if "coroutine" in type_:
-        result: Any = None
-
-        async def main() -> None:
-            nonlocal result
-            result = await cb(2)
-
-        asyncio.run(main())
-    else:
-        result = cb(2)
+    result = cb(2)
     if type_ not in ("setattr", "mock"):
         assert result == 2
     mock.assert_called_once_with(2)
 
     del obj
 
-    if type_ not in ("function", "coroutinefunc", "toolz_function", "lambda", "mock"):
+    if type_ not in ("function", "toolz_function", "lambda", "mock"):
         final_mock.assert_called_once_with(cb)
         assert cb.dereference() is None
         with pytest.raises(ReferenceError):
@@ -147,14 +110,7 @@ def test_slot_types(type_: str, capsys: Any) -> None:
         with pytest.raises(ReferenceError):
             cb(2)
     else:
-        if "coroutine" in type_:
-
-            async def main() -> None:
-                await cb.cb((4,))
-
-            asyncio.run(main())
-        else:
-            cb.cb((4,))
+        cb.cb((4,))
         mock.assert_called_with(4)
 
 

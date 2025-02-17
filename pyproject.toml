@@ -51,6 +51,7 @@ test = [
     "pyinstaller>=4.0",
     "pytest>=6.0",
     "pytest-cov",
+    "pytest-asyncio",
     "wrapt",
     "msgspec",
     "toolz",

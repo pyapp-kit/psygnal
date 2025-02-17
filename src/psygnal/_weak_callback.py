@@ -130,11 +130,12 @@ def weak_callback(
 
     is_coro = inspect.iscoroutinefunction(cb)
     if is_coro:
-        if get_async_backend() is None:
+        if (backend := get_async_backend()) is None:
             raise RuntimeError("No async backend set: call `set_async_backend()`")
-        if not get_async_backend()._running:
+        if not backend.running:
             raise RuntimeError(
-                "Async backend not running (launch `get_async_backend().run()` in a background task)"
+                "Async backend not running (launch `get_async_backend().run()` "
+                "in a background task)"
             )
 
     if isinstance(cb, FunctionType):
@@ -396,7 +397,7 @@ class StrongCoroutineFunction(StrongFunction):
     def cb(self, args: tuple[Any, ...] = ()) -> Any:
         if self._max_args is not None:
             args = args[: self._max_args]
-        get_async_backend()._put((self._f, *self._args, *args, self._kwargs))
+        get_async_backend()._put((self, args))
 
 
 class WeakFunction(WeakCallback):
@@ -439,12 +440,11 @@ class WeakFunction(WeakCallback):
 
 class WeakCoroutineFunction(WeakFunction):
     def cb(self, args: tuple[Any, ...] = ()) -> Any:
-        f = self._f()
-        if f is None:
+        if self._f() is None:
             raise ReferenceError("weakly-referenced object no longer exists")
         if self._max_args is not None:
             args = args[: self._max_args]
-        get_async_backend()._put((f, *self._args, *args, self._kwargs))
+        get_async_backend()._put((self, args))
 
 
 class WeakMethod(WeakCallback):
@@ -504,14 +504,12 @@ class WeakMethod(WeakCallback):
 
 class WeakCoroutineMethod(WeakMethod):
     def cb(self, args: tuple[Any, ...] = ()) -> Any:
-        obj = self._obj_ref()
-        func = self._func_ref()
-        if obj is None or func is None:
+        if self._obj_ref() is None or self._func_ref() is None:
             raise ReferenceError("weakly-referenced object no longer exists")
 
         if self._max_args is not None:
             args = args[: self._max_args]
-        get_async_backend()._put((func, obj, *self._args, *args, self._kwargs))
+        get_async_backend()._put((self, args))
 
 
 class WeakBuiltin(WeakCallback):
