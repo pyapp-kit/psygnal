@@ -1,6 +1,5 @@
-from math import inf
 from abc import ABC, abstractmethod
-
+from math import inf
 
 _async_backend = None
 
@@ -16,7 +15,6 @@ def set_async_backend(backend: str = "asyncio"):
         raise RuntimeError(f"Async backend already set to: {_async_backend._backend}")
 
     if backend == "asyncio":
-
         import asyncio
 
         class AsyncBackend(_AsyncBackend):
@@ -41,13 +39,14 @@ def set_async_backend(backend: str = "asyncio"):
                     await self.call_back(item)
 
     elif backend == "anyio":
-
         import anyio
 
         class AsyncBackend(_AsyncBackend):
             def __init__(self):
                 super().__init__(backend)
-                self._send_stream, self._receive_stream = anyio.create_memory_object_stream(max_buffer_size=inf)
+                self._send_stream, self._receive_stream = (
+                    anyio.create_memory_object_stream(max_buffer_size=inf)
+                )
 
             def _put(self, item) -> None:
                 self._send_stream.send_nowait(item)
@@ -65,13 +64,14 @@ def set_async_backend(backend: str = "asyncio"):
                         await self.call_back(item)
 
     elif backend == "trio":
-
         import trio
 
         class AsyncBackend(_AsyncBackend):
             def __init__(self):
                 super().__init__(backend)
-                self._send_channel, self._receive_channel = trio.open_memory_channel(max_buffer_size=inf)
+                self._send_channel, self._receive_channel = trio.open_memory_channel(
+                    max_buffer_size=inf
+                )
 
             def _put(self, item) -> None:
                 self._send_channel.send_nowait(item)
@@ -106,16 +106,13 @@ class _AsyncBackend(ABC):
         return self.__running
 
     @abstractmethod
-    def _put(self, item) -> None:
-        ...
+    def _put(self, item) -> None: ...
 
     @abstractmethod
-    async def _get(self):
-        ...
+    async def _get(self): ...
 
     @abstractmethod
-    async def run(self) -> None:
-        ...
+    async def run(self) -> None: ...
 
     async def call_back(self, item) -> None:
         cb = item[0]

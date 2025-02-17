@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import inspect
 import sys
 import weakref
@@ -9,7 +8,6 @@ from types import BuiltinMethodType, FunctionType, MethodType, MethodWrapperType
 from typing import (
     TYPE_CHECKING,
     Any,
-    Awaitable,
     Callable,
     Generic,
     Literal,
@@ -23,6 +21,8 @@ from ._async import get_async_backend
 from ._mypyc import mypyc_attr
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable
+
     import toolz
     from typing_extensions import TypeAlias, TypeGuard  # py310
 
@@ -133,7 +133,9 @@ def weak_callback(
         if get_async_backend() is None:
             raise RuntimeError("No async backend set: call `set_async_backend()`")
         if not get_async_backend()._running:
-            raise RuntimeError("Async backend not running (launch `get_async_backend().run()` in a background task)")
+            raise RuntimeError(
+                "Async backend not running (launch `get_async_backend().run()` in a background task)"
+            )
 
     if isinstance(cb, FunctionType):
         if strong_func:
