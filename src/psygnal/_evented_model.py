@@ -710,6 +710,6 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
                 yield
             finally:
                 if before is not NULL:  # pragma: no cover
-                    cls.model_config["use_enum_values"] = cast(bool, before)
+                    cls.model_config["use_enum_values"] = cast("bool", before)
                 else:
                     cls.model_config.pop("use_enum_values")
