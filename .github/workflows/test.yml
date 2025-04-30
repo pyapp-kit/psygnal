@@ -45,9 +45,12 @@ jobs:
           cache-dependency-glob: "**/pyproject.toml"
 
       - name: Install the project
-        run: uv sync --no-dev --group test
+        run: |
+          uv sync --no-dev --group test
+          uv run --no-sync python -c "import psygnal; print(psygnal._compiled)"
         env:
           HATCH_BUILD_HOOKS_ENABLE: ${{ matrix.compile }}
+
       - name: Test
         shell: bash
         run: uv run --no-sync coverage run -p -m pytest -v
