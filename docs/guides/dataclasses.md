@@ -148,7 +148,7 @@ There are two (related) APIs for adding events to dataclasses:
             ```
 
             *for a fully evented subclass of pydantic's `BaseModel`, see also
-            [`EventedModel`](./API/model.md)*
+            [`EventedModel`][psygnal.EventedModel]*
 
         === "msgspec"
 
@@ -211,7 +211,7 @@ There are two (related) APIs for adding events to dataclasses:
             ```
 
             *for a fully evented subclass of pydantic's `BaseModel`, see also
-            [`EventedModel`](./API/model.md)*
+            [`EventedModel`][psygnal.EventedModel]*
 
         === "msgspec"
 
@@ -270,7 +270,7 @@ def on_any_change(info: EmissionInfo):
     print(f"field {info.signal.name!r} changed to {info.args}")
 ```
 
-see the [API documentation](./API/evented.md) for for more details.
+see the [API documentation](reference/psygnal/) for for more details.
 
 ## Type annotating evented dataclasses
 

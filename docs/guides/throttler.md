@@ -14,5 +14,3 @@ you'd like to wait a moment to see if a user might do additional actions (say,
 moving a slider or typing in a text field) before "committing" to calling the
 callback.
 
-::: psygnal.throttled
-::: psygnal.debounced

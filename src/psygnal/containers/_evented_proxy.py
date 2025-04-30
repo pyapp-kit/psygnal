@@ -41,6 +41,9 @@ _OBJ_CACHE: dict[int, ProxyEvents] = {}
 class EventedObjectProxy(ObjectProxy, Generic[T]):
     """Create a proxy of `target` that includes an `events` [psygnal.SignalGroup][].
 
+    Provides an "evented" subclasses of
+    [`wrapt.ObjectProxy`](https://wrapt.readthedocs.io/en/latest/wrappers.html#object-proxy)
+
     !!! important
 
         This class requires `wrapt` to be installed.
@@ -60,6 +63,13 @@ class EventedObjectProxy(ObjectProxy, Generic[T]):
     - `item_set`: `Signal(object, object)`
     - `item_deleted`: `Signal(object)`
     - `in_place`: `Signal(str, object)`
+
+    !!! warning "Experimental"
+
+        This object is experimental! They may affect the behavior of
+        the wrapped object in unanticipated ways.  Please consult
+        the [wrapt documentation](https://wrapt.readthedocs.io/en/latest/wrappers.html)
+        for details on how the Object Proxy works.
 
     Parameters
     ----------
