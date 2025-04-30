@@ -49,6 +49,7 @@ test = [
     "toolz",
 ]
 testqt = [{ include-group = "test" }, "pytest-qt", "qtpy"]
+testcodspeed = [{ include-group = "test" }, "pytest-codspeed"]
 docs = [
     "griffe==0.25.5",
     "mkdocs-autorefs==1.0.0",
