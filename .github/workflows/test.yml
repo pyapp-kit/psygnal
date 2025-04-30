@@ -43,11 +43,11 @@ jobs:
           # pydantic versions
           - os: ubuntu-latest
             python-version: "3.10"
-            pydantic: "pydantic<2"
+            pydantic: "'pydantic<2'"
             compile: "1"
           - os: ubuntu-latest
             python-version: "3.9"
-            pydantic: "pydantic<2"
+            pydantic: "'pydantic<2'"
             compile: "0"
           # qt stuff
           - os: ubuntu-latest
