@@ -34,6 +34,7 @@ dependencies = [
 [project.optional-dependencies]
 docs = [
     "griffe==0.25.5",
+    "mkdocs-autorefs==1.0.0",
     "mkdocs-material==8.5.10",
     "mkdocs-minify-plugin",
     "mkdocs==1.4.2",
