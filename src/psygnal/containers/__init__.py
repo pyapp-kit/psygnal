@@ -41,7 +41,7 @@ __all__ = [
 ]
 
 
-def __getattr__(name: str) -> Any:
+def __getattr__(name: str) -> Any:  # pragma: no cover
     if name == "EventedObjectProxy":
         from ._evented_proxy import EventedObjectProxy
 
