@@ -132,11 +132,9 @@ jobs:
 
   benchmarks:
     runs-on: ubuntu-latest
-    env:
-      HATCH_BUILD_HOOKS_ENABLE: "1"
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v3
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
@@ -145,6 +143,8 @@ jobs:
           python -m pip install -U pip
           python -m pip install . --group test-codspeed
           python -c "import psygnal; print('compiled:', psygnal._compiled)"
+        env:
+          HATCH_BUILD_HOOKS_ENABLE: "1"
 
       - name: Run benchmarks
         uses: CodSpeedHQ/action@v3
