@@ -175,6 +175,7 @@ docstring-code-format = true
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = ["tests"]
+addopts = ["--color=yes"]
 filterwarnings = [
     "error",
     "ignore:The distutils package is deprecated:DeprecationWarning:",
