@@ -8,7 +8,7 @@ from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from ._evented_model import EventedModel  # noqa: TC004
+    from ._evented_model import EventedModel
 
 
 try:

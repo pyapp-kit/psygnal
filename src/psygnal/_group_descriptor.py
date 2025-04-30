@@ -52,7 +52,7 @@ def _get_eq_operator_map(cls: type) -> dict[str, EqOperator]:
     # if the class has an __eq_operators__ attribute, we use it
     # otherwise use/create the entry for `cls` in the global _EQ_OPERATORS map
     if hasattr(cls, _EQ_OPERATOR_NAME):
-        return cast(dict, getattr(cls, _EQ_OPERATOR_NAME))
+        return cast("dict", getattr(cls, _EQ_OPERATOR_NAME))
     else:
         return _EQ_OPERATORS.setdefault(cls, {})
 
@@ -389,7 +389,7 @@ def evented_setattr(
             if name == signal_group_name:
                 return super_setattr(self, name, value)
 
-            group = cast(SignalGroup, getattr(self, signal_group_name))
+            group = cast("SignalGroup", getattr(self, signal_group_name))
             if not with_aliases and name not in group:
                 return super_setattr(self, name, value)
 
