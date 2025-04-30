@@ -91,6 +91,7 @@ jobs:
           uv pip install ${{ matrix.qt }}
       
       - if: matrix.pydantic != ''
+        name: downgrade pydantic
         run: uv pip install '${{ matrix.pydantic }}'
 
       - name: Test
