@@ -458,7 +458,7 @@ class WeakMethod(WeakCallback):
         func = self._func_ref()
         if obj is None or func is None:
             return None
-        method = cast(MethodType, func.__get__(obj))
+        method = cast("MethodType", func.__get__(obj))
         if self._args or self._kwargs:
             return partial(method, *self._args, **self._kwargs)
         return method
