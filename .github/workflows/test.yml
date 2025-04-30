@@ -22,6 +22,9 @@ jobs:
   test:
     name: Test ${{ matrix.os }} py${{ matrix.python-version }} mypyc-${{ matrix.compile }}
     runs-on: ${{ matrix.os }}
+    env:
+      HATCH_BUILD_HOOKS_ENABLE: ${{ matrix.compile }}
+      UV_NO_SYNC: "1"
     strategy:
       fail-fast: false
       matrix:
@@ -64,9 +67,7 @@ jobs:
       - name: Install the project
         run: |
           uv sync --no-dev --group test
-          uv run --no-sync python -c "import psygnal; print('compiled:', psygnal._compiled)"
-        env:
-          HATCH_BUILD_HOOKS_ENABLE: ${{ matrix.compile }}
+          uv run python -c "import psygnal; print('compiled:', psygnal._compiled)"
 
       - if: matrix.qt != ''
         uses: pyvista/setup-headless-display-action@v4
@@ -80,7 +81,7 @@ jobs:
 
       - name: Test
         shell: bash
-        run: uv run --no-sync coverage run -p -m pytest -v
+        run: uv run coverage run -p -m pytest -v
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
@@ -116,7 +117,7 @@ jobs:
 
   upload_coverage:
     if: always()
-    needs: [test, test-qt]
+    needs: [test]
     uses: pyapp-kit/workflows/.github/workflows/upload-coverage.yml@v2
     secrets: inherit
 
