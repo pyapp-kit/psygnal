@@ -152,5 +152,5 @@ jobs:
         uses: CodSpeedHQ/action@v3
         with:
           run: |
-            source .venv/bin/activate
+            . .venv/bin/activate
             pytest --codspeed -v
