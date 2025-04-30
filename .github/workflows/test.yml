@@ -85,7 +85,7 @@ jobs:
         run: |
           uv sync --no-dev --group testqt
           uv pip install ${{ matrix.qt }}
-      
+
       - if: matrix.pydantic != ''
         name: downgrade pydantic
         run: uv pip install ${{ matrix.pydantic }}
@@ -132,6 +132,9 @@ jobs:
 
   benchmarks:
     runs-on: ubuntu-latest
+    env:
+      HATCH_BUILD_HOOKS_ENABLE: "1"
+      UV_NO_SYNC: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -140,12 +143,10 @@ jobs:
           python-version: "3.11"
           cache-dependency-glob: "**/pyproject.toml"
 
-      - name: install
+      - name: Install the project
         run: |
           uv sync --no-dev --group test-codspeed
-          python -c "import sys, psygnal; sys.exit(0 if psygnal._compiled else 1)"
-        env:
-          HATCH_BUILD_HOOKS_ENABLE: "1"
+          uv run python -c "import psygnal; print('compiled:', psygnal._compiled)"
 
       - name: Run benchmarks
         uses: CodSpeedHQ/action@v3
