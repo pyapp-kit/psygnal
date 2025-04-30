@@ -41,7 +41,7 @@ jobs:
             compile: "1"
           - os: ubuntu-latest
             python-version: "3.9"
-            qt: "PySide2"
+            qt: "PySide2 numpy<2"
             compile: "0"
           - os: macos-latest
             python-version: "3.10"
@@ -89,31 +89,6 @@ jobs:
           name: covreport-${{ matrix.os }}-py${{ matrix.python-version }}-mypyc${{ matrix.compile }}-${{ matrix.qt }}
           path: ./.coverage*
           include-hidden-files: true
-
-  # test-qt:
-  #   name: Test Qt
-  #   uses: pyapp-kit/workflows/.github/workflows/test-pyrepo.yml@v2
-  #   with:
-  #     os: ${{ matrix.os }}
-  #     python-version: ${{ matrix.python-version }}
-  #     qt: ${{ matrix.qt }}
-  #     extras: "test,testqt"
-  #     hatch-build-hooks-enable: ${{ matrix.compile }}
-  #     pip-install-pre-release: ${{ github.event_name == 'schedule' }}
-  #     coverage-upload: artifact
-  #   strategy:
-  #     fail-fast: false
-  #     matrix:
-  #       python-version: ["3.10"]
-  #       os: [macos-latest, windows-latest]
-  #       qt: [PyQt5, PyQt6, PySide6]
-  #       compile: [true, false]
-  #       include:
-  #         - os: macos-13
-  #           qt: "PySide2 'numpy<2'"
-  #         - os: windows-latest
-  #           python-version: "3.9"
-  #           qt: "PySide2 'numpy<2'"
 
   upload_coverage:
     if: always()
