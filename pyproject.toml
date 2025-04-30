@@ -32,18 +32,10 @@ dependencies = [
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 [project.optional-dependencies]
-docs = [
-    "griffe==0.25.5",
-    "mkdocs-autorefs==1.0.0",
-    "mkdocs-material==8.5.10",
-    "mkdocs-minify-plugin",
-    "mkdocs==1.4.2",
-    "mkdocstrings-python==0.8.3",
-    "mkdocstrings==0.20.0",
-    "mkdocs-spellcheck[all]",
-]
 proxy = ["wrapt"]
 pydantic = ["pydantic"]
+
+[dependency-groups]
 test = [
     "dask[array]>=2024.0.0",
     "attrs",
@@ -56,19 +48,30 @@ test = [
     "msgspec",
     "toolz",
 ]
-testqt = ["pytest-qt", "qtpy"]
-
+testqt = [{ include-group = "test" }, "pytest-qt", "qtpy"]
+docs = [
+    "griffe==0.25.5",
+    "mkdocs-autorefs==1.0.0",
+    "mkdocs-material==8.5.10",
+    "mkdocs-minify-plugin",
+    "mkdocs==1.4.2",
+    "mkdocstrings-python==0.8.3",
+    "mkdocstrings==0.20.0",
+    "mkdocs-spellcheck[all]",
+]
 dev = [
-    "psygnal[test, testqt]",
+    { include-group = "test" },
+    { include-group = "docs" },
     "PyQt6",
     "ipython",
     "mypy",
     "mypy_extensions",
     "pre-commit",
     "pytest-mypy-plugins",
-    "rich",
     "ruff",
     "typing-extensions",
+    "rich>=14.0.0",
+    "pdbpp; sys_platform != 'win32'",
 ]
 
 [project.urls]
@@ -152,7 +155,7 @@ select = [
     "C4",   # flake8-comprehensions
     "B",    # flake8-bugbear
     "A001", # flake8-builtins
-    "TC",  # flake8-typecheck
+    "TC",   # flake8-typecheck
     "TID",  # flake8-tidy-imports
     "RUF",  # ruff-specific rules
 ]
