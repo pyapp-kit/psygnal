@@ -111,7 +111,7 @@ if not PYDANTIC_V1:
     ) -> dict[str, Any]:
         """Get possibly nested default values for a Model object."""
         dflt = {}
-        for k, v in obj.model_fields.items():
+        for k, v in type(obj).model_fields.items():
             d = v.get_default()
             if (
                 d is None
@@ -547,7 +547,7 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
     def reset(self) -> None:
         """Reset the state of the model to default values."""
         model_config = _get_config(self)
-        model_fields = _get_fields(self)
+        model_fields = _get_fields(type(self))
         for name, value in self._defaults.items():
             if isinstance(value, EventedModel):
                 cast("EventedModel", getattr(self, name)).reset()
