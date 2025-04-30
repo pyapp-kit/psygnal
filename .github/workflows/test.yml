@@ -43,7 +43,7 @@ jobs:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
       - name: Install the project
-        run: uv sync --only-group test
+        run: uv sync --no-dev --group test
         env:
           HATCH_BUILD_HOOKS_ENABLE: ${{ matrix.compile }}
       - name: Test
