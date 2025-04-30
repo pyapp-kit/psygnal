@@ -20,7 +20,7 @@ jobs:
       - run: pipx run check-manifest
 
   test:
-    name: Test ${{ matrix.os }} py${{ matrix.python-version }} mypyc-${{ matrix.compile }}
+    name: Test ${{ matrix.qt }} ${{ matrix.os }} py${{ matrix.python-version }} mypyc-${{ matrix.compile }}
     runs-on: ${{ matrix.os }}
     env:
       HATCH_BUILD_HOOKS_ENABLE: ${{ matrix.compile }}
