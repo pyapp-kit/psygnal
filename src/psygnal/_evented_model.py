@@ -111,7 +111,8 @@ if not PYDANTIC_V1:
     ) -> dict[str, Any]:
         """Get possibly nested default values for a Model object."""
         dflt = {}
-        for k, v in type(obj).model_fields.items():
+        cls = obj if isinstance(obj, type) else type(obj)
+        for k, v in cls.model_fields.items():
             d = v.get_default()
             if (
                 d is None
@@ -125,7 +126,9 @@ if not PYDANTIC_V1:
     def _get_config(cls: pydantic.BaseModel) -> "ConfigDict":
         return cls.model_config
 
-    def _get_fields(cls: pydantic.BaseModel) -> dict[str, pydantic.fields.FieldInfo]:
+    def _get_fields(
+        cls: type[pydantic.BaseModel],
+    ) -> dict[str, pydantic.fields.FieldInfo]:
         return cls.model_fields
 
     def _model_dump(obj: pydantic.BaseModel) -> dict:
