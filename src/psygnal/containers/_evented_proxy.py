@@ -17,19 +17,25 @@ _UNSET = object()
 
 
 class ProxyEvents(SignalGroup):
-    """ObjectProxy events."""
+    """Events emitted by `EventedObjectProxy` and `EventedCallableObjectProxy`."""
 
     attribute_set = Signal(str, object)
+    """Emitted when an attribute is set."""
     attribute_deleted = Signal(str)
+    """Emitted when an attribute is deleted."""
     item_set = Signal(object, object)
+    """Emitted when an item is set."""
     item_deleted = Signal(object)
+    """Emitted when an item is deleted."""
     in_place = Signal(str, object)
+    """Emitted when an in-place operation is performed."""
 
 
 class CallableProxyEvents(ProxyEvents):
-    """CallableObjectProxy events."""
+    """Events emitted by `EventedCallableObjectProxy`."""
 
     called = Signal(tuple, dict)
+    """Emitted when the object is called."""
 
 
 # we're using a cache instead of setting the events object directly on the proxy

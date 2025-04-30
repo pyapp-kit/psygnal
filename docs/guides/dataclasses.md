@@ -116,131 +116,138 @@ with the new value as the first argument.
 
 There are two (related) APIs for adding events to dataclasses:
 
-1.  Add a [`SignalGroupDescriptor`][psygnal.SignalGroupDescriptor] as a class attribute.
+### 1. Use `SignalGroupDescriptor`
 
-    !!! example
+[`SignalGroupDescriptor`][psygnal.SignalGroupDescriptor] is designed to be used
+as a class attribute on a dataclass-like object, and, when accessed on an
+instance of that class, will return a [`SignalGroup`][psygnal.SignalGroup] with
+signals for each field in the class.
 
-        === "dataclasses"
+!!! example
 
-            ```python
-            from typing import ClassVar
-            from psygnal import SignalGroupDescriptor
-            from dataclasses import dataclass
+    === "dataclasses"
 
-            @dataclass
-            class Person:
-                name: str
-                age: int = 0
-                events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
-            ```
+        ```python
+        from typing import ClassVar
+        from psygnal import SignalGroupDescriptor
+        from dataclasses import dataclass
 
-        === "pydantic"
+        @dataclass
+        class Person:
+            name: str
+            age: int = 0
+            events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
+        ```
 
-            ```python
-            from typing import ClassVar
-            from psygnal import SignalGroupDescriptor
-            from pydantic import BaseModel
+    === "pydantic"
 
-            class Person(BaseModel):
-                name: str
-                age: int = 0
-                events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
-            ```
+        ```python
+        from typing import ClassVar
+        from psygnal import SignalGroupDescriptor
+        from pydantic import BaseModel
 
-            *for a fully evented subclass of pydantic's `BaseModel`, see also
-            [`EventedModel`][psygnal.EventedModel]*
+        class Person(BaseModel):
+            name: str
+            age: int = 0
+            events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
+        ```
 
-        === "msgspec"
+        *for a fully evented subclass of pydantic's `BaseModel`, see also
+        [`EventedModel`](./model.md)*
 
-            ```python
-            from typing import ClassVar
-            from psygnal import SignalGroupDescriptor
-            import msgspec
+    === "msgspec"
 
-            class Person(msgspec.Struct):
-                name: str
-                age: int = 0
-                events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
-            ```
+        ```python
+        from typing import ClassVar
+        from psygnal import SignalGroupDescriptor
+        import msgspec
 
-        === "attrs"
+        class Person(msgspec.Struct):
+            name: str
+            age: int = 0
+            events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
+        ```
 
-            ```python
-            from typing import ClassVar
-            from psygnal import SignalGroupDescriptor
-            from attrs import define
+    === "attrs"
 
-            @define
-            class Person:
-                name: str
-                age: int = 0
-                events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
-            ```
+        ```python
+        from typing import ClassVar
+        from psygnal import SignalGroupDescriptor
+        from attrs import define
 
-2.  Decorate the class with the [`@evented` decorator][psygnal.evented].
+        @define
+        class Person:
+            name: str
+            age: int = 0
+            events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
+        ```
 
-    > _Under the hood, this just adds the `SignalGroupDescriptor` as a class
-    > attribute named "events" for you, as shown above). Prefer the class
-    > attribute pattern to the decorator when in doubt._
+### 2. Use the `@evented` decorator
 
-    !!! example
+The [`@evented`][psygnal.evented] decorator can be added to any dataclass-like
+class. Under the hood, this just adds the `SignalGroupDescriptor` as a class
+attribute for you (named "events" by default), as shown above. Prefer the class
+attribute pattern to the decorator when in doubt, as it is more explicit and
+leads to better type checking.
 
-        === "dataclasses"
+!!! example
 
-            ```python
-            from psygnal import evented
-            from dataclasses import dataclass
+    === "dataclasses"
 
-            @evented
-            @dataclass
-            class Person:
-                name: str
-                age: int = 0
-            ```
+        ```python
+        from psygnal import evented
+        from dataclasses import dataclass
 
-        === "pydantic"
+        @evented
+        @dataclass
+        class Person:
+            name: str
+            age: int = 0
+        ```
 
-            ```python
-            from psygnal import evented
-            from pydantic import BaseModel
+    === "pydantic"
 
-            @evented
-            class Person(BaseModel):
-                name: str
-                age: int = 0
-            ```
+        ```python
+        from psygnal import evented
+        from pydantic import BaseModel
 
-            *for a fully evented subclass of pydantic's `BaseModel`, see also
-            [`EventedModel`][psygnal.EventedModel]*
+        @evented
+        class Person(BaseModel):
+            name: str
+            age: int = 0
+        ```
 
-        === "msgspec"
+        *for a fully evented subclass of pydantic's `BaseModel`, see also
+        [`EventedModel`](./model.md)*
 
-            ```python
-            from psygnal import evented
-            import msgspec
+    === "msgspec"
 
-            @evented
-            class Person(msgspec.Struct):
-                name: str
-                age: int = 0
-            ```
+        ```python
+        from psygnal import evented
+        import msgspec
 
-        === "attrs"
+        @evented
+        class Person(msgspec.Struct):
+            name: str
+            age: int = 0
+        ```
 
-            ```python
-            from psygnal import evented
-            from attrs import define
+    === "attrs"
 
-            @evented
-            @define
-            class Person:
-                name: str
-                age: int = 0
-            ```
+        ```python
+        from psygnal import evented
+        from attrs import define
 
-    !!! tip
-        by default, the `SignalGroup` instance is named `'events'`, but this can be
-        changed by passing a `events_namespace` argument to the `@evented` decorator)
+        @evented
+        @define
+        class Person:
+            name: str
+            age: int = 0
+        ```
+
+!!! tip
+    by default, the `SignalGroup` instance is named `'events'`, but this can be
+    changed by passing a `events_namespace` argument to the `@evented` decorator)
 
 Using any of the above, you can now connect callbacks to the change events
 of any field on the object (there will be a signal instance in the `events`

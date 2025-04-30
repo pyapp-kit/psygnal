@@ -23,7 +23,6 @@ nav:
   - Guides:
     - Evented Dataclasses: guides/dataclasses.md
     - Evented Pydantic Model: guides/model.md
-    - Evented Containers: guides/containers.md
     - Throttling & Debouncing: guides/throttler.md
     - Debugging: guides/debugging.md
 
@@ -76,7 +75,7 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          import:
+          inventories:
             - https://docs.python.org/3/objects.inv
           options:
             docstring_style: numpy
