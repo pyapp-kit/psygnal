@@ -52,7 +52,7 @@ jobs:
           # qt stuff
           - os: ubuntu-latest
             python-version: "3.9"
-            qt: "PySide2 numpy<2"
+            qt: "PySide2 'numpy<2'"
             compile: "0"
           - os: macos-latest
             python-version: "3.10"
