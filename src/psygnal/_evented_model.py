@@ -387,7 +387,7 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
     (see [pydantic docs](https://pydantic-docs.helpmanual.io/usage/models/)),
     this class adds the following:
 
-    1. gains an `events` attribute that is an instance of [`psygnal.SignalGroup`][].
+    1. Gains an `events` attribute that is an instance of [`psygnal.SignalGroup`][].
        This group will have a signal for each field in the model (excluding private
        attributes and non-mutable fields).  Whenever a field in the model is mutated,
        the corresponding signal will emit with the new value (see example below).
@@ -407,14 +407,16 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
           dependencies by inspecting the source code of the property getter for.
 
     4. If you would like to allow custom fields to provide their own json_encoders, you
-       can either use the standard pydantic method of adding json_encoders to your
-       model, for each field type you'd like to support:
-       https://pydantic-docs.helpmanual.io/usage/exporting_models/#json_encoders
-       This `EventedModel` class will additionally look for a `_json_encode` method
-       on any field types in the model.  If a field type declares a `_json_encode`
-       method, it will be added to the
-       [`json_encoders`](https://pydantic-docs.helpmanual.io/usage/exporting_models/#json_encoders)
-       dict in the model `Config`.
+       can either:
+
+        1. use the [standard pydantic
+        method](https://pydantic-docs.helpmanual.io/usage/exporting_models) of adding
+        json_encoders to your model, for each field type you'd like to support: 1. This
+        `EventedModel` class will additionally look for a `_json_encode` method on any
+        field types in the model.  If a field type declares a `_json_encode` method, it
+        will be added to the
+        [`json_encoders`](https://pydantic-docs.helpmanual.io/usage/exporting_models/#json_encoders)
+        dict in the model `Config`.  (Prefer using the standard pydantic method)
 
     Examples
     --------

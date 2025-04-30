@@ -111,32 +111,22 @@ class TypedMutableMapping(MutableMapping[_K, _V]):
 
 
 class DictEvents(SignalGroup):
-    """Events available on [EventedDict][psygnal.containers.EventedDict].
-
-    Attributes
-    ----------
-    adding: Signal[Any]
-        `(key,)` emitted before an item is added at `key`
-    added : Signal[Any, Any]
-        `(key, value)` emitted after a `value` is added at `key`
-    changing : Signal[Any, Any, Any]
-        `(key, old_value, new_value)` emitted before `old_value` is replaced with
-        `new_value` at `key`
-    changed : Signal[Any, Any, Any]
-        `(key, old_value, new_value)` emitted before `old_value` is replaced with
-        `new_value` at `key`
-    removing: Signal[Any]
-        `(key,)` emitted before an item is removed at `key`
-    removed : Signal[Any, Any]
-        `(key, value)` emitted after `value` is removed at `index`
-    """
+    """Events available on [EventedDict][psygnal.containers.EventedDict]."""
 
     adding = Signal(object)  # (key, )
+    """`(key,)` emitted before an item is added at `key`"""
     added = Signal(object, object)  # (key, value)
+    """`(key, value)` emitted after a `value` is added at `key`"""
     changing = Signal(object)  # (key, )
+    """`(key, old_value, new_value)` emitted before `old_value` is replaced with
+    `new_value` at `key`"""
     changed = Signal(object, object, object)  # (key, old_value, value)
+    """`(key, old_value, new_value)` emitted before `old_value` is replaced with
+    `new_value` at `key`"""
     removing = Signal(object)  # (key, )
+    """`(key,)` emitted before an item is removed at `key`"""
     removed = Signal(object, object)  # (key, value)
+    """`(key, value)` emitted after `value` is removed at `key`"""
 
 
 class EventedDict(TypedMutableMapping[_K, _V]):

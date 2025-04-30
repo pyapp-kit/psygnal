@@ -37,7 +37,7 @@ obj.sig.emit(0)
 Here's an example of a standard Python (3.11) stack trace that you
 might see when running this code:
 
-[![standard stack trace](img/stdlib.png)](img/stdlib.png)
+[![standard stack trace](../img/stdlib.png)](../img/stdlib.png)
 
 All the information is there, but you need to ignore all the
 lines that come from psygnal, and focus on the lines that come from your
@@ -62,4 +62,4 @@ attention to the two places in the code that you can do something about:
 1. The line in the callback that caused the error: `print(1 / x)`
 2. The emission of the event that triggered the callback: `obj.sig.emit(0)`
 
-[![rich stack trace](img/rich.png)](img/rich.png)
+[![rich stack trace](../img/rich.png)](../img/rich.png)

@@ -45,22 +45,23 @@ while count < 5:
 ```
 
 Please see the [Basic Usage](usage.md) guide for an overview on how to use psygnal,
-or the [API Reference](API/index.md) for details on a specific class or method.
+or the Guides for details on a specific class or method.
 
 ### Features
 
 In addition to the `Signal` object, psygnal contains:
 
 - a method to convert standard dataclasses (or `attrs`, `pydantic`, or `msgspec`
-  objects) into [evented dataclasses](dataclasses.md) that emit signals when
+  objects) into [evented dataclasses](./guides/dataclasses.md) that emit signals when
   fields change.
 - a number of ["evented" versions of mutable python
-  containers](API/containers.md)
-- an ["evented" pydantic model](API/model.md) that emits signals whenever a
+  containers][psygnal.containers].
+- an ["evented" pydantic model](guides/model.md) that emits signals whenever a
   model field changes
-- [throttling/debouncing](API/throttler.md) decorators
-- an experimental ["evented object proxy"](API/proxy.md)
-- a few other [utilities](API/utilities.md) for dealing with events.
+- [throttling/debouncing](guides/throttler.md) decorators
+- an experimental [`EventedObjectProxy`][psygnal.containers.EventedObjectProxy], for notifying
+  on mutation events of complex objects (like a `numpy.ndarray`)
+- a few other [utilities][psygnal.utils] for dealing with events.
 
 ## Installation
 

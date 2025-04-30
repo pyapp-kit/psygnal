@@ -51,14 +51,13 @@ test = [
 testqt = [{ include-group = "test" }, "pytest-qt", "qtpy"]
 test-codspeed = [{ include-group = "test" }, "pytest-codspeed"]
 docs = [
-    "griffe==0.25.5",
-    "mkdocs-autorefs==1.0.0",
-    "mkdocs-material==8.5.10",
+    "mkdocs-api-autonav",
+    "mkdocs-material",
     "mkdocs-minify-plugin",
-    "mkdocs==1.4.2",
-    "mkdocstrings-python==0.8.3",
-    "mkdocstrings==0.20.0",
     "mkdocs-spellcheck[all]",
+    "mkdocs",
+    "mkdocstrings-python",
+    "ruff",
 ]
 dev = [
     { include-group = "test" },
