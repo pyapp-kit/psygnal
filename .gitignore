@@ -113,3 +113,6 @@ _version.py
 psygnal/_version.py
 .asv/
 wheelhouse/
+
+# for now...
+uv.lock  
