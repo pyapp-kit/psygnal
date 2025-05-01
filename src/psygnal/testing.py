@@ -9,7 +9,9 @@ from unittest.util import safe_repr
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from typing import Any, Self
+    from typing import Any
+
+    from typing_extensions import Self
 
     import psygnal
 
