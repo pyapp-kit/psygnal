@@ -24,6 +24,7 @@ nav:
     - Evented Dataclasses: guides/dataclasses.md
     - Evented Pydantic Model: guides/model.md
     - Throttling & Debouncing: guides/throttler.md
+    - Testing: guides/testing.md
     - Debugging: guides/debugging.md
 
 theme:
