@@ -14,6 +14,7 @@
 
 **Merged pull requests:**
 
+- build: fix building of wheels with uv [\#370](https://github.com/pyapp-kit/psygnal/pull/370) ([tlambert03](https://github.com/tlambert03))
 - ci\(pre-commit.ci\): autoupdate [\#369](https://github.com/pyapp-kit/psygnal/pull/369) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
 - docs: general docs update, use mkdocs-api-autonav [\#367](https://github.com/pyapp-kit/psygnal/pull/367) ([tlambert03](https://github.com/tlambert03))
 - build: use pyproject dependency groups and uv [\#366](https://github.com/pyapp-kit/psygnal/pull/366) ([tlambert03](https://github.com/tlambert03))
