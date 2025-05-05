@@ -1,20 +1,12 @@
 # Changelog
 
-## [v0.12.0](https://github.com/pyapp-kit/psygnal/tree/v0.12.0) (2025-05-05)
+## [v0.13.0](https://github.com/pyapp-kit/psygnal/tree/v0.13.0) (2025-05-05)
 
-[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.11.2...v0.12.0)
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.12.0...v0.13.0)
 
 **Implemented enhancements:**
 
 - feat: add testing utilities [\#368](https://github.com/pyapp-kit/psygnal/pull/368) ([tlambert03](https://github.com/tlambert03))
-
-**Merged pull requests:**
-
-- ci\(pre-commit.ci\): autoupdate [\#369](https://github.com/pyapp-kit/psygnal/pull/369) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
-
-## [v0.11.2](https://github.com/pyapp-kit/psygnal/tree/v0.11.2) (2025-04-30)
-
-[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.12.0...v0.11.2)
 
 **Fixed bugs:**
 
@@ -22,6 +14,7 @@
 
 **Merged pull requests:**
 
+- ci\(pre-commit.ci\): autoupdate [\#369](https://github.com/pyapp-kit/psygnal/pull/369) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
 - docs: general docs update, use mkdocs-api-autonav [\#367](https://github.com/pyapp-kit/psygnal/pull/367) ([tlambert03](https://github.com/tlambert03))
 - build: use pyproject dependency groups and uv [\#366](https://github.com/pyapp-kit/psygnal/pull/366) ([tlambert03](https://github.com/tlambert03))
 - ci\(dependabot\): bump pypa/cibuildwheel from 2.22 to 2.23 [\#360](https://github.com/pyapp-kit/psygnal/pull/360) ([dependabot[bot]](https://github.com/apps/dependabot))
