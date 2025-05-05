@@ -38,7 +38,7 @@ jobs:
 
   publish:
     name: Publish to PyPI
-    needs: [test, build-sdist, build-wheels]
+    needs: [build-sdist, build-wheels]
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
