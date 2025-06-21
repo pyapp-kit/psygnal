@@ -108,10 +108,10 @@ jobs:
     secrets: inherit
 
   test-magicgui:
-    uses: pyapp-kit/workflows/.github/workflows/test-dependents.yml@v2
+    uses: pyapp-kit/workflows/.github/workflows/test-dependents.yml@main
     with:
       dependency-repo: pyapp-kit/magicgui
-      dependency-extras: "test"
+      dependency-group: "pyside2"
       qt: "pyside2"
       python-version: "3.10"
 
