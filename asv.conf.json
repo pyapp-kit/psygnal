@@ -6,6 +6,7 @@
   "branches": ["main"],
   "dvcs": "git",
   "install_timeout": 600,
+  "environment_type": "virtualenv",
   "show_commit_url": "https://github.com/pyapp-kit/psygnal/commit/",
   "pythons": ["3.13"],
   "build_command": [
