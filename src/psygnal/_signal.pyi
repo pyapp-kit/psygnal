@@ -1,4 +1,5 @@
 import threading
+from collections.abc import Iterable, Iterator
 from inspect import Signature
 from typing import (
     Any,
@@ -7,8 +8,6 @@ from typing import (
     ContextManager,
     Final,
     Generic,
-    Iterable,
-    Iterator,
     Literal,
     NewType,
     NoReturn,
@@ -22,7 +21,7 @@ from typing_extensions import TypeVarTuple, Unpack
 from ._group import EmissionInfo
 from ._weak_callback import RefErrorChoice, WeakCallback
 
-__all__ = ["Signal", "SignalInstance", "_compiled", "ReemissionVal", "Unparametrized"]
+__all__ = ["ReemissionVal", "Signal", "SignalInstance", "Unparametrized", "_compiled"]
 
 ReducerOneArg = Callable[[Iterable[tuple]], tuple]
 ReducerTwoArgs = Callable[[tuple, tuple], tuple]
