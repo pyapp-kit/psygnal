@@ -570,49 +570,69 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
                 setattr(self, name, value)
 
     def _check_if_values_changed_and_emit_if_needed(self) -> None:
-        """
-        Check if field values changed and emit events if needed.
+        """Check if field values changed and emit events if needed.
 
-        The advantage of moving this to the end of all the modifications is
-        that comparisons will be performed only once for every potential change.
+        This method is called when exiting a ComparisonDelayer context.
+        It processes all queued changes, compares old vs new values,
+        and emits signals for fields that actually changed.
+
+        The advantage of moving this to the end of all modifications is
+        that comparisons are performed only once for every potential change.
         """
+        # Early exit if we're still delaying comparisons or have no changes to check
         if self._delay_check_semaphore > 0 or len(self._changes_queue) == 0:
-            # do not run whole machinery if there is no need
             return
-        to_emit = []
-        must_continue = False
+
+        # ----------------- Process primary changes  -------------------
+        # Primary changes are fields that were directly assigned to (as opposed
+        # to dependent properties that might have changed as a side effect).
+        to_emit: list[tuple[str, Any]] = []  # list of (field name, new value)
+        primary_changes_occurred = False
+
         for name in self._primary_changes:
-            # primary changes should contains only fields
-            # that are changed directly by assignment
             old_value = self._changes_queue[name]
             new_value = getattr(self, name)
 
             if not _check_field_equality(type(self), name, new_value, old_value):
+                # This field actually changed value
                 if name in self._events:
+                    # Field has a signal, queue it for emission
                     to_emit.append((name, new_value))
                 else:
-                    # An attribute is changing that is not in the SignalGroup
-                    # if it has field dependents, we must still continue
-                    # to check the _changes_queue
-                    must_continue = name in self.__field_dependents__
+                    # Field doesn't have a signal but might have dependents
+                    # that need checking
+                    primary_changes_occurred |= name in self.__field_dependents__
+
+            # Remove from queue since we've processed this primary change
             self._changes_queue.pop(name)
-        if not to_emit and not must_continue:
-            # If no direct changes was made then we can skip whole machinery
+        # --------------------------------------------------------------
+
+        # If no primary changes occurred and no signals need emitting,
+        # we can skip checking dependents (optimization)
+        if not to_emit and not primary_changes_occurred:
             self._changes_queue.clear()
             self._primary_changes.clear()
             return
+
+        # ---------- Process dependent property changes ----------
+        # Any remaining items in the changes queue are now
+        # dependent properties that were queued for checking.
         for name, old_value in self._changes_queue.items():
-            # check if any of dependent properties changed
             new_value = getattr(self, name)
             if not _check_field_equality(type(self), name, new_value, old_value):
                 to_emit.append((name, new_value))
+
+        # Clean up tracking state
         self._changes_queue.clear()
         self._primary_changes.clear()
 
-        with ComparisonDelayer(self):
-            # Again delay comparison to avoid having events caused by callback functions
-            for name, new_value in to_emit:
-                getattr(self._events, name)(new_value)
+        # Emit all the signals that need emitting
+        # Use ComparisonDelayer to prevent re-entrancy issues when callbacks
+        # modify the model again
+        if to_emit:
+            with ComparisonDelayer(self):
+                for name, new_value in to_emit:
+                    getattr(self._events, name)(new_value)
 
     def __setattr__(self, name: str, value: Any) -> None:
         if (
