@@ -65,6 +65,18 @@ class QueuedCallback(WeakCallback):
     def dereference(self) -> Callable | None:
         return self._wrapped.dereference()
 
+    def __eq__(self, other: object) -> bool:
+        """Compare QueuedCallback instances for equality based on wrapped callback.
+
+        This method is explicitly defined to avoid mypyc gen_glue_ne_method
+        AssertionError when building on Python 3.11+. Without this explicit
+        definition, mypyc tries to generate glue methods for the inheritance
+        hierarchy and fails with an AssertionError in gen_glue_ne_method.
+        """
+        if isinstance(other, QueuedCallback):
+            return self._wrapped == other._wrapped
+        return NotImplemented
+
 
 def emit_queued(thread: Thread | None = None) -> None:
     """Trigger emissions of all callbacks queued in the current thread.
