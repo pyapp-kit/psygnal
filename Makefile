@@ -1,7 +1,7 @@
 .PHONY: build check clean benchmark-all benchmark-compare typetest
 
 build:
-	HATCH_BUILD_HOOKS_ENABLE=1 uv pip install -e . --force-reinstall
+	HATCH_BUILD_HOOKS_ENABLE=1 uv sync --force-reinstall
 
 check:
 	pre-commit run --all-files
@@ -32,9 +32,9 @@ benchmark-all:
 
 # compare HEAD against main
 benchmark-compare:
-	MACOSX_DEPLOYMENT_TARGET=11.0 asv run --interleave-processes --skip-existing main^!
-	MACOSX_DEPLOYMENT_TARGET=11.0 asv run --interleave-processes HEAD^!
-	asv compare --split --factor 1.15 main HEAD
+	MACOSX_DEPLOYMENT_TARGET=11.0 uv run asv run --interleave-processes --skip-existing main^!
+	MACOSX_DEPLOYMENT_TARGET=11.0 uv run asv run --interleave-processes HEAD^!
+	uv run asv compare --split --factor 1.15 main HEAD
 
 typetest:
 	pytest typesafety --mypy-only-local-stub

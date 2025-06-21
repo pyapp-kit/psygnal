@@ -1,5 +1,27 @@
 # Changelog
 
+## [v0.13.0](https://github.com/pyapp-kit/psygnal/tree/v0.13.0) (2025-05-05)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.12.0...v0.13.0)
+
+**Implemented enhancements:**
+
+- feat: add testing utilities [\#368](https://github.com/pyapp-kit/psygnal/pull/368) ([tlambert03](https://github.com/tlambert03))
+
+**Fixed bugs:**
+
+- fix: Don't use deprecated model\_fields access [\#364](https://github.com/pyapp-kit/psygnal/pull/364) ([s-t-e-v-e-n-k](https://github.com/s-t-e-v-e-n-k))
+
+**Merged pull requests:**
+
+- build: fix building of wheels with uv [\#370](https://github.com/pyapp-kit/psygnal/pull/370) ([tlambert03](https://github.com/tlambert03))
+- ci\(pre-commit.ci\): autoupdate [\#369](https://github.com/pyapp-kit/psygnal/pull/369) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- docs: general docs update, use mkdocs-api-autonav [\#367](https://github.com/pyapp-kit/psygnal/pull/367) ([tlambert03](https://github.com/tlambert03))
+- build: use pyproject dependency groups and uv [\#366](https://github.com/pyapp-kit/psygnal/pull/366) ([tlambert03](https://github.com/tlambert03))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.22 to 2.23 [\#360](https://github.com/pyapp-kit/psygnal/pull/360) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Add back universal \(none-any\) wheel [\#358](https://github.com/pyapp-kit/psygnal/pull/358) ([tlambert03](https://github.com/tlambert03))
+- ci\(pre-commit.ci\): autoupdate [\#355](https://github.com/pyapp-kit/psygnal/pull/355) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+
 ## [v0.12.0](https://github.com/pyapp-kit/psygnal/tree/v0.12.0) (2025-02-03)
 
 [Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.11.1...v0.12.0)

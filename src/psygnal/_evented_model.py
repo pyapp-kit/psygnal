@@ -111,7 +111,8 @@ if not PYDANTIC_V1:
     ) -> dict[str, Any]:
         """Get possibly nested default values for a Model object."""
         dflt = {}
-        for k, v in obj.model_fields.items():
+        cls = obj if isinstance(obj, type) else type(obj)
+        for k, v in cls.model_fields.items():
             d = v.get_default()
             if (
                 d is None
@@ -125,8 +126,14 @@ if not PYDANTIC_V1:
     def _get_config(cls: pydantic.BaseModel) -> "ConfigDict":
         return cls.model_config
 
-    def _get_fields(cls: pydantic.BaseModel) -> dict[str, pydantic.fields.FieldInfo]:
-        return cls.model_fields
+    def _get_fields(
+        cls: type[pydantic.BaseModel],
+    ) -> dict[str, pydantic.fields.FieldInfo]:
+        comp_fields = {
+            name: pydantic.fields.FieldInfo(annotation=f.return_type, frozen=False)
+            for name, f in cls.model_computed_fields.items()
+        }
+        return {**cls.model_fields, **comp_fields}
 
     def _model_dump(obj: pydantic.BaseModel) -> dict:
         return obj.model_dump()
@@ -353,9 +360,11 @@ def _get_field_dependents(
                     f"{prop!r} is not."
                 )
             for field in fields:
-                if field not in model_fields:
+                if field not in model_fields and not hasattr(cls, field):
                     warnings.warn(
-                        f"Unrecognized field dependency: {field!r}", stacklevel=2
+                        f"property {prop!r} cannot depend on unrecognized attribute "
+                        f"name: {field!r}",
+                        stacklevel=2,
                     )
                 deps.setdefault(field, set()).add(prop)
     if model_config.get(GUESS_PROPERTY_DEPENDENCIES, False):
@@ -384,7 +393,7 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
     (see [pydantic docs](https://pydantic-docs.helpmanual.io/usage/models/)),
     this class adds the following:
 
-    1. gains an `events` attribute that is an instance of [`psygnal.SignalGroup`][].
+    1. Gains an `events` attribute that is an instance of [`psygnal.SignalGroup`][].
        This group will have a signal for each field in the model (excluding private
        attributes and non-mutable fields).  Whenever a field in the model is mutated,
        the corresponding signal will emit with the new value (see example below).
@@ -404,14 +413,16 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
           dependencies by inspecting the source code of the property getter for.
 
     4. If you would like to allow custom fields to provide their own json_encoders, you
-       can either use the standard pydantic method of adding json_encoders to your
-       model, for each field type you'd like to support:
-       https://pydantic-docs.helpmanual.io/usage/exporting_models/#json_encoders
-       This `EventedModel` class will additionally look for a `_json_encode` method
-       on any field types in the model.  If a field type declares a `_json_encode`
-       method, it will be added to the
-       [`json_encoders`](https://pydantic-docs.helpmanual.io/usage/exporting_models/#json_encoders)
-       dict in the model `Config`.
+       can either:
+
+        1. use the [standard pydantic
+        method](https://pydantic-docs.helpmanual.io/usage/exporting_models) of adding
+        json_encoders to your model, for each field type you'd like to support: 1. This
+        `EventedModel` class will additionally look for a `_json_encode` method on any
+        field types in the model.  If a field type declares a `_json_encode` method, it
+        will be added to the
+        [`json_encoders`](https://pydantic-docs.helpmanual.io/usage/exporting_models/#json_encoders)
+        dict in the model `Config`.  (Prefer using the standard pydantic method)
 
     Examples
     --------
@@ -547,7 +558,7 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
     def reset(self) -> None:
         """Reset the state of the model to default values."""
         model_config = _get_config(self)
-        model_fields = _get_fields(self)
+        model_fields = _get_fields(type(self))
         for name, value in self._defaults.items():
             if isinstance(value, EventedModel):
                 cast("EventedModel", getattr(self, name)).reset()
@@ -555,60 +566,108 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
                 setattr(self, name, value)
 
     def _check_if_values_changed_and_emit_if_needed(self) -> None:
-        """
-        Check if field values changed and emit events if needed.
+        """Check if field values changed and emit events if needed.
 
-        The advantage of moving this to the end of all the modifications is
-        that comparisons will be performed only once for every potential change.
+        This method is called when exiting a ComparisonDelayer context.
+        It processes all queued changes, compares old vs new values,
+        and emits signals for fields that actually changed.
+
+        The advantage of moving this to the end of all modifications is
+        that comparisons are performed only once for every potential change.
         """
+        # Early exit if we're still delaying comparisons or have no changes to check
         if self._delay_check_semaphore > 0 or len(self._changes_queue) == 0:
-            # do not run whole machinery if there is no need
             return
-        to_emit = []
+
+        # ----------------- Process primary changes  -------------------
+        # "Primary changes" are fields that were directly assigned to (as opposed
+        # to dependent properties that might have changed as a side effect).
+        # `_primary_changes` get added in the `_setattr_with_dependents_impl` method
+        to_emit: list[tuple[str, Any]] = []  # list of (field name, new value)
+        primary_changes_occurred = False
+
         for name in self._primary_changes:
-            # primary changes should contains only fields
-            # that are changed directly by assignment
             old_value = self._changes_queue[name]
             new_value = getattr(self, name)
+
             if not _check_field_equality(type(self), name, new_value, old_value):
-                to_emit.append((name, new_value))
+                # This field actually changed value
+                if name in self._events:
+                    # Field has a signal, queue it for emission
+                    to_emit.append((name, new_value))
+                else:
+                    # Field doesn't have a signal but might have dependents
+                    # that need checking
+                    primary_changes_occurred |= name in self.__field_dependents__
+
+            # Remove from queue since we've processed this primary change
             self._changes_queue.pop(name)
-        if not to_emit:
-            # If no direct changes was made then we can skip whole machinery
+        # --------------------------------------------------------------
+
+        # If no primary changes occurred and no signals need emitting,
+        # we can skip checking dependents (optimization)
+        if not to_emit and not primary_changes_occurred:
             self._changes_queue.clear()
             self._primary_changes.clear()
             return
+
+        # ---------- Process dependent property changes ----------
+        # Any remaining items in the changes queue are now
+        # dependent properties that were queued for checking.
         for name, old_value in self._changes_queue.items():
-            # check if any of dependent properties changed
             new_value = getattr(self, name)
             if not _check_field_equality(type(self), name, new_value, old_value):
                 to_emit.append((name, new_value))
+
+        # Clean up tracking state
         self._changes_queue.clear()
         self._primary_changes.clear()
 
-        with ComparisonDelayer(self):
-            # Again delay comparison to avoid having events caused by callback functions
-            for name, new_value in to_emit:
-                getattr(self._events, name)(new_value)
+        # Emit all the signals that need emitting
+        # Use ComparisonDelayer to prevent re-entrancy issues when callbacks
+        # modify the model again
+        if to_emit:
+            with ComparisonDelayer(self):
+                for name, new_value in to_emit:
+                    getattr(self._events, name)(new_value)
 
     def __setattr__(self, name: str, value: Any) -> None:
-        if (
-            name == "_events"
-            or not hasattr(self, "_events")  # can happen on init
-            or name not in self._events
-        ):
-            # fallback to default behavior
+        # can happen on init
+        if name == "_events" or not hasattr(self, "_events"):
+            # fallback to default behavior for special fields and during init
             return self._super_setattr_(name, value)
-        # the _setattr_default method is overridden in __new__ to be one of
-        # `_setattr_no_dependants` or `_setattr_with_dependents`.
-        self._setattr_default(name, value)
+
+        # Check if this is a property setter first - property setters should
+        # always go through _super_setattr_ regardless of signals/dependencies
+        if name in self.__property_setters__:
+            return self._super_setattr_(name, value)
+
+        # Check if this field needs special handling (has signal or dependencies)
+        is_signal_field = name in self._events
+        has_dependents = self.__field_dependents__ and name in self.__field_dependents__
+        if is_signal_field or has_dependents:
+            # For signal fields with no dependents, use the faster path if available
+            if (
+                is_signal_field
+                and not has_dependents
+                and hasattr(self, "_setattr_no_dependants")
+            ):
+                self._setattr_no_dependants(name, value)
+            else:
+                # Use the full setattr method for fields with dependents
+                self._setattr_default(name, value)
+        else:
+            # Field doesn't have signals or dependents, use fast path
+            self._super_setattr_(name, value)
 
     def _super_setattr_(self, name: str, value: Any) -> None:
         # pydantic will raise a ValueError if extra fields are not allowed
         # so we first check to see if this field has a property.setter.
         # if so, we use it instead.
         if name in self.__property_setters__:
-            self.__property_setters__[name].fset(self, value)  # type: ignore[misc]
+            # Wrap property setter calls in ComparisonDelayer to batch field changes
+            with ComparisonDelayer(self):
+                self.__property_setters__[name].fset(self, value)  # type: ignore[misc]
         elif name == "_events":
             # pydantic v2 prohibits shadowing class vars, on instances
             object.__setattr__(self, name, value)
@@ -618,13 +677,13 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
     def _setattr_default(self, name: str, value: Any) -> None:
         """Will be overwritten by metaclass __new__.
 
-        It will become either `_setattr_no_dependants` (if the class has no
-        properties and `__field_dependents__`), or `_setattr_with_dependents` if it
+        It will become either `_setattr_no_dependants` (if the class has neither
+        properties nor `__field_dependents__`), or `_setattr_with_dependents` if it
         does.
         """
 
     def _setattr_no_dependants(self, name: str, value: Any) -> None:
-        """__setattr__ behavior when the class has no properties."""
+        """Simple __setattr__ behavior when the class has no properties."""
         group = self._events
         signal_instance: SignalInstance = group[name]
         if len(signal_instance) < 1:
@@ -635,29 +694,36 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
             getattr(self._events, name)(value)
 
     def _setattr_with_dependents(self, name: str, value: Any) -> None:
-        """__setattr__ behavior when the class does properties."""
+        """__setattr__ behavior when the class has properties."""
         with ComparisonDelayer(self):
-            self._setattr_impl(name, value)
+            self._setattr_with_dependents_impl(name, value)
 
-    def _setattr_impl(self, name: str, value: Any) -> None:
+    def _setattr_with_dependents_impl(self, name: str, value: Any) -> None:
+        """The "real" __setattr__ implementation inside of the comparison delayer."""
         # if there are no listeners, we can just set the value without emitting
         # so first check if there are any listeners for this field or any of its
         # dependent properties.
         # note that ALL signals will have sat least one listener simply by nature of
         # being in the `self._events` SignalGroup.
-        group = self._events
-        signal_instance: SignalInstance = group[name]
-        deps_with_callbacks = {
-            dep_name
-            for dep_name in self.__field_dependents__.get(name, ())
-            if len(group[dep_name])
-        }
-        if (
-            len(signal_instance) < 1  # the signal itself has no listeners
-            and not deps_with_callbacks  # no dependent properties with listeners
-            and not len(group._psygnal_relay)  # no listeners on the SignalGroup
-        ):
+        signal_group = self._events
+        if name in signal_group:
+            signal_instance: SignalInstance = signal_group[name]
+            deps_with_callbacks = {
+                dep_name
+                for dep_name in self.__field_dependents__.get(name, ())
+                if len(signal_group[dep_name])
+            }
+            if (
+                len(signal_instance) < 1  # the signal itself has no listeners
+                and not deps_with_callbacks  # no dependent properties with listeners
+                and not len(signal_group._psygnal_relay)  # no listeners on the group
+            ):
+                return self._super_setattr_(name, value)
+        elif name in self.__field_dependents__:
+            deps_with_callbacks = self.__field_dependents__[name]
+        else:
             return self._super_setattr_(name, value)
+
         self._primary_changes.add(name)
         if name not in self._changes_queue:
             self._changes_queue[name] = getattr(self, name, object())
@@ -710,6 +776,6 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
                 yield
             finally:
                 if before is not NULL:  # pragma: no cover
-                    cls.model_config["use_enum_values"] = cast(bool, before)
+                    cls.model_config["use_enum_values"] = cast("bool", before)
                 else:
                     cls.model_config.pop("use_enum_values")

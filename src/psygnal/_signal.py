@@ -1133,7 +1133,11 @@ class SignalInstance:
 
     def __contains__(self, slot: Callable) -> bool:
         """Return `True` if slot is connected."""
-        return self._slot_index(slot) >= 0
+        # Check if slot is callable first
+        # this change is needed for some reason after mypy v1.14.0
+        if callable(slot):
+            return self._slot_index(slot) >= 0
+        return False
 
     def __len__(self) -> int:
         """Return number of connected slots."""
