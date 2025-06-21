@@ -48,43 +48,32 @@ if TYPE_CHECKING:
 
 
 class ListEvents(SignalGroup):
-    """Events available on [EventedList][psygnal.containers.EventedList].
-
-    Attributes
-    ----------
-    inserting : Signal[int]
-        `(index)` emitted before an item is inserted at `index`
-    inserted : Signal[int, Any]
-        `(index, value)` emitted after `value` is inserted at `index`
-    removing : Signal[int]
-        `(index)` emitted before an item is removed at `index`
-    removed: Signal[int, Any]
-        `(index, value)` emitted after `value` is removed at `index`
-    moving : Signal[int, int]
-        `(index, new_index)` emitted before an item is moved from `index` to `new_index`
-    moved : Signal[int, int, Any]
-        `(index, new_index, value)` emitted after `value` is moved from `index` to
-        `new_index`
-    changed : Signal[Union[int, slice], Any, Any]
-        `(index_or_slice, old_value, value)` emitted when `index` is set from
-        `old_value` to `value`
-    reordered : Signal
-        emitted when the list is reordered (eg. moved/reversed).
-    child_event : Signal[int, Any, SignalInstance, tuple]
-        `(index, object, emitter, args)` emitted when an object in the list emits an
-        event. Note that the `EventedList` must be created with `child_events=True` in
-        order for this to be emitted.
-    """
+    """Events available on [EventedList][psygnal.containers.EventedList]."""
 
     inserting = Signal(int)  # idx
+    """`(index)` emitted before an item is inserted at `index`"""
     inserted = Signal(int, object)  # (idx, value)
+    """`(index, value)` emitted after `value` is inserted at `index`"""
     removing = Signal(int)  # idx
+    """`(index)` emitted before an item is removed at `index`"""
     removed = Signal(int, object)  # (idx, value)
+    """`(index, value)` emitted after `value` is removed at `index`"""
     moving = Signal(int, int)  # (src_idx, dest_idx)
+    """`(index, new_index)` emitted before an item is moved from `index` to
+    `new_index`"""
     moved = Signal(int, int, object)  # (src_idx, dest_idx, value)
+    """`(index, new_index, value)` emitted after `value` is moved from
+    `index` to `new_index`"""
     changed = Signal(object, object, object)  # (int | slice, old, new)
+    """`(index_or_slice, old_value, value)` emitted when `index` is set from
+    `old_value` to `value`"""
     reordered = Signal()
+    """Emitted when the list is reordered (eg. moved/reversed)."""
     child_event = Signal(int, object, SignalInstance, tuple)
+    """`(index, object, emitter, args)` emitted when an object in the list emits an
+    event. Note that the `EventedList` must be created with `child_events=True` in
+    order for this to be emitted.
+    """
 
 
 class EventedList(MutableSequence[_T]):

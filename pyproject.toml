@@ -32,18 +32,10 @@ dependencies = [
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 [project.optional-dependencies]
-docs = [
-    "griffe==0.25.5",
-    "mkdocs-autorefs==1.0.0",
-    "mkdocs-material==8.5.10",
-    "mkdocs-minify-plugin",
-    "mkdocs==1.4.2",
-    "mkdocstrings-python==0.8.3",
-    "mkdocstrings==0.20.0",
-    "mkdocs-spellcheck[all]",
-]
 proxy = ["wrapt"]
 pydantic = ["pydantic"]
+
+[dependency-groups]
 test = [
     "dask[array]>=2024.0.0",
     "attrs",
@@ -56,19 +48,30 @@ test = [
     "msgspec",
     "toolz",
 ]
-testqt = ["pytest-qt", "qtpy"]
-
+testqt = [{ include-group = "test" }, "pytest-qt", "qtpy"]
+test-codspeed = [{ include-group = "test" }, "pytest-codspeed"]
+docs = [
+    "mkdocs-api-autonav",
+    "mkdocs-material",
+    "mkdocs-minify-plugin",
+    "mkdocs-spellcheck[all]",
+    "mkdocs",
+    "mkdocstrings-python",
+    "ruff",
+]
 dev = [
-    "psygnal[test, testqt]",
+    { include-group = "test" },
+    { include-group = "docs" },
     "PyQt6",
     "ipython",
     "mypy",
     "mypy_extensions",
     "pre-commit",
     "pytest-mypy-plugins",
-    "rich",
     "ruff",
     "typing-extensions",
+    "rich>=14.0.0",
+    "pdbpp; sys_platform != 'win32'",
 ]
 
 [project.urls]
@@ -95,9 +98,7 @@ enable-by-default = false
 require-runtime-dependencies = true
 dependencies = [
     "hatch-mypyc>=0.13.0",
-    # FIXME: something happened in 1.14.0 that broke the build
-    # https://github.com/pyapp-kit/psygnal/issues/350
-    "mypy==1.13.0",
+    "mypy",
     "mypy_extensions >=0.4.2",
     "pydantic!=2.10.0",        # typing error in v2.10 prevents mypyc from working
     "types-attrs",
@@ -117,9 +118,10 @@ exclude = [
 # Skip 32-bit builds & PyPy wheels on all platforms
 skip = ["*-manylinux_i686", "*-musllinux_i686", "*-win32", "pp*"]
 build = ["cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
-test-extras = ["test"]
+test-groups = ["test"]
 test-command = "pytest {project}/tests -v"
 test-skip = ["*-musllinux*", "cp312-win*", "*-macosx_arm64"]
+build-frontend = "build[uv]"
 
 [[tool.cibuildwheel.overrides]]
 select = "*-manylinux_i686*"
@@ -152,7 +154,7 @@ select = [
     "C4",   # flake8-comprehensions
     "B",    # flake8-bugbear
     "A001", # flake8-builtins
-    "TC",  # flake8-typecheck
+    "TC",   # flake8-typecheck
     "TID",  # flake8-tidy-imports
     "RUF",  # ruff-specific rules
 ]
@@ -172,6 +174,7 @@ docstring-code-format = true
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = ["tests"]
+addopts = ["--color=yes"]
 filterwarnings = [
     "error",
     "ignore:The distutils package is deprecated:DeprecationWarning:",

@@ -1,7 +1,7 @@
 .PHONY: build check clean benchmark-all benchmark-compare typetest
 
 build:
-	HATCH_BUILD_HOOKS_ENABLE=1 uv pip install -e . --force-reinstall
+	HATCH_BUILD_HOOKS_ENABLE=1 uv sync --force-reinstall
 
 check:
 	pre-commit run --all-files
