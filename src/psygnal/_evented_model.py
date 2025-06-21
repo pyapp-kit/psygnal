@@ -129,7 +129,11 @@ if not PYDANTIC_V1:
     def _get_fields(
         cls: type[pydantic.BaseModel],
     ) -> dict[str, pydantic.fields.FieldInfo]:
-        return cls.model_fields
+        comp_fields = {
+            name: pydantic.fields.FieldInfo(annotation=f.return_type, frozen=False)
+            for name, f in cls.model_computed_fields.items()
+        }
+        return {**cls.model_fields, **comp_fields}
 
     def _model_dump(obj: pydantic.BaseModel) -> dict:
         return obj.model_dump()
@@ -356,9 +360,11 @@ def _get_field_dependents(
                     f"{prop!r} is not."
                 )
             for field in fields:
-                if field not in model_fields:
+                if field not in model_fields and not hasattr(cls, field):
                     warnings.warn(
-                        f"Unrecognized field dependency: {field!r}", stacklevel=2
+                        f"property {prop!r} cannot depend on unrecognized attribute "
+                        f"name: {field!r}",
+                        stacklevel=2,
                     )
                 deps.setdefault(field, set()).add(prop)
     if model_config.get(GUESS_PROPERTY_DEPENDENCIES, False):
@@ -475,6 +481,7 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
     _changes_queue: dict[str, Any] = PrivateAttr(default_factory=dict)
     _primary_changes: set[str] = PrivateAttr(default_factory=set)
     _delay_check_semaphore: int = PrivateAttr(0)
+    _names_that_need_emission: set[str] = PrivateAttr(default_factory=set)
 
     if PYDANTIC_V1:
 
@@ -489,6 +496,9 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
         # but if we don't use `ClassVar`, then the `dataclass_transform` decorator
         # will add _events: SignalGroup to the __init__ signature, for *all* user models
         _model_self_._events = Group(_model_self_)  # type: ignore [misc]
+        _model_self_._names_that_need_emission = set(_model_self_._events) | set(
+            _model_self_.__field_dependents__
+        )
 
     # expose the private SignalGroup publicly
     @property
@@ -570,15 +580,23 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
             # do not run whole machinery if there is no need
             return
         to_emit = []
+        must_continue = False
         for name in self._primary_changes:
             # primary changes should contains only fields
             # that are changed directly by assignment
             old_value = self._changes_queue[name]
             new_value = getattr(self, name)
+
             if not _check_field_equality(type(self), name, new_value, old_value):
-                to_emit.append((name, new_value))
+                if name in self._events:
+                    to_emit.append((name, new_value))
+                else:
+                    # An attribute is changing that is not in the SignalGroup
+                    # if it has field dependents, we must still continue
+                    # to check the _changes_queue
+                    must_continue = name in self.__field_dependents__
             self._changes_queue.pop(name)
-        if not to_emit:
+        if not to_emit and not must_continue:
             # If no direct changes was made then we can skip whole machinery
             self._changes_queue.clear()
             self._primary_changes.clear()
@@ -600,7 +618,7 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
         if (
             name == "_events"
             or not hasattr(self, "_events")  # can happen on init
-            or name not in self._events
+            or name not in self._names_that_need_emission
         ):
             # fallback to default behavior
             return self._super_setattr_(name, value)
@@ -651,18 +669,24 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
         # note that ALL signals will have sat least one listener simply by nature of
         # being in the `self._events` SignalGroup.
         group = self._events
-        signal_instance: SignalInstance = group[name]
-        deps_with_callbacks = {
-            dep_name
-            for dep_name in self.__field_dependents__.get(name, ())
-            if len(group[dep_name])
-        }
-        if (
-            len(signal_instance) < 1  # the signal itself has no listeners
-            and not deps_with_callbacks  # no dependent properties with listeners
-            and not len(group._psygnal_relay)  # no listeners on the SignalGroup
-        ):
+        if name in group:
+            signal_instance: SignalInstance = group[name]
+            deps_with_callbacks = {
+                dep_name
+                for dep_name in self.__field_dependents__.get(name, ())
+                if len(group[dep_name])
+            }
+            if (
+                len(signal_instance) < 1  # the signal itself has no listeners
+                and not deps_with_callbacks  # no dependent properties with listeners
+                and not len(group._psygnal_relay)  # no listeners on the SignalGroup
+            ):
+                return self._super_setattr_(name, value)
+        elif name in self.__field_dependents__:
+            deps_with_callbacks = self.__field_dependents__[name]
+        else:
             return self._super_setattr_(name, value)
+
         self._primary_changes.add(name)
         if name not in self._changes_queue:
             self._changes_queue[name] = getattr(self, name, object())
