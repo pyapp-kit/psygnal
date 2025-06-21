@@ -32,9 +32,9 @@ benchmark-all:
 
 # compare HEAD against main
 benchmark-compare:
-	MACOSX_DEPLOYMENT_TARGET=11.0 asv run --interleave-processes --skip-existing main^!
-	MACOSX_DEPLOYMENT_TARGET=11.0 asv run --interleave-processes HEAD^!
-	asv compare --split --factor 1.15 main HEAD
+	MACOSX_DEPLOYMENT_TARGET=11.0 uv run asv run --interleave-processes --skip-existing main^!
+	MACOSX_DEPLOYMENT_TARGET=11.0 uv run asv run --interleave-processes HEAD^!
+	uv run asv compare --split --factor 1.15 main HEAD
 
 typetest:
 	pytest typesafety --mypy-only-local-stub

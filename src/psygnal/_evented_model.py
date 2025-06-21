@@ -481,7 +481,6 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
     _changes_queue: dict[str, Any] = PrivateAttr(default_factory=dict)
     _primary_changes: set[str] = PrivateAttr(default_factory=set)
     _delay_check_semaphore: int = PrivateAttr(0)
-    _names_that_need_emission: set[str] = PrivateAttr(default_factory=set)
 
     if PYDANTIC_V1:
 
@@ -496,9 +495,6 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
         # but if we don't use `ClassVar`, then the `dataclass_transform` decorator
         # will add _events: SignalGroup to the __init__ signature, for *all* user models
         _model_self_._events = Group(_model_self_)  # type: ignore [misc]
-        _model_self_._names_that_need_emission = set(_model_self_._events) | set(
-            _model_self_.__field_dependents__
-        )
 
     # expose the private SignalGroup publicly
     @property
@@ -635,23 +631,42 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
                     getattr(self._events, name)(new_value)
 
     def __setattr__(self, name: str, value: Any) -> None:
-        if (
-            name == "_events"
-            or not hasattr(self, "_events")  # can happen on init
-            or name not in self._names_that_need_emission
-        ):
-            # fallback to default behavior
+        # can happen on init
+        if name == "_events" or not hasattr(self, "_events"):
+            # fallback to default behavior for special fields and during init
             return self._super_setattr_(name, value)
-        # the _setattr_default method is overridden in __new__ to be one of
-        # `_setattr_no_dependants` or `_setattr_with_dependents`.
-        self._setattr_default(name, value)
+
+        # Check if this is a property setter first - property setters should
+        # always go through _super_setattr_ regardless of signals/dependencies
+        if name in self.__property_setters__:
+            return self._super_setattr_(name, value)
+
+        # Check if this field needs special handling (has signal or dependencies)
+        is_signal_field = name in self._events
+        has_dependents = self.__field_dependents__ and name in self.__field_dependents__
+        if is_signal_field or has_dependents:
+            # For signal fields with no dependents, use the faster path if available
+            if (
+                is_signal_field
+                and not has_dependents
+                and hasattr(self, "_setattr_no_dependants")
+            ):
+                self._setattr_no_dependants(name, value)
+            else:
+                # Use the full setattr method for fields with dependents
+                self._setattr_default(name, value)
+        else:
+            # Field doesn't have signals or dependents, use fast path
+            self._super_setattr_(name, value)
 
     def _super_setattr_(self, name: str, value: Any) -> None:
         # pydantic will raise a ValueError if extra fields are not allowed
         # so we first check to see if this field has a property.setter.
         # if so, we use it instead.
         if name in self.__property_setters__:
-            self.__property_setters__[name].fset(self, value)  # type: ignore[misc]
+            # Wrap property setter calls in ComparisonDelayer to batch field changes
+            with ComparisonDelayer(self):
+                self.__property_setters__[name].fset(self, value)  # type: ignore[misc]
         elif name == "_events":
             # pydantic v2 prohibits shadowing class vars, on instances
             object.__setattr__(self, name, value)
