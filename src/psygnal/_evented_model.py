@@ -580,8 +580,9 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
             return
 
         # ----------------- Process primary changes  -------------------
-        # Primary changes are fields that were directly assigned to (as opposed
+        # "Primary changes" are fields that were directly assigned to (as opposed
         # to dependent properties that might have changed as a side effect).
+        # `_primary_changes` get added in the `_setattr_with_dependents_impl` method
         to_emit: list[tuple[str, Any]] = []  # list of (field name, new value)
         primary_changes_occurred = False
 
