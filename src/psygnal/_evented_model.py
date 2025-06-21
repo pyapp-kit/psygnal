@@ -641,13 +641,13 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
     def _setattr_default(self, name: str, value: Any) -> None:
         """Will be overwritten by metaclass __new__.
 
-        It will become either `_setattr_no_dependants` (if the class has no
-        properties and `__field_dependents__`), or `_setattr_with_dependents` if it
+        It will become either `_setattr_no_dependants` (if the class has neither
+        properties nor `__field_dependents__`), or `_setattr_with_dependents` if it
         does.
         """
 
     def _setattr_no_dependants(self, name: str, value: Any) -> None:
-        """__setattr__ behavior when the class has no properties."""
+        """Simple __setattr__ behavior when the class has no properties."""
         group = self._events
         signal_instance: SignalInstance = group[name]
         if len(signal_instance) < 1:
@@ -658,28 +658,29 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
             getattr(self._events, name)(value)
 
     def _setattr_with_dependents(self, name: str, value: Any) -> None:
-        """__setattr__ behavior when the class does properties."""
+        """__setattr__ behavior when the class has properties."""
         with ComparisonDelayer(self):
-            self._setattr_impl(name, value)
+            self._setattr_with_dependents_impl(name, value)
 
-    def _setattr_impl(self, name: str, value: Any) -> None:
+    def _setattr_with_dependents_impl(self, name: str, value: Any) -> None:
+        """The "real" __setattr__ implementation inside of the comparison delayer."""
         # if there are no listeners, we can just set the value without emitting
         # so first check if there are any listeners for this field or any of its
         # dependent properties.
         # note that ALL signals will have sat least one listener simply by nature of
         # being in the `self._events` SignalGroup.
-        group = self._events
-        if name in group:
-            signal_instance: SignalInstance = group[name]
+        signal_group = self._events
+        if name in signal_group:
+            signal_instance: SignalInstance = signal_group[name]
             deps_with_callbacks = {
                 dep_name
                 for dep_name in self.__field_dependents__.get(name, ())
-                if len(group[dep_name])
+                if len(signal_group[dep_name])
             }
             if (
                 len(signal_instance) < 1  # the signal itself has no listeners
                 and not deps_with_callbacks  # no dependent properties with listeners
-                and not len(group._psygnal_relay)  # no listeners on the SignalGroup
+                and not len(signal_group._psygnal_relay)  # no listeners on the group
             ):
                 return self._super_setattr_(name, value)
         elif name in self.__field_dependents__:
