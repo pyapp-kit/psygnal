@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from collections.abc import Iterable, Iterator, Mapping, MutableSet
 from itertools import chain
 from typing import (
     TYPE_CHECKING,
@@ -8,10 +9,6 @@ from typing import (
     Callable,
     ClassVar,
     Final,
-    Iterable,
-    Iterator,
-    Mapping,
-    MutableSet,
     TypeVar,
     get_args,
 )

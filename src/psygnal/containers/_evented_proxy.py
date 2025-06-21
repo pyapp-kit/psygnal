@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Callable, ClassVar, Dict, Generic, List, TypeVar
+from typing import Any, Callable, ClassVar, Generic, TypeVar
 from weakref import finalize
 
 try:
@@ -17,29 +17,38 @@ _UNSET = object()
 
 
 class ProxyEvents(SignalGroup):
-    """ObjectProxy events."""
+    """Events emitted by `EventedObjectProxy` and `EventedCallableObjectProxy`."""
 
     attribute_set = Signal(str, object)
+    """Emitted when an attribute is set."""
     attribute_deleted = Signal(str)
+    """Emitted when an attribute is deleted."""
     item_set = Signal(object, object)
+    """Emitted when an item is set."""
     item_deleted = Signal(object)
+    """Emitted when an item is deleted."""
     in_place = Signal(str, object)
+    """Emitted when an in-place operation is performed."""
 
 
 class CallableProxyEvents(ProxyEvents):
-    """CallableObjectProxy events."""
+    """Events emitted by `EventedCallableObjectProxy`."""
 
     called = Signal(tuple, dict)
+    """Emitted when the object is called."""
 
 
 # we're using a cache instead of setting the events object directly on the proxy
 # because when wrapt is compiled as a C extensions, the ObjectProxy is not allowed
 # to add any new attributes.
-_OBJ_CACHE: Dict[int, ProxyEvents] = {}
+_OBJ_CACHE: dict[int, ProxyEvents] = {}
 
 
 class EventedObjectProxy(ObjectProxy, Generic[T]):
     """Create a proxy of `target` that includes an `events` [psygnal.SignalGroup][].
+
+    Provides an "evented" subclasses of
+    [`wrapt.ObjectProxy`](https://wrapt.readthedocs.io/en/latest/wrappers.html#object-proxy)
 
     !!! important
 
@@ -60,6 +69,13 @@ class EventedObjectProxy(ObjectProxy, Generic[T]):
     - `item_set`: `Signal(object, object)`
     - `item_deleted`: `Signal(object)`
     - `in_place`: `Signal(str, object)`
+
+    !!! warning "Experimental"
+
+        This object is experimental! They may affect the behavior of
+        the wrapped object in unanticipated ways.  Please consult
+        the [wrapt documentation](https://wrapt.readthedocs.io/en/latest/wrappers.html)
+        for details on how the Object Proxy works.
 
     Parameters
     ----------
@@ -104,7 +120,7 @@ class EventedObjectProxy(ObjectProxy, Generic[T]):
     def __repr__(self) -> str:
         return repr(self.__wrapped__)
 
-    def __dir__(self) -> List[str]:
+    def __dir__(self) -> list[str]:
         return [*dir(self.__wrapped__), "events"]
 
     def __iadd__(self, other: Any) -> T:

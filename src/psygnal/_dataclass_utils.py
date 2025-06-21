@@ -4,9 +4,11 @@ import contextlib
 import dataclasses
 import sys
 import types
-from typing import TYPE_CHECKING, Any, Iterator, List, Protocol, cast, overload
+from typing import TYPE_CHECKING, Any, Protocol, cast, overload
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     import attrs
     import msgspec
     from pydantic import BaseModel
@@ -22,7 +24,7 @@ class _DataclassParams(Protocol):
     frozen: bool
 
 
-GenericAlias = getattr(types, "GenericAlias", type(List[int]))  # safe for < py 3.9
+GenericAlias = getattr(types, "GenericAlias", type(list[int]))  # safe for < py 3.9
 
 
 class AttrsType:
@@ -72,7 +74,7 @@ def is_attrs_class(obj: object) -> TypeGuard[type[AttrsType]]:
     """Return True if the class is an attrs class."""
     attr = sys.modules.get("attr", None)
     cls = obj if isinstance(obj, type) else type(obj)
-    return attr.has(cls) if attr is not None else False  # type: ignore [no-any-return]
+    return attr.has(cls) if attr is not None else False
 
 
 @overload
@@ -171,8 +173,8 @@ def iter_fields(
                     yield field_name, p_field.annotation
         else:
             for p_field in cls.__fields__.values():  # type: ignore [attr-defined]
-                if p_field.field_info.allow_mutation or not exclude_frozen:  # type: ignore
-                    yield p_field.name, p_field.outer_type_  # type: ignore
+                if p_field.field_info.allow_mutation or not exclude_frozen:
+                    yield p_field.name, p_field.outer_type_
         return
 
     if (attrs_fields := getattr(cls, "__attrs_attrs__", None)) is not None:

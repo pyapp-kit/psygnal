@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Literal, Mapping, TypeVar, overload
+from typing import TYPE_CHECKING, Callable, Literal, TypeVar, overload
 
 from psygnal._group_descriptor import SignalGroupDescriptor
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
+
     from psygnal._group_descriptor import EqOperator, FieldAliasFunc
 
 __all__ = ["evented"]

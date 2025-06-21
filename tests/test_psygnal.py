@@ -120,6 +120,71 @@ def test_basic_signal():
     mock.assert_called_once_with(1)
 
 
+def test_emit_fast():
+    """Test emit_fast method."""
+    emitter = Emitter()
+    mock = MagicMock()
+    emitter.one_int.connect(mock)
+    emitter.one_int.emit_fast(1)
+    mock.assert_called_once_with(1)
+    mock.reset_mock()
+
+    # calling directly also works
+    emitter.one_int(1)
+    mock.assert_called_once_with(1)
+    mock.reset_mock()
+
+    with emitter.one_int.blocked():
+        emitter.one_int.emit_fast(2)
+    mock.assert_not_called()
+
+    with emitter.one_int.paused():
+        emitter.one_int.emit_fast(3)
+        mock.assert_not_called()
+        emitter.one_int.emit_fast(4)
+    mock.assert_has_calls([call(3), call(4)])
+
+
+def test_emit_fast_errors():
+    emitter = Emitter()
+    err = ValueError()
+
+    @emitter.one_int.connect
+    def boom(v: int) -> None:
+        raise err
+
+    import re
+
+    error_re = re.compile(
+        f"signal 'tests.test_psygnal.Emitter.one_int'.*{re.escape(__file__)}",
+        re.DOTALL,
+    )
+    with pytest.raises(EmitLoopError, match=error_re):
+        emitter.one_int.emit_fast(42)
+
+
+def test_emit_fast_recursion_errors():
+    """Test emit_fast method."""
+    emitter = Emitter()
+    emitter.one_int.emit_fast(1)
+
+    @emitter.one_int.connect
+    def callback() -> None:
+        emitter.one_int.emit(2)
+
+    with pytest.raises(RecursionError):
+        emitter.one_int.emit_fast(3)
+
+    emitter.one_int.disconnect(callback)
+
+    @emitter.one_int.connect
+    def callback() -> None:
+        emitter.one_int.emit_fast(2)
+
+    with pytest.raises(RecursionError):
+        emitter.one_int.emit_fast(3)
+
+
 def test_decorator():
     emitter = Emitter()
     err = ValueError()
@@ -134,7 +199,7 @@ def test_decorator():
     import re
 
     error_re = re.compile(
-        "signal 'tests.test_psygnal.Emitter.one_int'" f".*{re.escape(__file__)}",
+        f"signal 'tests.test_psygnal.Emitter.one_int'.*{re.escape(__file__)}",
         re.DOTALL,
     )
     with pytest.raises(EmitLoopError, match=error_re) as e:
@@ -489,7 +554,7 @@ def test_connect_validation(func_name, sig_name, mode, typed):
     signal: SignalInstance = getattr(e, sig_name)
     bad_count = COUNT_INCOMPATIBLE[sig_name]
     bad_sig = SIG_INCOMPATIBLE[sig_name]
-    if func_name in bad_count or check_types and func_name in bad_sig:
+    if func_name in bad_count or (check_types and func_name in bad_sig):
         with pytest.raises(ValueError) as er:
             signal.connect(func, check_types=check_types)
         assert "Accepted signature:" in str(er)
@@ -1130,3 +1195,13 @@ def test_emit_loop_error_message_construction(strategy: ReemissionVal) -> None:
     if strategy == "queued":
         # check that we show a useful message for confusign queued signals
         assert "NOTE" in str(e.value)
+
+
+def test_description():
+    description = "A signal"
+
+    class T:
+        sig = Signal(description=description)
+
+    assert T.sig.description == description
+    assert T().sig.description == description

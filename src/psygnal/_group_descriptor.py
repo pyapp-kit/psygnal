@@ -11,11 +11,8 @@ from typing import (
     Any,
     Callable,
     ClassVar,
-    Iterable,
     Literal,
-    Mapping,
     Optional,
-    Type,
     TypeVar,
     cast,
     overload,
@@ -27,6 +24,7 @@ from ._signal import Signal, SignalInstance
 
 if TYPE_CHECKING:
     from _weakref import ref as ref
+    from collections.abc import Iterable, Mapping
 
     from typing_extensions import TypeAlias
 
@@ -35,10 +33,10 @@ if TYPE_CHECKING:
     EqOperator: TypeAlias = Callable[[Any, Any], bool]
     FieldAliasFunc: TypeAlias = Callable[[str], Optional[str]]
 
-__all__ = ["is_evented", "get_evented_namespace", "SignalGroupDescriptor"]
+__all__ = ["SignalGroupDescriptor", "get_evented_namespace", "is_evented"]
 
 
-T = TypeVar("T", bound=Type)
+T = TypeVar("T", bound=type)
 S = TypeVar("S")
 
 
@@ -54,7 +52,7 @@ def _get_eq_operator_map(cls: type) -> dict[str, EqOperator]:
     # if the class has an __eq_operators__ attribute, we use it
     # otherwise use/create the entry for `cls` in the global _EQ_OPERATORS map
     if hasattr(cls, _EQ_OPERATOR_NAME):
-        return cast(dict, getattr(cls, _EQ_OPERATOR_NAME))
+        return cast("dict", getattr(cls, _EQ_OPERATOR_NAME))
     else:
         return _EQ_OPERATORS.setdefault(cls, {})
 
@@ -391,7 +389,7 @@ def evented_setattr(
             if name == signal_group_name:
                 return super_setattr(self, name, value)
 
-            group = cast(SignalGroup, getattr(self, signal_group_name))
+            group = cast("SignalGroup", getattr(self, signal_group_name))
             if not with_aliases and name not in group:
                 return super_setattr(self, name, value)
 
@@ -537,8 +535,7 @@ class SignalGroupDescriptor:
         grp_cls = signal_group_class or SignalGroup
         if not (isinstance(grp_cls, type) and issubclass(grp_cls, SignalGroup)):
             raise TypeError(  # pragma: no cover
-                f"'signal_group_class' must be a subclass of SignalGroup, "
-                f"not {grp_cls}"
+                f"'signal_group_class' must be a subclass of SignalGroup, not {grp_cls}"
             )
         if not collect_fields:
             if grp_cls is SignalGroup:

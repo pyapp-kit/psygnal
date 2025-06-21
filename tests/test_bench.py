@@ -121,6 +121,12 @@ def test_emit_time(benchmark: Callable, n_connections: int, callback_type: str) 
     benchmark(emitter.one_int.emit, 1)
 
 
+def test_emit_fast(benchmark: Callable) -> None:
+    emitter = Emitter()
+    emitter.one_int.connect(one_int)
+    benchmark(emitter.one_int.emit_fast, 1)
+
+
 @pytest.mark.benchmark
 def test_evented_creation() -> None:
     @evented

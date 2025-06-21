@@ -20,16 +20,12 @@ watch:
 nav:
   - Overview: index.md
   - Usage: usage.md
-  - Debugging: debugging.md
-  - Evented Dataclasses: dataclasses.md
-  - API:
-    - Core API: API/index.md
-    - Dataclass Descriptor: API/evented.md
-    - Evented Pydantic Model: API/model.md
-    - Evented Containers: API/containers.md
-    - Throttling & Debouncing: API/throttler.md
-    - Proxy Objects: API/proxy.md
-    - Utilities: API/utilities.md
+  - Guides:
+    - Evented Dataclasses: guides/dataclasses.md
+    - Evented Pydantic Model: guides/model.md
+    - Throttling & Debouncing: guides/throttler.md
+    - Testing: guides/testing.md
+    - Debugging: guides/debugging.md
 
 theme:
   icon:
@@ -71,13 +67,16 @@ markdown_extensions:
 
 plugins:
   - search
-  - autorefs
+  - autorefs:
+      resolve_closest: true
   - minify:
       minify_html: true
+  - api-autonav:
+      modules: ['src/psygnal']  
   - mkdocstrings:
       handlers:
         python:
-          import:
+          inventories:
             - https://docs.python.org/3/objects.inv
           options:
             docstring_style: numpy
@@ -94,14 +93,22 @@ plugins:
             show_source: true
             # show_bases: true
             # group_by_category: true
-            # heading_level: 2
             members_order: alphabetical # alphabetical/source
 
             ## experimental
-            # separate_signature: false
             # line_length: 60
             # show_submodules: true
-            docstring_section_style: list # or table/list/spacy
+
+            docstring_section_style: list # or "table"
+            heading_level: 1
+            merge_init_into_class: true
+            parameter_headings: true
+            separate_signature: true
+            show_signature_annotations: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            summary: true
+
   - spellcheck:
       backends: # the backends you want to use
         - codespell: # or nested configs

@@ -8,7 +8,7 @@ build-backend = "hatchling.build"
 name = "psygnal"
 description = "Fast python callback/event system modeled after Qt Signals"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = { text = "BSD 3-Clause License" }
 authors = [{ name = "Talley Lambert", email = "talley.lambert@gmail.com" }]
 classifiers = [
@@ -16,11 +16,11 @@ classifiers = [
     "License :: OSI Approved :: BSD License",
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Typing :: Typed",
 ]
 dynamic = ["version"]
@@ -32,32 +32,14 @@ dependencies = [
 # extras
 # https://peps.python.org/pep-0621/#dependencies-optional-dependencies
 [project.optional-dependencies]
-dev = [
-    "ipython",
-    "mypy",
-    "mypy_extensions",
-    "pre-commit",
-    "PyQt5",
-    "pytest-mypy-plugins",
-    "rich",
-    "ruff",
-    "typing-extensions",
-]
-docs = [
-    "griffe==0.25.5",
-    "mkdocs-material==8.5.10",
-    "mkdocs-minify-plugin",
-    "mkdocs==1.4.2",
-    "mkdocstrings-python==0.8.3",
-    "mkdocstrings==0.20.0",
-    "mkdocs-spellcheck[all]",
-]
 proxy = ["wrapt"]
 pydantic = ["pydantic"]
+
+[dependency-groups]
 test = [
-    "dask",
+    "dask[array]>=2024.0.0",
     "attrs",
-    "numpy",
+    "numpy >1.21.6",
     "pydantic",
     "pyinstaller>=4.0",
     "pytest>=6.0",
@@ -66,7 +48,32 @@ test = [
     "msgspec",
     "toolz",
 ]
-testqt = ["pytest-qt", "qtpy"]
+testqt = [{ include-group = "test" }, "pytest-qt", "qtpy"]
+test-codspeed = [{ include-group = "test" }, "pytest-codspeed"]
+docs = [
+    "mkdocs-api-autonav",
+    "mkdocs-material",
+    "mkdocs-minify-plugin",
+    "mkdocs-spellcheck[all]",
+    "mkdocs",
+    "mkdocstrings-python",
+    "ruff",
+]
+dev = [
+    { include-group = "test" },
+    { include-group = "docs" },
+    "PyQt6",
+    "ipython",
+    "mypy",
+    "mypy_extensions",
+    "pre-commit",
+    "asv",
+    "pytest-mypy-plugins",
+    "ruff",
+    "typing-extensions",
+    "rich>=14.0.0",
+    "pdbpp; sys_platform != 'win32'",
+]
 
 [project.urls]
 homepage = "https://github.com/pyapp-kit/psygnal"
@@ -92,9 +99,9 @@ enable-by-default = false
 require-runtime-dependencies = true
 dependencies = [
     "hatch-mypyc>=0.13.0",
-    "mypy>=0.991",
+    "mypy",
     "mypy_extensions >=0.4.2",
-    "pydantic",
+    "pydantic!=2.10.0",        # typing error in v2.10 prevents mypyc from working
     "types-attrs",
     "msgspec",
 ]
@@ -111,10 +118,11 @@ exclude = [
 [tool.cibuildwheel]
 # Skip 32-bit builds & PyPy wheels on all platforms
 skip = ["*-manylinux_i686", "*-musllinux_i686", "*-win32", "pp*"]
-build = ["cp38-*", "cp39-*", "cp310-*", "cp311-*", "cp312-*"]
-test-extras = ["test"]
+build = ["cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
+test-groups = ["test"]
 test-command = "pytest {project}/tests -v"
 test-skip = ["*-musllinux*", "cp312-win*", "*-macosx_arm64"]
+build-frontend = "build[uv]"
 
 [[tool.cibuildwheel.overrides]]
 select = "*-manylinux_i686*"
@@ -123,11 +131,14 @@ before-all = "yum install -y python3-devel"
 [tool.cibuildwheel.environment]
 HATCH_BUILD_HOOKS_ENABLE = "1"
 
+[tool.check-wheel-contents]
+# W004: Module is not located at importable path (hook-psygnal.py)
+ignore = ["W004"]
 
 # https://docs.astral.sh/ruff/
 [tool.ruff]
 line-length = 88
-target-version = "py37"
+target-version = "py39"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
@@ -144,12 +155,12 @@ select = [
     "C4",   # flake8-comprehensions
     "B",    # flake8-bugbear
     "A001", # flake8-builtins
-    "TCH",  # flake8-typecheck
+    "TC",   # flake8-typecheck
     "TID",  # flake8-tidy-imports
     "RUF",  # ruff-specific rules
 ]
 ignore = [
-    "D401",   # First line should be in imperative mood
+    "D401", # First line should be in imperative mood
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -164,12 +175,13 @@ docstring-code-format = true
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = ["tests"]
+addopts = ["--color=yes"]
 filterwarnings = [
     "error",
     "ignore:The distutils package is deprecated:DeprecationWarning:",
-    "ignore:.*BackendFinder.find_spec()",                             # pyinstaller import
+    "ignore:.*BackendFinder.find_spec()",                                            # pyinstaller import
     "ignore:.*not using a cooperative constructor:pytest.PytestDeprecationWarning:",
-    "ignore:Failed to disconnect::pytestqt"
+    "ignore:Failed to disconnect::pytestqt",
 ]
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
