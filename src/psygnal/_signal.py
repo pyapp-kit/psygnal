@@ -130,24 +130,21 @@ connection type (in that case, depending on threading).
 from __future__ import annotations
 
 import inspect
-import sys
 import threading
 import warnings
 import weakref
 from collections import deque
-from contextlib import contextmanager, suppress
-from functools import lru_cache, partial, reduce
+from collections.abc import Iterable, Iterator
+from contextlib import AbstractContextManager, contextmanager, suppress
+from functools import cache, partial, reduce
 from inspect import Parameter, Signature, isclass
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
     ClassVar,
-    ContextManager,
     Final,
     Generic,
-    Iterable,
-    Iterator,
     Literal,
     NewType,
     NoReturn,
@@ -174,6 +171,8 @@ from ._weak_callback import (
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Container, Iterable, Iterator
+
     from ._group import EmissionInfo
     from ._weak_callback import RefErrorChoice
 
@@ -199,11 +198,18 @@ GroupSignalInstance = NewType("GroupSignalInstance", object)
 RetT = TypeVar("RetT")
 Ts = TypeVarTuple("Ts")
 
-__all__ = ["Signal", "SignalInstance", "_compiled", "ReemissionVal", "Unparametrized"]
+__all__ = ["ReemissionVal", "Signal", "SignalInstance", "Unparametrized", "_compiled"]
 
 _NULL = object()
 F = TypeVar("F", bound=Callable)
-RECURSION_LIMIT = sys.getrecursionlimit()
+
+# using 300 instead of sys.getrecursionlimit()
+# in a mypyc-compiled program, hitting an actual RecursionError can cause
+# a segfault (rather than raise a python exception), so we really MUST
+# avoid it.  Windows has a lower stack limit than other platforms, so we
+# use 300 as a cross-platform "safe" limit, determined via testing.  It's
+# probably plenty large for most reasonable use-cases.
+RECURSION_LIMIT = 300
 
 ReemissionVal = Literal["immediate", "queued", "latest-only"]
 Unparametrized = NewType("Unparametrized", object)
@@ -416,6 +422,7 @@ class Signal(Generic[Unpack[Ts]]):
             self._types,
             instance=instance,
             name=name or self._name,
+            description=self.description,
             check_nargs_on_connect=self._check_nargs_on_connect,
             check_types_on_connect=self._check_types_on_connect,
             reemission=self._reemission,
@@ -512,6 +519,19 @@ class SignalInstance(Generic[Unpack[Ts]]):
     reemission : Literal["immediate", "queued", "latest-only"] | None
         See docstring for [`Signal`][psygnal.Signal] for details.
         By default, `"immediate"`.
+    description : str
+        Optional descriptive text for the signal.  (not used internally).
+
+    Attributes
+    ----------
+    signature : Signature
+        Signature supported by this `SignalInstance`.
+    instance : Any
+        Object that emits this `SignalInstance`.
+    name : str
+        Name of this `SignalInstance`.
+    description : str
+        Description of this `SignalInstance`.
 
     Raises
     ------
@@ -529,6 +549,7 @@ class SignalInstance(Generic[Unpack[Ts]]):
         types: tuple[Unpack[Ts]] | Signature = (),  # type: ignore
         instance: Any = None,
         name: str | None = None,
+        description: str = "",
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
         reemission: ReemissionVal = DEFAULT_REEMISSION,
@@ -545,6 +566,7 @@ class SignalInstance(Generic[Unpack[Ts]]):
                 "instance of `inspect.Signature`"
             )
 
+        self._description = description
         self._reemission = ReemissionMode.validate(reemission)
         self._name = name
         self._instance: Callable = self._instance_ref(instance)
@@ -596,6 +618,11 @@ class SignalInstance(Generic[Unpack[Ts]]):
     def name(self) -> str:
         """Name of this `SignalInstance`."""
         return self._name or ""
+
+    @property
+    def description(self) -> str:
+        """Description of this `SignalInstance`."""
+        return self._description
 
     def __repr__(self) -> str:
         """Return repr."""
@@ -1061,8 +1088,8 @@ class SignalInstance(Generic[Unpack[Ts]]):
             slot_sig = _get_signature_possibly_qt(slot)
         except ValueError as e:
             warnings.warn(
-                f"{e}. To silence this warning, connect with " "`check_nargs=False`",
-                stacklevel=2,
+                f"{e}. To silence this warning, connect with `check_nargs=False`",
+                stacklevel=4,
             )
             return None, None, False
         try:
@@ -1131,7 +1158,11 @@ class SignalInstance(Generic[Unpack[Ts]]):
 
     def __contains__(self, slot: Callable) -> bool:
         """Return `True` if slot is connected."""
-        return self._slot_index(slot) >= 0
+        # Check if slot is callable first
+        # this change is needed for some reason after mypy v1.14.0
+        if callable(slot):
+            return self._slot_index(slot) >= 0
+        return False
 
     def __len__(self) -> int:
         """Return number of connected slots."""
@@ -1227,13 +1258,19 @@ class SignalInstance(Generic[Unpack[Ts]]):
             self._args_queue.append(args)
             return
 
+        if self._recursion_depth >= RECURSION_LIMIT:
+            raise RecursionError(
+                f"Psygnal recursion limit ({RECURSION_LIMIT}) reached when emitting "
+                f"signal {self.name!r} with args {args}"
+            )
+
+        self._recursion_depth += 1
         try:
             for caller in self._slots:
                 caller.cb(args)
         except RecursionError as e:
             raise RecursionError(
-                f"RecursionError when "
-                f"emitting signal {self.name!r} with args {args}"
+                f"RecursionError when emitting signal {self.name!r} with args {args}"
             ) from e
         except EmitLoopError as e:  # pragma: no cover
             raise e
@@ -1243,6 +1280,9 @@ class SignalInstance(Generic[Unpack[Ts]]):
             )
             # this comment will show up in the traceback
             raise loop_err from cb_err  # emit() call ABOVE || callback error BELOW
+        finally:
+            if self._recursion_depth > 0:
+                self._recursion_depth -= 1
 
     def __call__(
         self, *args: Any, check_nargs: bool = False, check_types: bool = False
@@ -1251,6 +1291,9 @@ class SignalInstance(Generic[Unpack[Ts]]):
         return self.emit(*args, check_nargs=check_nargs, check_types=check_types)
 
     def _run_emit_loop(self, args: tuple[Any, ...]) -> None:
+        if self._recursion_depth >= RECURSION_LIMIT:
+            raise RecursionError("Recursion limit reached!")
+
         with self._lock:
             self._emit_queue.append(args)
             if len(self._emit_queue) > 1:
@@ -1313,7 +1356,7 @@ class SignalInstance(Generic[Unpack[Ts]]):
                     raise RecursionError
             i += 1
 
-    def block(self, exclude: Iterable[str | SignalInstance] = ()) -> None:
+    def block(self, exclude: Container[str | SignalInstance] = ()) -> None:
         """Block this signal from emitting.
 
         NOTE: the `exclude` argument is only for SignalGroup subclass, but we
@@ -1325,7 +1368,7 @@ class SignalInstance(Generic[Unpack[Ts]]):
         """Unblock this signal, allowing it to emit."""
         self._is_blocked = False
 
-    def blocked(self) -> ContextManager[None]:
+    def blocked(self) -> AbstractContextManager[None]:
         """Context manager to temporarily block this signal.
 
         Useful if you need to temporarily block all emission of a given signal,
@@ -1416,7 +1459,7 @@ class SignalInstance(Generic[Unpack[Ts]]):
 
     def paused(
         self, reducer: ReducerFunc | None = None, initial: Any = _NULL
-    ) -> ContextManager[None]:
+    ) -> AbstractContextManager[None]:
         """Context manager to temporarily pause this signal.
 
         Parameters
@@ -1497,7 +1540,7 @@ class _SignalBlocker:
     """Context manager to block and unblock a signal."""
 
     def __init__(
-        self, signal: SignalInstance, exclude: Iterable[str | SignalInstance] = ()
+        self, signal: SignalInstance, exclude: Container[str | SignalInstance] = ()
     ) -> None:
         self._signal = signal
         self._exclude = exclude
@@ -1552,7 +1595,7 @@ _ANYSIG = Signature(
 )
 
 
-@lru_cache(maxsize=None)
+@cache
 def _stub_sig(obj: Any) -> Signature:
     """Called as a backup when inspect.signature fails."""
     import builtins

@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
     RefErrorChoice: TypeAlias = Literal["raise", "warn", "ignore"]
 
-__all__ = ["weak_callback", "WeakCallback"]
+__all__ = ["WeakCallback", "weak_callback"]
 _T = TypeVar("_T")
 _R = TypeVar("_R")  # return type of cb
 
@@ -259,8 +259,9 @@ class WeakCallback(Generic[_R]):
             if self._on_ref_error == "raise":
                 raise
             if self._on_ref_error == "warn":
+                safe_repr = object.__repr__(obj)
                 warn(
-                    f"failed to create weakref for {obj!r}, returning strong ref",
+                    f"failed to create weakref for {safe_repr}, returning strong ref",
                     stacklevel=2,
                 )
 
@@ -457,7 +458,7 @@ class WeakMethod(WeakCallback):
         func = self._func_ref()
         if obj is None or func is None:
             return None
-        method = cast(MethodType, func.__get__(obj))
+        method = cast("MethodType", func.__get__(obj))
         if self._args or self._kwargs:
             return partial(method, *self._args, **self._kwargs)
         return method

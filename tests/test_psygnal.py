@@ -156,7 +156,7 @@ def test_emit_fast_errors():
     import re
 
     error_re = re.compile(
-        "signal 'tests.test_psygnal.Emitter.one_int'" f".*{re.escape(__file__)}",
+        f"signal 'tests.test_psygnal.Emitter.one_int'.*{re.escape(__file__)}",
         re.DOTALL,
     )
     with pytest.raises(EmitLoopError, match=error_re):
@@ -199,7 +199,7 @@ def test_decorator():
     import re
 
     error_re = re.compile(
-        "signal 'tests.test_psygnal.Emitter.one_int'" f".*{re.escape(__file__)}",
+        f"signal 'tests.test_psygnal.Emitter.one_int'.*{re.escape(__file__)}",
         re.DOTALL,
     )
     with pytest.raises(EmitLoopError, match=error_re) as e:
@@ -554,7 +554,7 @@ def test_connect_validation(func_name, sig_name, mode, typed):
     signal: SignalInstance = getattr(e, sig_name)
     bad_count = COUNT_INCOMPATIBLE[sig_name]
     bad_sig = SIG_INCOMPATIBLE[sig_name]
-    if func_name in bad_count or check_types and func_name in bad_sig:
+    if func_name in bad_count or (check_types and func_name in bad_sig):
         with pytest.raises(ValueError) as er:
             signal.connect(func, check_types=check_types)
         assert "Accepted signature:" in str(er)
@@ -1195,3 +1195,13 @@ def test_emit_loop_error_message_construction(strategy: ReemissionVal) -> None:
     if strategy == "queued":
         # check that we show a useful message for confusign queued signals
         assert "NOTE" in str(e.value)
+
+
+def test_description():
+    description = "A signal"
+
+    class T:
+        sig = Signal(description=description)
+
+    assert T.sig.description == description
+    assert T().sig.description == description

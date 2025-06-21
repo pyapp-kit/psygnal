@@ -1,6 +1,6 @@
 import os
 from copy import copy
-from typing import List, cast
+from typing import cast
 from unittest.mock import Mock, call
 
 import numpy as np
@@ -220,7 +220,7 @@ def test_move(test_list: EventedList):
     assert test_list == [3, 2, 0, 1, 4]
 
 
-BASIC_INDICES: List[tuple] = [
+BASIC_INDICES: list[tuple] = [
     ((2,), 0, [2, 0, 1, 3, 4, 5, 6, 7]),  # move single item
     ([0, 2, 3], 6, [1, 4, 5, 0, 2, 3, 6, 7]),  # move back
     ([4, 7], 1, [0, 4, 7, 1, 2, 3, 5, 6]),  # move forward
@@ -228,7 +228,7 @@ BASIC_INDICES: List[tuple] = [
     ([1, 3, 5, 7], 3, [0, 2, 1, 3, 5, 7, 4, 6]),  # same as above
     ([0, 2, 3, 2, 3], 6, [1, 4, 5, 0, 2, 3, 6, 7]),  # strip dupe indices
 ]
-OTHER_INDICES: List[tuple] = [
+OTHER_INDICES: list[tuple] = [
     ([7, 4], 1, [0, 7, 4, 1, 2, 3, 5, 6]),  # move forward reorder
     ([3, 0, 2], 6, [1, 4, 5, 3, 0, 2, 6, 7]),  # move back reorder
     ((2, 4), -2, [0, 1, 3, 5, 6, 2, 4, 7]),  # negative indexing

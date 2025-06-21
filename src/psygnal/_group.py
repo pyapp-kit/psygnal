@@ -17,13 +17,8 @@ from typing import (
     Any,
     Callable,
     ClassVar,
-    ContextManager,
-    Iterable,
-    Iterator,
     Literal,
-    Mapping,
     NamedTuple,
-    Type,
     overload,
 )
 
@@ -39,6 +34,8 @@ from ._mypyc import mypyc_attr
 
 if TYPE_CHECKING:
     import threading
+    from collections.abc import Container, Iterable, Iterator, Mapping
+    from contextlib import AbstractContextManager
 
     from psygnal._signal import F, ReducerFunc
     from psygnal._weak_callback import RefErrorChoice, WeakCallback
@@ -60,7 +57,7 @@ class EmissionInfo(NamedTuple):
     args: tuple[Any, ...]
 
 
-class SignalRelay(SignalInstance[Type[EmissionInfo]]):
+class SignalRelay(SignalInstance[type[EmissionInfo]]):
     """Special SignalInstance that can be used to connect to all signals in a group.
 
     This class will rarely be instantiated by a user (or anything other than a
@@ -165,11 +162,11 @@ class SignalRelay(SignalInstance[Type[EmissionInfo]]):
 
         return _inner if slot is None else _inner(slot)
 
-    def block(self, exclude: Iterable[str | SignalInstance] = ()) -> None:
+    def block(self, exclude: Container[str | SignalInstance] = ()) -> None:
         """Block this signal and all emitters from emitting."""
         super().block()
         for name, sig in self._signals.items():
-            if exclude and sig in exclude or name in exclude:
+            if name in exclude or sig in exclude:
                 continue
             self._sig_was_blocked[name] = sig._is_blocked
             sig.block()
@@ -182,8 +179,8 @@ class SignalRelay(SignalInstance[Type[EmissionInfo]]):
                 sig.unblock()
 
     def blocked(
-        self, exclude: Iterable[str | SignalInstance] = ()
-    ) -> ContextManager[None]:
+        self, exclude: Container[str | SignalInstance] = ()
+    ) -> AbstractContextManager[None]:
         """Context manager to temporarily block all emitters in this group.
 
         Parameters
@@ -526,15 +523,15 @@ class SignalGroup:
     def disconnect(self, slot: Callable | None = None, missing_ok: bool = True) -> None:
         return self._psygnal_relay.disconnect(slot=slot, missing_ok=missing_ok)
 
-    def block(self, exclude: Iterable[str | SignalInstance] = ()) -> None:
+    def block(self, exclude: Container[str | SignalInstance] = ()) -> None:
         return self._psygnal_relay.block(exclude=exclude)
 
     def unblock(self) -> None:
         return self._psygnal_relay.unblock()
 
     def blocked(
-        self, exclude: Iterable[str | SignalInstance] = ()
-    ) -> ContextManager[None]:
+        self, exclude: Container[str | SignalInstance] = ()
+    ) -> AbstractContextManager[None]:
         return self._psygnal_relay.blocked(exclude=exclude)
 
     def pause(self) -> None:
@@ -545,7 +542,7 @@ class SignalGroup:
 
     def paused(
         self, reducer: ReducerFunc | None = None, initial: Any = _NULL
-    ) -> ContextManager[None]:
+    ) -> AbstractContextManager[None]:
         return self._psygnal_relay.paused(reducer=reducer, initial=initial)
 
 

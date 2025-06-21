@@ -1,5 +1,67 @@
 # Changelog
 
+## [v0.13.0](https://github.com/pyapp-kit/psygnal/tree/v0.13.0) (2025-05-05)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.12.0...v0.13.0)
+
+**Implemented enhancements:**
+
+- feat: add testing utilities [\#368](https://github.com/pyapp-kit/psygnal/pull/368) ([tlambert03](https://github.com/tlambert03))
+
+**Fixed bugs:**
+
+- fix: Don't use deprecated model\_fields access [\#364](https://github.com/pyapp-kit/psygnal/pull/364) ([s-t-e-v-e-n-k](https://github.com/s-t-e-v-e-n-k))
+
+**Merged pull requests:**
+
+- build: fix building of wheels with uv [\#370](https://github.com/pyapp-kit/psygnal/pull/370) ([tlambert03](https://github.com/tlambert03))
+- ci\(pre-commit.ci\): autoupdate [\#369](https://github.com/pyapp-kit/psygnal/pull/369) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- docs: general docs update, use mkdocs-api-autonav [\#367](https://github.com/pyapp-kit/psygnal/pull/367) ([tlambert03](https://github.com/tlambert03))
+- build: use pyproject dependency groups and uv [\#366](https://github.com/pyapp-kit/psygnal/pull/366) ([tlambert03](https://github.com/tlambert03))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.22 to 2.23 [\#360](https://github.com/pyapp-kit/psygnal/pull/360) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Add back universal \(none-any\) wheel [\#358](https://github.com/pyapp-kit/psygnal/pull/358) ([tlambert03](https://github.com/tlambert03))
+- ci\(pre-commit.ci\): autoupdate [\#355](https://github.com/pyapp-kit/psygnal/pull/355) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+
+## [v0.12.0](https://github.com/pyapp-kit/psygnal/tree/v0.12.0) (2025-02-03)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.11.1...v0.12.0)
+
+**Implemented enhancements:**
+
+- feat: add description to signalinstance [\#339](https://github.com/pyapp-kit/psygnal/pull/339) ([tlambert03](https://github.com/tlambert03))
+- perf: add `emit_fast` method for 10x faster emission \(without safety checks\) [\#331](https://github.com/pyapp-kit/psygnal/pull/331) ([tlambert03](https://github.com/tlambert03))
+
+**Fixed bugs:**
+
+- fix: use safer repr in warning [\#353](https://github.com/pyapp-kit/psygnal/pull/353) ([tlambert03](https://github.com/tlambert03))
+- fix: fix use of computed\_field setter with field\_dependencies [\#336](https://github.com/pyapp-kit/psygnal/pull/336) ([tlambert03](https://github.com/tlambert03))
+
+**Tests & CI:**
+
+- ci: fix wheel building [\#352](https://github.com/pyapp-kit/psygnal/pull/352) ([tlambert03](https://github.com/tlambert03))
+- ci: fixing-tests for pyside6 [\#314](https://github.com/pyapp-kit/psygnal/pull/314) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- refactor: update exception message [\#351](https://github.com/pyapp-kit/psygnal/pull/351) ([tlambert03](https://github.com/tlambert03))
+- docs: modified quickstart simple example [\#349](https://github.com/pyapp-kit/psygnal/pull/349) ([roynielsen17](https://github.com/roynielsen17))
+- ci\(pre-commit.ci\): autoupdate [\#344](https://github.com/pyapp-kit/psygnal/pull/344) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.21.3 to 2.22.0 [\#342](https://github.com/pyapp-kit/psygnal/pull/342) ([dependabot[bot]](https://github.com/apps/dependabot))
+- build: drop python 3.8 [\#341](https://github.com/pyapp-kit/psygnal/pull/341) ([tlambert03](https://github.com/tlambert03))
+- Update EventedModel docs and errors to refer `field_dependencies` [\#335](https://github.com/pyapp-kit/psygnal/pull/335) ([sjdemartini](https://github.com/sjdemartini))
+- bug: change stack level on warning for \_check\_nargs [\#333](https://github.com/pyapp-kit/psygnal/pull/333) ([tlambert03](https://github.com/tlambert03))
+- ci\(pre-commit.ci\): autoupdate [\#332](https://github.com/pyapp-kit/psygnal/pull/332) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.21.0 to 2.21.3 [\#329](https://github.com/pyapp-kit/psygnal/pull/329) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.20.0 to 2.21.0 [\#324](https://github.com/pyapp-kit/psygnal/pull/324) ([dependabot[bot]](https://github.com/apps/dependabot))
+- CI: Update host OS version, add Python 3.13 [\#323](https://github.com/pyapp-kit/psygnal/pull/323) ([EwoutH](https://github.com/EwoutH))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.19.2 to 2.20.0 [\#322](https://github.com/pyapp-kit/psygnal/pull/322) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(dependabot\): bump CodSpeedHQ/action from 2 to 3 [\#321](https://github.com/pyapp-kit/psygnal/pull/321) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.18.1 to 2.19.2 [\#318](https://github.com/pyapp-kit/psygnal/pull/318) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(pre-commit.ci\): autoupdate [\#317](https://github.com/pyapp-kit/psygnal/pull/317) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- ci\(pre-commit.ci\): autoupdate [\#313](https://github.com/pyapp-kit/psygnal/pull/313) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.18.0 to 2.18.1 [\#312](https://github.com/pyapp-kit/psygnal/pull/312) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(dependabot\): bump softprops/action-gh-release from 1 to 2 [\#310](https://github.com/pyapp-kit/psygnal/pull/310) ([dependabot[bot]](https://github.com/apps/dependabot))
+
 ## [v0.11.1](https://github.com/pyapp-kit/psygnal/tree/v0.11.1) (2024-05-07)
 
 [Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.11.0...v0.11.1)
