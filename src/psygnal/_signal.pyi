@@ -1,6 +1,7 @@
 import threading
-from collections.abc import Iterable, Iterator
-from contextlib import AbstractContextManager
+from collections import deque
+from collections.abc import Container, Iterable, Iterator
+from contextlib import AbstractContextManager, contextmanager
 from inspect import Signature
 from typing import (
     Any,
@@ -53,8 +54,8 @@ class Signal(Generic[Unpack[Ts]]):
     _check_nargs_on_connect: Incomplete
     _check_types_on_connect: Incomplete
     _reemission: Incomplete
-    _signal_instance_class: Incomplete
-    _signal_instance_cache: Incomplete
+    _signal_instance_class: type[SignalInstance]
+    _signal_instance_cache: dict[int, SignalInstance]
     _types: Incomplete
     def __init__(
         self,
@@ -83,6 +84,7 @@ class Signal(Generic[Unpack[Ts]]):
         self, instance: Any, name: str | None = None
     ) -> SignalInstance[Unpack[Ts]]: ...
     @classmethod
+    @contextmanager
     def _emitting(cls, emitter: SignalInstance) -> Iterator[None]: ...
     @classmethod
     def current_emitter(cls) -> SignalInstance | None: ...
@@ -93,25 +95,28 @@ class SignalInstance(Generic[Unpack[Ts]]):
     _is_blocked: bool
     _is_paused: bool
     _debug_hook: ClassVar[Callable[[EmissionInfo], None] | None]
+    _description: Incomplete
     _reemission: Incomplete
     _name: Incomplete
-    _instance: Incomplete
-    _args_queue: Incomplete
+    _instance: Callable
+    _args_queue: list[tuple]
     _types: Incomplete
+    _signature: Incomplete
     _check_nargs_on_connect: Incomplete
     _check_types_on_connect: Incomplete
-    _slots: Incomplete
+    _slots: list[WeakCallback]
     _lock: Incomplete
-    _emit_queue: Incomplete
+    _emit_queue: deque[tuple]
     _recursion_depth: int
     _max_recursion_depth: int
-    _run_emit_loop_inner: Incomplete
+    _run_emit_loop_inner: Callable[[], None]
     _priority_in_use: bool
     def __init__(
         self,
         types: tuple[Unpack[Ts]] | Signature = (),
         instance: Any = None,
         name: str | None = None,
+        description: str = "",
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
         reemission: ReemissionVal = ...,
@@ -124,6 +129,8 @@ class SignalInstance(Generic[Unpack[Ts]]):
     def instance(self) -> Any: ...
     @property
     def name(self) -> str: ...
+    @property
+    def description(self) -> str: ...
     def __repr__(self) -> str: ...
     @overload
     @overload
@@ -1341,6 +1348,7 @@ class SignalInstance(Generic[Unpack[Ts]]):
     def emit(
         self, *args: Any, check_nargs: bool = False, check_types: bool = False
     ) -> None: ...
+    def emit_fast(self, *args: Any) -> None: ...
     def __call__(
         self, *args: Any, check_nargs: bool = False, check_types: bool = False
     ) -> None: ...
@@ -1350,7 +1358,7 @@ class SignalInstance(Generic[Unpack[Ts]]):
     _caller: Incomplete
     def _run_emit_loop_latest_only(self) -> None: ...
     def _run_emit_loop_queued(self) -> None: ...
-    def block(self, exclude: Iterable[str | SignalInstance] = ()) -> None: ...
+    def block(self, exclude: Container[str | SignalInstance] = ()) -> None: ...
     def unblock(self) -> None: ...
     def blocked(self) -> AbstractContextManager[None]: ...
     def pause(self) -> None: ...
@@ -1368,7 +1376,7 @@ class _SignalBlocker:
     _exclude: Incomplete
     _was_blocked: Incomplete
     def __init__(
-        self, signal: SignalInstance, exclude: Iterable[str | SignalInstance] = ()
+        self, signal: SignalInstance, exclude: Container[str | SignalInstance] = ()
     ) -> None: ...
     def __enter__(self) -> None: ...
     def __exit__(self, *args: Any) -> None: ...
