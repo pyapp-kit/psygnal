@@ -67,6 +67,7 @@ dev = [
     "mypy",
     "mypy_extensions",
     "pre-commit",
+    "asv",
     "pytest-mypy-plugins",
     "ruff",
     "typing-extensions",
@@ -100,7 +101,7 @@ dependencies = [
     "hatch-mypyc>=0.13.0",
     "mypy",
     "mypy_extensions >=0.4.2",
-    "pydantic!=2.10.0",
+    "pydantic!=2.10.0",        # typing error in v2.10 prevents mypyc from working
     "types-attrs",
     "msgspec",
 ]
