@@ -54,5 +54,5 @@ def test_nested_containers(expr, expect, EventedClass):
     m.events.connect(mock)
 
     exec(expr)
-    info = cast(EmissionInfo, mock.call_args[0][0]).flatten()
+    info = cast("EmissionInfo", mock.call_args[0][0]).flatten()
     assert (info.args, info.loc) == expect
