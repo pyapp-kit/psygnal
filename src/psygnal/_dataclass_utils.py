@@ -4,7 +4,7 @@ import contextlib
 import dataclasses
 import sys
 import types
-from typing import TYPE_CHECKING, Any, Protocol, cast, overload
+from typing import TYPE_CHECKING, Any, Protocol, cast, no_type_check, overload
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -138,6 +138,7 @@ def is_frozen(obj: Any) -> bool:
     return False
 
 
+@no_type_check
 def iter_fields(
     cls: type, exclude_frozen: bool = True
 ) -> Iterator[tuple[str, type | None]]:
@@ -162,7 +163,7 @@ def iter_fields(
 
     if (dclass_fields := getattr(cls, "__dataclass_fields__", None)) is not None:
         for d_field in dclass_fields.values():
-            if d_field._field_type is dataclasses._FIELD:  # type: ignore [attr-defined]
+            if d_field._field_type is dataclasses._FIELD:
                 yield d_field.name, d_field.type
         return
 
@@ -172,7 +173,7 @@ def iter_fields(
                 if not p_field.frozen or not exclude_frozen:
                     yield field_name, p_field.annotation
         else:
-            for p_field in cls.__fields__.values():  # type: ignore [attr-defined]
+            for p_field in cls.__fields__.values():
                 if p_field.field_info.allow_mutation or not exclude_frozen:
                     yield p_field.name, p_field.outer_type_
         return
