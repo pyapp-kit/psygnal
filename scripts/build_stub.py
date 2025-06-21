@@ -53,10 +53,10 @@ connect_overloads: list[Sig] = []
 for nself in range(MAX_ARGS + 1):
     for ncallback in range(nself + 1):
         if nself:
-            self_types = ", ".join(f"type[_T{i+1}]" for i in range(nself))
+            self_types = ", ".join(f"type[_T{i + 1}]" for i in range(nself))
         else:
             self_types = "()"
-        arg_types = ", ".join(f"_T{i+1}" for i in range(ncallback))
+        arg_types = ", ".join(f"_T{i + 1}" for i in range(ncallback))
         slot_type = f"Callable[[{arg_types}], RetT]"
         connect_overloads.append(
             Sig(
@@ -95,7 +95,7 @@ if __name__ == "__main__":
 
     # make a temporary file to write to
     with TemporaryDirectory() as tmpdir:
-        subprocess.run(
+        subprocess.run(  # noqa: S603
             [  # noqa
                 "stubgen",
                 "--include-private",
