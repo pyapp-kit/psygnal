@@ -6,8 +6,6 @@ from collections.abc import Iterable, Iterator, Mapping, MutableMapping, Sequenc
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, TypeVar, Union, get_args
 
 if TYPE_CHECKING:
-    from inspect import Signature
-
     from typing_extensions import Self
 
 from psygnal._group import EmissionInfo, PathStep, SignalGroup
@@ -112,27 +110,28 @@ class DictSignalInstance(SignalInstance):
         return emission_info
 
 
-class _DictSignal(Signal):
-    def __init__(self, *types: type[Any] | Signature) -> None:
-        super().__init__(*types, signal_instance_class=DictSignalInstance)
-
-
 class DictEvents(SignalGroup):
     """Events available on [EventedDict][psygnal.containers.EventedDict]."""
 
-    adding = _DictSignal(object)  # (key, )
+    adding = Signal(object, signal_instance_class=DictSignalInstance)  # (key, )
     """`(key,)` emitted before an item is added at `key`"""
-    added = _DictSignal(object, object)  # (key, value)
+    added = Signal(
+        object, object, signal_instance_class=DictSignalInstance
+    )  # (key, value)
     """`(key, value)` emitted after a `value` is added at `key`"""
-    changing = _DictSignal(object)  # (key, )
+    changing = Signal(object, signal_instance_class=DictSignalInstance)  # (key, )
     """`(key, old_value, new_value)` emitted before `old_value` is replaced with
     `new_value` at `key`"""
-    changed = _DictSignal(object, object, object)  # (key, old_value, value)
+    changed = Signal(
+        object, object, object, signal_instance_class=DictSignalInstance
+    )  # (key, old_value, value)
     """`(key, old_value, new_value)` emitted before `old_value` is replaced with
     `new_value` at `key`"""
-    removing = _DictSignal(object)  # (key, )
+    removing = Signal(object, signal_instance_class=DictSignalInstance)  # (key, )
     """`(key,)` emitted before an item is removed at `key`"""
-    removed = _DictSignal(object, object)  # (key, value)
+    removed = Signal(
+        object, object, signal_instance_class=DictSignalInstance
+    )  # (key, value)
     """`(key, value)` emitted after `value` is removed at `key`"""
 
 

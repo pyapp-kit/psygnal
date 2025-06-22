@@ -45,8 +45,6 @@ _T = TypeVar("_T")
 Index = Union[int, slice]
 
 if TYPE_CHECKING:
-    from inspect import Signature
-
     from typing_extensions import Self
 
 
@@ -57,29 +55,24 @@ class ListSignalInstance(SignalInstance):
         return emission_info
 
 
-class _ListSignal(Signal):
-    def __init__(self, *types: type[Any] | Signature) -> None:
-        super().__init__(*types, signal_instance_class=ListSignalInstance)
-
-
 class ListEvents(SignalGroup):
     """Events available on [EventedList][psygnal.containers.EventedList]."""
 
-    inserting = _ListSignal(int)  # idx
+    inserting = Signal(int, signal_instance_class=ListSignalInstance)
     """`(index)` emitted before an item is inserted at `index`"""
-    inserted = _ListSignal(int, object)  # (idx, value)
+    inserted = Signal(int, object, signal_instance_class=ListSignalInstance)
     """`(index, value)` emitted after `value` is inserted at `index`"""
-    removing = _ListSignal(int)  # idx
+    removing = Signal(int, signal_instance_class=ListSignalInstance)
     """`(index)` emitted before an item is removed at `index`"""
-    removed = _ListSignal(int, object)  # (idx, value)
+    removed = Signal(int, object, signal_instance_class=ListSignalInstance)
     """`(index, value)` emitted after `value` is removed at `index`"""
-    moving = _ListSignal(int, int)  # (src_idx, dest_idx)
+    moving = Signal(int, int, signal_instance_class=ListSignalInstance)
     """`(index, new_index)` emitted before an item is moved from `index` to
     `new_index`"""
-    moved = _ListSignal(int, int, object)  # (src_idx, dest_idx, value)
+    moved = Signal(int, int, object, signal_instance_class=ListSignalInstance)
     """`(index, new_index, value)` emitted after `value` is moved from
     `index` to `new_index`"""
-    changed = _ListSignal(object, object, object)  # (int | slice, old, new)
+    changed = Signal(object, object, object, signal_instance_class=ListSignalInstance)
     """`(index_or_slice, old_value, value)` emitted when `index` is set from
     `old_value` to `value`"""
     reordered = Signal()

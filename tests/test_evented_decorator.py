@@ -361,8 +361,8 @@ def test_signal_relay_partial():
 
     t = T()
     a = set()
-    a.add(t.all._relay_partial("some_name"))
-    a.add(t.all._relay_partial("some_name"))
+    a.add(t.all._relay_partial(PathStep(attr="some_name")))
+    a.add(t.all._relay_partial(PathStep(attr="some_name")))
     assert len(a) == 1
 
-    assert t.all._relay_partial("some_name") in a
+    assert t.all._relay_partial(PathStep(attr="some_name")) in a
