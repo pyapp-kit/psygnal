@@ -487,7 +487,7 @@ class SignalGroupDescriptor:
         also "evented" (as determined by the `is_evented` function in this module,
         which returns True if the class has been decorated with `@evented`, or if it
         has a SignalGroupDescriptor) to the group on the parent object. By default
-        False.
+        True.
         This is useful for nested evented dataclasses, where you want to monitor events
         emitted from arbitrarily deep children on the parent object.
     signal_aliases: Mapping[str, str | None] | Callable[[str], str | None] | None
@@ -533,7 +533,7 @@ class SignalGroupDescriptor:
         patch_setattr: bool = True,
         signal_group_class: type[SignalGroup] | None = None,
         collect_fields: bool = True,
-        connect_child_events: bool = False,
+        connect_child_events: bool = True,
         signal_aliases: Mapping[str, str | None] | FieldAliasFunc | None = None,
     ):
         grp_cls = signal_group_class or SignalGroup

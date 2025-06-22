@@ -13,8 +13,8 @@ from psygnal import (
     Signal,
     SignalGroup,
     SignalInstance,
-    SignalRelay,
 )
+from psygnal._group import SignalRelay
 
 try:
     import pydantic.version
@@ -291,7 +291,7 @@ def test_name_conflicts() -> None:
     assert not isinstance(group["all"], SignalRelay)
 
     with pytest.raises(AttributeError):  # it's not writeable
-        group.all = SignalRelay({})
+        group.all = SignalRelay({})  # type: ignore
 
     assert group.psygnals_uniform() is False
 
