@@ -46,6 +46,18 @@ else:
 
 @dataclass(**SLOTS, frozen=True)
 class PathStep:
+    """A single step in a path to a nested signal.
+
+    This is used to represent a path to a signal that is nested inside an object,
+    such as when a signal is emitted from a nested object or a list.  The
+    `EmissionInfo.path` is a tuple of `PathStep` objects, where each `PathStep`
+    represents either:
+
+        - an attribute access (e.g. `.foo`)
+        - an index access (e.g. `[3]`)
+        - a key access (e.g. `['user']`)
+    """
+
     attr: str | None = None
     index: SupportsIndex | None = None
     key: Hashable | None = None
@@ -63,7 +75,7 @@ class PathStep:
             return f".{self.attr}"
 
         if self.index is not None:
-            return f"[{self.index}]"
+            return f"[{int(self.index)}]"
 
         if len(elided_repr := repr(self.key)) > 20:
             elided_repr = f"{elided_repr[:17]}..."
@@ -84,8 +96,9 @@ class EmissionInfo:
         A tuple of PathStep objects that describe the path to the signal that was
         emitted. This is useful for nested signals, where the path can be used to
         determine the hierarchy of the signals.  For example, if a signal is emitted
-        from a nested object, the path will contain the steps to get to that object,
-        such as (PathStep(attr='foo'), PathStep(index=3), PathStep(key='user')).
+        from a nested object like `bar.foo[3]['user']`, the path will contain the steps
+        to get to that object, such as (PathStep(attr='foo'), PathStep(index=3),
+        PathStep(key='user')).
     """
 
     signal: SignalInstance
