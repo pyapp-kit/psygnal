@@ -6,7 +6,7 @@ from unittest.mock import Mock, call
 import numpy as np
 import pytest
 
-from psygnal import EmissionInfo, Signal, SignalGroup
+from psygnal import EmissionInfo, PathStep, Signal, SignalGroup
 from psygnal.containers import EventedList
 
 
@@ -182,7 +182,7 @@ def test_slice(test_list, regular_list):
     assert str(e2.value) == "Can only assign an iterable to slice"
 
 
-def test_move(test_list: EventedList):
+def test_move(test_list: EventedList) -> None:
     """Test the that we can move objects with the move method"""
     test_list.events = cast("Mock", test_list.events)
 
@@ -322,11 +322,11 @@ def test_child_events():
     assert mock.call_count == 3
 
     expected = [
-        call(EmissionInfo(root.events.inserting, (0,), "inserting")),
-        call(EmissionInfo(root.events.inserted, (0, e_obj), "inserted")),
+        call(EmissionInfo(root.events.inserting, (0,), path=(PathStep(index=0),))),
+        call(EmissionInfo(root.events.inserted, (0, e_obj), path=(PathStep(index=0),))),
         call(
             EmissionInfo(
-                root.events.child_event, (0, e_obj, e_obj.test, ("hi",)), "child_event"
+                e_obj.test, ("hi",), path=(PathStep(index=0), PathStep(attr="test"))
             )
         ),
     ]
@@ -359,21 +359,15 @@ def test_child_events_groups():
     assert [c[0][0].signal.name for c in mock.call_args_list] == [
         "inserting",
         "inserted",
-        "child_event",
+        "test2",  # This is now the direct child signal, not child_event
     ]
 
     # when an object in the list owns an emitter group, then any emitter in that group
-    # will also be detected, and child_event will emit (index, sub-emitter, args)
+    # will also be detected, and the child event will be emitted directly with path info
     expected = [
-        call(EmissionInfo(root.events.inserting, (0,), "inserting")),
-        call(EmissionInfo(root.events.inserted, (0, e_obj), "inserted")),
-        call(
-            EmissionInfo(
-                root.events.child_event,
-                (0, e_obj, e_obj.events.test2, ("hi",)),
-                "child_event",
-            )
-        ),
+        call(EmissionInfo(root.events.inserting, (0,), path=(PathStep(index=0),))),
+        call(EmissionInfo(root.events.inserted, (0, e_obj), path=(PathStep(index=0),))),
+        call(EmissionInfo(e_obj.events.test2, ("hi",), path=(PathStep(index=0),))),
     ]
 
     # note that we can get back to the actual object in the list using the .instance

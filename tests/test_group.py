@@ -108,8 +108,8 @@ def test_signal_group_connect(direct: bool) -> None:
         expected_calls = [call(1), call("hi")]
     else:
         expected_calls = [
-            call(EmissionInfo(group.sig1, (1,), "sig1")),
-            call(EmissionInfo(group.sig2, ("hi",), "sig2")),
+            call(EmissionInfo(group.sig1, (1,))),
+            call(EmissionInfo(group.sig2, ("hi",))),
         ]
     mock.assert_has_calls(expected_calls)
 
@@ -138,7 +138,7 @@ def test_group_blocked() -> None:
     group.sig1.connect(mock2)
     group.sig1.emit(1)
 
-    mock1.assert_called_once_with(EmissionInfo(group.sig1, (1,), "sig1"))
+    mock1.assert_called_once_with(EmissionInfo(group.sig1, (1,)))
     mock2.assert_called_once_with(1)
 
     mock1.reset_mock()
@@ -279,12 +279,12 @@ def test_group_deepcopy(
     # test that emitting from the deepcopied group doesn't affect the original
     siginst2.emit(1)
     mock.assert_not_called()
-    mock2.assert_called_with(EmissionInfo(siginst2, (1,), signame))
+    mock2.assert_called_with(EmissionInfo(siginst2, (1,)))
 
     # test that emitting from the original group doesn't affect the deepcopied one
     mock2.reset_mock()
     siginst1.emit(1)
-    mock.assert_called_with(EmissionInfo(siginst1, (1,), signame))
+    mock.assert_called_with(EmissionInfo(siginst1, (1,)))
     mock2.assert_not_called()
 
 
@@ -407,7 +407,7 @@ def test_delayed_relay_connect() -> None:
 
     group.sig1.emit(1)
     mock.assert_called_once_with(1)
-    gmock.assert_called_once_with(EmissionInfo(group.sig1, (1,), "sig1"))
+    gmock.assert_called_once_with(EmissionInfo(group.sig1, (1,)))
 
     group.all.disconnect(gmock)
     assert len(group.sig1) == 1
@@ -446,8 +446,8 @@ def test_group_relay_passthrough() -> None:
     group.connect(mock1)
     group.all.connect(mock2)
     group.sig1.emit(1)
-    mock1.assert_called_once_with(EmissionInfo(group.sig1, (1,), "sig1"))
-    mock2.assert_called_once_with(EmissionInfo(group.sig1, (1,), "sig1"))
+    mock1.assert_called_once_with(EmissionInfo(group.sig1, (1,)))
+    mock2.assert_called_once_with(EmissionInfo(group.sig1, (1,)))
 
     mock1.reset_mock()
     mock2.reset_mock()

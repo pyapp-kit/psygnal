@@ -10,7 +10,9 @@ the args that were emitted.
 
 from __future__ import annotations
 
+import sys
 import warnings
+from dataclasses import dataclass
 from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
@@ -18,7 +20,7 @@ from typing import (
     Callable,
     ClassVar,
     Literal,
-    NamedTuple,
+    SupportsIndex,
     overload,
 )
 
@@ -28,7 +30,7 @@ from ._mypyc import mypyc_attr
 
 if TYPE_CHECKING:
     import threading
-    from collections.abc import Container, Iterable, Iterator, Mapping
+    from collections.abc import Container, Hashable, Iterable, Iterator, Mapping
     from contextlib import AbstractContextManager
 
     from psygnal._signal import F, ReducerFunc
@@ -36,8 +38,40 @@ if TYPE_CHECKING:
 
 __all__ = ["EmissionInfo", "SignalGroup"]
 
+if sys.version_info < (3, 10):
+    SLOTS = {}
+else:
+    SLOTS = {"slots": True}
 
-class EmissionInfo(NamedTuple):
+
+@dataclass(**SLOTS, frozen=True)
+class PathStep:
+    attr: str | None = None
+    index: SupportsIndex | None = None
+    key: Hashable | None = None
+
+    def __post_init__(self) -> None:
+        # enforce mutual exclusivity
+        if sum(x is not None for x in (self.attr, self.index, self.key)) != 1:
+            raise ValueError(
+                "PathStep must have exactly one of attr, index, or key set."
+            )
+
+    # nice debug display: .foo, [3], ['user']
+    def __repr__(self) -> str:  # pragma: no cover
+        if self.attr is not None:
+            return f".{self.attr}"
+
+        if self.index is not None:
+            return f"[{self.index}]"
+
+        if len(elided_repr := repr(self.key)) > 20:
+            elided_repr = f"{elided_repr[:17]}..."
+        return f"[{elided_repr}]"
+
+
+@dataclass(**SLOTS, frozen=True)
+class EmissionInfo:
     """Tuple containing information about an emission event.
 
     Attributes
@@ -46,27 +80,52 @@ class EmissionInfo(NamedTuple):
         The SignalInstance doing the emitting
     args: tuple
         The args that were emitted
-    loc: str | int | None | tuple[int | str, ...]
-        If the emitter was a `SignalGroup` attribute on another object, this
-        will be the location of that emitter on the parent (e.g. name of that attribute
-        or index if the parent was an evented sequence).  Otherwise, it will be `None`.
-        If this is a flattened EmissionInfo, then this will be a tuple of locations.
+    path: tuple[PathStep, ...]
+        A tuple of PathStep objects that describe the path to the signal that was
+        emitted. This is useful for nested signals, where the path can be used to
+        determine the hierarchy of the signals.  For example, if a signal is emitted
+        from a nested object, the path will contain the steps to get to that object,
+        such as (PathStep(attr='foo'), PathStep(index=3), PathStep(key='user')).
     """
 
     signal: SignalInstance
     args: tuple[Any, ...]
-    loc: str | int | None | tuple[int | str, ...] = None
+    path: tuple[PathStep, ...] = ()
+
+    def insert_path(self, *path: PathStep) -> EmissionInfo:
+        """Return a new EmissionInfo with the given path steps inserted at the front."""
+        return EmissionInfo(self.signal, self.args, (*path, *self.path))
+
+    def __post_init__(self) -> None:
+        if self.path and not all(
+            isinstance(p, (PathStep, str, int)) for p in self.path
+        ):
+            raise TypeError(
+                "EmissionInfo.path must be a tuple of PathStep objects, "
+                "or a tuple of str or int."
+            )
 
     def flatten(self) -> EmissionInfo:
-        """Return the final signal and args that were emitted."""
+        """Return an EmissionInfo for the innermost emission with full path."""
         info = self
-        path: list[int | str] = []
+        full_path: list[PathStep] = list(info.path)
         while info.args and isinstance(info.args[0], EmissionInfo):
-            if isinstance(info.loc, (str, int)):
-                path.append(info.loc)
-            info = info.args[0]
-        path.append(info.signal.name)
-        return EmissionInfo(info.signal, info.args, tuple(path))
+            nested = info.args[0]
+            full_path.extend(nested.path)
+            info = nested
+
+        return EmissionInfo(info.signal, info.args, tuple(full_path))
+
+    def __iter__(self) -> Iterator[Any]:
+        """Iterate over the EmissionInfo and all nested EmissionInfos."""
+        warnings.warn(
+            "`EmissionInfo.__iter__` is no longer a NamedTuple and should not be "
+            "iterated over.  Use direct attribute access instead.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        yield self.signal
+        yield self.args
 
 
 class SignalRelay(SignalInstance):
@@ -113,12 +172,24 @@ class SignalRelay(SignalInstance):
         for sig in self._signals.values():
             sig.disconnect(self._slot_relay)
 
-    def _slot_relay(self, *args: Any, loc: str | int | None = None) -> None:
-        if emitter := Signal.current_emitter():
-            info = EmissionInfo(emitter, args, loc or emitter.name)
-            self._run_emit_loop((info,))
+    def _slot_relay(self, *args: Any, loc: PathStep | None = None) -> None:
+        emitter = Signal.current_emitter()
+        if emitter is None:
+            return
 
-    def _relay_partial(self, loc: str | int | None) -> _relay_partial:
+        par_path = (loc,) if loc is not None else ()
+        # If child already gave us an EmissionInfo, use it;
+        if args and isinstance((info := args[0]), EmissionInfo):
+            child_info = info.insert_path(*par_path)
+        # else wrap its args unchanged
+        else:
+            child_info = emitter._psygnal_relocate_info_(
+                EmissionInfo(signal=emitter, args=args, path=par_path)
+            )
+
+        self._run_emit_loop((child_info,))
+
+    def _relay_partial(self, loc: PathStep | None) -> _relay_partial:
         """Return special partial that will call _slot_relay with 'loc'."""
         return _relay_partial(self, loc)
 
@@ -364,6 +435,11 @@ class SignalGroup:
         super().__init_subclass__()
 
     @property
+    def instance(self) -> Any:
+        """Object that own this `SignalGroup`."""
+        return self._psygnal_relay.instance
+
+    @property
     def all(self) -> SignalRelay:
         """SignalInstance that can be used to connect to all signals in this group.
 
@@ -429,7 +505,13 @@ class SignalGroup:
     def __repr__(self) -> str:
         """Return repr(self)."""
         name = self.__class__.__name__
-        return f"<SignalGroup {name!r} with {len(self)} signals>"
+
+        if self.instance is not None:
+            owner_type = type(self.instance).__name__
+            owner_repr = f" on <{owner_type} instance at {id(self.instance):#x}>"
+        else:
+            owner_repr = ""
+        return f"<SignalGroup {name!r}{owner_repr} with {len(self)} signals>"
 
     @classmethod
     def psygnals_uniform(cls) -> bool:
@@ -584,7 +666,7 @@ class _relay_partial:
 
     __slots__ = ("loc", "relay")
 
-    def __init__(self, relay: SignalRelay, loc: str | int | None = None) -> None:
+    def __init__(self, relay: SignalRelay, loc: PathStep | None = None) -> None:
         self.relay = relay
         self.loc = loc
 

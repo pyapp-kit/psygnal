@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from psygnal import EmissionInfo, SignalGroupDescriptor, evented
+from psygnal import EmissionInfo, PathStep, SignalGroupDescriptor, evented
 from psygnal.containers import EventedDict, EventedList, EventedSet
 
 EL2 = EventedList([10, 20, 30])
@@ -37,14 +37,22 @@ def EventedClass():
 @pytest.mark.parametrize(
     "expr, expect",
     [
-        ("m.a[1] = 12", ((1, 2, 12), ("a", "changed"))),
-        ("m.a = [0, 2]", (([0, 2], EL), ("a",))),
-        ("m.b['a'] = 3", (("a", 1, 3), ("b", "changed"))),
-        ("m.b = {'x': 11}", (({"x": 11}, ED), ("b",))),
-        ("m.c.add('w')", ((("w",), ()), ("c", "items_changed"))),
-        (r"m.c = {1}", (({1}, ES), ("c",))),
-        ("m.d.x = 12", ((12, 1), ("d", "x"))),
-        ("m.d = {'x': 1}", (({"x": 1}, A(x=1)), ("d",))),
+        # list element reassignment
+        ("m.a[1] = 12", ((1, 2, 12), (PathStep(attr="a"), PathStep(index=1)))),
+        # list attribute replaced wholesale
+        ("m.a = [0, 2]", (([0, 2], EL), (PathStep(attr="a"),))),
+        # dict item updated
+        ("m.b['a'] = 3", (("a", 1, 3), (PathStep(attr="b"), PathStep(key="a")))),
+        # dataclass attribute replaced
+        ("m.b = {'x': 11}", (({"x": 11}, ED), (PathStep(attr="b"),))),
+        # set mutated
+        ("m.c.add('w')", ((("w",), ()), (PathStep(attr="c"),))),
+        # set attribute replaced wholesale
+        (r"m.c = {1}", (({1}, ES), (PathStep(attr="c"),))),
+        # nested dataclass field change
+        ("m.d.x = 12", ((12, 1), (PathStep(attr="d"), PathStep(attr="x")))),
+        # dataclass attribute replaced wholesale
+        ("m.d = {'x': 1}", (({"x": 1}, A(x=1)), (PathStep(attr="d"),))),
     ],
 )
 def test_nested_containers(expr, expect, EventedClass):
@@ -54,5 +62,6 @@ def test_nested_containers(expr, expect, EventedClass):
     m.events.connect(mock)
 
     exec(expr)
-    info = cast("EmissionInfo", mock.call_args[0][0]).flatten()
-    assert (info.args, info.loc) == expect
+    info = cast("EmissionInfo", mock.call_args[0][0])
+    flattened = info.flatten()
+    assert (flattened.args, flattened.path) == expect

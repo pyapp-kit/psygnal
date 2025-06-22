@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from psygnal import EmissionInfo, Signal, SignalGroup, SignalInstance
-from psygnal._group import SignalRelay
+from psygnal._group import PathStep, SignalRelay
 
 try:
     import pydantic.version
@@ -340,14 +340,17 @@ def test_nesting() -> None:
     baz.bar.foo.x = 3  # trigger nested event
 
     # what we expect
-    inner_inner_info = EmissionInfo(baz.bar.foo.events.x, (3, 1), "x")
-    inner_info = EmissionInfo(baz.bar.foo.events.all, (inner_inner_info,), "foo")
-    expected = EmissionInfo(baz.bar.events.all, (inner_info,), "bar")
-    info: EmissionInfo = mock.call_args[0][0]
+    expected = EmissionInfo(
+        baz.bar.foo.events.x,
+        (3, 1),
+        path=(
+            PathStep(attr="bar"),  # Baz → bar
+            PathStep(attr="foo"),  # bar  → foo
+            PathStep(attr="x"),  # foo  → x   (added by SignalRelay inside Foo)
+        ),
+    )
 
     mock.assert_called_with(expected)
-
-    assert info.flatten().loc == ("bar", "foo", "x")
 
 
 def test_signal_relay_partial():

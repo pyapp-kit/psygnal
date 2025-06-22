@@ -19,7 +19,7 @@ from typing import (
 )
 
 from ._dataclass_utils import iter_fields
-from ._group import SignalGroup
+from ._group import PathStep, SignalGroup
 from ._signal import Signal, SignalInstance
 
 if TYPE_CHECKING:
@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 
     from typing_extensions import TypeAlias
 
+    from psygnal._group import EmissionInfo
     from psygnal._weak_callback import RefErrorChoice, WeakCallback
 
     EqOperator: TypeAlias = Callable[[Any, Any], bool]
@@ -144,6 +145,9 @@ class _DataclassFieldSignalInstance(SignalInstance):
         return super().connect_setattr(
             obj, attr, maxargs, on_ref_error=on_ref_error, priority=priority
         )
+
+    def _psygnal_relocate_info_(self, emission_info: EmissionInfo) -> EmissionInfo:
+        return emission_info.insert_path(PathStep(attr=self.name))
 
 
 def _build_dataclass_signal_group(
@@ -705,9 +709,9 @@ def connect_child_events(
     for loc, attr_type in iter_fields(type(obj), exclude_frozen=True):
         if is_evented(attr_type):
             child = getattr(obj, loc, None)
-            if (child_group := _find_signal_group(child)) is not None:
+            if child and (child_group := _find_signal_group(child)) is not None:
                 child_group.connect(
-                    _group._psygnal_relay._relay_partial(loc),
+                    _group._psygnal_relay._relay_partial(PathStep(attr=loc)),
                     check_nargs=False,
                     check_types=False,
                     on_ref_error="ignore",  # compiled objects are not weakref-able

@@ -6,10 +6,12 @@ from collections.abc import Iterable, Iterator, Mapping, MutableMapping, Sequenc
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, TypeVar, Union, get_args
 
 if TYPE_CHECKING:
+    from inspect import Signature
+
     from typing_extensions import Self
 
-from psygnal._group import SignalGroup
-from psygnal._signal import Signal
+from psygnal._group import EmissionInfo, PathStep, SignalGroup
+from psygnal._signal import Signal, SignalInstance
 
 _K = TypeVar("_K")
 _V = TypeVar("_V")
@@ -103,22 +105,34 @@ class TypedMutableMapping(MutableMapping[_K, _V]):
         )
 
 
+class DictSignalInstance(SignalInstance):
+    def _psygnal_relocate_info_(self, emission_info: EmissionInfo) -> EmissionInfo:
+        if args := emission_info.args:
+            return emission_info.insert_path(PathStep(key=args[0]))
+        return emission_info
+
+
+class _DictSignal(Signal):
+    def __init__(self, *types: type[Any] | Signature) -> None:
+        super().__init__(*types, signal_instance_class=DictSignalInstance)
+
+
 class DictEvents(SignalGroup):
     """Events available on [EventedDict][psygnal.containers.EventedDict]."""
 
-    adding = Signal(object)  # (key, )
+    adding = _DictSignal(object)  # (key, )
     """`(key,)` emitted before an item is added at `key`"""
-    added = Signal(object, object)  # (key, value)
+    added = _DictSignal(object, object)  # (key, value)
     """`(key, value)` emitted after a `value` is added at `key`"""
-    changing = Signal(object)  # (key, )
+    changing = _DictSignal(object)  # (key, )
     """`(key, old_value, new_value)` emitted before `old_value` is replaced with
     `new_value` at `key`"""
-    changed = Signal(object, object, object)  # (key, old_value, value)
+    changed = _DictSignal(object, object, object)  # (key, old_value, value)
     """`(key, old_value, new_value)` emitted before `old_value` is replaced with
     `new_value` at `key`"""
-    removing = Signal(object)  # (key, )
+    removing = _DictSignal(object)  # (key, )
     """`(key,)` emitted before an item is removed at `key`"""
-    removed = Signal(object, object)  # (key, value)
+    removed = _DictSignal(object, object)  # (key, value)
     """`(key, value)` emitted after `value` is removed at `key`"""
 
 

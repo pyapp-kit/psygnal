@@ -37,7 +37,7 @@ from typing import (
     overload,
 )
 
-from psygnal._group import EmissionInfo, SignalGroup, SignalRelay
+from psygnal._group import EmissionInfo, PathStep, SignalGroup
 from psygnal._signal import Signal, SignalInstance
 from psygnal.utils import iter_signal_instances
 
@@ -45,33 +45,47 @@ _T = TypeVar("_T")
 Index = Union[int, slice]
 
 if TYPE_CHECKING:
+    from inspect import Signature
+
     from typing_extensions import Self
+
+
+class ListSignalInstance(SignalInstance):
+    def _psygnal_relocate_info_(self, emission_info: EmissionInfo) -> EmissionInfo:
+        if args := emission_info.args:
+            return emission_info.insert_path(PathStep(index=args[0]))
+        return emission_info
+
+
+class _ListSignal(Signal):
+    def __init__(self, *types: type[Any] | Signature) -> None:
+        super().__init__(*types, signal_instance_class=ListSignalInstance)
 
 
 class ListEvents(SignalGroup):
     """Events available on [EventedList][psygnal.containers.EventedList]."""
 
-    inserting = Signal(int)  # idx
+    inserting = _ListSignal(int)  # idx
     """`(index)` emitted before an item is inserted at `index`"""
-    inserted = Signal(int, object)  # (idx, value)
+    inserted = _ListSignal(int, object)  # (idx, value)
     """`(index, value)` emitted after `value` is inserted at `index`"""
-    removing = Signal(int)  # idx
+    removing = _ListSignal(int)  # idx
     """`(index)` emitted before an item is removed at `index`"""
-    removed = Signal(int, object)  # (idx, value)
+    removed = _ListSignal(int, object)  # (idx, value)
     """`(index, value)` emitted after `value` is removed at `index`"""
-    moving = Signal(int, int)  # (src_idx, dest_idx)
+    moving = _ListSignal(int, int)  # (src_idx, dest_idx)
     """`(index, new_index)` emitted before an item is moved from `index` to
     `new_index`"""
-    moved = Signal(int, int, object)  # (src_idx, dest_idx, value)
+    moved = _ListSignal(int, int, object)  # (src_idx, dest_idx, value)
     """`(index, new_index, value)` emitted after `value` is moved from
     `index` to `new_index`"""
-    changed = Signal(object, object, object)  # (int | slice, old, new)
+    changed = _ListSignal(object, object, object)  # (int | slice, old, new)
     """`(index_or_slice, old_value, value)` emitted when `index` is set from
     `old_value` to `value`"""
     reordered = Signal()
     """Emitted when the list is reordered (eg. moved/reversed)."""
-    child_event = Signal(int, object, SignalInstance, tuple)
-    """`(index, object, emitter, args)` emitted when an object in the list emits an
+    child_event = Signal(EmissionInfo)
+    """`(EmissionInfo)` emitted when an object in the list emits an
     event. Note that the `EventedList` must be created with `child_events=True` in
     order for this to be emitted.
     """
@@ -115,7 +129,7 @@ class EventedList(MutableSequence[_T]):
         self._data: list[_T] = []
         self._hashable = hashable
         self._child_events = child_events
-        self.events = ListEvents()
+        self.events = ListEvents(instance=self)
         self.extend(data)
 
     # WAIT!! ... Read the module docstring before reimplement these methods
@@ -406,14 +420,20 @@ class EventedList(MutableSequence[_T]):
         except ValueError:  # pragma: no cover
             return
 
-        if (
-            args
-            and isinstance(emitter, SignalRelay)
-            and isinstance(args[0], EmissionInfo)
-        ):
-            emitter, args, *_ = args[0]
+        if args and isinstance(args[0], EmissionInfo):
+            child_info = EmissionInfo(
+                signal=args[0].signal,
+                args=args[0].args,
+                path=(PathStep(index=idx), *args[0].path),
+            )
+        else:
+            child_info = EmissionInfo(
+                signal=emitter,
+                args=args,
+                path=(PathStep(index=idx), PathStep(attr=emitter.name)),
+            )
 
-        self.events.child_event.emit(idx, obj, emitter, args)
+        self.events.child_event.emit(child_info)
 
     # PYDANTIC SUPPORT
 

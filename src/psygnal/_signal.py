@@ -300,13 +300,14 @@ class Signal:
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
         reemission: ReemissionVal = DEFAULT_REEMISSION,
+        signal_instance_class: type[SignalInstance] | None = None,
     ) -> None:
         self._name = name
         self.description = description
         self._check_nargs_on_connect = check_nargs_on_connect
         self._check_types_on_connect = check_types_on_connect
         self._reemission = reemission
-        self._signal_instance_class: type[SignalInstance] = SignalInstance
+        self._signal_instance_class = signal_instance_class or SignalInstance
         self._signal_instance_cache: dict[int, SignalInstance] = {}
 
         if types and isinstance(types[0], Signature):
@@ -1509,6 +1510,10 @@ class SignalInstance:
             self._run_emit_loop_inner = self._run_emit_loop_latest_only
         else:
             self._run_emit_loop_inner = self._run_emit_loop_immediate
+
+    def _psygnal_relocate_info_(self, emission_info: EmissionInfo) -> EmissionInfo:
+        """Hook to modify emission info before it is emitted."""
+        return emission_info
 
 
 class _SignalBlocker:
