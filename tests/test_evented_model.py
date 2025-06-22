@@ -224,7 +224,7 @@ def test_values_updated() -> None:
     # connected to it.  see test_comparison_count below...
     user1_events.assert_has_calls(
         [
-            call(EmissionInfo(user1.events.id, (1,))),
+            call(EmissionInfo(signal=user1.events.id, args=(1,))),
             # call(EmissionInfo(signal=user1.events.user_name, args=("K",))),
         ]
     )
