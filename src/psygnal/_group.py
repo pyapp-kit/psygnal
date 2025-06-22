@@ -118,17 +118,6 @@ class EmissionInfo:
                 "or a tuple of str or int."
             )
 
-    def flatten(self) -> EmissionInfo:
-        """Return an EmissionInfo for the innermost emission with full path."""
-        info = self
-        full_path: list[PathStep] = list(info.path)
-        while info.args and isinstance(info.args[0], EmissionInfo):
-            nested = info.args[0]
-            full_path.extend(nested.path)
-            info = nested
-
-        return EmissionInfo(info.signal, info.args, tuple(full_path))
-
     def __iter__(self) -> Iterator[Any]:  # pragma: no cover
         """Iterate over the EmissionInfo and all nested EmissionInfos."""
         warnings.warn(
