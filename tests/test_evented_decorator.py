@@ -7,8 +7,14 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 
-from psygnal import EmissionInfo, Signal, SignalGroup, SignalInstance
-from psygnal._group import PathStep, SignalRelay
+from psygnal import (
+    EmissionInfo,
+    PathStep,
+    Signal,
+    SignalGroup,
+    SignalInstance,
+    SignalRelay,
+)
 
 try:
     import pydantic.version
