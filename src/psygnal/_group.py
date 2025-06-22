@@ -129,7 +129,7 @@ class EmissionInfo:
 
         return EmissionInfo(info.signal, info.args, tuple(full_path))
 
-    def __iter__(self) -> Iterator[Any]:
+    def __iter__(self) -> Iterator[Any]:  # pragma: no cover
         """Iterate over the EmissionInfo and all nested EmissionInfos."""
         warnings.warn(
             "`EmissionInfo.__iter__` is no longer a NamedTuple and should not be "
