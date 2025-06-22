@@ -22,11 +22,9 @@ def evented(
     equality_operators: dict[str, EqOperator] | None = None,
     warn_on_no_fields: bool = ...,
     cache_on_instance: bool = ...,
-    connect_child_events: bool = True,
+    connect_child_events: bool = ...,
     signal_aliases: Mapping[str, str | None] | FieldAliasFunc | None = ...,
 ) -> T: ...
-
-
 @overload
 def evented(
     cls: Literal[None] | None = None,
@@ -35,11 +33,9 @@ def evented(
     equality_operators: dict[str, EqOperator] | None = None,
     warn_on_no_fields: bool = ...,
     cache_on_instance: bool = ...,
-    connect_child_events: bool = True,
+    connect_child_events: bool = ...,
     signal_aliases: Mapping[str, str | None] | FieldAliasFunc | None = ...,
 ) -> Callable[[T], T]: ...
-
-
 def evented(
     cls: T | None = None,
     *,
@@ -93,7 +89,7 @@ def evented(
         also "evented" (as determined by the `psygnal.is_evented` function,
         which returns True if the class has been decorated with `@evented`, or if it
         has a SignalGroupDescriptor) to the group on the parent object. By default
-        False.
+        True.
         This is useful for nested evented dataclasses, where you want to monitor events
         emitted from arbitrarily deep children on the parent object.
     signal_aliases: Mapping[str, str | None] | Callable[[str], str | None] | None
