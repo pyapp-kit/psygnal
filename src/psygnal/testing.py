@@ -7,13 +7,14 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock
 from unittest.util import safe_repr
 
+from psygnal import SignalGroup, SignalInstance
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from typing import Any
 
     from typing_extensions import Self
 
-    import psygnal
 
 __all__ = [
     "SignalTester",
@@ -29,7 +30,7 @@ __all__ = [
 class SignalTester:
     """A tester object that listens to a signal and records its emissions.
 
-    This class wraps a [`psygnal.SignalInstance`][] and a [`unittest.mock.Mock`][]
+    This class wraps a [`SignalInstance`][] and a [`unittest.mock.Mock`][]
     object. It provides methods to connect and disconnect the mock from the signal, and
     to assert that the signal was emitted with the expected arguments.  It also behaves
     as a **context manager**, so you can monitor emissions of a signal within a specific
@@ -43,13 +44,13 @@ class SignalTester:
 
     Parameters
     ----------
-    signal_instance : psygnal.SignalInstance
-        The signal instance to test.
+    signal_instance : SignalInstance
+        The signal instance or group to test.
 
     Attributes
     ----------
-    signal_instance : psygnal.SignalInstance
-        The signal instance to test.
+    signal_instance : SignalInstance
+        The signal instance or group to test.
     mock : unittest.mock.Mock
         The mock object that will be connected to the signal.
 
@@ -80,10 +81,14 @@ class SignalTester:
     ```
     """
 
-    def __init__(self, signal_instance: psygnal.SignalInstance) -> None:
+    def __init__(self, signal: SignalInstance | SignalGroup) -> None:
         super().__init__()
         self.mock = Mock()
-        self.signal_instance = signal_instance
+        if isinstance(signal, SignalGroup):
+            signal_instance: SignalInstance = signal._psygnal_relay
+        else:
+            signal_instance = signal
+        self.signal_instance: SignalInstance = signal_instance
 
     def reset(self) -> None:
         """Reset the underlying mock object."""
@@ -201,13 +206,13 @@ class SignalTester:
 
 
 @contextmanager
-def assert_emitted(signal: psygnal.SignalInstance) -> Iterator[SignalTester]:
+def assert_emitted(signal: SignalInstance | SignalGroup) -> Iterator[SignalTester]:
     """Assert that a signal was emitted at least once.
 
     Parameters
     ----------
-    signal : psygnal.SignalInstance
-        The signal instance to test.
+    signal : SignalInstance | SignalGroup
+        The signal instance or group to test.
 
     Raises
     ------
@@ -220,13 +225,13 @@ def assert_emitted(signal: psygnal.SignalInstance) -> Iterator[SignalTester]:
 
 
 @contextmanager
-def assert_emitted_once(signal: psygnal.SignalInstance) -> Iterator[SignalTester]:
+def assert_emitted_once(signal: SignalInstance | SignalGroup) -> Iterator[SignalTester]:
     """Assert that a signal was emitted exactly once.
 
     Parameters
     ----------
-    signal : psygnal.SignalInstance
-        The signal instance to test.
+    signal : SignalInstance | SignalGroup
+        The signal instance or group to test.
 
     Raises
     ------
@@ -239,13 +244,13 @@ def assert_emitted_once(signal: psygnal.SignalInstance) -> Iterator[SignalTester
 
 
 @contextmanager
-def assert_not_emitted(signal: psygnal.SignalInstance) -> Iterator[SignalTester]:
+def assert_not_emitted(signal: SignalInstance | SignalGroup) -> Iterator[SignalTester]:
     """Assert that a signal was never emitted.
 
     Parameters
     ----------
-    signal : psygnal.SignalInstance
-        The signal instance to test.
+    signal : SignalInstance | SignalGroup
+        The signal instance or group to test.
 
     Raises
     ------
@@ -259,14 +264,14 @@ def assert_not_emitted(signal: psygnal.SignalInstance) -> Iterator[SignalTester]
 
 @contextmanager
 def assert_emitted_with(
-    signal: psygnal.SignalInstance, *args: Any
+    signal: SignalInstance | SignalGroup, *args: Any
 ) -> Iterator[SignalTester]:
     """Assert that the *last* emission of the signal had the given arguments.
 
     Parameters
     ----------
-    signal : psygnal.SignalInstance
-        The signal instance to test.
+    signal : SignalInstance | SignalGroup
+        The signal instance or group to test.
     args : Any
         The arguments to check for in the last emission of the signal.
 
@@ -283,14 +288,14 @@ def assert_emitted_with(
 
 @contextmanager
 def assert_emitted_once_with(
-    signal: psygnal.SignalInstance, *args: Any
+    signal: SignalInstance | SignalGroup, *args: Any
 ) -> Iterator[SignalTester]:
     """Assert that the signal was emitted exactly once with the given arguments.
 
     Parameters
     ----------
-    signal : psygnal.SignalInstance
-        The signal instance to test.
+    signal : SignalInstance | SignalGroup
+        The signal instance or group to test.
     args : Any
         The arguments to check for in the last emission of the signal.
 
@@ -307,14 +312,14 @@ def assert_emitted_once_with(
 
 @contextmanager
 def assert_ever_emitted_with(
-    signal: psygnal.SignalInstance, *args: Any
+    signal: SignalInstance | SignalGroup, *args: Any
 ) -> Iterator[SignalTester]:
     """Assert that the signal was emitted *ever* with the given arguments.
 
     Parameters
     ----------
-    signal : psygnal.SignalInstance
-        The signal instance to test.
+    signal : SignalInstance | SignalGroup
+        The signal instance or group to test.
     args : Any
         The arguments to check for in any emission of the signal.
 
