@@ -320,7 +320,7 @@ class SignalRelay(SignalInstance):
             for i, s in enumerate(self._slots):
                 if s.dereference() == slot:
                     return i
-            return -1
+            return -1  # pragma: no cover
 
 
 # NOTE
