@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator, Mapping, MutableMapping, Sequence
+from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, ClassVar, TypeVar, Union, get_args
 
 if TYPE_CHECKING:
@@ -114,28 +115,25 @@ class DictSignalInstance(SignalInstance):
         return emission_info
 
 
+DictSignal = partial(Signal, signal_instance_class=DictSignalInstance)
+
+
 class DictEvents(SignalGroup):
     """Events available on [EventedDict][psygnal.containers.EventedDict]."""
 
-    adding = Signal(object, signal_instance_class=DictSignalInstance)  # (key, )
+    adding = DictSignal(object)  # (key, )
     """`(key,)` emitted before an item is added at `key`"""
-    added = Signal(
-        object, object, signal_instance_class=DictSignalInstance
-    )  # (key, value)
+    added = DictSignal(object, object)  # (key, value)
     """`(key, value)` emitted after a `value` is added at `key`"""
-    changing = Signal(object, signal_instance_class=DictSignalInstance)  # (key, )
+    changing = DictSignal(object)  # (key, )
     """`(key, old_value, new_value)` emitted before `old_value` is replaced with
     `new_value` at `key`"""
-    changed = Signal(
-        object, object, object, signal_instance_class=DictSignalInstance
-    )  # (key, old_value, value)
+    changed = DictSignal(object, object, object)  # (key, old_value, value)
     """`(key, old_value, new_value)` emitted before `old_value` is replaced with
     `new_value` at `key`"""
-    removing = Signal(object, signal_instance_class=DictSignalInstance)  # (key, )
+    removing = DictSignal(object)  # (key, )
     """`(key,)` emitted before an item is removed at `key`"""
-    removed = Signal(
-        object, object, signal_instance_class=DictSignalInstance
-    )  # (key, value)
+    removed = DictSignal(object, object)  # (key, value)
     """`(key, value)` emitted after `value` is removed at `key`"""
 
 

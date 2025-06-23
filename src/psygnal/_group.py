@@ -148,6 +148,11 @@ class SignalRelay(SignalInstance):
         super().__init__(signature=(EmissionInfo,), instance=instance)
         self._signals = MappingProxyType(signals)
         self._sig_was_blocked: dict[str, bool] = {}
+        self._on_first_connect_callbacks: list[Callable[[], None]] = []
+
+    def add_on_first_connect_callback(self, callback: Callable[[], None]) -> None:
+        """Add a callback to be called when the first slot is connected."""
+        self._on_first_connect_callbacks.append(callback)
 
     def _append_slot(self, slot: WeakCallback) -> None:
         super()._append_slot(slot)
@@ -155,6 +160,10 @@ class SignalRelay(SignalInstance):
             self._connect_relay()
 
     def _connect_relay(self) -> None:
+        # Call any registered callbacks on first connection
+        for callback in self._on_first_connect_callbacks:
+            callback()
+
         # silence any warnings about failed weakrefs (will occur in compiled version)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")

@@ -25,6 +25,7 @@ cover this in test_evented_list.py)
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, MutableSequence
+from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -41,11 +42,11 @@ from psygnal._group import EmissionInfo, PathStep, SignalGroup
 from psygnal._signal import Signal, SignalInstance
 from psygnal.utils import iter_signal_instances
 
-_T = TypeVar("_T")
-Index = Union[int, slice]
-
 if TYPE_CHECKING:
     from typing_extensions import Self
+
+_T = TypeVar("_T")
+Index = Union[int, slice]
 
 
 class ListSignalInstance(SignalInstance):
@@ -59,24 +60,27 @@ class ListSignalInstance(SignalInstance):
         return emission_info
 
 
+ListSignal = partial(Signal, signal_instance_class=ListSignalInstance)
+
+
 class ListEvents(SignalGroup):
     """Events available on [EventedList][psygnal.containers.EventedList]."""
 
-    inserting = Signal(int, signal_instance_class=ListSignalInstance)
+    inserting = ListSignal(int)
     """`(index)` emitted before an item is inserted at `index`"""
-    inserted = Signal(int, object, signal_instance_class=ListSignalInstance)
+    inserted = ListSignal(int, object)
     """`(index, value)` emitted after `value` is inserted at `index`"""
-    removing = Signal(int, signal_instance_class=ListSignalInstance)
+    removing = ListSignal(int)
     """`(index)` emitted before an item is removed at `index`"""
-    removed = Signal(int, object, signal_instance_class=ListSignalInstance)
+    removed = ListSignal(int, object)
     """`(index, value)` emitted after `value` is removed at `index`"""
-    moving = Signal(int, int, signal_instance_class=ListSignalInstance)
+    moving = ListSignal(int, int)
     """`(index, new_index)` emitted before an item is moved from `index` to
     `new_index`"""
-    moved = Signal(int, int, object, signal_instance_class=ListSignalInstance)
+    moved = ListSignal(int, int, object)
     """`(index, new_index, value)` emitted after `value` is moved from
     `index` to `new_index`"""
-    changed = Signal(object, object, object, signal_instance_class=ListSignalInstance)
+    changed = ListSignal(object, object, object)
     """`(index_or_slice, old_value, value)` emitted when `index` is set from
     `old_value` to `value`"""
     reordered = Signal()

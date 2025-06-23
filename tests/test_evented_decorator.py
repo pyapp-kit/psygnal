@@ -1,7 +1,7 @@
 import operator
 import sys
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, no_type_check
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, ClassVar, cast, no_type_check
 from unittest.mock import Mock
 
 import numpy as np
@@ -372,3 +372,106 @@ def test_signal_relay_partial():
     assert len(a) == 1
 
     assert t.all._relay_partial(PathStep(attr="some_name")) in a
+
+
+def test_evented_object_replacement_disconnects_old_connections():
+    """Test that replacing evented objects properly disconnects the old one."""
+
+    @evented
+    @dataclass
+    class A:
+        x: int = 1
+
+    @dataclass
+    class M:
+        events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor(
+            connect_child_events=True
+        )
+        d: A = field(default_factory=A)
+
+    m = M()
+
+    # Connect to the main events
+    main_mock = Mock()
+    m.events.connect(main_mock)
+
+    # Get references to the original and new evented objects
+    original_d = m.d
+    new_d = A(x=99)
+
+    # Connect directly to the original object's events to verify disconnection
+    original_mock = Mock()
+    original_d.events.connect(original_mock)
+
+    # Replace the evented object
+    m.d = new_d
+
+    # Verify the replacement was detected by the main events
+    assert main_mock.call_count == 1
+    replacement_info = cast("EmissionInfo", main_mock.call_args[0][0])
+    assert replacement_info.args == (new_d, original_d)
+    assert replacement_info.path == (PathStep(attr="d"),)
+
+    # Now modify the NEW object - should trigger events through the parent
+    main_mock.reset_mock()
+    new_d.x = 42
+
+    # The main events should receive the nested change
+    assert main_mock.call_count == 1
+    nested_info = cast("EmissionInfo", main_mock.call_args[0][0])
+    assert nested_info.args == (42, 99)
+    assert nested_info.path == (PathStep(attr="d"), PathStep(attr="x"))
+
+    # Now modify the OLD object - should NOT trigger events through the parent
+    # because it should have been disconnected
+    main_mock.reset_mock()
+    original_d.x = 123
+
+    # The original object's direct listeners should still work
+    assert original_mock.call_count == 1
+
+    # But the main events should NOT have been triggered (disconnected)
+    assert main_mock.call_count == 0
+
+
+def test_lazy_child_connection() -> None:
+    """Test that child events are only connected when parent is first connected to."""
+
+    @evented
+    @dataclass
+    class Child:
+        y: int = 2
+
+    @evented
+    @dataclass
+    class Parent:
+        child: Child
+        x: int = 1
+
+    # Create parent with child
+    child = Child()
+    parent = Parent(child=child)
+
+    # Before any connections, neither should have relay slots
+    assert len(parent.events.all) == 0
+    assert len(child.events.all) == 0
+
+    # Connect to parent events - this should trigger child event connection lazily
+    events_received = []
+
+    def listener(info):
+        events_received.append(info)
+
+    parent.events.all.connect(listener)
+
+    # After connection
+    # parent should have our listener, child should have relay connection
+    assert len(parent.events.all) == 1
+    assert len(child.events.all) == 1
+
+    # Test that child events propagate to parent
+    child.y = 10
+
+    assert len(events_received) == 1
+    assert events_received[0].args == (10, 2)  # new value, old value
+    assert str(events_received[0].path) == "(.child, .y)"

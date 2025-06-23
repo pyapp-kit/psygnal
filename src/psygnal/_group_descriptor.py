@@ -497,12 +497,12 @@ class SignalGroupDescriptor:
         Default to True
     connect_child_events : bool, optional
         If `True`, will connect events from all fields on the dataclass whose type is
-        also "evented" (as determined by the `is_evented` function in this module,
-        which returns True if the class has been decorated with `@evented`, or if it
-        has a SignalGroupDescriptor) to the group on the parent object. By default
-        True.
+        also "evented" to the group on the parent object. An object is considered
+        "evented" if the `is_evented` function returns `True` for it (i.e. it has
+        been decorated with `@evented`, or if it has a SignalGroupDescriptor).
         This is useful for nested evented dataclasses, where you want to monitor events
         emitted from arbitrarily deep children on the parent object.
+        By default True.
     signal_aliases: Mapping[str, str | None] | Callable[[str], str | None] | None
         If defined, a mapping between field name and signal name. Field names that are
         not `signal_aliases` keys are not aliased (the signal name is the field name).
@@ -646,10 +646,11 @@ class SignalGroupDescriptor:
             with suppress(TypeError):  # if it's not weakref-able
                 weakref.finalize(instance, self._instance_map.pop, obj_id, None)
 
-            # setup nested event emission if requested
+            # Register callback to connect child events on first connection if requested
             if self._connect_child_events:
-                # TODO: expose "recurse" somehow?
-                connect_child_events(instance, recurse=True, _group=grp)
+                grp._psygnal_relay._on_first_connect_callbacks.append(
+                    lambda: connect_child_events(instance, recurse=True, _group=grp)
+                )
 
         return self._instance_map[obj_id]
 
@@ -729,6 +730,19 @@ def connect_child_events(
         )
 
 
+def _connect_if_evented(obj: Any, callback: Callable, recurse: bool) -> None:
+    """Connect a `callback` to the signal group on `obj`."""
+    if (signal_group := _find_signal_group(obj)) is not None:
+        signal_group.connect(
+            callback,
+            check_nargs=False,
+            check_types=False,
+            on_ref_error="ignore",  # compiled objects are not weakref-able
+        )
+        if recurse:
+            connect_child_events(obj, recurse=True, _group=signal_group)
+
+
 def _handle_child_event_connections(
     old_value: Any, new_value: Any, callback: Callable
 ) -> None:
@@ -741,16 +755,3 @@ def _handle_child_event_connections(
         old_group.disconnect(callback)
 
     _connect_if_evented(new_value, callback, recurse=True)
-
-
-def _connect_if_evented(obj: Any, callback: Callable, recurse: bool) -> None:
-    """Connect a `callback` to the signal group on `obj`."""
-    if (signal_group := _find_signal_group(obj)) is not None:
-        signal_group.connect(
-            callback,
-            check_nargs=False,
-            check_types=False,
-            on_ref_error="ignore",  # compiled objects are not weakref-able
-        )
-        if recurse:
-            connect_child_events(obj, recurse=True, _group=signal_group)
