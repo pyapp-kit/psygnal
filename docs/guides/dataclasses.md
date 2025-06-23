@@ -338,6 +338,7 @@ To enable event bubbling, set `connect_child_events=True` when creating your
 ```python
 from dataclasses import dataclass, field
 from typing import ClassVar
+
 from psygnal import SignalGroupDescriptor, evented
 
 @evented
