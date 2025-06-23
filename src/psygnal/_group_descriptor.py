@@ -5,7 +5,7 @@ import operator
 import sys
 import warnings
 import weakref
-from contextlib import nullcontext, suppress
+from contextlib import suppress
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -309,18 +309,21 @@ def get_signal_from_field(group: SignalGroup, name: str) -> SignalInstance | Non
 
 
 class _changes_emitted:
-    def __init__(self, obj: object, field: str, signal: SignalInstance) -> None:
+    def __init__(
+        self, obj: object, field: str, signal: SignalInstance, old_value: Any
+    ) -> None:
         self.obj = obj
         self.field = field
         self.signal = signal
+        self.old_value = old_value
 
     def __enter__(self) -> None:
-        self._prev = getattr(self.obj, self.field, _NULL)
+        return
 
     def __exit__(self, *args: Any) -> None:
         new: Any = getattr(self.obj, self.field, _NULL)
-        if not _check_field_equality(type(self.obj), self.field, self._prev, new):
-            self.signal.emit(new, self._prev)
+        if not _check_field_equality(type(self.obj), self.field, self.old_value, new):
+            self.signal.emit(new, self.old_value)
 
 
 SetAttr = Callable[[Any, str, Any], None]
@@ -398,16 +401,22 @@ def evented_setattr(
             if not with_aliases and name not in group:
                 return super_setattr(self, name, value)
 
+            # Get the signal for this field
+            signal = get_signal(group, name)
+
+            # Fast path: If signal doesn't exist or has no listeners, and group has
+            # no listeners, skip all the expensive operations
+            if signal is None or (len(signal) < 1 and not len(group._psygnal_relay)):
+                return super_setattr(self, name, value)
+
+            # Slow path: We have listeners, so do the full work
             old_value = getattr(self, name, None)
-            callback = group._psygnal_relay._relay_partial(PathStep(attr=name))
-            with (
-                _changes_emitted(self, name, signal)
-                # don't emit if the signal doesn't exist or has no listeners
-                if (signal := get_signal(group, name)) is not None and len(signal)
-                else nullcontext()
-            ):
+            with _changes_emitted(self, name, signal, old_value):
                 super_setattr(self, name, value)
-                _handle_child_event_connections(old_value, value, callback)
+                # Only handle child events for evented fields
+                if is_evented(value):
+                    callback = group._psygnal_relay._relay_partial(PathStep(attr=name))
+                    _handle_child_event_connections(old_value, value, callback)
 
         setattr(_setattr_and_emit_, PATCHED_BY_PSYGNAL, True)
         return _setattr_and_emit_
@@ -731,9 +740,7 @@ def _handle_child_event_connections(
         # Disconnect from the old object
         old_group.disconnect(callback)
 
-    # Connect new value if it is evented
-    if is_evented(new_value):
-        _connect_if_evented(new_value, callback, recurse=True)
+    _connect_if_evented(new_value, callback, recurse=True)
 
 
 def _connect_if_evented(obj: Any, callback: Callable, recurse: bool) -> None:
