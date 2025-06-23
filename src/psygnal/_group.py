@@ -299,6 +299,23 @@ class SignalRelay(SignalInstance):
             sig.disconnect(slot, missing_ok)
         super().disconnect(slot, missing_ok)
 
+    def _slot_index(self, slot: Callable) -> int:
+        """Get index of `slot` in `self._slots`. Return -1 if not connected.
+
+        Override to handle _relay_partial objects directly without wrapping
+        them in WeakFunction, which would create different objects.
+        """
+        if not isinstance(slot, _relay_partial):
+            # For non-_relay_partial objects, use the default behavior
+            return super()._slot_index(slot)
+
+        with self._lock:
+            # For _relay_partial objects, compare directly against callbacks
+            for i, s in enumerate(self._slots):
+                if s.dereference() == slot:
+                    return i
+            return -1
+
 
 # NOTE
 # To developers. Avoid adding public names to this class, as it is intended to be

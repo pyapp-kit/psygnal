@@ -722,15 +722,17 @@ def connect_child_events(
 def _handle_child_event_connections(
     old_value: Any, new_value: Any, callback: Callable
 ) -> None:
-    if not is_evented(new_value) or is_evented(old_value):
-        return
-
     # Disconnect old_value if it was evented
-    if (old_group := _find_signal_group(old_value)) is not None:
+    if (
+        is_evented(old_value)
+        and (old_group := _find_signal_group(old_value)) is not None
+    ):
+        # Disconnect from the old object
         old_group.disconnect(callback)
 
     # Connect new value if it is evented
-    _connect_if_evented(new_value, callback, recurse=True)
+    if is_evented(new_value):
+        _connect_if_evented(new_value, callback, recurse=True)
 
 
 def _connect_if_evented(obj: Any, callback: Callable, recurse: bool) -> None:
