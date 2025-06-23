@@ -30,11 +30,11 @@ __all__ = [
 class SignalTester:
     """A tester object that listens to a signal and records its emissions.
 
-    This class wraps a [`SignalInstance`][] and a [`unittest.mock.Mock`][]
-    object. It provides methods to connect and disconnect the mock from the signal, and
-    to assert that the signal was emitted with the expected arguments.  It also behaves
-    as a **context manager**, so you can monitor emissions of a signal within a specific
-    context.
+    This class wraps a [`SignalInstance`][psygnal.SignalInstance] and a
+    [`unittest.mock.Mock`][] object. It provides methods to connect and disconnect the
+    mock from the signal, and to assert that the signal was emitted with the expected
+    arguments.  It also behaves as a **context manager**, so you can monitor emissions
+    of a signal within a specific context.
 
     !!! important
 
