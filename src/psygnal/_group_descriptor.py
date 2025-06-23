@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import contextlib
 import copy
 import operator
 import sys
 import warnings
 import weakref
+from contextlib import nullcontext, suppress
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -397,28 +397,16 @@ def evented_setattr(
             if not with_aliases and name not in group:
                 return super_setattr(self, name, value)
 
-            # don't emit if the signal doesn't exist or has no listeners
-            signal: SignalInstance | None = get_signal(group, name)
-
-            # Check if we need to handle child event connections
-            # Only do this for values that could potentially be evented objects
-            needs_child_handling = is_evented(value)
-
-            # Prepare child event handling if needed
-            if needs_child_handling:
-                old_value = getattr(self, name, None)
-                callback = group._psygnal_relay._relay_partial(PathStep(attr=name))
-
-            # Handle both signal emission and child event connections
-            if signal is None or len(signal) < 1:
+            old_value = getattr(self, name, None)
+            callback = group._psygnal_relay._relay_partial(PathStep(attr=name))
+            with (
+                _changes_emitted(self, name, signal)
+                # don't emit if the signal doesn't exist or has no listeners
+                if (signal := get_signal(group, name)) is not None and len(signal)
+                else nullcontext()
+            ):
                 super_setattr(self, name, value)
-                if needs_child_handling:
-                    _handle_child_event_connections(old_value, value, callback)
-            else:
-                with _changes_emitted(self, name, signal):
-                    super_setattr(self, name, value)
-                    if needs_child_handling:
-                        _handle_child_event_connections(old_value, value, callback)
+                _handle_child_event_connections(old_value, value, callback)
 
         setattr(_setattr_and_emit_, PATCHED_BY_PSYGNAL, True)
         return _setattr_and_emit_
@@ -585,7 +573,7 @@ class SignalGroupDescriptor:
     def __set_name__(self, owner: type, name: str) -> None:
         """Called when this descriptor is added to class `owner` as attribute `name`."""
         self._name = name
-        with contextlib.suppress(AttributeError):
+        with suppress(AttributeError):
             # This is the flag that identifies this object as evented
             setattr(owner, PSYGNAL_GROUP_NAME, name)
 
@@ -641,11 +629,11 @@ class SignalGroupDescriptor:
             # also *try* to set it on the instance as well, since it will skip all the
             # __get__ logic in the future, but if it fails, no big deal.
             if self._name and self._cache_on_instance:
-                with contextlib.suppress(Exception):
+                with suppress(Exception):
                     setattr(instance, self._name, grp)
 
             # clean up the cache when the instance is deleted
-            with contextlib.suppress(TypeError):  # if it's not weakref-able
+            with suppress(TypeError):  # if it's not weakref-able
                 weakref.finalize(instance, self._instance_map.pop, obj_id, None)
 
             # setup nested event emission if requested
@@ -734,6 +722,9 @@ def connect_child_events(
 def _handle_child_event_connections(
     old_value: Any, new_value: Any, callback: Callable
 ) -> None:
+    if not is_evented(new_value) or is_evented(old_value):
+        return
+
     # Disconnect old_value if it was evented
     if (old_group := _find_signal_group(old_value)) is not None:
         old_group.disconnect(callback)
