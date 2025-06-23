@@ -367,11 +367,11 @@ team.leader.name = "Alice"
 ### Understanding Event Paths
 
 When events bubble up, they include a **path** that tracks where the event
-originated. The path is a tuple of `PathStep` objects showing the route from the
+originated. The path is a tuple of `psygnal.PathStep` objects showing the route from the
 parent to the child that emitted the event:
 
 ```python
-from psygnal import PathStep, EmissionInfo
+from psygnal import EmissionInfo
 
 
 @dataclass
