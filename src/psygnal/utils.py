@@ -112,7 +112,7 @@ def iter_signal_instances(
     for n in dir(obj):
         if not include_private_attrs and n.startswith("_"):
             continue
-        with suppress(AttributeError, FutureWarning):
+        with suppress(Exception):  # if we can't access the attribute, skip it
             attr = getattr(obj, n)
             if isinstance(attr, SignalInstance):
                 yield attr

@@ -397,13 +397,19 @@ def evented_setattr(
             if not with_aliases and name not in group:
                 return super_setattr(self, name, value)
 
+            # Get old value for potential disconnection
+            old_value = getattr(self, name, None)
+
             # don't emit if the signal doesn't exist or has no listeners
             signal: SignalInstance | None = get_signal(group, name)
+            callback = group._psygnal_relay._relay_partial(PathStep(attr=name))
             if signal is None or len(signal) < 1:
-                return super_setattr(self, name, value)
-
-            with _changes_emitted(self, name, signal):
                 super_setattr(self, name, value)
+                _handle_child_event_connections(old_value, value, callback)
+            else:
+                with _changes_emitted(self, name, signal):
+                    super_setattr(self, name, value)
+                    _handle_child_event_connections(old_value, value, callback)
 
         setattr(_setattr_and_emit_, PATCHED_BY_PSYGNAL, True)
         return _setattr_and_emit_
@@ -676,6 +682,8 @@ class SignalGroupDescriptor:
 
 
 def _find_signal_group(obj: object, default_name: str = "events") -> SignalGroup | None:
+    if obj is None:
+        return None  # quick exit
     # look for default "events" name as well
     maybe_group = getattr(obj, get_evented_namespace(obj) or default_name, None)
     return maybe_group if isinstance(maybe_group, SignalGroup) else None
@@ -706,15 +714,33 @@ def connect_child_events(
     if _group is None and (_group := _find_signal_group(obj)) is None:
         return  # pragma: no cover  # not evented
 
-    for loc, attr_type in iter_fields(type(obj), exclude_frozen=True):
-        if is_evented(attr_type):
-            child = getattr(obj, loc, None)
-            if child and (child_group := _find_signal_group(child)) is not None:
-                child_group.connect(
-                    _group._psygnal_relay._relay_partial(PathStep(attr=loc)),
-                    check_nargs=False,
-                    check_types=False,
-                    on_ref_error="ignore",  # compiled objects are not weakref-able
-                )
-                if recurse:
-                    connect_child_events(child, recurse=True, _group=child_group)
+    for loc, _ in iter_fields(type(obj), exclude_frozen=True):
+        _connect_if_evented(
+            getattr(obj, loc, None),
+            _group._psygnal_relay._relay_partial(PathStep(attr=loc)),
+            recurse=recurse,
+        )
+
+
+def _handle_child_event_connections(
+    old_value: Any, new_value: Any, callback: Callable
+) -> None:
+    # Disconnect old_value if it was evented
+    if (old_group := _find_signal_group(old_value)) is not None:
+        old_group.disconnect(callback)
+
+    # Connect new value if it is evented
+    _connect_if_evented(new_value, callback, recurse=True)
+
+
+def _connect_if_evented(obj: Any, callback: Callable, recurse: bool) -> None:
+    """Connect a `callback` to the signal group on `obj`."""
+    if (signal_group := _find_signal_group(obj)) is not None:
+        signal_group.connect(
+            callback,
+            check_nargs=False,
+            check_types=False,
+            on_ref_error="ignore",  # compiled objects are not weakref-able
+        )
+        if recurse:
+            connect_child_events(obj, recurse=True, _group=signal_group)

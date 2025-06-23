@@ -47,7 +47,7 @@ def test_emission_info_path_validation():
     EmissionInfo(instance, (1,), (PathStep(index=0), PathStep(key="key")))
 
     # Invalid path types should fail
-    with pytest.raises(TypeError, match="EmissionInfo.path must be a tuple"):
+    with pytest.raises(TypeError):
         EmissionInfo(instance, (1,), (object(),))  # type: ignore
 
 

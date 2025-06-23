@@ -100,7 +100,7 @@ class EventedList(MutableSequence[_T]):
     child_events: bool
         Whether to re-emit events from emitted from evented items in the list
         (i.e. items that have SignalInstances). If `True`, child events can be connected
-        at `EventedList.events.child_event`. By default, `False`.
+        at `EventedList.events.child_event`. By default, `True`.
 
     Attributes
     ----------
@@ -116,7 +116,7 @@ class EventedList(MutableSequence[_T]):
         data: Iterable[_T] = (),
         *,
         hashable: bool = True,
-        child_events: bool = False,
+        child_events: bool = True,
     ):
         super().__init__()
         self._data: list[_T] = []

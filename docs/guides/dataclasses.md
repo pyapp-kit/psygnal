@@ -323,6 +323,128 @@ class Person:
 
     If you have any ideas for how to improve this, please let me know!
 
+## Event Bubbling from Child Objects
+
+When you have nested evented objects (dataclasses containing other dataclasses,
+or evented containers), you can enable **event bubbling** to automatically
+receive events from child objects. This creates a hierarchical event system
+where changes deep in the object tree bubble up to parent listeners.
+
+### Enabling Event Bubbling
+
+To enable event bubbling, set `connect_child_events=True` when creating your
+`SignalGroupDescriptor`:
+
+```python
+from dataclasses import dataclass, field
+from typing import ClassVar
+from psygnal import SignalGroupDescriptor, evented
+
+@evented
+@dataclass 
+class Person:
+    name: str = ""
+    age: int = 0
+
+@dataclass
+class Team:
+    events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor(
+        connect_child_events=True
+    )
+    name: str = ""
+    leader: Person = field(default_factory=Person)
+    
+team = Team()
+
+# Listen for ANY event from the team or its children
+team.events.connect(lambda info: print(f"Event: {info}"))
+
+# This will trigger the listener above
+team.leader.name = "Alice"
+```
+
+### Understanding Event Paths
+
+When events bubble up, they include a **path** that tracks where the event
+originated. The path is a tuple of `PathStep` objects showing the route from the
+parent to the child that emitted the event:
+
+```python
+from psygnal import PathStep, EmissionInfo
+
+
+@dataclass
+class Department:
+    events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor(
+        connect_child_events=True
+    )
+    name: str = ""
+    team: Team = field(default_factory=lambda: Team())
+
+dept = Department()
+
+def show_event_path(info: EmissionInfo):
+    print(f"Changed: {info.signal}")
+    print(f"Args: {info.args}")
+    print(f"Path: {''.join(str(step) for step in info.path)}")
+
+dept.events.connect(show_event_path)
+
+# Change a deeply nested value
+dept.team.leader.age = 30
+
+# Output:
+# Changed: <SignalInstance 'age' at 0x...>
+# Args: (30, 0)
+# Path: .team.leader.age
+```
+
+### Working with Evented Containers
+
+Event bubbling also works with evented containers like `EventedList`:
+
+```python
+from psygnal.containers import EventedList
+
+@dataclass
+class Project:
+    name: str = ""
+    team_members: EventedList = field(default_factory=EventedList)
+
+    # (the explicit way to make this an evented dataclass)
+    events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor(
+        connect_child_events=True
+    )
+
+project = Project()
+project.events.connect(lambda info: print(f"{info.signal.name}: {info.args} {info.path}"))
+
+# Add a person to the list - EventedList emits two events here:
+project.team_members.append(Person(name="Bob"))
+# inserting: (0,) (.team_members, [0])
+# inserted: (0, Person(name='Bob', age=0)) (.team_members, [0])
+
+# Change a person in the list - this also bubbles up
+project.team_members[0].age = 25
+# age: (25, 0) (.team_members, [0], .age)
+```
+
+### Common Use Cases
+
+Event bubbling is particularly useful for:
+
+- **Reactive UIs**: Automatically update displays when any part of a complex
+  or nested data model changes
+- **Change tracking**: Log or persist changes anywhere in a nested object
+  hierarchy  
+- **Undo/redo systems**: Track all changes in a complex object tree
+
+!!! tip
+    Event bubbling adds minimal overhead but can generate many events in deeply
+    nested structures. Consider using [throttling](throttler.md) for
+    high-frequency updates or connect to specific signals when you don't need
+    all events.
+
 ## Performance cost of evented dataclasses
 
 Adding signal emission on every field change is definitely not without cost, as

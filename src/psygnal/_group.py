@@ -38,10 +38,8 @@ if TYPE_CHECKING:
 
 __all__ = ["EmissionInfo", "SignalGroup"]
 
-if sys.version_info < (3, 10):
-    SLOTS = {}
-else:
-    SLOTS = {"slots": True}
+
+SLOTS = {"slots": True} if sys.version_info >= (3, 10) else {}
 
 
 @dataclass(**SLOTS, frozen=True)
