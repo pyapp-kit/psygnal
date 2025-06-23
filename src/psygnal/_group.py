@@ -150,10 +150,6 @@ class SignalRelay(SignalInstance):
         self._sig_was_blocked: dict[str, bool] = {}
         self._on_first_connect_callbacks: list[Callable[[], None]] = []
 
-    def add_on_first_connect_callback(self, callback: Callable[[], None]) -> None:
-        """Add a callback to be called when the first slot is connected."""
-        self._on_first_connect_callbacks.append(callback)
-
     def _append_slot(self, slot: WeakCallback) -> None:
         super()._append_slot(slot)
         if len(self._slots) == 1:

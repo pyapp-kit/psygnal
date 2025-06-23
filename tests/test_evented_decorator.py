@@ -12,7 +12,12 @@ from psygnal import (
     PathStep,
     Signal,
     SignalGroup,
+    SignalGroupDescriptor,
     SignalInstance,
+    evented,
+    get_evented_namespace,
+    is_evented,
+    testing,
 )
 from psygnal._group import SignalRelay
 
@@ -23,13 +28,6 @@ try:
 except ImportError:
     PYDANTIC_V2 = False
 
-
-from psygnal import (
-    SignalGroupDescriptor,
-    evented,
-    get_evented_namespace,
-    is_evented,
-)
 
 decorated_or_descriptor = pytest.mark.parametrize(
     "decorator", [True, False], ids=["decorator", "descriptor"]
@@ -456,13 +454,8 @@ def test_lazy_child_connection() -> None:
     assert len(parent.events.all) == 0
     assert len(child.events.all) == 0
 
-    # Connect to parent events - this should trigger child event connection lazily
-    events_received = []
-
-    def listener(info):
-        events_received.append(info)
-
-    parent.events.all.connect(listener)
+    mock = Mock()
+    parent.events.all.connect(mock)
 
     # After connection
     # parent should have our listener, child should have relay connection
@@ -472,6 +465,41 @@ def test_lazy_child_connection() -> None:
     # Test that child events propagate to parent
     child.y = 10
 
-    assert len(events_received) == 1
-    assert events_received[0].args == (10, 2)  # new value, old value
-    assert str(events_received[0].path) == "(.child, .y)"
+    mock.assert_called_once_with(
+        EmissionInfo(
+            child.events.y, (10, 2), path=(PathStep(attr="child"), PathStep(attr="y"))
+        )
+    )
+
+
+def test_team_example():
+    @evented
+    @dataclass
+    class Person:
+        name: str = ""
+        age: int = 0
+
+    @evented
+    @dataclass
+    class Team:
+        name: str = ""
+        leader: Person = field(default_factory=Person)
+
+    team = Team()
+
+    # This will trigger the listener above
+    team_level_info = EmissionInfo(
+        team.leader.events.name,
+        ("Alice", ""),
+        path=(PathStep(attr="leader"), PathStep(attr="name")),
+    )
+    team_leader_level_info = EmissionInfo(
+        team.leader.events.name, ("Alice", ""), path=(PathStep(attr="name"),)
+    )
+    with (
+        testing.assert_emitted_once_with(team.events, team_level_info),
+        testing.assert_emitted_once_with(team.leader.events, team_leader_level_info),
+        testing.assert_emitted_once_with(team.leader.events.name, "Alice", ""),
+        testing.assert_not_emitted(team.events.leader),
+    ):
+        team.leader.name = "Alice"

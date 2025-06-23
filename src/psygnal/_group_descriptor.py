@@ -690,8 +690,6 @@ class SignalGroupDescriptor:
 
 
 def _find_signal_group(obj: object, default_name: str = "events") -> SignalGroup | None:
-    if obj is None:
-        return None  # quick exit
     # look for default "events" name as well
     maybe_group = getattr(obj, get_evented_namespace(obj) or default_name, None)
     return maybe_group if isinstance(maybe_group, SignalGroup) else None
