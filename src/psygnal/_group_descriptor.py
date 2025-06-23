@@ -402,24 +402,22 @@ def evented_setattr(
 
             # Check if we need to handle child event connections
             # Only do this for values that could potentially be evented objects
-            # Most common case: primitive types don't need child event handling
-            if is_evented(value):
-                # Fast path for primitive/simple values - no child event handling needed
-                if signal is None or len(signal) < 1:
-                    super_setattr(self, name, value)
-                else:
-                    with _changes_emitted(self, name, signal):
-                        super_setattr(self, name, value)
-            else:
-                # Potentially complex object - handle child event connections
+            needs_child_handling = is_evented(value)
+
+            # Prepare child event handling if needed
+            if needs_child_handling:
                 old_value = getattr(self, name, None)
                 callback = group._psygnal_relay._relay_partial(PathStep(attr=name))
-                if signal is None or len(signal) < 1:
-                    super_setattr(self, name, value)
+
+            # Handle both signal emission and child event connections
+            if signal is None or len(signal) < 1:
+                super_setattr(self, name, value)
+                if needs_child_handling:
                     _handle_child_event_connections(old_value, value, callback)
-                else:
-                    with _changes_emitted(self, name, signal):
-                        super_setattr(self, name, value)
+            else:
+                with _changes_emitted(self, name, signal):
+                    super_setattr(self, name, value)
+                    if needs_child_handling:
                         _handle_child_event_connections(old_value, value, callback)
 
         setattr(_setattr_and_emit_, PATCHED_BY_PSYGNAL, True)
