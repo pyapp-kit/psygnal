@@ -1512,7 +1512,17 @@ class SignalInstance:
             self._run_emit_loop_inner = self._run_emit_loop_immediate
 
     def _psygnal_relocate_info_(self, emission_info: EmissionInfo) -> EmissionInfo:
-        """Hook to modify emission info before it is emitted."""
+        """Hook to modify emission info before it is emitted.
+
+        This hook is invoked by _group.SignalRelay._slot_relay and it allows a specific
+        signal to modify the emission info before it is passed to the slot.  Most often,
+        callers will want to use `emission_info.insert_path` to change the path.
+
+        This is only relevant for emission events that are relayed through a
+        SignalRelay, such as when a signal is being re-emitted as a group signal.
+
+        By default, this method returns the emission info unchanged.
+        """
         return emission_info
 
 

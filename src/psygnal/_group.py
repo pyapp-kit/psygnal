@@ -173,6 +173,12 @@ class SignalRelay(SignalInstance):
             sig.disconnect(self._slot_relay)
 
     def _slot_relay(self, *args: Any, loc: PathStep | None = None) -> None:
+        """Relay signals from child to parent.
+
+        This is an important method for SignalGroups.  It is the method that is
+        responsible for relaying signals from all child signals within the group
+        to any connected slots on the group itself.
+        """
         emitter = Signal.current_emitter()
         if emitter is None:
             return

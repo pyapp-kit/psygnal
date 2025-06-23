@@ -105,6 +105,10 @@ class TypedMutableMapping(MutableMapping[_K, _V]):
 
 class DictSignalInstance(SignalInstance):
     def _psygnal_relocate_info_(self, emission_info: EmissionInfo) -> EmissionInfo:
+        """Relocate the emission info to the key being modified.
+
+        (All signals on EventedDict have the key as the first argument.)
+        """
         if args := emission_info.args:
             return emission_info.insert_path(PathStep(key=args[0]))
         return emission_info

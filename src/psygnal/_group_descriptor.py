@@ -147,6 +147,7 @@ class _DataclassFieldSignalInstance(SignalInstance):
         )
 
     def _psygnal_relocate_info_(self, emission_info: EmissionInfo) -> EmissionInfo:
+        """Relocate the emission info to the field's attribute."""
         return emission_info.insert_path(PathStep(attr=self.name))
 
 

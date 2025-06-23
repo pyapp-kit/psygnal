@@ -50,6 +50,10 @@ if TYPE_CHECKING:
 
 class ListSignalInstance(SignalInstance):
     def _psygnal_relocate_info_(self, emission_info: EmissionInfo) -> EmissionInfo:
+        """Relocate the emission info to the index being modified.
+
+        (All signals on EventedList have the index as the first argument.)
+        """
         if args := emission_info.args:
             return emission_info.insert_path(PathStep(index=args[0]))
         return emission_info
