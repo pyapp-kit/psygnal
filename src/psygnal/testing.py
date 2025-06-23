@@ -44,13 +44,14 @@ class SignalTester:
 
     Parameters
     ----------
-    signal_instance : SignalInstance
+    signal : SignalInstance | SignalGroup
         The signal instance or group to test.
 
     Attributes
     ----------
     signal_instance : SignalInstance
-        The signal instance or group to test.
+        The signal instance being tested. If a `SignalGroup` is passed, it uses the
+        `_psygnal_relay` attribute to get the underlying `SignalInstance`.
     mock : unittest.mock.Mock
         The mock object that will be connected to the signal.
 
