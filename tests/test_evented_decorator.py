@@ -497,8 +497,10 @@ def test_team_example():
         team.leader.events.name, ("Alice", ""), path=(PathStep(attr="name"),)
     )
     with (
-        testing.assert_emitted_once_with(team.events, team_level_info),
-        testing.assert_emitted_once_with(team.leader.events, team_leader_level_info),
+        testing.assert_emitted_once_with(team.events.all, team_level_info),
+        testing.assert_emitted_once_with(
+            team.leader.events.all, team_leader_level_info
+        ),
         testing.assert_emitted_once_with(team.leader.events.name, "Alice", ""),
         testing.assert_not_emitted(team.events.leader),
     ):
