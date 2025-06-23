@@ -397,19 +397,30 @@ def evented_setattr(
             if not with_aliases and name not in group:
                 return super_setattr(self, name, value)
 
-            # Get old value for potential disconnection
-            old_value = getattr(self, name, None)
-
             # don't emit if the signal doesn't exist or has no listeners
             signal: SignalInstance | None = get_signal(group, name)
-            callback = group._psygnal_relay._relay_partial(PathStep(attr=name))
-            if signal is None or len(signal) < 1:
-                super_setattr(self, name, value)
-                _handle_child_event_connections(old_value, value, callback)
+
+            # Check if we need to handle child event connections
+            # Only do this for values that could potentially be evented objects
+            # Most common case: primitive types don't need child event handling
+            if is_evented(value):
+                # Fast path for primitive/simple values - no child event handling needed
+                if signal is None or len(signal) < 1:
+                    super_setattr(self, name, value)
+                else:
+                    with _changes_emitted(self, name, signal):
+                        super_setattr(self, name, value)
             else:
-                with _changes_emitted(self, name, signal):
+                # Potentially complex object - handle child event connections
+                old_value = getattr(self, name, None)
+                callback = group._psygnal_relay._relay_partial(PathStep(attr=name))
+                if signal is None or len(signal) < 1:
                     super_setattr(self, name, value)
                     _handle_child_event_connections(old_value, value, callback)
+                else:
+                    with _changes_emitted(self, name, signal):
+                        super_setattr(self, name, value)
+                        _handle_child_event_connections(old_value, value, callback)
 
         setattr(_setattr_and_emit_, PATCHED_BY_PSYGNAL, True)
         return _setattr_and_emit_
