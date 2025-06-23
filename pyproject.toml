@@ -114,6 +114,7 @@ exclude = [
     "src/psygnal/qt.py",
     "src/psygnal/_pyinstaller_util",
     "src/psygnal/_throttler.py",
+    "src/psygnal/testing.py",
 ]
 
 [tool.cibuildwheel]
