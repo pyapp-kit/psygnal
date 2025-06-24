@@ -75,9 +75,10 @@ class PathStep:
         if self.index is not None:
             return f"[{int(self.index)}]"
 
-        if len(elided_repr := repr(self.key)) > 20:
-            elided_repr = f"{elided_repr[:17]}..."
-        return f"[{elided_repr}]"
+        key = repr(self.key)
+        if len(key) > 20 and not isinstance(self.key, str):
+            key = f"{key[:17]}..."
+        return f"[{key}]"
 
 
 @dataclass(**SLOTS, frozen=True)
