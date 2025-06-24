@@ -442,6 +442,66 @@ dept.team.leader.age = 30
 # Path: .team.leader.age
 ```
 
+!!! info "Clarifying `dept.events.team` vs `dept.team.events`"
+
+    When dealing with nested evented dataclasses (like `dept.team` in the
+    example above), it can be confusing to distinguish between signals on signal
+    groups, and dataclass fields, since the field names on a dataclass are also used
+    to create the signals in the corresponding `SignalGroup`.  Let's take a simple
+    example:
+
+    ```python
+    @evented
+    @dataclass
+    class Bar:
+        field: int = 0
+
+    @evented
+    @dataclass
+    class Foo:
+        bar: Bar
+    ```
+    
+    Here are some things to keep in mind:
+
+    1. As you know, dataclasses are objects that have _fields_. A class `Foo`
+       might have a field `bar: Bar`, and we access it with regular attribute access:
+       `foo = Foo(); foo.bar`
+    1. Evented dataclasses gain a new attribute, `events`, that is a `SignalGroup`
+       containing multiple signals – one for each field on the dataclass – that
+       emit when the corresponding field changes.  **`foo.events.bar`** is emitted when
+       the value of `foo.bar` changes.  And `foo.events` is a "catch-all" signal
+       emitted whenever _any_ field on `foo` changes, (not just `bar`).
+    1. 👀 If `Bar` is *itself* an evented dataclass, then *it too*, just like
+       `Foo`, will have an `events` attribute (a `SignalGroup`) that emits whenever
+       any field on `bar` changes: `bar.events`.  When accessed via the top level
+       `foo`, this will look like **`foo.bar.events`**.
+    1. These two are not to be confused:
+        - **`foo.events.bar` is the *`Signal`* that is emitted when the `bar`
+          field on `foo` is changed**  
+          (i.e. `foo.bar = ...`).
+        - **`foo.bar.events` is the *`SignalGroup`* that emits whenever any field
+        on `bar` changes**  
+        (i.e. `foo.bar.field = ...`)
+        In other words, as soon as you access `foo.bar`, the value you get back
+        is a `Bar`... it has no concept of the fact that it lives on a `Foo` ...
+        and therefore we shouldn't expect any of its events to have any knowledge
+        of the parent `foo`.
+
+!!!danger "Important note about mutable evented fields"
+
+    In the example above, if you had connected a callback to `foo.bar.events`,
+    and then changed the `bar` field on `foo` to a new instance of `Bar`
+    (e.g. `foo.bar = Bar()`), then your callback would *not* receive
+    events from the new `Bar` instance (because that is a different object
+    with its own `events` attribute).
+
+    By contrast, if you had connected to `foo.events`, then you *would* receive
+    events from the new `Bar` instance, because the `foo.events` signal group
+    emits events for all fields on `foo`, regardless of whether the field
+    is a new instance or not. (psygnal takes care of connecting/disconnecting
+    the new/old objects automatically).
+
 ### Working with Evented Containers
 
 Event bubbling also works with evented containers like `EventedList`:
