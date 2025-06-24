@@ -464,7 +464,7 @@ class SignalGroup:
 
     @property
     def instance(self) -> Any:
-        """Object that own this `SignalGroup`."""
+        """Object that owns this `SignalGroup`."""
         return self._psygnal_relay.instance
 
     @property
