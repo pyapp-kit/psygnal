@@ -30,8 +30,13 @@ def test_pathstep_repr():
     assert repr(PathStep(key="short")) == "['short']"
 
     # Test long key truncation
-    long_key = "a" * 25  # longer than 20 chars
-    ps = PathStep(key=long_key)
+    class CrazyHashable:
+        """A class with a long __repr__."""
+
+        def __repr__(self):
+            return "a" * 100
+
+    ps = PathStep(key=CrazyHashable())
     result = repr(ps)
     assert "..." in result
     assert len(result) <= 25  # should be truncated
