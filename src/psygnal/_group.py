@@ -51,9 +51,14 @@ class PathStep:
     `EmissionInfo.path` is a tuple of `PathStep` objects, where each `PathStep`
     represents either:
 
-        - an attribute access (e.g. `.foo`)
-        - an index access (e.g. `[3]`)
-        - a key access (e.g. `['user']`)
+    - an _attribute_ access (e.g. `.foo`)
+    - an _index_ access (e.g. `[3]`)
+    - a _key_ access (e.g. `['user']`)
+
+    !!! note
+        _yes, `index` and `key` both just get passed to `__getitem__` in the end, but we
+        differentiate them here to make it clearer whether the step is a key in a
+        `Mapping` or an index in a `Sequence`._
     """
 
     attr: str | None = None

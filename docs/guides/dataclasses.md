@@ -187,8 +187,8 @@ signals for each field in the class.
 The [`@evented`][psygnal.evented] decorator can be added to any dataclass-like
 class. Under the hood, this just adds the `SignalGroupDescriptor` as a class
 attribute for you (named "events" by default), as shown above. Prefer the class
-attribute pattern to the decorator when in doubt, as it is more explicit and
-leads to better type checking.
+attribute pattern (`events = SignalGroupDescriptor()`) to the decorator when
+in doubt, as it is more explicit and leads to better type checking.
 
 !!! example
 
@@ -323,51 +323,93 @@ class Person:
 
     If you have any ideas for how to improve this, please let me know!
 
-## Event Bubbling from Child Objects
+## Event Bubbling
 
 When you have nested evented objects (dataclasses containing other dataclasses,
-or evented containers), you can enable **event bubbling** to automatically
+or evented containers), **event bubbling** allows you to automatically
 receive events from child objects. This creates a hierarchical event system
 where changes deep in the object tree bubble up to parent listeners.
 
 ### Enabling Event Bubbling
 
-To enable event bubbling, set `connect_child_events=True` when creating your
-`SignalGroupDescriptor`:
+Event bubbling is enabled **by default**, but to be explicit, or to disable it,
+you can set the `connect_child_events` parameter when creating your
+[`SignalGroupDescriptor`][psygnal.SignalGroupDescriptor],
+or when using the [`@evented`][psygnal.evented] decorator.
 
-```python
-from dataclasses import dataclass, field
-from typing import ClassVar
+=== "evented decorator"
 
-from psygnal import SignalGroupDescriptor, evented
+    ```python
+    from dataclasses import dataclass, field
+    from typing import ClassVar
 
-@evented
-@dataclass 
-class Person:
-    name: str = ""
-    age: int = 0
+    from psygnal import SignalGroupDescriptor, evented
 
-@dataclass
-class Team:
-    events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor(
-        connect_child_events=True
-    )
-    name: str = ""
-    leader: Person = field(default_factory=Person)
-    
-team = Team()
+    @evented(connect_child_events=True)  # default is True
+    @dataclass 
+    class Person:
+        name: str = ""
+        age: int = 0
 
-# Listen for ANY event from the team or its children
-team.events.connect(lambda info: print(f"Event: {info}"))
+    @evented(connect_child_events=True)  # default is True
+    @dataclass
+    class Team:
+        name: str = ""
+        leader: Person = field(default_factory=Person)
+        
+    team = Team()
 
-# This will trigger the listener above
-team.leader.name = "Alice"
-```
+    # Listen for ANY event from the team or its children
+    team.events.connect(lambda info: print(f"Event: {info}"))
+
+    # This will trigger the listener above
+    team.leader.name = "Alice"
+    ```
+
+=== "SignalGroupDescriptor"
+
+    ```python
+    from dataclasses import dataclass, field
+    from typing import ClassVar
+
+    from psygnal import SignalGroupDescriptor, evented
+
+    @dataclass 
+    class Person:
+        name: str = ""
+        age: int = 0
+
+        events: ClassVar = SignalGroupDescriptor(
+            connect_child_events=True  # default is True
+        )
+
+    @dataclass
+    class Team:
+        name: str = ""
+        leader: Person = field(default_factory=Person)
+        
+        events: ClassVar = SignalGroupDescriptor(
+            connect_child_events=True  # default is True
+        )
+
+    team = Team()
+
+    # Listen for ANY event from the team or its children
+    team.events.connect(lambda info: print(f"Event: {info}"))
+
+    # This will trigger the listener above
+    team.leader.name = "Alice"
+    ```
 
 ### Understanding Event Paths
 
-When events bubble up, they include a **path** that tracks where the event
-originated. The path is a tuple of `psygnal.PathStep` objects showing the route from the
+Events bubble up via [`SignalGroups`][psygnal.SignalGroup].  And, as a reminder,
+when you connect to a `SignalGroup`, the callback receives an
+[`EmissionInfo`][psygnal.EmissionInfo] object that contains information about the
+event, including the signal that was emitted, and the arguments passed to it.
+
+It _also_ includes a **path** that tracks where the event originated,
+The path is a tuple of [`psygnal.PathStep`][] objects showing the route from the
 parent to the child that emitted the event:
 
 ```python
