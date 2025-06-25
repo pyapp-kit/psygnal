@@ -1,13 +1,24 @@
 import operator
 import sys
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, no_type_check
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, ClassVar, cast, no_type_check
 from unittest.mock import Mock
 
 import numpy as np
 import pytest
 
-from psygnal import SignalInstance
+from psygnal import (
+    EmissionInfo,
+    PathStep,
+    Signal,
+    SignalGroup,
+    SignalGroupDescriptor,
+    SignalInstance,
+    evented,
+    get_evented_namespace,
+    is_evented,
+    testing,
+)
 from psygnal._group import SignalRelay
 
 try:
@@ -17,14 +28,6 @@ try:
 except ImportError:
     PYDANTIC_V2 = False
 
-
-from psygnal import (
-    SignalGroupDescriptor,
-    evented,
-    get_evented_namespace,
-    is_evented,
-)
-from psygnal._group import SignalGroup
 
 decorated_or_descriptor = pytest.mark.parametrize(
     "decorator", [True, False], ids=["decorator", "descriptor"]
@@ -286,7 +289,7 @@ def test_name_conflicts() -> None:
     assert not isinstance(group["all"], SignalRelay)
 
     with pytest.raises(AttributeError):  # it's not writeable
-        group.all = SignalRelay({})
+        group.all = SignalRelay({})  # type: ignore
 
     assert group.psygnals_uniform() is False
 
@@ -308,3 +311,197 @@ def test_name_conflicts() -> None:
         TypeError, match="Fields on an evented class cannot start with '_psygnal'"
     ):
         _ = evented(Foo3)
+
+
+def test_nesting() -> None:
+    from dataclasses import dataclass, field
+
+    @evented
+    @dataclass
+    class Foo:
+        x: int = 1
+
+    @evented
+    @dataclass
+    class Bar:
+        y: int = 2
+        foo: Foo = field(default_factory=Foo)
+
+    # @evented(connect_child_events=True)  # could also use this syntax
+    @dataclass
+    class Baz:
+        events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor(
+            connect_child_events=True
+        )
+        z: int = 3
+        bar: Bar = field(default_factory=Bar)
+
+    baz = Baz()
+    mock = Mock()
+    events: SignalGroup = baz.events
+    events.all.connect(mock)
+
+    baz.bar.foo.x = 3  # trigger nested event
+
+    # what we expect
+    expected = EmissionInfo(
+        baz.bar.foo.events.x,
+        (3, 1),
+        path=(
+            PathStep(attr="bar"),  # Baz → bar
+            PathStep(attr="foo"),  # bar  → foo
+            PathStep(attr="x"),  # foo  → x   (added by SignalRelay inside Foo)
+        ),
+    )
+
+    mock.assert_called_with(expected)
+
+
+def test_signal_relay_partial():
+    """Test hash and eq methods on _relay_partial objects"""
+
+    class T(SignalGroup):
+        sig = Signal(int)
+
+    t = T()
+    a = set()
+    a.add(t.all._relay_partial(PathStep(attr="some_name")))
+    a.add(t.all._relay_partial(PathStep(attr="some_name")))
+    assert len(a) == 1
+
+    assert t.all._relay_partial(PathStep(attr="some_name")) in a
+
+
+def test_evented_object_replacement_disconnects_old_connections():
+    """Test that replacing evented objects properly disconnects the old one."""
+
+    @evented
+    @dataclass
+    class A:
+        x: int = 1
+
+    @dataclass
+    class M:
+        events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor(
+            connect_child_events=True
+        )
+        d: A = field(default_factory=A)
+
+    m = M()
+
+    # Connect to the main events
+    main_mock = Mock()
+    m.events.connect(main_mock)
+
+    # Get references to the original and new evented objects
+    original_d = m.d
+    new_d = A(x=99)
+
+    # Connect directly to the original object's events to verify disconnection
+    original_mock = Mock()
+    original_d.events.connect(original_mock)
+
+    # Replace the evented object
+    m.d = new_d
+
+    # Verify the replacement was detected by the main events
+    assert main_mock.call_count == 1
+    replacement_info = cast("EmissionInfo", main_mock.call_args[0][0])
+    assert replacement_info.args == (new_d, original_d)
+    assert replacement_info.path == (PathStep(attr="d"),)
+
+    # Now modify the NEW object - should trigger events through the parent
+    main_mock.reset_mock()
+    new_d.x = 42
+
+    # The main events should receive the nested change
+    assert main_mock.call_count == 1
+    nested_info = cast("EmissionInfo", main_mock.call_args[0][0])
+    assert nested_info.args == (42, 99)
+    assert nested_info.path == (PathStep(attr="d"), PathStep(attr="x"))
+
+    # Now modify the OLD object - should NOT trigger events through the parent
+    # because it should have been disconnected
+    main_mock.reset_mock()
+    original_d.x = 123
+
+    # The original object's direct listeners should still work
+    assert original_mock.call_count == 1
+
+    # But the main events should NOT have been triggered (disconnected)
+    assert main_mock.call_count == 0
+
+
+def test_lazy_child_connection() -> None:
+    """Test that child events are only connected when parent is first connected to."""
+
+    @evented
+    @dataclass
+    class Child:
+        y: int = 2
+
+    @evented
+    @dataclass
+    class Parent:
+        child: Child
+        x: int = 1
+
+    # Create parent with child
+    child = Child()
+    parent = Parent(child=child)
+
+    # Before any connections, neither should have relay slots
+    assert len(parent.events.all) == 0
+    assert len(child.events.all) == 0
+
+    mock = Mock()
+    parent.events.all.connect(mock)
+
+    # After connection
+    # parent should have our listener, child should have relay connection
+    assert len(parent.events.all) == 1
+    assert len(child.events.all) == 1
+
+    # Test that child events propagate to parent
+    child.y = 10
+
+    mock.assert_called_once_with(
+        EmissionInfo(
+            child.events.y, (10, 2), path=(PathStep(attr="child"), PathStep(attr="y"))
+        )
+    )
+
+
+def test_team_example():
+    @evented
+    @dataclass
+    class Person:
+        name: str = ""
+        age: int = 0
+
+    @evented
+    @dataclass
+    class Team:
+        name: str = ""
+        leader: Person = field(default_factory=Person)
+
+    team = Team()
+
+    # This will trigger the listener above
+    team_level_info = EmissionInfo(
+        team.leader.events.name,
+        ("Alice", ""),
+        path=(PathStep(attr="leader"), PathStep(attr="name")),
+    )
+    team_leader_level_info = EmissionInfo(
+        team.leader.events.name, ("Alice", ""), path=(PathStep(attr="name"),)
+    )
+    with (
+        testing.assert_emitted_once_with(team.events.all, team_level_info),
+        testing.assert_emitted_once_with(
+            team.leader.events.all, team_leader_level_info
+        ),
+        testing.assert_emitted_once_with(team.leader.events.name, "Alice", ""),
+        testing.assert_not_emitted(team.events.leader),
+    ):
+        team.leader.name = "Alice"

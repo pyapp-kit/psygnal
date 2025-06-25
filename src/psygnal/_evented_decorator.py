@@ -22,10 +22,9 @@ def evented(
     equality_operators: dict[str, EqOperator] | None = None,
     warn_on_no_fields: bool = ...,
     cache_on_instance: bool = ...,
+    connect_child_events: bool = ...,
     signal_aliases: Mapping[str, str | None] | FieldAliasFunc | None = ...,
 ) -> T: ...
-
-
 @overload
 def evented(
     cls: Literal[None] | None = None,
@@ -34,10 +33,9 @@ def evented(
     equality_operators: dict[str, EqOperator] | None = None,
     warn_on_no_fields: bool = ...,
     cache_on_instance: bool = ...,
+    connect_child_events: bool = ...,
     signal_aliases: Mapping[str, str | None] | FieldAliasFunc | None = ...,
 ) -> Callable[[T], T]: ...
-
-
 def evented(
     cls: T | None = None,
     *,
@@ -45,6 +43,7 @@ def evented(
     equality_operators: dict[str, EqOperator] | None = None,
     warn_on_no_fields: bool = True,
     cache_on_instance: bool = True,
+    connect_child_events: bool = True,
     signal_aliases: Mapping[str, str | None] | FieldAliasFunc | None = None,
 ) -> Callable[[T], T] | T:
     """A decorator to add events to a dataclass.
@@ -85,6 +84,14 @@ def evented(
         access, but means that the owner instance will no longer be pickleable.  If
         `False`, the SignalGroup instance will *still* be cached, but not on the
         instance itself.
+    connect_child_events : bool, optional
+        If `True`, will connect events from all fields on the dataclass whose type is
+        also "evented" (as determined by the `psygnal.is_evented` function,
+        which returns True if the class has been decorated with `@evented`, or if it
+        has a SignalGroupDescriptor) to the group on the parent object. By default
+        True.
+        This is useful for nested evented dataclasses, where you want to monitor events
+        emitted from arbitrarily deep children on the parent object.
     signal_aliases: Mapping[str, str | None] | Callable[[str], str | None] | None
         If defined, a mapping between field name and signal name. Field names that are
         not `signal_aliases` keys are not aliased (the signal name is the field name).
@@ -130,6 +137,7 @@ def evented(
             equality_operators=equality_operators,
             warn_on_no_fields=warn_on_no_fields,
             cache_on_instance=cache_on_instance,
+            connect_child_events=connect_child_events,
             signal_aliases=signal_aliases,
         )
         # as a decorator, this will have already been called

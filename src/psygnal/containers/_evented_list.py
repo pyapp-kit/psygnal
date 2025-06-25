@@ -25,10 +25,12 @@ cover this in test_evented_list.py)
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, MutableSequence
+from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    ClassVar,
     TypeVar,
     Union,
     cast,
@@ -36,41 +38,55 @@ from typing import (
     overload,
 )
 
-from psygnal._group import EmissionInfo, SignalGroup, SignalRelay
+from psygnal._group import EmissionInfo, PathStep, SignalGroup
 from psygnal._signal import Signal, SignalInstance
 from psygnal.utils import iter_signal_instances
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 _T = TypeVar("_T")
 Index = Union[int, slice]
 
-if TYPE_CHECKING:
-    from typing_extensions import Self
+
+class ListSignalInstance(SignalInstance):
+    def _psygnal_relocate_info_(self, emission_info: EmissionInfo) -> EmissionInfo:
+        """Relocate the emission info to the index being modified.
+
+        (All signals on EventedList have the index as the first argument.)
+        """
+        if args := emission_info.args:
+            return emission_info.insert_path(PathStep(index=args[0]))
+        return emission_info
+
+
+ListSignal = partial(Signal, signal_instance_class=ListSignalInstance)
 
 
 class ListEvents(SignalGroup):
     """Events available on [EventedList][psygnal.containers.EventedList]."""
 
-    inserting = Signal(int)  # idx
+    inserting = ListSignal(int)
     """`(index)` emitted before an item is inserted at `index`"""
-    inserted = Signal(int, object)  # (idx, value)
+    inserted = ListSignal(int, object)
     """`(index, value)` emitted after `value` is inserted at `index`"""
-    removing = Signal(int)  # idx
+    removing = ListSignal(int)
     """`(index)` emitted before an item is removed at `index`"""
-    removed = Signal(int, object)  # (idx, value)
+    removed = ListSignal(int, object)
     """`(index, value)` emitted after `value` is removed at `index`"""
-    moving = Signal(int, int)  # (src_idx, dest_idx)
+    moving = ListSignal(int, int)
     """`(index, new_index)` emitted before an item is moved from `index` to
     `new_index`"""
-    moved = Signal(int, int, object)  # (src_idx, dest_idx, value)
+    moved = ListSignal(int, int, object)
     """`(index, new_index, value)` emitted after `value` is moved from
     `index` to `new_index`"""
-    changed = Signal(object, object, object)  # (int | slice, old, new)
+    changed = ListSignal(object, object, object)
     """`(index_or_slice, old_value, value)` emitted when `index` is set from
     `old_value` to `value`"""
     reordered = Signal()
     """Emitted when the list is reordered (eg. moved/reversed)."""
-    child_event = Signal(int, object, SignalInstance, tuple)
-    """`(index, object, emitter, args)` emitted when an object in the list emits an
+    child_event = Signal(EmissionInfo)
+    """`(EmissionInfo)` emitted when an object in the list emits an
     event. Note that the `EventedList` must be created with `child_events=True` in
     order for this to be emitted.
     """
@@ -92,7 +108,7 @@ class EventedList(MutableSequence[_T]):
     child_events: bool
         Whether to re-emit events from emitted from evented items in the list
         (i.e. items that have SignalInstances). If `True`, child events can be connected
-        at `EventedList.events.child_event`. By default, `False`.
+        at `EventedList.events.child_event`. By default, `True`.
 
     Attributes
     ----------
@@ -101,19 +117,20 @@ class EventedList(MutableSequence[_T]):
     """
 
     events: ListEvents  # pragma: no cover
+    _psygnal_group_: ClassVar[str] = "events"
 
     def __init__(
         self,
         data: Iterable[_T] = (),
         *,
         hashable: bool = True,
-        child_events: bool = False,
+        child_events: bool = True,
     ):
         super().__init__()
         self._data: list[_T] = []
         self._hashable = hashable
         self._child_events = child_events
-        self.events = ListEvents()
+        self.events = ListEvents(instance=self)
         self.extend(data)
 
     # WAIT!! ... Read the module docstring before reimplement these methods
@@ -404,14 +421,20 @@ class EventedList(MutableSequence[_T]):
         except ValueError:  # pragma: no cover
             return
 
-        if (
-            args
-            and isinstance(emitter, SignalRelay)
-            and isinstance(args[0], EmissionInfo)
-        ):
-            emitter, args = args[0]
+        if args and isinstance(args[0], EmissionInfo):
+            child_info = EmissionInfo(
+                signal=args[0].signal,
+                args=args[0].args,
+                path=(PathStep(index=idx), *args[0].path),
+            )
+        else:
+            child_info = EmissionInfo(
+                signal=emitter,
+                args=args,
+                path=(PathStep(index=idx), PathStep(attr=emitter.name)),
+            )
 
-        self.events.child_event.emit(idx, obj, emitter, args)
+        self.events.child_event.emit(child_info)
 
     # PYDANTIC SUPPORT
 
