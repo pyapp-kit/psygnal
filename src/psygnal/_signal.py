@@ -300,13 +300,14 @@ class Signal:
         check_nargs_on_connect: bool = True,
         check_types_on_connect: bool = False,
         reemission: ReemissionVal = DEFAULT_REEMISSION,
+        signal_instance_class: type[SignalInstance] | None = None,
     ) -> None:
         self._name = name
         self.description = description
         self._check_nargs_on_connect = check_nargs_on_connect
         self._check_types_on_connect = check_types_on_connect
         self._reemission = reemission
-        self._signal_instance_class: type[SignalInstance] = SignalInstance
+        self._signal_instance_class = signal_instance_class or SignalInstance
         self._signal_instance_cache: dict[int, SignalInstance] = {}
 
         if types and isinstance(types[0], Signature):
@@ -610,7 +611,7 @@ class SignalInstance:
         thread: threading.Thread | Literal["main", "current"] | None = ...,
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
-        unique: bool | str = ...,
+        unique: bool | Literal["raise"] = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
         priority: int = ...,
@@ -624,7 +625,7 @@ class SignalInstance:
         thread: threading.Thread | Literal["main", "current"] | None = ...,
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
-        unique: bool | str = ...,
+        unique: bool | Literal["raise"] = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
         priority: int = ...,
@@ -637,7 +638,7 @@ class SignalInstance:
         thread: threading.Thread | Literal["main", "current"] | None = None,
         check_nargs: bool | None = None,
         check_types: bool | None = None,
-        unique: bool | str = False,
+        unique: bool | Literal["raise"] = False,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = "warn",
         priority: int = 0,
@@ -718,7 +719,7 @@ class SignalInstance:
             If the provided slot fails validation, either due to mismatched positional
             argument requirements, or failed type checking.
         ValueError
-            If `unique` is `True` and `slot` has already been connected.
+            If `unique` is `'raise'` and `slot` has already been connected.
         """
         if check_nargs is None:
             check_nargs = self._check_nargs_on_connect
@@ -1509,6 +1510,20 @@ class SignalInstance:
             self._run_emit_loop_inner = self._run_emit_loop_latest_only
         else:
             self._run_emit_loop_inner = self._run_emit_loop_immediate
+
+    def _psygnal_relocate_info_(self, emission_info: EmissionInfo) -> EmissionInfo:
+        """Hook to modify emission info before it is emitted.
+
+        This hook is invoked by _group.SignalRelay._slot_relay and it allows a specific
+        signal to modify the emission info before it is passed to the slot.  Most often,
+        callers will want to use `emission_info.insert_path` to change the path.
+
+        This is only relevant for emission events that are relayed through a
+        SignalRelay, such as when a signal is being re-emitted as a group signal.
+
+        By default, this method returns the emission info unchanged.
+        """
+        return emission_info
 
 
 class _SignalBlocker:

@@ -8,6 +8,7 @@ from unittest.mock import Mock
 import pytest
 
 from psygnal import EmissionInfo, Signal, SignalGroupDescriptor, SignalInstance, evented
+from psygnal._group import PathStep
 
 if all(x not in {"--codspeed", "--benchmark", "tests/test_bench.py"} for x in sys.argv):
     pytest.skip("use --benchmark to run benchmark", allow_module_level=True)
@@ -234,5 +235,7 @@ def test_dataclass_setattr(type_: str, benchmark: Callable) -> None:
         [(2, 1), ("hello", "hi"), (False, True), (2.0, 1.0), ((2, "hello"), (1, "hi"))],
         "abcde",
     ):
-        mock.assert_any_call(EmissionInfo(getattr(foo.events, attr), emitted))
+        mock.assert_any_call(
+            EmissionInfo(getattr(foo.events, attr), emitted, (PathStep(attr=attr),))
+        )
         assert getattr(foo, attr) == emitted[0]

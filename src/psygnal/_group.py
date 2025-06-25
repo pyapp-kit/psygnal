@@ -10,7 +10,9 @@ the args that were emitted.
 
 from __future__ import annotations
 
+import sys
 import warnings
+from dataclasses import dataclass
 from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
@@ -18,7 +20,7 @@ from typing import (
     Callable,
     ClassVar,
     Literal,
-    NamedTuple,
+    SupportsIndex,
     overload,
 )
 
@@ -28,7 +30,7 @@ from ._mypyc import mypyc_attr
 
 if TYPE_CHECKING:
     import threading
-    from collections.abc import Container, Iterable, Iterator, Mapping
+    from collections.abc import Container, Hashable, Iterable, Iterator, Mapping
     from contextlib import AbstractContextManager
 
     from psygnal._signal import F, ReducerFunc
@@ -37,17 +39,99 @@ if TYPE_CHECKING:
 __all__ = ["EmissionInfo", "SignalGroup"]
 
 
-class EmissionInfo(NamedTuple):
+SLOTS = {"slots": True} if sys.version_info >= (3, 10) else {}
+
+
+@dataclass(**SLOTS, frozen=True)
+class PathStep:
+    """A single step in a path to a nested signal.
+
+    This is used to represent a path to a signal that is nested inside an object,
+    such as when a signal is emitted from a nested object or a list.  The
+    `EmissionInfo.path` is a tuple of `PathStep` objects, where each `PathStep`
+    represents either:
+
+    - an _attribute_ access (e.g. `.foo`)
+    - an _index_ access (e.g. `[3]`)
+    - a _key_ access (e.g. `['user']`)
+
+    !!! note
+        _yes, `index` and `key` both just get passed to `__getitem__` in the end, but we
+        differentiate them here to make it clearer whether the step is a key in a
+        `Mapping` or an index in a `Sequence`._
+    """
+
+    attr: str | None = None
+    index: SupportsIndex | None = None
+    key: Hashable | None = None
+
+    def __post_init__(self) -> None:
+        # enforce mutual exclusivity
+        if sum(x is not None for x in (self.attr, self.index, self.key)) != 1:
+            raise ValueError(
+                "PathStep must have exactly one of attr, index, or key set."
+            )
+
+    # nice debug display: .foo, [3], ['user']
+    def __repr__(self) -> str:  # pragma: no cover
+        if self.attr is not None:
+            return f".{self.attr}"
+
+        if self.index is not None:
+            return f"[{int(self.index)}]"
+
+        key = repr(self.key)
+        if len(key) > 20 and not isinstance(self.key, str):
+            key = f"{key[:17]}..."
+        return f"[{key}]"
+
+
+@dataclass(**SLOTS, frozen=True)
+class EmissionInfo:
     """Tuple containing information about an emission event.
 
     Attributes
     ----------
     signal : SignalInstance
+        The SignalInstance doing the emitting
     args: tuple
+        The args that were emitted
+    path: tuple[PathStep, ...]
+        A tuple of PathStep objects that describe the path to the signal that was
+        emitted. This is useful for nested signals, where the path can be used to
+        determine the hierarchy of the signals.  For example, if a signal is emitted
+        from a nested object like `bar.foo[3]['user']`, the path will contain the steps
+        to get to that object, such as (PathStep(attr='foo'), PathStep(index=3),
+        PathStep(key='user')).
     """
 
     signal: SignalInstance
     args: tuple[Any, ...]
+    path: tuple[PathStep, ...] = ()
+
+    def insert_path(self, *path: PathStep) -> EmissionInfo:
+        """Return a new EmissionInfo with the given path steps inserted at the front."""
+        return EmissionInfo(self.signal, self.args, (*path, *self.path))
+
+    def __post_init__(self) -> None:
+        if self.path and not all(
+            isinstance(p, (PathStep, str, int)) for p in self.path
+        ):
+            raise TypeError(
+                "EmissionInfo.path must be a tuple of PathStep objects, "
+                "or a tuple of str or int."
+            )
+
+    def __iter__(self) -> Iterator[Any]:  # pragma: no cover
+        """Iterate over the EmissionInfo and all nested EmissionInfos."""
+        warnings.warn(
+            "`EmissionInfo.__iter__` is no longer a NamedTuple and should not be "
+            "iterated over.  Use direct attribute access instead.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        yield self.signal
+        yield self.args
 
 
 class SignalRelay(SignalInstance):
@@ -70,6 +154,7 @@ class SignalRelay(SignalInstance):
         super().__init__(signature=(EmissionInfo,), instance=instance)
         self._signals = MappingProxyType(signals)
         self._sig_was_blocked: dict[str, bool] = {}
+        self._on_first_connect_callbacks: list[Callable[[], None]] = []
 
     def _append_slot(self, slot: WeakCallback) -> None:
         super()._append_slot(slot)
@@ -77,6 +162,10 @@ class SignalRelay(SignalInstance):
             self._connect_relay()
 
     def _connect_relay(self) -> None:
+        # Call any registered callbacks on first connection
+        for callback in self._on_first_connect_callbacks:
+            callback()
+
         # silence any warnings about failed weakrefs (will occur in compiled version)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -94,10 +183,32 @@ class SignalRelay(SignalInstance):
         for sig in self._signals.values():
             sig.disconnect(self._slot_relay)
 
-    def _slot_relay(self, *args: Any) -> None:
-        if emitter := Signal.current_emitter():
-            info = EmissionInfo(emitter, args)
-            self._run_emit_loop((info,))
+    def _slot_relay(self, *args: Any, loc: PathStep | None = None) -> None:
+        """Relay signals from child to parent.
+
+        This is an important method for SignalGroups.  It is the method that is
+        responsible for relaying signals from all child signals within the group
+        to any connected slots on the group itself.
+        """
+        emitter = Signal.current_emitter()
+        if emitter is None:
+            return
+
+        par_path = (loc,) if loc is not None else ()
+        # If child already gave us an EmissionInfo, use it;
+        if args and isinstance((info := args[0]), EmissionInfo):
+            child_info = info.insert_path(*par_path)
+        # else wrap its args unchanged
+        else:
+            child_info = emitter._psygnal_relocate_info_(
+                EmissionInfo(signal=emitter, args=args, path=par_path)
+            )
+
+        self._run_emit_loop((child_info,))
+
+    def _relay_partial(self, loc: PathStep | None) -> _relay_partial:
+        """Return special partial that will call _slot_relay with 'loc'."""
+        return _relay_partial(self, loc)
 
     def connect_direct(
         self,
@@ -105,7 +216,7 @@ class SignalRelay(SignalInstance):
         *,
         check_nargs: bool | None = None,
         check_types: bool | None = None,
-        unique: bool | str = False,
+        unique: bool | Literal["raise"] = False,
         max_args: int | None = None,
     ) -> Callable[[Callable], Callable] | Callable:
         """Connect `slot` to be called whenever *any* Signal in this group is emitted.
@@ -126,7 +237,7 @@ class SignalRelay(SignalInstance):
             If `True`, An additional check will be performed to make sure that types
             declared in the slot signature are compatible with the signature
             declared by this signal, by default `False`.
-        unique : bool | str
+        unique : bool | Literal["raise"]
             If `True`, returns without connecting if the slot has already been
             connected.  If the literal string "raise" is passed to `unique`, then a
             `ValueError` will be raised if the slot is already connected.
@@ -204,6 +315,23 @@ class SignalRelay(SignalInstance):
         for sig in self._signals.values():
             sig.disconnect(slot, missing_ok)
         super().disconnect(slot, missing_ok)
+
+    def _slot_index(self, slot: Callable) -> int:
+        """Get index of `slot` in `self._slots`. Return -1 if not connected.
+
+        Override to handle _relay_partial objects directly without wrapping
+        them in WeakFunction, which would create different objects.
+        """
+        if not isinstance(slot, _relay_partial):
+            # For non-_relay_partial objects, use the default behavior
+            return super()._slot_index(slot)
+
+        with self._lock:
+            # For _relay_partial objects, compare directly against callbacks
+            for i, s in enumerate(self._slots):
+                if s.dereference() == slot:
+                    return i
+            return -1  # pragma: no cover
 
 
 # NOTE
@@ -341,6 +469,11 @@ class SignalGroup:
         super().__init_subclass__()
 
     @property
+    def instance(self) -> Any:
+        """Object that owns this `SignalGroup`."""
+        return self._psygnal_relay.instance
+
+    @property
     def all(self) -> SignalRelay:
         """SignalInstance that can be used to connect to all signals in this group.
 
@@ -406,7 +539,13 @@ class SignalGroup:
     def __repr__(self) -> str:
         """Return repr(self)."""
         name = self.__class__.__name__
-        return f"<SignalGroup {name!r} with {len(self)} signals>"
+
+        if self.instance is not None:
+            owner_type = type(self.instance).__name__
+            owner_repr = f" on <{owner_type} instance at {id(self.instance):#x}>"
+        else:
+            owner_repr = ""
+        return f"<SignalGroup {name!r}{owner_repr} with {len(self)} signals>"
 
     @classmethod
     def psygnals_uniform(cls) -> bool:
@@ -442,7 +581,7 @@ class SignalGroup:
         thread: threading.Thread | Literal["main", "current"] | None = ...,
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
-        unique: bool | str = ...,
+        unique: bool | Literal["raise"] = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
         priority: int = ...,
@@ -456,7 +595,7 @@ class SignalGroup:
         thread: threading.Thread | Literal["main", "current"] | None = ...,
         check_nargs: bool | None = ...,
         check_types: bool | None = ...,
-        unique: bool | str = ...,
+        unique: bool | Literal["raise"] = ...,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
         priority: int = ...,
@@ -469,7 +608,7 @@ class SignalGroup:
         thread: threading.Thread | Literal["main", "current"] | None = None,
         check_nargs: bool | None = None,
         check_types: bool | None = None,
-        unique: bool | str = False,
+        unique: bool | Literal["raise"] = False,
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = "warn",
         priority: int = 0,
@@ -502,7 +641,7 @@ class SignalGroup:
         *,
         check_nargs: bool | None = None,
         check_types: bool | None = None,
-        unique: bool | str = False,
+        unique: bool | Literal["raise"] = False,
         max_args: int | None = None,
     ) -> Callable[[Callable], Callable] | Callable:
         return self._psygnal_relay.connect_direct(
@@ -548,3 +687,32 @@ def _is_uniform(signals: Iterable[Signal]) -> bool:
             return False
         seen.add(v)
     return True
+
+
+class _relay_partial:
+    """Small, single-purpose, mypyc-friendly variant of functools.partial.
+
+    Used to call SignalRelay._slot_relay with a specific loc.
+    __hash__ and __eq__ are implemented to make this object hashable and
+    comparable to other _relay_partial objects, so that adding it to a set
+    twice will not create two separate entries.
+    """
+
+    __slots__ = ("loc", "relay")
+
+    def __init__(self, relay: SignalRelay, loc: PathStep | None = None) -> None:
+        self.relay = relay
+        self.loc = loc
+
+    def __call__(self, *args: Any) -> Any:
+        return self.relay._slot_relay(*args, loc=self.loc)
+
+    def __hash__(self) -> int:
+        return hash((self.relay, self.loc))
+
+    def __eq__(self, other: Any) -> bool:
+        return (
+            isinstance(other, _relay_partial)
+            and self.relay == other.relay
+            and self.loc == other.loc
+        )
