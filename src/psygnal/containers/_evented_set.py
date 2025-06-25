@@ -1,16 +1,14 @@
 from __future__ import annotations
 
 import inspect
+from collections.abc import Iterable, Iterator, Mapping, MutableSet
 from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    ClassVar,
     Final,
-    Iterable,
-    Iterator,
-    Mapping,
-    MutableSet,
     TypeVar,
     get_args,
 )
@@ -18,7 +16,7 @@ from typing import (
 from psygnal import Signal, SignalGroup
 
 if TYPE_CHECKING:
-    from typing import Self
+    from typing_extensions import Self
 
 
 _T = TypeVar("_T")
@@ -63,6 +61,12 @@ class _BaseMutableSet(MutableSet[_T]):
             self._do_discard(_item)
             self._post_discard_hook(_item)
 
+    def clear(self) -> None:
+        _item = self._pre_clear_hook()
+        if not isinstance(_item, BailType):
+            self._do_clear()
+            self._post_clear_hook(_item)
+
     def __contains__(self, value: object) -> bool:
         """Return True if value is in set."""
         return value in self._data
@@ -91,11 +95,19 @@ class _BaseMutableSet(MutableSet[_T]):
 
     def _post_discard_hook(self, item: _T) -> None: ...
 
+    def _pre_clear_hook(self) -> tuple[_T, ...] | BailType:
+        return tuple(self)  # pragma: no cover
+
+    def _post_clear_hook(self, item: tuple[_T, ...]) -> None: ...
+
     def _do_add(self, item: _T) -> None:
         self._data.add(item)
 
     def _do_discard(self, item: _T) -> None:
         self._data.discard(item)
+
+    def _do_clear(self) -> None:
+        self._data.clear()
 
     # -------- To match set API
 
@@ -218,7 +230,7 @@ class SetEvents(SignalGroup):
         added or removed from the set.
     """
 
-    items_changed = Signal(tuple, tuple, recursion_mode="deferred")
+    items_changed = Signal(tuple, tuple, reemission="queued")
 
 
 class EventedSet(_BaseMutableSet[_T]):
@@ -254,6 +266,7 @@ class EventedSet(_BaseMutableSet[_T]):
     """
 
     events: SetEvents  # pragma: no cover
+    _psygnal_group_: ClassVar[str] = "events"
 
     def __init__(self, iterable: Iterable[_T] = ()):
         self.events = self._get_events_class()
@@ -299,6 +312,12 @@ class EventedSet(_BaseMutableSet[_T]):
 
     def _post_discard_hook(self, item: _T) -> None:
         self._emit_change((), (item,))
+
+    def _pre_clear_hook(self) -> tuple[_T, ...] | BailType:
+        return BAIL if len(self) == 0 else tuple(self)
+
+    def _post_clear_hook(self, item: tuple[_T, ...]) -> None:
+        self._emit_change((), item)
 
     def _emit_change(self, added: tuple[_T, ...], removed: tuple[_T, ...]) -> None:
         """Emit a change event."""

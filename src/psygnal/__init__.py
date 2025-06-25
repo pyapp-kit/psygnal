@@ -8,7 +8,7 @@ from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from ._evented_model import EventedModel  # noqa: TCH004
+    from ._evented_model import EventedModel
 
 
 try:
@@ -19,20 +19,21 @@ __author__ = "Talley Lambert"
 __email__ = "talley.lambert@gmail.com"
 
 __all__ = [
-    "__version__",
-    "_compiled",
-    "debounced",
     "EmissionInfo",
-    "emit_queued",
     "EmitLoopError",
-    "evented",
     "EventedModel",
-    "get_evented_namespace",
-    "is_evented",
+    "PathStep",
     "Signal",
     "SignalGroup",
     "SignalGroupDescriptor",
     "SignalInstance",
+    "__version__",
+    "_compiled",
+    "debounced",
+    "emit_queued",
+    "evented",
+    "get_evented_namespace",
+    "is_evented",
     "throttled",
 ]
 
@@ -50,12 +51,8 @@ if os.getenv("PSYGNAL_UNCOMPILED"):
 
 from ._evented_decorator import evented
 from ._exceptions import EmitLoopError
-from ._group import EmissionInfo, SignalGroup
-from ._group_descriptor import (
-    SignalGroupDescriptor,
-    get_evented_namespace,
-    is_evented,
-)
+from ._group import EmissionInfo, PathStep, SignalGroup
+from ._group_descriptor import SignalGroupDescriptor, get_evented_namespace, is_evented
 from ._queue import emit_queued
 from ._signal import Signal, SignalInstance, _compiled
 from ._throttler import debounced, throttled

@@ -5,13 +5,16 @@ from __future__ import annotations
 from contextlib import contextmanager, suppress
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, Generator, Iterator
+from typing import TYPE_CHECKING, Any, Callable
 from warnings import warn
 
 from ._group import EmissionInfo, SignalGroup
 from ._signal import SignalInstance
 
-__all__ = ["monitor_events", "iter_signal_instances"]
+if TYPE_CHECKING:
+    from collections.abc import Generator, Iterator
+
+__all__ = ["iter_signal_instances", "monitor_events"]
 
 
 def _default_event_monitor(info: EmissionInfo) -> None:
@@ -109,7 +112,7 @@ def iter_signal_instances(
     for n in dir(obj):
         if not include_private_attrs and n.startswith("_"):
             continue
-        with suppress(AttributeError, FutureWarning):
+        with suppress(Exception):  # if we can't access the attribute, skip it
             attr = getattr(obj, n)
             if isinstance(attr, SignalInstance):
                 yield attr

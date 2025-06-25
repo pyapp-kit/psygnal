@@ -121,16 +121,22 @@ https://codspeed.io/pyapp-kit/psygnal
 
 ## Developers
 
+### Setup
+
+This project uses PEP 735 dependency groups.
+
+After cloning, setup your env with `uv sync` or `pip install -e . --group dev`
+
 ### Compiling
 
 While `psygnal` is a pure python package, it is compiled with mypyc to increase
 performance.  To test the compiled version locally, you can run:
 
 ```bash
-make build
+HATCH_BUILD_HOOKS_ENABLE=1 uv sync --force-reinstall
 ```
 
-(which is just an alias for `HATCH_BUILD_HOOKS_ENABLE=1 pip install -e .`)
+(which is also available as `make build` if you have make installed)
 
 ### Debugging
 

@@ -11,6 +11,7 @@ import pytest
 
 import psygnal
 from psygnal import EmitLoopError, Signal, SignalInstance
+from psygnal._signal import ReemissionMode, ReemissionVal
 from psygnal._weak_callback import WeakCallback
 
 PY39 = sys.version_info[:2] == (3, 9)
@@ -119,19 +120,91 @@ def test_basic_signal():
     mock.assert_called_once_with(1)
 
 
+def test_emit_fast():
+    """Test emit_fast method."""
+    emitter = Emitter()
+    mock = MagicMock()
+    emitter.one_int.connect(mock)
+    emitter.one_int.emit_fast(1)
+    mock.assert_called_once_with(1)
+    mock.reset_mock()
+
+    # calling directly also works
+    emitter.one_int(1)
+    mock.assert_called_once_with(1)
+    mock.reset_mock()
+
+    with emitter.one_int.blocked():
+        emitter.one_int.emit_fast(2)
+    mock.assert_not_called()
+
+    with emitter.one_int.paused():
+        emitter.one_int.emit_fast(3)
+        mock.assert_not_called()
+        emitter.one_int.emit_fast(4)
+    mock.assert_has_calls([call(3), call(4)])
+
+
+def test_emit_fast_errors():
+    emitter = Emitter()
+    err = ValueError()
+
+    @emitter.one_int.connect
+    def boom(v: int) -> None:
+        raise err
+
+    import re
+
+    error_re = re.compile(
+        f"signal 'tests.test_psygnal.Emitter.one_int'.*{re.escape(__file__)}",
+        re.DOTALL,
+    )
+    with pytest.raises(EmitLoopError, match=error_re):
+        emitter.one_int.emit_fast(42)
+
+
+def test_emit_fast_recursion_errors():
+    """Test emit_fast method."""
+    emitter = Emitter()
+    emitter.one_int.emit_fast(1)
+
+    @emitter.one_int.connect
+    def callback() -> None:
+        emitter.one_int.emit(2)
+
+    with pytest.raises(RecursionError):
+        emitter.one_int.emit_fast(3)
+
+    emitter.one_int.disconnect(callback)
+
+    @emitter.one_int.connect
+    def callback() -> None:
+        emitter.one_int.emit_fast(2)
+
+    with pytest.raises(RecursionError):
+        emitter.one_int.emit_fast(3)
+
+
 def test_decorator():
     emitter = Emitter()
     err = ValueError()
 
     @emitter.one_int.connect
-    def boom(v: int):
+    def boom(v: int) -> None:
         raise err
 
     @emitter.one_int.connect(check_nargs=False)
     def bad_cb(a, b, c): ...
 
-    with pytest.raises(EmitLoopError) as e:
-        emitter.one_int.emit(1)
+    import re
+
+    error_re = re.compile(
+        f"signal 'tests.test_psygnal.Emitter.one_int'.*{re.escape(__file__)}",
+        re.DOTALL,
+    )
+    with pytest.raises(EmitLoopError, match=error_re) as e:
+        emitter.one_int.emit(42)
+
     assert e.value.__cause__ is err
     assert e.value.__context__ is err
 
@@ -393,7 +466,7 @@ def test_weakref(slot):
         "partial",
     ],
 )
-def test_group_weakref(slot) -> None:
+def test_group_weakref(slot: str) -> None:
     """Test that a connected method doesn't hold strong ref."""
     from psygnal import SignalGroup
 
@@ -481,7 +554,7 @@ def test_connect_validation(func_name, sig_name, mode, typed):
     signal: SignalInstance = getattr(e, sig_name)
     bad_count = COUNT_INCOMPATIBLE[sig_name]
     bad_sig = SIG_INCOMPATIBLE[sig_name]
-    if func_name in bad_count or check_types and func_name in bad_sig:
+    if func_name in bad_count or (check_types and func_name in bad_sig):
         with pytest.raises(ValueError) as er:
             signal.connect(func, check_types=check_types)
         assert "Accepted signature:" in str(er)
@@ -809,14 +882,6 @@ def test_emit_loop_exceptions():
     mock1.assert_called_once_with(2)
 
 
-# def test_partial_weakref():
-#     """Test that a connected method doesn't hold strong ref."""
-
-#     obj = MyObj()
-#     cb = partial(obj.f_int_int, 1)
-#     assert _partial_weakref(cb) == _partial_weakref(cb)
-
-
 @pytest.mark.parametrize(
     "slot",
     [
@@ -979,9 +1044,9 @@ def test_pickle():
 
 
 @pytest.mark.skipif(PY39 and WINDOWS and COMPILED, reason="fails")
-@pytest.mark.parametrize("recursion", ["immediate", "deferred"])
-def test_recursion_error(recursion: Literal["immediate", "deferred"]) -> None:
-    s = SignalInstance(recursion_mode=recursion)
+@pytest.mark.parametrize("strategy", [ReemissionMode.QUEUED, ReemissionMode.IMMEDIATE])
+def test_recursion_error(strategy: ReemissionMode) -> None:
+    s = SignalInstance(reemission=strategy)
 
     @s.connect
     def callback() -> None:
@@ -991,9 +1056,11 @@ def test_recursion_error(recursion: Literal["immediate", "deferred"]) -> None:
         s.emit()
 
 
-@pytest.mark.parametrize("recursion", ["immediate", "deferred"])
-def test_callback_order(recursion: Literal["immediate", "deferred"]) -> None:
-    sig = SignalInstance((int,), recursion_mode=recursion)
+@pytest.mark.parametrize(
+    "strategy", [ReemissionMode.QUEUED, ReemissionMode.IMMEDIATE, ReemissionMode.LATEST]
+)
+def test_callback_order(strategy: ReemissionMode) -> None:
+    sig = SignalInstance((int,), reemission=strategy)
 
     a = []
 
@@ -1015,19 +1082,23 @@ def test_callback_order(recursion: Literal["immediate", "deferred"]) -> None:
     sig.connect(cb3)
     sig.emit(1)
 
-    if recursion == "immediate":
-        # nested emission events occur immediately,
-        # before proceeding to the next callback
+    if strategy == ReemissionMode.IMMEDIATE:
+        # nested emission events immediately trigger the next nested level
+        # before returning to process the remainder of the current loop
         assert a == [1, 2, 20, 3, 30, 300, 200, 10, 100]
-    elif recursion == "deferred":
+    elif strategy == ReemissionMode.LATEST:
+        # nested emission events immediately trigger the next nested level
+        # and never return to process the remainder of the current loop
+        assert a == [1, 2, 20, 3, 30, 300]
+    elif strategy == ReemissionMode.QUEUED:
         # all callbacks are called once before the next one is called
         assert a == [1, 10, 100, 2, 20, 200, 3, 30, 300]
 
 
-@pytest.mark.parametrize("recursion", ["immediate", "deferred"])
-def test_signal_order_suspend(recursion: Literal["immediate", "deferred"]) -> None:
+@pytest.mark.parametrize("strategy", [ReemissionMode.QUEUED, ReemissionMode.IMMEDIATE])
+def test_signal_order_suspend(strategy: ReemissionMode) -> None:
     """Test that signals are emitted in the order they were connected."""
-    sig = SignalInstance((int,), recursion_mode=recursion)
+    sig = SignalInstance((int,), reemission=strategy)
     mock1 = Mock()
     mock2 = Mock()
 
@@ -1053,9 +1124,9 @@ def test_signal_order_suspend(recursion: Literal["immediate", "deferred"]) -> No
     sig.emit(1)
 
     mock1.assert_has_calls([call(1), call(10), call(11), call(39)])
-    if recursion == "immediate":
+    if strategy == ReemissionMode.IMMEDIATE:
         mock2.assert_has_calls([call(11), call(39), call(10), call(1)])
-    else:
+    elif strategy == ReemissionMode.QUEUED:
         mock2.assert_has_calls([call(1), call(10), call(11), call(39)])
 
 
@@ -1090,3 +1161,47 @@ def test_slotted_classes() -> None:
     mock.assert_called_once()
 
     assert t.sig is t.sig
+
+
+def test_emit_should_not_prevent_gc():
+    from weakref import WeakSet
+
+    from psygnal import Signal
+
+    class Obj:
+        pass
+
+    class SomethingWithSignal:
+        changed = Signal(object)
+
+    object_instances: WeakSet[Obj] = WeakSet()
+    something = SomethingWithSignal()
+    obj = Obj()
+    object_instances.add(obj)
+    something.changed.emit(obj)
+    del obj
+    assert len(object_instances) == 0
+
+
+@pytest.mark.parametrize("strategy", ReemissionMode._members())
+def test_emit_loop_error_message_construction(strategy: ReemissionVal) -> None:
+    sig = SignalInstance((int,), reemission=strategy)
+    sig.connect(lambda v: v == 1 and sig.emit(2))  # type: ignore
+    sig.connect(lambda v: v == 2 and sig.emit(0))  # type: ignore
+    sig.connect(lambda v: 1 / v)
+    with pytest.raises(EmitLoopError, match="While emitting signal") as e:
+        sig.emit(1)
+
+    if strategy == "queued":
+        # check that we show a useful message for confusign queued signals
+        assert "NOTE" in str(e.value)
+
+
+def test_description():
+    description = "A signal"
+
+    class T:
+        sig = Signal(description=description)
+
+    assert T.sig.description == description
+    assert T().sig.description == description

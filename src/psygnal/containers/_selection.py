@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Container, TypeVar
+from collections.abc import Container
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from psygnal._signal import Signal
 
 from ._evented_set import BailType, EventedOrderedSet, SetEvents
 
 if TYPE_CHECKING:
-    from typing import Iterable
+    from collections.abc import Iterable
 
 _T = TypeVar("_T")
 _S = TypeVar("_S")

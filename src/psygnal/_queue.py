@@ -1,18 +1,15 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from queue import Queue
 from threading import Thread, current_thread, main_thread
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, DefaultDict, Literal, Tuple
-
-if TYPE_CHECKING:
-    import collections
-
+from typing import Any, Callable, ClassVar, Literal
 
 from ._exceptions import EmitLoopError
 from ._weak_callback import WeakCallback
 
-Callback = Callable[[Tuple[Any, ...]], Any]
-CbArgsTuple = Tuple[Callback, tuple]
+Callback = Callable[[tuple[Any, ...]], Any]
+CbArgsTuple = tuple[Callback, tuple]
 
 
 class QueuedCallback(WeakCallback):
@@ -29,8 +26,8 @@ class QueuedCallback(WeakCallback):
         thread will be used.
     """
 
-    _GLOBAL_QUEUE: ClassVar[collections.defaultdict[Thread, Queue[CbArgsTuple]]] = (
-        DefaultDict(Queue)
+    _GLOBAL_QUEUE: ClassVar[defaultdict[Thread, Queue[CbArgsTuple]]] = defaultdict(
+        Queue
     )
 
     def __init__(
@@ -68,6 +65,18 @@ class QueuedCallback(WeakCallback):
     def dereference(self) -> Callable | None:
         return self._wrapped.dereference()
 
+    def __eq__(self, other: object) -> bool:
+        """Compare QueuedCallback instances for equality based on wrapped callback.
+
+        This method is explicitly defined to avoid mypyc gen_glue_ne_method
+        AssertionError when building on Python 3.11+. Without this explicit
+        definition, mypyc tries to generate glue methods for the inheritance
+        hierarchy and fails with an AssertionError in gen_glue_ne_method.
+        """
+        if isinstance(other, QueuedCallback):
+            return self._wrapped == other._wrapped
+        return NotImplemented
+
 
 def emit_queued(thread: Thread | None = None) -> None:
     """Trigger emissions of all callbacks queued in the current thread.
@@ -94,4 +103,4 @@ def emit_queued(thread: Thread | None = None) -> None:
         try:
             cb(args)
         except Exception as e:  # pragma: no cover
-            raise EmitLoopError(cb=cb, args=args, exc=e) from e
+            raise EmitLoopError(exc=e) from e

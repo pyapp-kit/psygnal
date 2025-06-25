@@ -1,12 +1,12 @@
 import os
 from copy import copy
-from typing import List, cast
+from typing import cast
 from unittest.mock import Mock, call
 
 import numpy as np
 import pytest
 
-from psygnal import EmissionInfo, Signal, SignalGroup
+from psygnal import EmissionInfo, PathStep, Signal, SignalGroup
 from psygnal.containers import EventedList
 
 
@@ -182,7 +182,7 @@ def test_slice(test_list, regular_list):
     assert str(e2.value) == "Can only assign an iterable to slice"
 
 
-def test_move(test_list: EventedList):
+def test_move(test_list: EventedList) -> None:
     """Test the that we can move objects with the move method"""
     test_list.events = cast("Mock", test_list.events)
 
@@ -220,7 +220,7 @@ def test_move(test_list: EventedList):
     assert test_list == [3, 2, 0, 1, 4]
 
 
-BASIC_INDICES: List[tuple] = [
+BASIC_INDICES: list[tuple] = [
     ((2,), 0, [2, 0, 1, 3, 4, 5, 6, 7]),  # move single item
     ([0, 2, 3], 6, [1, 4, 5, 0, 2, 3, 6, 7]),  # move back
     ([4, 7], 1, [0, 4, 7, 1, 2, 3, 5, 6]),  # move forward
@@ -228,7 +228,7 @@ BASIC_INDICES: List[tuple] = [
     ([1, 3, 5, 7], 3, [0, 2, 1, 3, 5, 7, 4, 6]),  # same as above
     ([0, 2, 3, 2, 3], 6, [1, 4, 5, 0, 2, 3, 6, 7]),  # strip dupe indices
 ]
-OTHER_INDICES: List[tuple] = [
+OTHER_INDICES: list[tuple] = [
     ([7, 4], 1, [0, 7, 4, 1, 2, 3, 5, 6]),  # move forward reorder
     ([3, 0, 2], 6, [1, 4, 5, 3, 0, 2, 6, 7]),  # move back reorder
     ((2, 4), -2, [0, 1, 3, 5, 6, 2, 4, 7]),  # negative indexing
@@ -322,9 +322,13 @@ def test_child_events():
     assert mock.call_count == 3
 
     expected = [
-        call(EmissionInfo(root.events.inserting, (0,))),
-        call(EmissionInfo(root.events.inserted, (0, e_obj))),
-        call(EmissionInfo(root.events.child_event, (0, e_obj, e_obj.test, ("hi",)))),
+        call(EmissionInfo(root.events.inserting, (0,), path=(PathStep(index=0),))),
+        call(EmissionInfo(root.events.inserted, (0, e_obj), path=(PathStep(index=0),))),
+        call(
+            EmissionInfo(
+                e_obj.test, ("hi",), path=(PathStep(index=0), PathStep(attr="test"))
+            )
+        ),
     ]
     mock.assert_has_calls(expected)
 
@@ -355,19 +359,15 @@ def test_child_events_groups():
     assert [c[0][0].signal.name for c in mock.call_args_list] == [
         "inserting",
         "inserted",
-        "child_event",
+        "test2",  # This is now the direct child signal, not child_event
     ]
 
     # when an object in the list owns an emitter group, then any emitter in that group
-    # will also be detected, and child_event will emit (index, sub-emitter, args)
+    # will also be detected, and the child event will be emitted directly with path info
     expected = [
-        call(EmissionInfo(root.events.inserting, (0,))),
-        call(EmissionInfo(root.events.inserted, (0, e_obj))),
-        call(
-            EmissionInfo(
-                root.events.child_event, (0, e_obj, e_obj.events.test2, ("hi",))
-            )
-        ),
+        call(EmissionInfo(root.events.inserting, (0,), path=(PathStep(index=0),))),
+        call(EmissionInfo(root.events.inserted, (0, e_obj), path=(PathStep(index=0),))),
+        call(EmissionInfo(e_obj.events.test2, ("hi",), path=(PathStep(index=0),))),
     ]
 
     # note that we can get back to the actual object in the list using the .instance

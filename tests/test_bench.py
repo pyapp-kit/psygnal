@@ -8,6 +8,7 @@ from unittest.mock import Mock
 import pytest
 
 from psygnal import EmissionInfo, Signal, SignalGroupDescriptor, SignalInstance, evented
+from psygnal._group import PathStep
 
 if all(x not in {"--codspeed", "--benchmark", "tests/test_bench.py"} for x in sys.argv):
     pytest.skip("use --benchmark to run benchmark", allow_module_level=True)
@@ -121,6 +122,12 @@ def test_emit_time(benchmark: Callable, n_connections: int, callback_type: str) 
     benchmark(emitter.one_int.emit, 1)
 
 
+def test_emit_fast(benchmark: Callable) -> None:
+    emitter = Emitter()
+    emitter.one_int.connect(one_int)
+    benchmark(emitter.one_int.emit_fast, 1)
+
+
 @pytest.mark.benchmark
 def test_evented_creation() -> None:
     @evented
@@ -228,5 +235,7 @@ def test_dataclass_setattr(type_: str, benchmark: Callable) -> None:
         [(2, 1), ("hello", "hi"), (False, True), (2.0, 1.0), ((2, "hello"), (1, "hi"))],
         "abcde",
     ):
-        mock.assert_any_call(EmissionInfo(getattr(foo.events, attr), emitted))
+        mock.assert_any_call(
+            EmissionInfo(getattr(foo.events, attr), emitted, (PathStep(attr=attr),))
+        )
         assert getattr(foo, attr) == emitted[0]

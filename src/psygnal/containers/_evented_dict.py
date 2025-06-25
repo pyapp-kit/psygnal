@@ -2,32 +2,20 @@
 
 from __future__ import annotations
 
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Iterable,
-    Iterator,
-    Mapping,
-    MutableMapping,
-    Sequence,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-    get_args,
-)
+from collections.abc import Iterable, Iterator, Mapping, MutableMapping, Sequence
+from functools import partial
+from typing import TYPE_CHECKING, Any, Callable, ClassVar, TypeVar, Union, get_args
 
 if TYPE_CHECKING:
-    from typing import Self
+    from typing_extensions import Self
 
-from psygnal._group import SignalGroup
-from psygnal._signal import Signal
+from psygnal._group import EmissionInfo, PathStep, SignalGroup
+from psygnal._signal import Signal, SignalInstance
 
 _K = TypeVar("_K")
 _V = TypeVar("_V")
-TypeOrSequenceOfTypes = Union[Type[_V], Sequence[Type[_V]]]
-DictArg = Union[Mapping[_K, _V], Iterable[Tuple[_K, _V]]]
+TypeOrSequenceOfTypes = Union[type[_V], Sequence[type[_V]]]
+DictArg = Union[Mapping[_K, _V], Iterable[tuple[_K, _V]]]
 
 
 class TypedMutableMapping(MutableMapping[_K, _V]):
@@ -116,33 +104,37 @@ class TypedMutableMapping(MutableMapping[_K, _V]):
         )
 
 
+class DictSignalInstance(SignalInstance):
+    def _psygnal_relocate_info_(self, emission_info: EmissionInfo) -> EmissionInfo:
+        """Relocate the emission info to the key being modified.
+
+        (All signals on EventedDict have the key as the first argument.)
+        """
+        if args := emission_info.args:
+            return emission_info.insert_path(PathStep(key=args[0]))
+        return emission_info
+
+
+DictSignal = partial(Signal, signal_instance_class=DictSignalInstance)
+
+
 class DictEvents(SignalGroup):
-    """Events available on [EventedDict][psygnal.containers.EventedDict].
+    """Events available on [EventedDict][psygnal.containers.EventedDict]."""
 
-    Attributes
-    ----------
-    adding: Signal[Any]
-        `(key,)` emitted before an item is added at `key`
-    added : Signal[Any, Any]
-        `(key, value)` emitted after a `value` is added at `key`
-    changing : Signal[Any, Any, Any]
-        `(key, old_value, new_value)` emitted before `old_value` is replaced with
-        `new_value` at `key`
-    changed : Signal[Any, Any, Any]
-        `(key, old_value, new_value)` emitted before `old_value` is replaced with
-        `new_value` at `key`
-    removing: Signal[Any]
-        `(key,)` emitted before an item is removed at `key`
-    removed : Signal[Any, Any]
-        `(key, value)` emitted after `value` is removed at `index`
-    """
-
-    adding = Signal(object)  # (key, )
-    added = Signal(object, object)  # (key, value)
-    changing = Signal(object)  # (key, )
-    changed = Signal(object, object, object)  # (key, old_value, value)
-    removing = Signal(object)  # (key, )
-    removed = Signal(object, object)  # (key, value)
+    adding = DictSignal(object)  # (key, )
+    """`(key,)` emitted before an item is added at `key`"""
+    added = DictSignal(object, object)  # (key, value)
+    """`(key, value)` emitted after a `value` is added at `key`"""
+    changing = DictSignal(object)  # (key, )
+    """`(key, old_value, new_value)` emitted before `old_value` is replaced with
+    `new_value` at `key`"""
+    changed = DictSignal(object, object, object)  # (key, old_value, value)
+    """`(key, old_value, new_value)` emitted before `old_value` is replaced with
+    `new_value` at `key`"""
+    removing = DictSignal(object)  # (key, )
+    """`(key,)` emitted before an item is removed at `key`"""
+    removed = DictSignal(object, object)  # (key, value)
+    """`(key, value)` emitted after `value` is removed at `key`"""
 
 
 class EventedDict(TypedMutableMapping[_K, _V]):
@@ -168,6 +160,7 @@ class EventedDict(TypedMutableMapping[_K, _V]):
     """
 
     events: DictEvents  # pragma: no cover
+    _psygnal_group_: ClassVar[str] = "events"
 
     def __init__(
         self,

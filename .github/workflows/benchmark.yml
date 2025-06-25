@@ -6,8 +6,7 @@ concurrency:
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
   workflow_dispatch:
   schedule:
@@ -17,16 +16,13 @@ jobs:
   asvfull:
     name: Benchmark
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash -l {0}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: conda-incubator/setup-miniconda@v3
+      - uses: actions/setup-python@v5
         with:
-          installer-url: https://github.com/conda-forge/miniforge/releases/latest/download/Mambaforge-Linux-x86_64.sh
+          python-version: "3.13"
       - name: install
         run: |
           pip install -U wheel asv
@@ -38,7 +34,6 @@ jobs:
       - name: Benchmark (PR)
         if: github.event_name == 'pull_request'
         run: |
-          export CONDA_EXE=$(which mamba)
           asv continuous main HEAD --interleave-processes --show-stderr --split --factor 1.15
 
       # IF not PR =======================
@@ -55,7 +50,6 @@ jobs:
       - name: Benchmark (Full)
         if: github.event_name != 'pull_request'
         run: |
-          export CONDA_EXE=$(which mamba)
           asv run -j 4 --show-stderr --interleave-processes --skip-existing v0.1.0..HEAD
 
       - name: Build pages
