@@ -74,6 +74,7 @@ dev = [
     "typing-extensions",
     "rich>=14.0.0",
     "pdbpp; sys_platform != 'win32'",
+    "pytest-benchmark>=5.1.0",
 ]
 
 [project.urls]
@@ -115,6 +116,7 @@ exclude = [
     "src/psygnal/_pyinstaller_util",
     "src/psygnal/_throttler.py",
     "src/psygnal/_async.py",
+    "src/psygnal/testing.py",
 ]
 
 [tool.cibuildwheel]

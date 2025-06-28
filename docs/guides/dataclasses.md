@@ -187,8 +187,8 @@ signals for each field in the class.
 The [`@evented`][psygnal.evented] decorator can be added to any dataclass-like
 class. Under the hood, this just adds the `SignalGroupDescriptor` as a class
 attribute for you (named "events" by default), as shown above. Prefer the class
-attribute pattern to the decorator when in doubt, as it is more explicit and
-leads to better type checking.
+attribute pattern (`events = SignalGroupDescriptor()`) to the decorator when
+in doubt, as it is more explicit and leads to better type checking.
 
 !!! example
 
@@ -322,6 +322,231 @@ class Person:
     a `SignalInstance`.
 
     If you have any ideas for how to improve this, please let me know!
+
+## Event Bubbling
+
+When you have nested evented objects (dataclasses containing other dataclasses,
+or evented containers), **event bubbling** allows you to automatically
+receive events from child objects. This creates a hierarchical event system
+where changes deep in the object tree bubble up to parent listeners.
+
+### Enabling Event Bubbling
+
+Event bubbling is enabled **by default**, but to be explicit, or to disable it,
+you can set the `connect_child_events` parameter when creating your
+[`SignalGroupDescriptor`][psygnal.SignalGroupDescriptor],
+or when using the [`@evented`][psygnal.evented] decorator.
+
+=== "evented decorator"
+
+    ```python
+    from dataclasses import dataclass, field
+    from typing import ClassVar
+
+    from psygnal import SignalGroupDescriptor, evented
+
+    @evented(connect_child_events=True)  # default is True
+    @dataclass 
+    class Person:
+        name: str = ""
+        age: int = 0
+
+    @evented(connect_child_events=True)  # default is True
+    @dataclass
+    class Team:
+        name: str = ""
+        leader: Person = field(default_factory=Person)
+        
+    team = Team()
+
+    # Listen for ANY event from the team or its children
+    team.events.connect(lambda info: print(f"Event: {info}"))
+
+    # This will trigger the listener above
+    team.leader.name = "Alice"
+    ```
+
+=== "SignalGroupDescriptor"
+
+    ```python
+    from dataclasses import dataclass, field
+    from typing import ClassVar
+
+    from psygnal import SignalGroupDescriptor, evented
+
+    @dataclass 
+    class Person:
+        name: str = ""
+        age: int = 0
+
+        events: ClassVar = SignalGroupDescriptor(
+            connect_child_events=True  # default is True
+        )
+
+    @dataclass
+    class Team:
+        name: str = ""
+        leader: Person = field(default_factory=Person)
+        
+        events: ClassVar = SignalGroupDescriptor(
+            connect_child_events=True  # default is True
+        )
+
+    team = Team()
+
+    # Listen for ANY event from the team or its children
+    team.events.connect(lambda info: print(f"Event: {info}"))
+
+    # This will trigger the listener above
+    team.leader.name = "Alice"
+    ```
+
+### Understanding Event Paths
+
+Events bubble up via [`SignalGroups`][psygnal.SignalGroup].  And, as a reminder,
+when you connect to a `SignalGroup`, the callback receives an
+[`EmissionInfo`][psygnal.EmissionInfo] object that contains information about the
+event, including the signal that was emitted, and the arguments passed to it.
+
+It _also_ includes a **path** that tracks where the event originated,
+The path is a tuple of [`psygnal.PathStep`][] objects showing the route from the
+parent to the child that emitted the event:
+
+```python
+from psygnal import EmissionInfo
+
+
+@dataclass
+class Department:
+    events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor(
+        connect_child_events=True
+    )
+    name: str = ""
+    team: Team = field(default_factory=lambda: Team())
+
+dept = Department()
+
+def show_event_path(info: EmissionInfo):
+    print(f"Changed: {info.signal}")
+    print(f"Args: {info.args}")
+    print(f"Path: {''.join(str(step) for step in info.path)}")
+
+dept.events.connect(show_event_path)
+
+# Change a deeply nested value
+dept.team.leader.age = 30
+
+# Output:
+# Changed: <SignalInstance 'age' at 0x...>
+# Args: (30, 0)
+# Path: .team.leader.age
+```
+
+!!! info "Clarifying `dept.events.team` vs `dept.team.events`"
+
+    When dealing with nested evented dataclasses (like `dept.team` in the
+    example above), it can be confusing to distinguish between signals on signal
+    groups, and dataclass fields, since the field names on a dataclass are also used
+    to create the signals in the corresponding `SignalGroup`.  Let's take a simple
+    example:
+
+    ```python
+    @evented
+    @dataclass
+    class Bar:
+        field: int = 0
+
+    @evented
+    @dataclass
+    class Foo:
+        bar: Bar
+    ```
+    
+    Here are some things to keep in mind:
+
+    1. As you know, dataclasses are objects that have _fields_. A class `Foo`
+       might have a field `bar: Bar`, and we access it with regular attribute access:
+       `foo = Foo(); foo.bar`
+    1. Evented dataclasses gain a new attribute, `events`, that is a `SignalGroup`
+       containing multiple signals – one for each field on the dataclass – that
+       emit when the corresponding field changes.  **`foo.events.bar`** is emitted when
+       the value of `foo.bar` changes.  And `foo.events` is a "catch-all" signal
+       emitted whenever _any_ field on `foo` changes, (not just `bar`).
+    1. 👀 If `Bar` is *itself* an evented dataclass, then *it too*, just like
+       `Foo`, will have an `events` attribute (a `SignalGroup`) that emits whenever
+       any field on `bar` changes: `bar.events`.  When accessed via the top level
+       `foo`, this will look like **`foo.bar.events`**.
+    1. These two are not to be confused:
+        - **`foo.events.bar` is the *`Signal`* that is emitted when the `bar`
+          field on `foo` is changed**  
+          (i.e. `foo.bar = ...`).
+        - **`foo.bar.events` is the *`SignalGroup`* that emits whenever any field
+        on `bar` changes**  
+        (i.e. `foo.bar.field = ...`)
+        In other words, as soon as you access `foo.bar`, the value you get back
+        is a `Bar`... it has no concept of the fact that it lives on a `Foo` ...
+        and therefore we shouldn't expect any of its events to have any knowledge
+        of the parent `foo`.
+
+!!!danger "Important note about mutable evented fields"
+
+    In the example above, if you had connected a callback to `foo.bar.events`,
+    and then changed the `bar` field on `foo` to a new instance of `Bar`
+    (e.g. `foo.bar = Bar()`), then your callback would *not* receive
+    events from the new `Bar` instance (because that is a different object
+    with its own `events` attribute).
+
+    By contrast, if you had connected to `foo.events`, then you *would* receive
+    events from the new `Bar` instance, because the `foo.events` signal group
+    emits events for all fields on `foo`, regardless of whether the field
+    is a new instance or not. (psygnal takes care of connecting/disconnecting
+    the new/old objects automatically).
+
+### Working with Evented Containers
+
+Event bubbling also works with evented containers like `EventedList`:
+
+```python
+from psygnal.containers import EventedList
+
+@dataclass
+class Project:
+    name: str = ""
+    team_members: EventedList = field(default_factory=EventedList)
+
+    # (the explicit way to make this an evented dataclass)
+    events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor(
+        connect_child_events=True
+    )
+
+project = Project()
+project.events.connect(lambda info: print(f"{info.signal.name}: {info.args} {info.path}"))
+
+# Add a person to the list - EventedList emits two events here:
+project.team_members.append(Person(name="Bob"))
+# inserting: (0,) (.team_members, [0])
+# inserted: (0, Person(name='Bob', age=0)) (.team_members, [0])
+
+# Change a person in the list - this also bubbles up
+project.team_members[0].age = 25
+# age: (25, 0) (.team_members, [0], .age)
+```
+
+### Common Use Cases
+
+Event bubbling is particularly useful for:
+
+- **Reactive UIs**: Automatically update displays when any part of a complex
+  or nested data model changes
+- **Change tracking**: Log or persist changes anywhere in a nested object
+  hierarchy  
+- **Undo/redo systems**: Track all changes in a complex object tree
+
+!!! tip
+    Event bubbling adds minimal overhead but can generate many events in deeply
+    nested structures. Consider using [throttling](throttler.md) for
+    high-frequency updates or connect to specific signals when you don't need
+    all events.
 
 ## Performance cost of evented dataclasses
 
