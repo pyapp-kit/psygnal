@@ -23,6 +23,24 @@ def get_async_backend() -> _AsyncBackend | None:
     return _ASYNC_BACKEND
 
 
+def clear_async_backend() -> None:
+    """Clear the current async backend. Primarily for testing purposes."""
+    global _ASYNC_BACKEND
+    if _ASYNC_BACKEND is not None:
+        # Cancel any running tasks if it's asyncio and loop is not closed
+        if isinstance(_ASYNC_BACKEND, AsyncioBackend):
+            _ASYNC_BACKEND.close()
+        # Close anyio streams
+        elif isinstance(_ASYNC_BACKEND, AnyioBackend):
+            _ASYNC_BACKEND.close()
+        # Close trio channels
+        elif isinstance(_ASYNC_BACKEND, TrioBackend):
+            if hasattr(_ASYNC_BACKEND, "_send_channel"):
+                _ASYNC_BACKEND._send_channel.close()
+            # Note: trio receive channels don't have a close method
+    _ASYNC_BACKEND = None
+
+
 @overload
 def set_async_backend(backend: Literal["asyncio"]) -> AsyncioBackend: ...
 @overload
@@ -37,7 +55,7 @@ def set_async_backend(backend: SupportedBackend = "asyncio") -> _AsyncBackend:
     """
     global _ASYNC_BACKEND
 
-    if _ASYNC_BACKEND is not None and _ASYNC_BACKEND._backend != backend:
+    if _ASYNC_BACKEND and _ASYNC_BACKEND._backend != backend:  # pragma: no cover
         # allow setting the same backend multiple times, for tests
         raise RuntimeError(f"Async backend already set to: {_ASYNC_BACKEND._backend}")
 
@@ -47,7 +65,7 @@ def set_async_backend(backend: SupportedBackend = "asyncio") -> _AsyncBackend:
         _ASYNC_BACKEND = AnyioBackend()
     elif backend == "trio":
         _ASYNC_BACKEND = TrioBackend()
-    else:
+    else:  # pragma: no cover
         raise RuntimeError(
             f"Async backend not supported: {backend}.  "
             "Must be one of: 'asyncio', 'anyio', 'trio'"
@@ -96,6 +114,11 @@ class AsyncioBackend(_AsyncBackend):
     async def _get(self) -> QueueItem:
         return await self._queue.get()
 
+    def close(self) -> None:
+        """Close the asyncio backend and cancel tasks."""
+        if hasattr(self, "_task") and not self._task.done():
+            self._task.cancel()
+
     async def run(self) -> None:
         if self.running:
             return
@@ -104,12 +127,21 @@ class AsyncioBackend(_AsyncBackend):
         try:
             while True:
                 item = await self._get()
-                await self.call_back(item)
+                try:
+                    await self.call_back(item)
+                except Exception:
+                    # Log the exception but continue running
+                    # This prevents one bad callback from crashing the backend
+                    import traceback
+
+                    traceback.print_exc()
         except self._asyncio.CancelledError:
             pass
         except RuntimeError as e:
             if not self._loop.is_closed():
                 raise e
+        finally:
+            self._running = False
 
 
 class AnyioBackend(_AsyncBackend):
@@ -130,14 +162,32 @@ class AnyioBackend(_AsyncBackend):
     async def _get(self) -> QueueItem:
         return await self._receive_stream.receive()
 
+    def close(self) -> None:
+        """Close the anyio streams."""
+        if hasattr(self, "_send_stream"):
+            self._send_stream.close()
+        if hasattr(self, "_receive_stream"):
+            self._receive_stream.close()
+
     async def run(self) -> None:
         if self.running:
-            return
+            return  # pragma: no cover
 
         self._running = True
-        async with self._receive_stream:
-            async for item in self._receive_stream:
-                await self.call_back(item)
+        try:
+            async with self._receive_stream:
+                async for item in self._receive_stream:
+                    try:
+                        await self.call_back(item)
+                    except Exception:
+                        # Log the exception but continue running
+                        import traceback
+
+                        traceback.print_exc()
+        finally:
+            self._running = False
+            # Ensure streams are closed
+            self.close()
 
 
 class TrioBackend(_AsyncBackend):
@@ -160,8 +210,17 @@ class TrioBackend(_AsyncBackend):
 
     async def run(self) -> None:
         if self.running:
-            return
+            return  # pragma: no cover
 
         self._running = True
-        async for item in self._receive_channel:
-            await self.call_back(item)
+        try:
+            async for item in self._receive_channel:
+                try:
+                    await self.call_back(item)
+                except Exception:
+                    # Log the exception but continue running
+                    import traceback
+
+                    traceback.print_exc()
+        finally:
+            self._running = False

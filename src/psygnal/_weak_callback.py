@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import inspect
 import sys
+import warnings
 import weakref
 from functools import partial
 from types import BuiltinMethodType, FunctionType, MethodType, MethodWrapperType
@@ -131,11 +132,17 @@ def weak_callback(
     is_coro = inspect.iscoroutinefunction(cb)
     if is_coro:
         if (backend := get_async_backend()) is None:
-            raise RuntimeError("No async backend set: call `set_async_backend()`")
-        if not backend.running:
             raise RuntimeError(
-                "Async backend not running (launch `get_async_backend().run()` "
-                "in a background task)"
+                "Cannot create async callback yet... No async backend set. "
+                "Please call `psygnal.set_async_backend()` before connecting."
+            )
+        if not backend.running:
+            warnings.warn(
+                f"\n\nConnection of async {cb.__name__!r} will not do anything!\n"
+                "Async backend not running. Launch `get_async_backend().run()` "
+                "in a background task and wait for `backend.running`",
+                RuntimeWarning,
+                stacklevel=2,
             )
 
     if isinstance(cb, FunctionType):

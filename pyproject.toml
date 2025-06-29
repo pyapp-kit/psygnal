@@ -75,6 +75,8 @@ dev = [
     "rich>=14.0.0",
     "pdbpp; sys_platform != 'win32'",
     "pytest-benchmark>=5.1.0",
+    "anyio>=4.9.0",
+    "trio>=0.30.0",
 ]
 
 [project.urls]
@@ -187,6 +189,8 @@ filterwarnings = [
     "ignore:.*BackendFinder.find_spec()",                                            # pyinstaller import
     "ignore:.*not using a cooperative constructor:pytest.PytestDeprecationWarning:",
     "ignore:Failed to disconnect::pytestqt",
+    "ignore:.*unclosed.*socket.*:ResourceWarning:",                                  # asyncio internal socket cleanup
+    "ignore:.*unclosed event loop.*:ResourceWarning:",                              # asyncio internal event loop cleanup
 ]
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
