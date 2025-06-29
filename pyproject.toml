@@ -36,19 +36,19 @@ proxy = ["wrapt"]
 pydantic = ["pydantic"]
 
 [dependency-groups]
+test-min = ["pytest>=6.0", "pytest-cov", "pytest-asyncio"]
 test = [
+    { include-group = "test-min" },
     "dask[array]>=2024.0.0",
     "attrs",
     "numpy >1.21.6",
     "pydantic",
     "pyinstaller>=4.0",
-    "pytest>=6.0",
-    "pytest-cov",
-    "pytest-asyncio",
     "wrapt",
     "msgspec",
     "toolz",
 ]
+test-typing = [{ include-group = "test-min" }, "pytest-mypy-plugins"]
 testqt = [{ include-group = "test" }, "pytest-qt", "qtpy"]
 test-codspeed = [{ include-group = "test" }, "pytest-codspeed"]
 docs = [
@@ -190,7 +190,7 @@ filterwarnings = [
     "ignore:.*not using a cooperative constructor:pytest.PytestDeprecationWarning:",
     "ignore:Failed to disconnect::pytestqt",
     "ignore:.*unclosed.*socket.*:ResourceWarning:",                                  # asyncio internal socket cleanup
-    "ignore:.*unclosed event loop.*:ResourceWarning:",                              # asyncio internal event loop cleanup
+    "ignore:.*unclosed event loop.*:ResourceWarning:",                               # asyncio internal event loop cleanup
 ]
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
