@@ -47,6 +47,8 @@ test = [
     "wrapt",
     "msgspec",
     "toolz",
+    "anyio",
+    "trio",
 ]
 test-typing = [{ include-group = "test-min" }, "pytest-mypy-plugins"]
 testqt = [{ include-group = "test" }, "pytest-qt", "qtpy"]
@@ -75,8 +77,6 @@ dev = [
     "rich>=14.0.0",
     "pdbpp; sys_platform != 'win32'",
     "pytest-benchmark>=5.1.0",
-    "anyio>=4.9.0",
-    "trio>=0.30.0",
 ]
 
 [project.urls]
