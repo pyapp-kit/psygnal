@@ -4,13 +4,12 @@ from abc import ABC, abstractmethod
 from math import inf
 from typing import TYPE_CHECKING, overload
 
-import anyio.streams.memory
-import trio
-
 if TYPE_CHECKING:
     from collections.abc import Coroutine
     from typing import Any, Protocol
 
+    import anyio.streams
+    import trio
     from typing_extensions import Literal, TypeAlias
 
     from psygnal._weak_callback import WeakCallback
@@ -170,6 +169,7 @@ class AnyioBackend(_AsyncBackend):
         super().__init__("anyio")
         import anyio
 
+        self._anyio = anyio
         self._send_stream, self._receive_stream = anyio.create_memory_object_stream(
             max_buffer_size=inf
         )
@@ -209,7 +209,7 @@ class AnyioBackend(_AsyncBackend):
 
                         traceback.print_exc()
         finally:
-            self._running = anyio.Event()
+            self._running = self._anyio.Event()
             # Ensure streams are closed
             self.close()
 
@@ -222,10 +222,11 @@ class TrioBackend(_AsyncBackend):
         super().__init__("trio")
         import trio
 
+        self._trio = trio
         self._send_channel, self._receive_channel = trio.open_memory_channel(
             max_buffer_size=inf
         )
-        self._running = trio.Event()
+        self._running = self._trio.Event()
 
     @property
     def running(self) -> EventLike:
@@ -253,4 +254,4 @@ class TrioBackend(_AsyncBackend):
 
                     traceback.print_exc()
         finally:
-            self._running = trio.Event()
+            self._running = self._trio.Event()
