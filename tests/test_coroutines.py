@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import gc
 import importlib.util
+import signal
 from typing import TYPE_CHECKING, Any, Callable, Literal, Protocol
 from unittest.mock import Mock
 
@@ -17,10 +18,10 @@ if TYPE_CHECKING:
 
 # Available backends for parametrization
 AVAILABLE_BACKENDS = ["asyncio"]
-if importlib.util.find_spec("anyio") is not None:
-    AVAILABLE_BACKENDS.append("anyio")
 if importlib.util.find_spec("trio") is not None:
     AVAILABLE_BACKENDS.append("trio")
+if importlib.util.find_spec("anyio") is not None:
+    AVAILABLE_BACKENDS.append("anyio")
 
 
 class BackendTestRunner(Protocol):
@@ -152,6 +153,13 @@ class TrioTestRunner:
 
     def run_with_backend(self, test_func: Callable[[], Any]) -> Any:
         """Run test with trio backend using structured concurrency."""
+
+        # On Windows asyncio has probably left its FD installed
+        try:
+            signal.set_wakeup_fd(-1)  # restore default
+        except (ValueError, AttributeError):
+            pass  # not the main thread or not supported
+
         import trio
 
         result = None
