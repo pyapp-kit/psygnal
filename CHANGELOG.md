@@ -1,5 +1,25 @@
 # Changelog
 
+## [v0.14.0](https://github.com/pyapp-kit/psygnal/tree/v0.14.0) (2025-07-01)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.13.0...v0.14.0)
+
+**Implemented enhancements:**
+
+- feat: support coroutine functions [\#346](https://github.com/pyapp-kit/psygnal/pull/346) ([tlambert03](https://github.com/tlambert03))
+- feat: support pydantic @computed\_fields,  and arbitrary `field_dependents` for event emission [\#340](https://github.com/pyapp-kit/psygnal/pull/340) ([tlambert03](https://github.com/tlambert03))
+- feat: Support bubbling up of events from evented children on dataclasses  [\#298](https://github.com/pyapp-kit/psygnal/pull/298) ([tlambert03](https://github.com/tlambert03))
+
+**Fixed bugs:**
+
+- fix: fix evented container pydantic serialization [\#377](https://github.com/pyapp-kit/psygnal/pull/377) ([tlambert03](https://github.com/tlambert03))
+- fix: fix typing in psygnal testing [\#374](https://github.com/pyapp-kit/psygnal/pull/374) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- chore: Update mypyc build [\#373](https://github.com/pyapp-kit/psygnal/pull/373) ([tlambert03](https://github.com/tlambert03))
+- ci\(dependabot\): bump pypa/cibuildwheel from 2.23 to 3.0 [\#372](https://github.com/pyapp-kit/psygnal/pull/372) ([dependabot[bot]](https://github.com/apps/dependabot))
+
 ## [v0.13.0](https://github.com/pyapp-kit/psygnal/tree/v0.13.0) (2025-05-05)
 
 [Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.12.0...v0.13.0)
@@ -19,7 +39,7 @@
 - docs: general docs update, use mkdocs-api-autonav [\#367](https://github.com/pyapp-kit/psygnal/pull/367) ([tlambert03](https://github.com/tlambert03))
 - build: use pyproject dependency groups and uv [\#366](https://github.com/pyapp-kit/psygnal/pull/366) ([tlambert03](https://github.com/tlambert03))
 - ci\(dependabot\): bump pypa/cibuildwheel from 2.22 to 2.23 [\#360](https://github.com/pyapp-kit/psygnal/pull/360) ([dependabot[bot]](https://github.com/apps/dependabot))
-- Add back universal \(none-any\) wheel [\#358](https://github.com/pyapp-kit/psygnal/pull/358) ([tlambert03](https://github.com/tlambert03))
+- build: Add back universal \(none-any\) wheel [\#358](https://github.com/pyapp-kit/psygnal/pull/358) ([tlambert03](https://github.com/tlambert03))
 - ci\(pre-commit.ci\): autoupdate [\#355](https://github.com/pyapp-kit/psygnal/pull/355) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
 
 ## [v0.12.0](https://github.com/pyapp-kit/psygnal/tree/v0.12.0) (2025-02-03)
