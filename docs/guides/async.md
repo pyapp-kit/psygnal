@@ -102,8 +102,7 @@ called asynchronously.
         async with anyio.create_task_group() as tg:
             # Set up the async backend and wait for it to be ready before connecting
             tg.start_soon(backend.run)  # (2)!
-            while not backend.running:  # (3)!
-                await anyio.sleep(0.01)
+            await backend.running.wait()  # (3)!
 
             # Create an instance of MyObj and connect the async callback
             obj = MyObj()
