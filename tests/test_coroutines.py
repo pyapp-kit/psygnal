@@ -117,8 +117,7 @@ class AnyioTestRunner:
                 tg.start_soon(backend.run)
 
                 # Wait for backend to be running
-                while not backend.running:
-                    await anyio.sleep(0)
+                await backend.running.wait()
 
                 try:
                     result = await test_func()
