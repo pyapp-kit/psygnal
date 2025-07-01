@@ -39,7 +39,7 @@ __all__ = ["SignalGroupDescriptor", "get_evented_namespace", "is_evented"]
 
 T = TypeVar("T", bound=type)
 S = TypeVar("S")
-
+F = TypeVar("F", bound=Callable)
 
 _EQ_OPERATORS: dict[type, dict[str, EqOperator]] = {}
 _EQ_OPERATOR_NAME = "__eq_operators__"
@@ -133,6 +133,60 @@ def _pick_equality_operator(type_: type | None) -> EqOperator:
 
 
 class _DataclassFieldSignalInstance(SignalInstance):
+    """The type of SignalInstance when emitting dataclass field changes."""
+
+    def _connect_child_event_listener(self, slot: Callable[..., Any]) -> None:
+        # ------------ Emit this signal when the field changes ------------
+        #
+        # _DataclassFieldSignalInstance is a SignalInstance that is used for fields
+        # on evented dataclasses. For example `team.events.leader` is a
+        # _DataclassFieldSignalInstance that emits when the leader field changes.
+        # (e.g. `team.leader = new_leader`)
+        #
+        # However, by default, it does NOT emit when the leader itself changes.
+        # (e.g. `team.leader.age = 60`)
+        # ... because team.leader may not be an evented object, and we can't
+        # assume that we can track changes on it.
+        #
+        # However, if `team.leader` IS itself an evented object, we can connect
+        # to its events, and emit this signal when it changes.  That's what we do here.
+
+        # First, ensure that this SignalInstance is indeed a SignalInstance on
+        # a SignalGroup (presumably a SignalGroupDescriptor)
+        if not isinstance((group := self.instance), SignalGroup):
+            return
+
+        # then get the root object of the group (e.g. "team")
+        root_object = group.instance
+
+        # get the field name (e.g. "leader") representing this SignalInstance
+        field_name = self.name
+
+        # then get the value of the field (e.g. "team.leader")
+        try:
+            member = getattr(root_object, field_name)
+        except Exception:
+            return
+
+        # If that member is itself evented (e.g. "team.leader" is an evented obj)
+        # then grab the SignalGroup on it  (e.g. "team.leader.events")
+        if group := _find_signal_group(member):
+            # next, watch for ANY changes on the member
+            # and call the slot with the new value of the entire field,
+            #
+            # e.g. team.leader.events.connect(lambda: callback(team.leader))
+            def _on_any_change(info: EmissionInfo) -> None:
+                new_val = getattr(root_object, field_name)
+                # TODO somehow get old value? ...
+                # note that old_value is available only in evented_setattr
+                # but the `_handle_child_event_connections` could potentially be a
+                # place to call slot(new_val, old_val)... if we can somehow
+                # get the slot to it.
+                old_val: Any = None
+                slot(new_val, old_val)
+
+            group.connect(_on_any_change)
+
     def connect_setattr(
         self,
         obj: ref | object,
