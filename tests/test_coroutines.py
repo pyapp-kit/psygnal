@@ -40,10 +40,6 @@ class BackendTestRunner(Protocol):
         """Run a test function with proper backend setup and teardown. Synchronous."""
         ...
 
-    def get_backend_specific_attributes(self) -> dict[str, Any]:
-        """Get backend-specific attributes for testing."""
-        ...
-
 
 class AsyncioTestRunner:
     """Test runner for asyncio backend."""
@@ -89,9 +85,6 @@ class AsyncioTestRunner:
                 raise TimeoutError("Backend did not start running within timeout")
             await asyncio.sleep(0)
 
-    def get_backend_specific_attributes(self) -> dict[str, Any]:
-        return {"_task": "asyncio task", "_backend": "asyncio"}
-
 
 class AnyioTestRunner:
     """Test runner for anyio backend."""
@@ -130,13 +123,6 @@ class AnyioTestRunner:
             return result
 
         return anyio.run(_run_test)
-
-    def get_backend_specific_attributes(self) -> dict[str, Any]:
-        return {
-            "_send_stream": "anyio send stream",
-            "_receive_stream": "anyio receive stream",
-            "_backend": "anyio",
-        }
 
 
 class TrioTestRunner:
@@ -192,13 +178,6 @@ class TrioTestRunner:
         # Run in trio context
         trio.run(_trio_main)
         return result
-
-    def get_backend_specific_attributes(self) -> dict[str, Any]:
-        return {
-            "_send_channel": "trio send channel",
-            "_receive_channel": "trio receive channel",
-            "_backend": "trio",
-        }
 
 
 async def mock_call_count(
@@ -362,15 +341,15 @@ async def test_run_method_early_return() -> None:
 
 
 @pytest.mark.parametrize("backend_name", AVAILABLE_BACKENDS)
-def test_high_level_api(backend_name: str) -> None:
+def test_high_level_api(backend_name: Literal["trio", "asyncio", "anyio"]) -> None:
     """Test the exact usage pattern shown in the feature summary documentation."""
 
-    def run_example():
+    def run_example() -> None:
         """The example from the feature summary, adapted for testing."""
 
-        async def example_main():
+        async def example_main() -> None:
             # Step 1: Set Backend Early (Once Per Application)
-            backend = _async.set_async_backend(backend_name)  # type: ignore[arg-type]
+            backend = _async.set_async_backend(backend_name)
 
             # Step 2: Launch Backend in Your Event Loop (backend-specific)
             if backend_name == "asyncio":
@@ -433,7 +412,7 @@ def test_high_level_api(backend_name: str) -> None:
                     except asyncio.CancelledError:
                         pass
 
-        async def run_signal_example():
+        async def run_signal_example() -> None:
             """Step 3: Connect Async Callbacks - the exact example from docs."""
             from psygnal import Signal
 
