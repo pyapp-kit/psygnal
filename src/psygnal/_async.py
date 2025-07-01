@@ -2,18 +2,30 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from math import inf
-from typing import TYPE_CHECKING, Any, overload
+from typing import TYPE_CHECKING, overload
 
 import anyio.streams.memory
 import trio
 
 if TYPE_CHECKING:
+    from collections.abc import Coroutine
+    from typing import Any, Protocol
+
     from typing_extensions import Literal, TypeAlias
 
     from psygnal._weak_callback import WeakCallback
 
     SupportedBackend: TypeAlias = Literal["asyncio", "anyio", "trio"]
     QueueItem: TypeAlias = tuple["WeakCallback", tuple[Any, ...]]
+
+    class EventLike(Protocol):
+        def is_set(self) -> bool:
+            """Return ``True`` if the flag is set, ``False`` if not."""
+            ...
+
+        async def wait(self) -> Coroutine | bool | None:
+            """Wait until the flag is set."""
+            ...
 
 
 _ASYNC_BACKEND: _AsyncBackend | None = None
@@ -80,8 +92,8 @@ class _AsyncBackend(ABC):
         self._backend = backend
 
     @property
-    def running(self) -> bool:
-        return self._running
+    @abstractmethod
+    def running(self) -> EventLike: ...
 
     @abstractmethod
     def _put(self, item: QueueItem) -> None: ...
@@ -109,6 +121,11 @@ class AsyncioBackend(_AsyncBackend):
         self._loop = asyncio.get_running_loop()
         self._running = asyncio.Event()
 
+    @property
+    def running(self) -> EventLike:
+        """Return the event indicating if the backend is running."""
+        return self._running
+
     def _put(self, item: QueueItem) -> None:
         self._queue.put_nowait(item)
 
@@ -121,7 +138,7 @@ class AsyncioBackend(_AsyncBackend):
             self._task.cancel()
 
     async def run(self) -> None:
-        if self.running.is_set():
+        if self._running.is_set():
             return
 
         self._running.set()
@@ -158,6 +175,11 @@ class AnyioBackend(_AsyncBackend):
         )
         self._running = anyio.Event()
 
+    @property
+    def running(self) -> EventLike:
+        """Return the event indicating if the backend is running."""
+        return self._running
+
     def _put(self, item: QueueItem) -> None:
         self._send_stream.send_nowait(item)
 
@@ -172,7 +194,7 @@ class AnyioBackend(_AsyncBackend):
             self._receive_stream.close()
 
     async def run(self) -> None:
-        if self.running.is_set():
+        if self._running.is_set():
             return  # pragma: no cover
 
         self._running.set()
@@ -205,6 +227,11 @@ class TrioBackend(_AsyncBackend):
         )
         self._running = trio.Event()
 
+    @property
+    def running(self) -> EventLike:
+        """Return the event indicating if the backend is running."""
+        return self._running
+
     def _put(self, item: tuple) -> None:
         self._send_channel.send_nowait(item)
 
@@ -212,7 +239,7 @@ class TrioBackend(_AsyncBackend):
         return await self._receive_channel.receive()
 
     async def run(self) -> None:
-        if self.running.is_set():
+        if self._running.is_set():
             return  # pragma: no cover
 
         self._running.set()
