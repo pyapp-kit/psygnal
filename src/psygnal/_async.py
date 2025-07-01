@@ -4,9 +4,10 @@ from abc import ABC, abstractmethod
 from math import inf
 from typing import TYPE_CHECKING, Any, overload
 
+import anyio.streams.memory
+import trio
+
 if TYPE_CHECKING:
-    import anyio.streams.memory
-    import trio
     from typing_extensions import Literal, TypeAlias
 
     from psygnal._weak_callback import WeakCallback
