@@ -7,6 +7,12 @@ from unittest.mock import Mock, call, patch
 
 import numpy as np
 import pytest
+from pydantic import Field
+
+from psygnal import EventedModel
+from psygnal.containers import EventedList
+from psygnal.containers._evented_dict import EventedDict
+from psygnal.containers._evented_set import EventedSet
 
 try:
     from pydantic import PrivateAttr
@@ -16,7 +22,7 @@ except ImportError:
 import pydantic.version
 from pydantic import BaseModel
 
-from psygnal import EmissionInfo, EventedModel
+from psygnal import EmissionInfo
 from psygnal._group import SignalGroup
 from psygnal._signal import ReemissionMode
 
@@ -1101,3 +1107,32 @@ def test_primary_vs_dependent_optimization() -> None:
     # No events should be emitted since no actual changes occurred
     mock_a.assert_not_called()
     mock_b.assert_not_called()
+
+
+@pytest.mark.skipif(not PYDANTIC_V2, reason="v2 serialization features")
+def test_serialization_and_schema():
+    class TestModel(EventedModel):
+        name: str
+        elist_of_str: EventedList[str] = Field(default_factory=EventedList)
+        eset_of_str: EventedSet[str] = Field(default_factory=EventedSet)
+        edict_of_str: EventedDict[str, str] = Field(default_factory=EventedDict)
+
+    model = TestModel(name="Test")
+    assert isinstance(model.elist_of_str, EventedList)
+    assert isinstance(model.eset_of_str, EventedSet)
+    assert isinstance(model.edict_of_str, EventedDict)
+
+    dumped = model.model_dump(mode="python")
+    assert isinstance(dumped["elist_of_str"], EventedList)
+    assert isinstance(dumped["eset_of_str"], EventedSet)
+    assert isinstance(dumped["edict_of_str"], EventedDict)
+
+    dumped = model.model_dump(mode="json")
+    assert isinstance(dumped["elist_of_str"], list)
+    assert isinstance(dumped["eset_of_str"], list)
+    assert isinstance(dumped["edict_of_str"], dict)
+
+    json_dump = model.model_dump_json()
+    assert isinstance(json_dump, str)
+    assert TestModel.model_json_schema(mode="serialization")
+    assert TestModel.model_json_schema(mode="validation")

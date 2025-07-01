@@ -29,7 +29,6 @@ from functools import partial
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
     TypeVar,
     Union,
@@ -43,6 +42,7 @@ from psygnal._signal import Signal, SignalInstance
 from psygnal.utils import iter_signal_instances
 
 if TYPE_CHECKING:
+    from pydantic import GetCoreSchemaHandler, SerializationInfo
     from typing_extensions import Self
 
 _T = TypeVar("_T")
@@ -440,15 +440,25 @@ class EventedList(MutableSequence[_T]):
 
     @classmethod
     def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: Callable
+        cls, source_type: Any, handler: GetCoreSchemaHandler
     ) -> Mapping[str, Any]:
         """Return the Pydantic core schema for this object."""
         from pydantic_core import core_schema
 
-        args = get_args(source_type)
+        def _serialize(obj: EventedList[_T], info: SerializationInfo, /) -> Any:
+            if info.mode_is_json():
+                return obj._data
+            return cls(obj._data)
+
+        item_type = args[0] if (args := get_args(source_type)) else Any
+        items_schema = handler.generate_schema(item_type)
+        list_schema = core_schema.list_schema(items_schema=items_schema)
         return core_schema.no_info_after_validator_function(
             function=cls,
-            schema=core_schema.list_schema(
-                items_schema=handler(args[0]) if args else None,
+            schema=list_schema,
+            json_schema_input_schema=list_schema,
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                _serialize,
+                info_arg=True,
             ),
         )
