@@ -136,7 +136,7 @@ def weak_callback(
                 "Cannot create async callback yet... No async backend set. "
                 "Please call `psygnal.set_async_backend()` before connecting."
             )
-        if not backend.running:
+        if not backend.running.is_set():
             warnings.warn(
                 f"\n\nConnection of async {cb.__name__!r} will not do anything!\n"
                 "Async backend not running. Launch `get_async_backend().run()` "

@@ -83,7 +83,7 @@ class AsyncioTestRunner:
     ) -> None:
         """Wait for backend to be running with a timeout."""
         start_time = asyncio.get_event_loop().time()
-        while not backend.running:
+        while not backend.running.is_set():
             if asyncio.get_event_loop().time() - start_time > timeout:
                 raise TimeoutError("Backend did not start running within timeout")
             await asyncio.sleep(0)
@@ -341,7 +341,7 @@ async def test_run_method_early_return() -> None:
 
     # Wait for backend to be running
     start_time = asyncio.get_event_loop().time()
-    while not backend.running:
+    while not backend.running.is_set():
         if asyncio.get_event_loop().time() - start_time > 1.0:
             raise TimeoutError("Backend did not start running within timeout")
         await asyncio.sleep(0)
@@ -350,7 +350,7 @@ async def test_run_method_early_return() -> None:
     await backend.run()
 
     # Backend should still be running
-    assert backend.running
+    assert backend.running.is_set()
 
 
 @pytest.mark.parametrize("backend_name", AVAILABLE_BACKENDS)
