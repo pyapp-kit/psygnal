@@ -77,7 +77,6 @@ def set_async_backend(backend: SupportedBackend = "asyncio") -> _AsyncBackend:
 class _AsyncBackend(ABC):
     def __init__(self, backend: str):
         self._backend = backend
-        self._running = False
 
     @property
     def running(self) -> bool:
