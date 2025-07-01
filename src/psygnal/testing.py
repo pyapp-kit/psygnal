@@ -11,9 +11,21 @@ from psygnal import SignalGroup, SignalInstance
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from typing import Any
+    from threading import Thread
+    from typing import Any, Literal
 
-    from typing_extensions import Self
+    from typing_extensions import Self, TypedDict
+
+    class ConnectKwargs(TypedDict, total=False):
+        """Kwargs for SignalInstance.connect."""
+
+        thread: Thread | Literal["main", "current"] | None
+        check_nargs: bool | None
+        check_types: bool | None
+        unique: bool | Literal["raise"]
+        max_args: int | None
+        on_ref_error: Literal["raise", "warn", "ignore"]
+        priority: int
 
 
 __all__ = [
@@ -46,6 +58,9 @@ class SignalTester:
     ----------
     signal : SignalInstance | SignalGroup
         The signal instance or group to test.
+    connect_kwargs : ConnectKwargs
+        Keyword arguments to pass to the
+        [`SignalInstance.connect()`][psygnal.SignalInstance.connect] method.
 
     Attributes
     ----------
@@ -82,7 +97,11 @@ class SignalTester:
     ```
     """
 
-    def __init__(self, signal: SignalInstance | SignalGroup) -> None:
+    def __init__(
+        self,
+        signal: SignalInstance | SignalGroup,
+        connect_kwargs: ConnectKwargs | None = None,
+    ) -> None:
         super().__init__()
         self.mock = Mock()
         if isinstance(signal, SignalGroup):
@@ -90,6 +109,7 @@ class SignalTester:
         else:
             signal_instance = signal
         self.signal_instance: SignalInstance = signal_instance
+        self.connect_kwargs = connect_kwargs or {}
 
     def reset(self) -> None:
         """Reset the underlying mock object."""
@@ -115,7 +135,7 @@ class SignalTester:
 
     def connect(self) -> None:
         """Connect the mock to the signal."""
-        self.signal_instance.connect(self.mock)
+        self.signal_instance.connect(self.mock, **self.connect_kwargs)
 
     def disconnect(self) -> None:
         """Disconnect the mock from the signal."""
@@ -207,65 +227,82 @@ class SignalTester:
 
 
 @contextmanager
-def assert_emitted(signal: SignalInstance | SignalGroup) -> Iterator[SignalTester]:
+def assert_emitted(
+    signal: SignalInstance | SignalGroup, connect_kwargs: ConnectKwargs | None = None
+) -> Iterator[SignalTester]:
     """Assert that a signal was emitted at least once.
 
     Parameters
     ----------
     signal : SignalInstance | SignalGroup
         The signal instance or group to test.
+    connect_kwargs : ConnectKwargs
+        Keyword arguments to pass to the
+        [`SignalInstance.connect()`][psygnal.SignalInstance.connect] method.
 
     Raises
     ------
     AssertionError
         If the signal was never emitted.
     """
-    with SignalTester(signal) as mock:
+    with SignalTester(signal, connect_kwargs) as mock:
         yield mock
         mock.assert_emitted()
 
 
 @contextmanager
-def assert_emitted_once(signal: SignalInstance | SignalGroup) -> Iterator[SignalTester]:
+def assert_emitted_once(
+    signal: SignalInstance | SignalGroup, connect_kwargs: ConnectKwargs | None = None
+) -> Iterator[SignalTester]:
     """Assert that a signal was emitted exactly once.
 
     Parameters
     ----------
     signal : SignalInstance | SignalGroup
         The signal instance or group to test.
+    connect_kwargs : ConnectKwargs
+        Keyword arguments to pass to the
+        [`SignalInstance.connect()`][psygnal.SignalInstance.connect] method.
 
     Raises
     ------
     AssertionError
         If the signal was emitted more than once.
     """
-    with SignalTester(signal) as mock:
+    with SignalTester(signal, connect_kwargs) as mock:
         yield mock
         mock.assert_emitted_once()
 
 
 @contextmanager
-def assert_not_emitted(signal: SignalInstance | SignalGroup) -> Iterator[SignalTester]:
+def assert_not_emitted(
+    signal: SignalInstance | SignalGroup, connect_kwargs: ConnectKwargs | None = None
+) -> Iterator[SignalTester]:
     """Assert that a signal was never emitted.
 
     Parameters
     ----------
     signal : SignalInstance | SignalGroup
         The signal instance or group to test.
+    connect_kwargs : ConnectKwargs
+        Keyword arguments to pass to the
+        [`SignalInstance.connect()`][psygnal.SignalInstance.connect] method.
 
     Raises
     ------
     AssertionError
         If the signal was emitted at least once.
     """
-    with SignalTester(signal) as mock:
+    with SignalTester(signal, connect_kwargs) as mock:
         yield mock
         mock.assert_not_emitted()
 
 
 @contextmanager
 def assert_emitted_with(
-    signal: SignalInstance | SignalGroup, *args: Any
+    signal: SignalInstance | SignalGroup,
+    *args: Any,
+    connect_kwargs: ConnectKwargs | None = None,
 ) -> Iterator[SignalTester]:
     """Assert that the *last* emission of the signal had the given arguments.
 
@@ -273,8 +310,11 @@ def assert_emitted_with(
     ----------
     signal : SignalInstance | SignalGroup
         The signal instance or group to test.
-    args : Any
+    *args : Any
         The arguments to check for in the last emission of the signal.
+    connect_kwargs : ConnectKwargs
+        Keyword arguments to pass to the
+        [`SignalInstance.connect()`][psygnal.SignalInstance.connect] method.
 
     Raises
     ------
@@ -282,14 +322,16 @@ def assert_emitted_with(
         If the signal was never emitted or if the last emission did not have the
         expected arguments.
     """
-    with assert_emitted(signal) as mock:
+    with assert_emitted(signal, connect_kwargs) as mock:
         yield mock
         mock.assert_emitted_with(*args)
 
 
 @contextmanager
 def assert_emitted_once_with(
-    signal: SignalInstance | SignalGroup, *args: Any
+    signal: SignalInstance | SignalGroup,
+    *args: Any,
+    connect_kwargs: ConnectKwargs | None = None,
 ) -> Iterator[SignalTester]:
     """Assert that the signal was emitted exactly once with the given arguments.
 
@@ -297,8 +339,11 @@ def assert_emitted_once_with(
     ----------
     signal : SignalInstance | SignalGroup
         The signal instance or group to test.
-    args : Any
+    *args : Any
         The arguments to check for in the last emission of the signal.
+    connect_kwargs : ConnectKwargs
+        Keyword arguments to pass to the
+        [`SignalInstance.connect()`][psygnal.SignalInstance.connect] method.
 
     Raises
     ------
@@ -306,14 +351,16 @@ def assert_emitted_once_with(
         If the signal was not emitted or was emitted more than once or if the last
         emission did not have the expected arguments.
     """
-    with assert_emitted_once(signal) as mock:
+    with assert_emitted_once(signal, connect_kwargs) as mock:
         yield mock
         mock.assert_emitted_once_with(*args)
 
 
 @contextmanager
 def assert_ever_emitted_with(
-    signal: SignalInstance | SignalGroup, *args: Any
+    signal: SignalInstance | SignalGroup,
+    *args: Any,
+    connect_kwargs: ConnectKwargs | None = None,
 ) -> Iterator[SignalTester]:
     """Assert that the signal was emitted *ever* with the given arguments.
 
@@ -321,8 +368,11 @@ def assert_ever_emitted_with(
     ----------
     signal : SignalInstance | SignalGroup
         The signal instance or group to test.
-    args : Any
+    *args : Any
         The arguments to check for in any emission of the signal.
+    connect_kwargs : ConnectKwargs
+        Keyword arguments to pass to the
+        [`SignalInstance.connect()`][psygnal.SignalInstance.connect] method.
 
     Raises
     ------
@@ -330,6 +380,6 @@ def assert_ever_emitted_with(
         If the signal was never emitted or if it was emitted but not with the expected
         arguments.
     """
-    with assert_emitted(signal) as mock:
+    with assert_emitted(signal, connect_kwargs) as mock:
         yield mock
         mock.assert_ever_emitted_with(*args)
