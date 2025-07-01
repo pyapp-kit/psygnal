@@ -406,8 +406,7 @@ def test_high_level_api(backend_name: str) -> None:
                     nursery.start_soon(async_backend.run)
 
                     # Wait for backend to be running
-                    while not backend.running:
-                        await trio.sleep(0)
+                    await backend.running.wait()
 
                     # Run the actual example
                     await run_signal_example()
