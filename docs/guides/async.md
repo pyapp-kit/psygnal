@@ -139,8 +139,7 @@ called asynchronously.
         async with trio.open_nursery() as nursery:
             # Set up the async backend and wait for it to be ready before connecting
             nursery.start_soon(backend.run)  # (2)!
-            while not backend.running:  # (3)!
-                await trio.sleep(0.01)
+            await backend.running.wait()  # (3)!
 
             # Create an instance of MyObj and connect the async callback
             obj = MyObj()
