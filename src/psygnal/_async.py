@@ -106,6 +106,7 @@ class AsyncioBackend(_AsyncBackend):
         self._queue: asyncio.Queue[tuple] = asyncio.Queue()
         self._task = asyncio.create_task(self.run())
         self._loop = asyncio.get_running_loop()
+        self._running = asyncio.Event()
 
     def _put(self, item: QueueItem) -> None:
         self._queue.put_nowait(item)
@@ -119,10 +120,10 @@ class AsyncioBackend(_AsyncBackend):
             self._task.cancel()
 
     async def run(self) -> None:
-        if self.running:
+        if self.running.is_set():
             return
 
-        self._running = True
+        self._running.set()
         try:
             while True:
                 item = await self._get()
@@ -140,7 +141,7 @@ class AsyncioBackend(_AsyncBackend):
             if not self._loop.is_closed():
                 raise e
         finally:
-            self._running = False
+            self._running.clear()
 
 
 class AnyioBackend(_AsyncBackend):
@@ -154,6 +155,7 @@ class AnyioBackend(_AsyncBackend):
         self._send_stream, self._receive_stream = anyio.create_memory_object_stream(
             max_buffer_size=inf
         )
+        self._running = anyio.Event()
 
     def _put(self, item: QueueItem) -> None:
         self._send_stream.send_nowait(item)
@@ -169,10 +171,10 @@ class AnyioBackend(_AsyncBackend):
             self._receive_stream.close()
 
     async def run(self) -> None:
-        if self.running:
+        if self.running.is_set():
             return  # pragma: no cover
 
-        self._running = True
+        self._running.set()
         try:
             async with self._receive_stream:
                 async for item in self._receive_stream:
@@ -184,7 +186,7 @@ class AnyioBackend(_AsyncBackend):
 
                         traceback.print_exc()
         finally:
-            self._running = False
+            self._running = anyio.Event()
             # Ensure streams are closed
             self.close()
 
@@ -200,6 +202,7 @@ class TrioBackend(_AsyncBackend):
         self._send_channel, self._receive_channel = trio.open_memory_channel(
             max_buffer_size=inf
         )
+        self._running = trio.Event()
 
     def _put(self, item: tuple) -> None:
         self._send_channel.send_nowait(item)
@@ -208,10 +211,10 @@ class TrioBackend(_AsyncBackend):
         return await self._receive_channel.receive()
 
     async def run(self) -> None:
-        if self.running:
+        if self.running.is_set():
             return  # pragma: no cover
 
-        self._running = True
+        self._running.set()
         try:
             async for item in self._receive_channel:
                 try:
@@ -222,4 +225,4 @@ class TrioBackend(_AsyncBackend):
 
                     traceback.print_exc()
         finally:
-            self._running = False
+            self._running = trio.Event()
