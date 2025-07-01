@@ -65,8 +65,7 @@ called asynchronously.
         backend = set_async_backend("asyncio") # (1)!
 
         # Set up the async backend and wait for it to be ready
-        while not backend.running:  # (2)!
-            await asyncio.sleep(0.01)
+        await backend.running.wait()  # (2)!
 
         # Create an instance of MyObj and connect the async callback
         obj = MyObj()
