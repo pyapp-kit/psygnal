@@ -202,6 +202,7 @@ disallow_subclassing_any = false
 show_error_codes = true
 pretty = true
 
+
 [[tool.mypy.overrides]]
 module = ["numpy.*", "wrapt", "pydantic.*"]
 ignore_errors = true
@@ -235,6 +236,7 @@ omit = ["*/_pyinstaller_util/*"]
 ignore = [
     ".ruff_cache/**/*",
     ".github_changelog_generator",
+    "scripts/*",
     ".pre-commit-config.yaml",
     "tests/**/*",
     "typesafety/*",

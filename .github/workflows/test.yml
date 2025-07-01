@@ -17,7 +17,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: pipx run check-manifest
+      - run: |
+          pipx run check-manifest
+
+  check-templates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - run: |
+          pip install ruff mypy
+          CHECK_STUBS=1 python scripts/build_stub.py
 
   test:
     name: Test ${{ matrix.qt }} ${{ matrix.os }} py${{ matrix.python-version }} mypyc-${{ matrix.compile }} ${{ matrix.pydantic }}
