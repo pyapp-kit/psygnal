@@ -374,8 +374,7 @@ def test_high_level_api(backend_name: str) -> None:
                 task = asyncio.create_task(async_backend.run())
 
                 # Wait for backend to be running
-                while not backend.running:
-                    await asyncio.sleep(0)
+                await backend.running.wait()
 
             elif backend_name == "anyio":
                 import anyio
