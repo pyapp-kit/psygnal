@@ -167,8 +167,7 @@ class TrioTestRunner:
                     nursery.start_soon(backend.run)
 
                     # Wait for backend to be running
-                    while not backend.running:
-                        await trio.sleep(0)
+                    await backend.running.wait()
 
                     try:
                         result = await test_func()
