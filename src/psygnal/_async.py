@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from collections.abc import Coroutine
     from typing import Any, Protocol
 
-    import anyio.streams
+    import anyio.streams.memory
     import trio
     from typing_extensions import Literal, TypeAlias
 
@@ -95,10 +95,7 @@ class _AsyncBackend(ABC):
     def running(self) -> EventLike: ...
 
     @abstractmethod
-    def _put(self, item: QueueItem) -> None: ...
-
-    @abstractmethod
-    async def _get(self) -> QueueItem: ...
+    def put(self, item: QueueItem) -> None: ...
 
     @abstractmethod
     async def run(self) -> None: ...
@@ -125,11 +122,8 @@ class AsyncioBackend(_AsyncBackend):
         """Return the event indicating if the backend is running."""
         return self._running
 
-    def _put(self, item: QueueItem) -> None:
+    def put(self, item: QueueItem) -> None:
         self._queue.put_nowait(item)
-
-    async def _get(self) -> QueueItem:
-        return await self._queue.get()
 
     def close(self) -> None:
         """Close the asyncio backend and cancel tasks."""
@@ -143,7 +137,7 @@ class AsyncioBackend(_AsyncBackend):
         self._running.set()
         try:
             while True:
-                item = await self._get()
+                item = await self._queue.get()
                 try:
                     await self.call_back(item)
                 except Exception:
@@ -154,7 +148,7 @@ class AsyncioBackend(_AsyncBackend):
                     traceback.print_exc()
         except self._asyncio.CancelledError:
             pass
-        except RuntimeError as e:
+        except RuntimeError as e:  # pragma: no cover
             if not self._loop.is_closed():
                 raise e
         finally:
@@ -180,11 +174,8 @@ class AnyioBackend(_AsyncBackend):
         """Return the event indicating if the backend is running."""
         return self._running
 
-    def _put(self, item: QueueItem) -> None:
+    def put(self, item: QueueItem) -> None:
         self._send_stream.send_nowait(item)
-
-    async def _get(self) -> QueueItem:
-        return await self._receive_stream.receive()
 
     def close(self) -> None:
         """Close the anyio streams."""
@@ -233,11 +224,8 @@ class TrioBackend(_AsyncBackend):
         """Return the event indicating if the backend is running."""
         return self._running
 
-    def _put(self, item: tuple) -> None:
+    def put(self, item: tuple) -> None:
         self._send_channel.send_nowait(item)
-
-    async def _get(self) -> tuple:
-        return await self._receive_channel.receive()
 
     async def run(self) -> None:
         if self._running.is_set():

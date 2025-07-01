@@ -636,7 +636,7 @@ class WeakCoroutineFunction(WeakFunction):
         if self._max_args is not None:
             args = args[: self._max_args]
 
-        cast("_AsyncBackend", get_async_backend())._put((self, args))
+        cast("_AsyncBackend", get_async_backend()).put((self, args))
 
 
 class StrongCoroutineFunction(StrongFunction):
@@ -646,7 +646,7 @@ class StrongCoroutineFunction(StrongFunction):
         if self._max_args is not None:
             args = args[: self._max_args]
 
-        cast("_AsyncBackend", get_async_backend())._put((self, args))
+        cast("_AsyncBackend", get_async_backend()).put((self, args))
 
 
 class WeakCoroutineMethod(WeakMethod):
@@ -657,4 +657,4 @@ class WeakCoroutineMethod(WeakMethod):
         if self._max_args is not None:
             args = args[: self._max_args]
 
-        cast("_AsyncBackend", get_async_backend())._put((self, args))
+        cast("_AsyncBackend", get_async_backend()).put((self, args))
