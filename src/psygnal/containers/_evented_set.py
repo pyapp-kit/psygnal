@@ -6,7 +6,6 @@ from itertools import chain
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
     Final,
     TypeVar,
@@ -16,6 +15,7 @@ from typing import (
 from psygnal import Signal, SignalGroup
 
 if TYPE_CHECKING:
+    from pydantic import GetCoreSchemaHandler, SerializationInfo
     from typing_extensions import Self
 
 
@@ -183,16 +183,27 @@ class _BaseMutableSet(MutableSet[_T]):
 
     @classmethod
     def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: Callable
+        cls, source_type: Any, handler: GetCoreSchemaHandler
     ) -> Mapping[str, Any]:
         """Return the Pydantic core schema for this object."""
         from pydantic_core import core_schema
 
-        args = get_args(source_type)
+        def _serialize(obj: _BaseMutableSet[_T], info: SerializationInfo, /) -> Any:
+            if info.mode_is_json():
+                return obj._data
+            return cls(obj._data)
+
+        # get item type
+        item_type = args[0] if (args := get_args(source_type)) else Any
+        items_schema = handler.generate_schema(item_type)
+        set_schema = core_schema.set_schema(items_schema=items_schema)
         return core_schema.no_info_after_validator_function(
             function=cls,
-            schema=core_schema.set_schema(
-                items_schema=handler(args[0]) if args else None,
+            json_schema_input_schema=set_schema,
+            schema=set_schema,
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                _serialize,
+                info_arg=True,
             ),
         )
 

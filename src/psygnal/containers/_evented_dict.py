@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Iterator, Mapping, MutableMapping, Sequence
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, ClassVar, TypeVar, Union, get_args
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, Union, get_args
 
 if TYPE_CHECKING:
+    from pydantic import GetCoreSchemaHandler, SerializationInfo
     from typing_extensions import Self
 
 from psygnal._group import EmissionInfo, PathStep, SignalGroup
@@ -89,17 +90,37 @@ class TypedMutableMapping(MutableMapping[_K, _V]):
 
     @classmethod
     def __get_pydantic_core_schema__(
-        cls, source_type: Any, handler: Callable
+        cls, source_type: Any, handler: GetCoreSchemaHandler
     ) -> Mapping[str, Any]:
         """Return the Pydantic core schema for this object."""
         from pydantic_core import core_schema
 
-        args = get_args(source_type)
+        def _serialize(obj: EventedDict[_K, _V], info: SerializationInfo, /) -> Any:
+            if info.mode_is_json():
+                return obj._dict
+            return cls(obj._dict)
+
+        # get key/value types
+        key_type = val_type = Any
+        if args := get_args(source_type):
+            key_type = args[0]
+            if len(args) > 1:
+                val_type = args[1]
+
+        # get key/value schemas and validators
+        keys_schema = handler.generate_schema(key_type)
+        values_schema = handler.generate_schema(val_type)
+        dict_schema = core_schema.dict_schema(
+            keys_schema=keys_schema,
+            values_schema=values_schema,
+        )
         return core_schema.no_info_after_validator_function(
             function=cls,
-            schema=core_schema.dict_schema(
-                keys_schema=handler(args[0]) if args else None,
-                values_schema=handler(args[1]) if len(args) > 1 else None,
+            schema=dict_schema,
+            json_schema_input_schema=dict_schema,
+            serialization=core_schema.plain_serializer_function_ser_schema(
+                _serialize,
+                info_arg=True,
             ),
         )
 
