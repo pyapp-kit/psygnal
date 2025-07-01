@@ -84,7 +84,7 @@ called asynchronously.
 
     1.  Call `psygnal.set_async_backend("asyncio")`.  This immediately creates
         a task to process the queues.
-    2.  Wait for the backend to task be ready before connecting the signal.
+    2.  Wait for the backend to be ready before connecting the signal.
     3.  Connect the signal to the async callback function.
 
 === "AnyIO"
