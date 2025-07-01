@@ -612,6 +612,7 @@ class SignalGroup:
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = "warn",
         priority: int = 0,
+        emit_on_evented_child_events: bool = False,
     ) -> Callable[[F], F] | F:
         if slot is None:
             return self._psygnal_relay.connect(
@@ -622,6 +623,7 @@ class SignalGroup:
                 max_args=max_args,
                 on_ref_error=on_ref_error,
                 priority=priority,
+                emit_on_evented_child_events=emit_on_evented_child_events,
             )
         else:
             return self._psygnal_relay.connect(
@@ -633,6 +635,7 @@ class SignalGroup:
                 max_args=max_args,
                 on_ref_error=on_ref_error,
                 priority=priority,
+                emit_on_evented_child_events=emit_on_evented_child_events,
             )
 
     def connect_direct(

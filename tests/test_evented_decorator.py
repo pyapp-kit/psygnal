@@ -7,6 +7,8 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 
+import psygnal
+import psygnal.testing
 from psygnal import (
     EmissionInfo,
     PathStep,
@@ -505,3 +507,36 @@ def test_team_example():
         testing.assert_not_emitted(team.events.leader),
     ):
         team.leader.name = "Alice"
+
+
+def test_signal_instance_emits_on_subevents() -> None:
+    from dataclasses import dataclass, field
+
+    from psygnal import evented
+
+    @evented
+    @dataclass
+    class Person:
+        name: str = ""
+        age: int = 0
+
+    @evented
+    @dataclass
+    class Team:
+        name: str = ""
+        leader: Person = field(default_factory=Person)
+
+    team = Team(name="A-Team", leader=Person(name="Hannibal", age=59))
+
+    # team.events.leader.connect(callback) should trigger
+    # when team.leader.<anything> changes
+
+    # i.e. team.leader.events.connect(lambda: callback(team.leader))
+    with psygnal.testing.assert_emitted_once_with(
+        team.events.leader,
+        Person(name="Hannibal", age=60),
+        # Team(name="A-Team", leader=Person(name="Hannibal", age=59)),
+        None,
+        connect_kwargs={"emit_on_evented_child_events": True},
+    ):
+        team.leader.age = 60
