@@ -7,8 +7,6 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 
-import psygnal
-import psygnal.testing
 from psygnal import (
     EmissionInfo,
     PathStep,
@@ -510,10 +508,6 @@ def test_team_example():
 
 
 def test_signal_instance_emits_on_subevents() -> None:
-    from dataclasses import dataclass, field
-
-    from psygnal import evented
-
     @evented
     @dataclass
     class Person:
@@ -528,15 +522,7 @@ def test_signal_instance_emits_on_subevents() -> None:
 
     team = Team(name="A-Team", leader=Person(name="Hannibal", age=59))
 
-    # team.events.leader.connect(callback) should trigger
-    # when team.leader.<anything> changes
-
-    # i.e. team.leader.events.connect(lambda: callback(team.leader))
-    with psygnal.testing.assert_emitted_once_with(
-        team.events.leader,
-        Person(name="Hannibal", age=60),
-        # Team(name="A-Team", leader=Person(name="Hannibal", age=59)),
-        None,
-        connect_kwargs={"emit_on_evented_child_events": True},
-    ):
-        team.leader.age = 60
+    mock = Mock()
+    team.events.leader.connect(mock, emit_on_evented_child_events=True)
+    team.leader.age = 60
+    mock.assert_called_once_with(Person(name="Hannibal", age=60), None)
