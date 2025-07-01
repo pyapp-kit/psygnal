@@ -24,6 +24,7 @@ nav:
     - Evented Dataclasses: guides/dataclasses.md
     - Evented Pydantic Model: guides/model.md
     - Throttling & Debouncing: guides/throttler.md
+    - Coroutines (async/await): guides/async.md
     - Testing: guides/testing.md
     - Debugging: guides/debugging.md
 
@@ -54,6 +55,8 @@ theme:
     # - toc.follow
     # - content.code.annotate
     - content.tabs.link
+    - content.code.copy
+    - content.code.annotate
 
 markdown_extensions:
   - admonition
@@ -64,6 +67,8 @@ markdown_extensions:
       alternate_style: true
   - toc:
       permalink: "#"
+  - pymdownx.tasklist:
+      custom_checkbox: true
 
 plugins:
   - search

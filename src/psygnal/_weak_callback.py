@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import inspect
 import sys
+import warnings
 import weakref
 from functools import partial
 from types import BuiltinMethodType, FunctionType, MethodType, MethodWrapperType
@@ -16,11 +18,14 @@ from typing import (
 )
 from warnings import warn
 
+from ._async import get_async_backend
 from ._mypyc import mypyc_attr
 
 if TYPE_CHECKING:
     import toolz
     from typing_extensions import TypeAlias, TypeGuard  # py310
+
+    from ._async import _AsyncBackend
 
     RefErrorChoice: TypeAlias = Literal["raise", "warn", "ignore"]
 
@@ -124,14 +129,46 @@ def weak_callback(
         kwargs = cb.keywords
         cb = cb.func
 
+    is_coro = inspect.iscoroutinefunction(cb)
+    if is_coro:
+        if (backend := get_async_backend()) is None:
+            raise RuntimeError(
+                "Cannot create async callback yet... No async backend set. "
+                "Please call `psygnal.set_async_backend()` before connecting."
+            )
+        if not backend.running.is_set():
+            warnings.warn(
+                f"\n\nConnection of async {cb.__name__!r} will not do anything!\n"
+                "Async backend not running. Launch `get_async_backend().run()` "
+                "in a background task and wait for `backend.running`",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+
     if isinstance(cb, FunctionType):
-        return (
-            StrongFunction(cb, max_args, args, kwargs, priority=priority)
-            if strong_func
-            else WeakFunction(
+        # NOTE: I know it looks like this should be easy to express in much shorter
+        # syntax ... but mypyc will likely fail at runtime.
+        # Make sure to test compiled version if you change this.
+        if strong_func:
+            if is_coro:
+                return StrongCoroutineFunction(
+                    cb, max_args, args, kwargs, priority=priority
+                )
+            return StrongFunction(cb, max_args, args, kwargs, priority=priority)
+        else:
+            if is_coro:
+                return WeakCoroutineFunction(
+                    cb,
+                    max_args,
+                    args,
+                    kwargs,
+                    finalize,
+                    on_ref_error=on_ref_error,
+                    priority=priority,
+                )
+            return WeakFunction(
                 cb, max_args, args, kwargs, finalize, on_ref_error, priority=priority
             )
-        )
 
     if isinstance(cb, MethodType):
         if getattr(cb, "__name__", None) == "__setitem__":
@@ -144,6 +181,11 @@ def weak_callback(
             obj = cast("SupportsSetitem", cb.__self__)
             return WeakSetitem(
                 obj, key, max_args, finalize, on_ref_error, priority=priority
+            )
+
+        if is_coro:
+            return WeakCoroutineMethod(
+                cb, max_args, args, kwargs, finalize, on_ref_error, priority=priority
             )
         return WeakMethod(
             cb, max_args, args, kwargs, finalize, on_ref_error, priority=priority
@@ -334,6 +376,8 @@ def _kill_and_finalize(
 @mypyc_attr(serializable=True)
 class StrongFunction(WeakCallback):
     """Wrapper around a strong function reference."""
+
+    _f: Callable
 
     def __init__(
         self,
@@ -580,3 +624,37 @@ class WeakSetitem(WeakCallback):
     def dereference(self) -> partial | None:
         obj = self._obj_ref()
         return None if obj is None else partial(obj.__setitem__, self._itemkey)
+
+
+# --------------------------- Coroutines ---------------------------
+
+
+class WeakCoroutineFunction(WeakFunction):
+    def cb(self, args: tuple[Any, ...] = ()) -> None:
+        if self._f() is None:
+            raise ReferenceError("weakly-referenced object no longer exists")
+        if self._max_args is not None:
+            args = args[: self._max_args]
+
+        cast("_AsyncBackend", get_async_backend()).put((self, args))
+
+
+class StrongCoroutineFunction(StrongFunction):
+    """Wrapper around a strong coroutine function reference."""
+
+    def cb(self, args: tuple[Any, ...] = ()) -> None:
+        if self._max_args is not None:
+            args = args[: self._max_args]
+
+        cast("_AsyncBackend", get_async_backend()).put((self, args))
+
+
+class WeakCoroutineMethod(WeakMethod):
+    def cb(self, args: tuple[Any, ...] = ()) -> None:
+        if self._obj_ref() is None or self._func_ref() is None:
+            raise ReferenceError("weakly-referenced object no longer exists")
+
+        if self._max_args is not None:
+            args = args[: self._max_args]
+
+        cast("_AsyncBackend", get_async_backend()).put((self, args))

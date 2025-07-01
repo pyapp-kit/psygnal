@@ -36,18 +36,21 @@ proxy = ["wrapt"]
 pydantic = ["pydantic"]
 
 [dependency-groups]
+test-min = ["pytest>=6.0", "pytest-cov", "pytest-asyncio"]
 test = [
+    { include-group = "test-min" },
     "dask[array]>=2024.0.0",
     "attrs",
     "numpy >1.21.6",
     "pydantic",
     "pyinstaller>=4.0",
-    "pytest>=6.0",
-    "pytest-cov",
     "wrapt",
     "msgspec",
     "toolz",
+    "anyio",
+    "trio",
 ]
+test-typing = [{ include-group = "test-min" }, "pytest-mypy-plugins"]
 testqt = [{ include-group = "test" }, "pytest-qt", "qtpy"]
 test-codspeed = [{ include-group = "test" }, "pytest-codspeed"]
 docs = [
@@ -114,6 +117,7 @@ exclude = [
     "src/psygnal/qt.py",
     "src/psygnal/_pyinstaller_util",
     "src/psygnal/_throttler.py",
+    "src/psygnal/_async.py",
     "src/psygnal/testing.py",
 ]
 
@@ -177,6 +181,7 @@ docstring-code-format = true
 [tool.pytest.ini_options]
 minversion = "6.0"
 testpaths = ["tests"]
+asyncio_default_fixture_loop_scope = "function"
 addopts = ["--color=yes"]
 filterwarnings = [
     "error",
@@ -184,6 +189,8 @@ filterwarnings = [
     "ignore:.*BackendFinder.find_spec()",                                            # pyinstaller import
     "ignore:.*not using a cooperative constructor:pytest.PytestDeprecationWarning:",
     "ignore:Failed to disconnect::pytestqt",
+    "ignore:.*unclosed.*socket.*:ResourceWarning:",                                  # asyncio internal socket cleanup
+    "ignore:.*unclosed event loop.*:ResourceWarning:",                               # asyncio internal event loop cleanup
 ]
 
 # https://mypy.readthedocs.io/en/stable/config_file.html
