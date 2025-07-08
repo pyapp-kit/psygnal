@@ -24,7 +24,13 @@ from typing import (
     overload,
 )
 
-from psygnal._signal import _NULL, Signal, SignalInstance, _SignalBlocker
+from psygnal._signal import (
+    _NULL,
+    Signal,
+    SignalInstance,
+    Unparametrized,
+    _SignalBlocker,
+)
 
 from ._mypyc import mypyc_attr
 
@@ -35,6 +41,7 @@ if TYPE_CHECKING:
 
     from psygnal._signal import F, ReducerFunc
     from psygnal._weak_callback import RefErrorChoice, WeakCallback
+
 
 __all__ = ["EmissionInfo", "SignalGroup"]
 
@@ -134,7 +141,7 @@ class EmissionInfo:
         yield self.args
 
 
-class SignalRelay(SignalInstance):
+class SignalRelay(SignalInstance[type[EmissionInfo]]):
     """Special SignalInstance that can be used to connect to all signals in a group.
 
     This class will rarely be instantiated by a user (or anything other than a
@@ -151,7 +158,7 @@ class SignalRelay(SignalInstance):
     def __init__(
         self, signals: Mapping[str, SignalInstance], instance: Any = None
     ) -> None:
-        super().__init__(signature=(EmissionInfo,), instance=instance)
+        super().__init__((EmissionInfo,), instance=instance)
         self._signals = MappingProxyType(signals)
         self._sig_was_blocked: dict[str, bool] = {}
         self._on_first_connect_callbacks: list[Callable[[], None]] = []
@@ -512,7 +519,7 @@ class SignalGroup:
         """Return the number of signals in the group (not including the relay)."""
         return len(self._psygnal_instances)
 
-    def __getitem__(self, item: str) -> SignalInstance:
+    def __getitem__(self, item: str) -> SignalInstance[Unparametrized]:
         """Get a signal instance by name."""
         return self._psygnal_instances[item]
 
@@ -520,7 +527,7 @@ class SignalGroup:
     # where the SignalGroup comes from the SignalGroupDescriptor
     # (such as in evented dataclasses).  In those cases, it's hard to indicate
     # to mypy that all remaining attributes are SignalInstances.
-    def __getattr__(self, __name: str) -> SignalInstance:
+    def __getattr__(self, __name: str) -> SignalInstance[Unparametrized]:
         """Get a signal instance by name."""
         raise AttributeError(  # pragma: no cover
             f"{type(self).__name__!r} object has no attribute {__name!r}"
@@ -603,7 +610,7 @@ class SignalGroup:
 
     def connect(
         self,
-        slot: F | None = None,
+        slot: Callable | None = None,
         *,
         thread: threading.Thread | Literal["main", "current"] | None = None,
         check_nargs: bool | None = None,
@@ -612,7 +619,7 @@ class SignalGroup:
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = "warn",
         priority: int = 0,
-    ) -> Callable[[F], F] | F:
+    ) -> Callable:
         if slot is None:
             return self._psygnal_relay.connect(
                 thread=thread,

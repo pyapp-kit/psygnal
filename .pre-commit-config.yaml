@@ -28,7 +28,7 @@ repos:
     rev: v1.16.1
     hooks:
       - id: mypy
-        exclude: tests|_throttler.pyi
+        exclude: tests|_throttler.pyi|.*_signal.pyi
         additional_dependencies:
           - types-attrs
           - pydantic
