@@ -185,7 +185,7 @@ class _DataclassFieldSignalInstance(SignalInstance):
                 old_val: Any = None
                 slot(new_val, old_val)
 
-            group.connect(_on_any_change)
+            group.connect(_on_any_change, check_nargs=False, on_ref_error="ignore")
 
     def connect_setattr(
         self,
