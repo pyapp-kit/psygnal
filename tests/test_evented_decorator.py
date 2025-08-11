@@ -472,7 +472,7 @@ def test_lazy_child_connection() -> None:
     )
 
 
-def test_team_example():
+def test_team_example() -> None:
     @evented
     @dataclass
     class Person:
