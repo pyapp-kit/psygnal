@@ -346,8 +346,11 @@ class SignalRelay(SignalInstance):
                     if deref == slot:
                         return i
                     # Case 2: compiled path where we stored __call__ bound method
-                    owner = getattr(deref, "__self__", None)
-                    if isinstance(owner, _relay_partial) and owner == slot:
+                    # (these will never hit on codecov, but they are covered in tests)
+                    owner = getattr(deref, "__self__", None)  # pragma: no cover
+                    if (
+                        isinstance(owner, _relay_partial) and owner == slot
+                    ):  # pragma: no cover
                         return i
         return -1  # pragma: no cover
 
