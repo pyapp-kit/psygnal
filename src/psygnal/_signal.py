@@ -714,7 +714,15 @@ class SignalInstance:
             Higher priority callbacks are called first. Negative values are allowed.
             The default is 0.
         emit_on_evented_child_events : bool
-            ...
+            If `True`, and if this is a SignalInstance associated with a specific field
+            on an evented dataclass, and if that field itself is an evented dataclass,
+            then the slot will be called both when the field is set directly, *and* when
+            a child member of that field is set.
+            For example, if `Team` is an evented-dataclass with a field `leader: Person`
+            which is itself an evented-dataclass, then
+            `team.events.leader.connect(callback, emit_on_evented_child_events=True)`
+            will invoke callback even when `team.leader.age` is mutated (in addition to
+            when `team.leader` is set directly).
 
         Raises
         ------
