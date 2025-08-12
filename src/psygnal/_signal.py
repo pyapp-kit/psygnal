@@ -791,7 +791,7 @@ class SignalInstance:
         to connect additional event listeners to the slot.
         """
         # implementing this as a method allows us to override/extend it in subclasses
-        pass
+        pass  # pragma: no cover
 
     def _append_slot(self, slot: WeakCallback) -> None:
         """Append a slot to the list of slots.
@@ -1163,7 +1163,7 @@ class SignalInstance:
         # this change is needed for some reason after mypy v1.14.0
         if callable(slot):
             return self._slot_index(slot) >= 0
-        return False
+        return False  # pragma: no cover
 
     def __len__(self) -> int:
         """Return number of connected slots."""

@@ -423,16 +423,6 @@ class StrongFunction(WeakCallback):
         for k, v in state.items():
             setattr(self, k, v)
 
-    def _try_ref(
-        self,
-        obj: _T,
-        finalize: Callable[[WeakCallback], Any] | None = None,
-    ) -> Callable[[], _T | None]:
-        def _strong_ref() -> _T:
-            return obj
-
-        return _strong_ref
-
 
 class WeakFunction(WeakCallback):
     """Wrapper around a weak function reference."""
