@@ -1,5 +1,20 @@
 # Changelog
 
+## [v0.14.1](https://github.com/pyapp-kit/psygnal/tree/v0.14.1) (2025-08-12)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.14.0...v0.14.1)
+
+**Implemented enhancements:**
+
+- feat: allow SignalInstances for evented dataclass fields to emit on field mutation \(in addition to field change\) [\#379](https://github.com/pyapp-kit/psygnal/pull/379) ([tlambert03](https://github.com/tlambert03))
+- feat: allow psygnal.testing functions to to accept connection kwargs [\#378](https://github.com/pyapp-kit/psygnal/pull/378) ([tlambert03](https://github.com/tlambert03))
+
+**Merged pull requests:**
+
+- ci\(dependabot\): bump actions/download-artifact from 4 to 5 [\#382](https://github.com/pyapp-kit/psygnal/pull/382) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(dependabot\): bump pypa/cibuildwheel from 3.0 to 3.1 [\#381](https://github.com/pyapp-kit/psygnal/pull/381) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(pre-commit.ci\): autoupdate [\#380](https://github.com/pyapp-kit/psygnal/pull/380) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+
 ## [v0.14.0](https://github.com/pyapp-kit/psygnal/tree/v0.14.0) (2025-07-01)
 
 [Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.13.0...v0.14.0)
