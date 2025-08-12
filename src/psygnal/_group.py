@@ -319,12 +319,13 @@ class SignalRelay(SignalInstance):
     def _slot_index(self, slot: Callable) -> int:
         """Get index of `slot` in `self._slots`. Return -1 if not connected.
 
-        In interpreted mode, `_relay_partial` callbacks were previously stored as
+        In interpreted mode, `_relay_partial` callbacks are stored as
         weak references to the callable object itself, so comparing the
-        dereferenced callback to the provided `_relay_partial` worked. In compiled
+        dereferenced callback to the provided `_relay_partial` works. In compiled
         mode (mypyc), `weak_callback` may normalize a `_relay_partial` to a strong
-        reference to its `__call__` method (a MethodWrapperType). In that case the
-        default WeakCallback equality logic is the correct and more robust path.
+        reference to its `__call__` method (a MethodWrapperType), to avoid segfaults on
+        garbage collection. In that case the default WeakCallback equality logic is the
+        correct and more robust path.
 
         Therefore, try the base implementation first (which compares normalized
         WeakCallback objects). If that fails and we're dealing with a
