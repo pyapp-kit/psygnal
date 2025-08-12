@@ -228,6 +228,15 @@ def weak_callback(
         )
 
     if callable(cb):
+        # this is a bit of hack to workaround a segfault observed in testing
+        # on python <=3.11 when compiled by mypyc,
+        # during _weak_callback___WeakFunction_traverse
+        # it specifically happens with MethodWrapperType objects, that I think are made
+        # by mypyc itself.  So we just don't attempt to weakref them here anymore.
+        _call = getattr(cb, "__call__", None)  # noqa
+        if isinstance(_call, MethodWrapperType):
+            return StrongFunction(_call, max_args, args, kwargs, priority=priority)
+
         return WeakFunction(
             cb, max_args, args, kwargs, finalize, on_ref_error, priority=priority
         )

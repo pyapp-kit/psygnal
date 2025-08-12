@@ -472,7 +472,7 @@ def test_lazy_child_connection() -> None:
     )
 
 
-def test_team_example():
+def test_team_example() -> None:
     @evented
     @dataclass
     class Person:
@@ -505,3 +505,24 @@ def test_team_example():
         testing.assert_not_emitted(team.events.leader),
     ):
         team.leader.name = "Alice"
+
+
+def test_signal_instance_emits_on_subevents() -> None:
+    @evented
+    @dataclass
+    class Person:
+        name: str = ""
+        age: int = 0
+
+    @evented
+    @dataclass
+    class Team:
+        name: str = ""
+        leader: Person = field(default_factory=Person)
+
+    team = Team(name="A-Team", leader=Person(name="Hannibal", age=59))
+
+    mock = Mock()
+    team.events.leader.connect(mock, emit_on_evented_child_events=True)
+    team.leader.age = 60
+    mock.assert_called_once_with(Person(name="Hannibal", age=60), None)

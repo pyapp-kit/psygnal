@@ -722,7 +722,7 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
         elif name in self.__field_dependents__:
             deps_with_callbacks = self.__field_dependents__[name]
         else:
-            return self._super_setattr_(name, value)
+            return self._super_setattr_(name, value)  # pragma: no cover
 
         self._primary_changes.add(name)
         if name not in self._changes_queue:

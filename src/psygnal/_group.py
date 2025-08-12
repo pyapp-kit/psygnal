@@ -319,19 +319,40 @@ class SignalRelay(SignalInstance):
     def _slot_index(self, slot: Callable) -> int:
         """Get index of `slot` in `self._slots`. Return -1 if not connected.
 
-        Override to handle _relay_partial objects directly without wrapping
-        them in WeakFunction, which would create different objects.
-        """
-        if not isinstance(slot, _relay_partial):
-            # For non-_relay_partial objects, use the default behavior
-            return super()._slot_index(slot)
+        In interpreted mode, `_relay_partial` callbacks are stored as
+        weak references to the callable object itself, so comparing the
+        dereferenced callback to the provided `_relay_partial` works. In compiled
+        mode (mypyc), `weak_callback` may normalize a `_relay_partial` to a strong
+        reference to its `__call__` method (a MethodWrapperType), to avoid segfaults on
+        garbage collection. In that case the default WeakCallback equality logic is the
+        correct and more robust path.
 
-        with self._lock:
-            # For _relay_partial objects, compare directly against callbacks
-            for i, s in enumerate(self._slots):
-                if s.dereference() == slot:
-                    return i
-            return -1  # pragma: no cover
+        Therefore, try the base implementation first (which compares normalized
+        WeakCallback objects). If that fails and we're dealing with a
+        `_relay_partial`, fall back to comparing the dereferenced callable to the
+        provided slot for backward compatibility.
+        """
+        # First, try the standard equality path used by SignalInstance
+        idx = super()._slot_index(slot)
+        if idx != -1:
+            return idx
+
+        # Fallback: handle direct comparison for `_relay_partial` instances
+        if isinstance(slot, _relay_partial):
+            with self._lock:
+                for i, s in enumerate(self._slots):
+                    deref = s.dereference()
+                    # Case 1: stored deref is the _relay_partial itself (interpreted)
+                    if deref == slot:
+                        return i
+                    # Case 2: compiled path where we stored __call__ bound method
+                    # (these will never hit on codecov, but they are covered in tests)
+                    owner = getattr(deref, "__self__", None)  # pragma: no cover
+                    if (
+                        isinstance(owner, _relay_partial) and owner == slot
+                    ):  # pragma: no cover
+                        return i
+        return -1  # pragma: no cover
 
 
 # NOTE
@@ -612,6 +633,7 @@ class SignalGroup:
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = "warn",
         priority: int = 0,
+        emit_on_evented_child_events: bool = False,
     ) -> Callable[[F], F] | F:
         if slot is None:
             return self._psygnal_relay.connect(
@@ -622,6 +644,7 @@ class SignalGroup:
                 max_args=max_args,
                 on_ref_error=on_ref_error,
                 priority=priority,
+                emit_on_evented_child_events=emit_on_evented_child_events,
             )
         else:
             return self._psygnal_relay.connect(
@@ -633,6 +656,7 @@ class SignalGroup:
                 max_args=max_args,
                 on_ref_error=on_ref_error,
                 priority=priority,
+                emit_on_evented_child_events=emit_on_evented_child_events,
             )
 
     def connect_direct(

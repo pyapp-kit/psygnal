@@ -7,7 +7,7 @@ exclude: .asv
 
 repos:
   - repo: https://github.com/crate-ci/typos
-    rev: v1
+    rev: v1.35.3
     hooks:
       - id: typos
         args: [--force-exclude] # omitting --write-changes

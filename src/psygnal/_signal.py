@@ -615,6 +615,7 @@ class SignalInstance:
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
         priority: int = ...,
+        emit_on_evented_child_events: bool = ...,
     ) -> Callable[[F], F]: ...
 
     @overload
@@ -629,6 +630,7 @@ class SignalInstance:
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = ...,
         priority: int = ...,
+        emit_on_evented_child_events: bool = ...,
     ) -> F: ...
 
     def connect(
@@ -642,6 +644,7 @@ class SignalInstance:
         max_args: int | None = None,
         on_ref_error: RefErrorChoice = "warn",
         priority: int = 0,
+        emit_on_evented_child_events: bool = False,
     ) -> Callable[[F], F] | F:
         """Connect a callback (`slot`) to this signal.
 
@@ -710,6 +713,16 @@ class SignalInstance:
             callbacks are called when multiple are connected to the same signal.
             Higher priority callbacks are called first. Negative values are allowed.
             The default is 0.
+        emit_on_evented_child_events : bool
+            If `True`, and if this is a SignalInstance associated with a specific field
+            on an evented dataclass, and if that field itself is an evented dataclass,
+            then the slot will be called both when the field is set directly, *and* when
+            a child member of that field is set.
+            For example, if `Team` is an evented-dataclass with a field `leader: Person`
+            which is itself an evented-dataclass, then
+            `team.events.leader.connect(callback, emit_on_evented_child_events=True)`
+            will invoke callback even when `team.leader.age` is mutated (in addition to
+            when `team.leader` is set directly).
 
         Raises
         ------
@@ -764,9 +777,21 @@ class SignalInstance:
                 if thread is not None:
                     cb = QueuedCallback(cb, thread=thread)
                 self._append_slot(cb)
+
+            if emit_on_evented_child_events:
+                self._connect_child_event_listener(slot)
             return slot
 
         return _wrapper if slot is None else _wrapper(slot)
+
+    def _connect_child_event_listener(self, slot: Callable) -> None:
+        """Connect a child event listener to the slot.
+
+        This is called when a slot is connected to this signal.  It allows subclasses
+        to connect additional event listeners to the slot.
+        """
+        # implementing this as a method allows us to override/extend it in subclasses
+        pass  # pragma: no cover
 
     def _append_slot(self, slot: WeakCallback) -> None:
         """Append a slot to the list of slots.
@@ -1138,7 +1163,7 @@ class SignalInstance:
         # this change is needed for some reason after mypy v1.14.0
         if callable(slot):
             return self._slot_index(slot) >= 0
-        return False
+        return False  # pragma: no cover
 
     def __len__(self) -> int:
         """Return number of connected slots."""
