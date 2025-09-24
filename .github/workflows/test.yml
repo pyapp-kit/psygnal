@@ -146,3 +146,4 @@ jobs:
         uses: CodSpeedHQ/action@v4
         with:
           run: pytest --codspeed -v
+          mode: instrumentation
