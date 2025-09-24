@@ -6,8 +6,8 @@ ci:
 exclude: .asv
 
 repos:
-  - repo: https://github.com/crate-ci/typos
-    rev: v1
+  - repo: https://github.com/adhtruong/mirrors-typos
+    rev: v1.36.2
     hooks:
       - id: typos
         args: [--force-exclude] # omitting --write-changes
