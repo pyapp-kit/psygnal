@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 from psygnal._signal import Signal
 
-from ._evented_set import BailType, EventedOrderedSet, SetEvents
+from ._evented_set import BailType, EventedOrderedSet, SetEvents, _reduce_events
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -131,8 +131,19 @@ class Selection(EventedOrderedSet[_T]):
 
     def select_only(self, obj: _T) -> None:
         """Unselect everything but `obj`. Add to selection if not currently selected."""
-        self.intersection_update({obj})
-        self.add(obj)
+        with self.events.items_changed.paused(_reduce_events):
+            self.intersection_update({obj})
+            self.add(obj)
+
+    def replace_selection(self, new_selection: Iterable[_T]) -> None:
+        """Replace the current selection with `new_selection`.
+
+        This is equivalent to calling `intersection_update` followed by `update`,
+        but is more efficient because it only emits a single `items_changed` event.
+        """
+        with self.events.items_changed.paused(_reduce_events):
+            self.intersection_update(new_selection)
+            self.update(new_selection)
 
     def _update_active(self) -> None:
         """On a selection event, update the active item based on selection.
