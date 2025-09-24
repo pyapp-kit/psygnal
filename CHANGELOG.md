@@ -1,5 +1,20 @@
 # Changelog
 
+## [v0.14.2](https://github.com/pyapp-kit/psygnal/tree/v0.14.2) (2025-09-24)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.14.1...v0.14.2)
+
+**Implemented enhancements:**
+
+- feat: Allow to replace selection content in with one event emitted [\#387](https://github.com/pyapp-kit/psygnal/pull/387) ([Czaki](https://github.com/Czaki))
+
+**Merged pull requests:**
+
+- ci\(dependabot\): bump actions/setup-python from 5 to 6 [\#386](https://github.com/pyapp-kit/psygnal/pull/386) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(dependabot\): bump CodSpeedHQ/action from 3 to 4 [\#385](https://github.com/pyapp-kit/psygnal/pull/385) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(pre-commit.ci\): autoupdate [\#384](https://github.com/pyapp-kit/psygnal/pull/384) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- ci\(dependabot\): bump actions/checkout from 4 to 5 [\#383](https://github.com/pyapp-kit/psygnal/pull/383) ([dependabot[bot]](https://github.com/apps/dependabot))
+
 ## [v0.14.1](https://github.com/pyapp-kit/psygnal/tree/v0.14.1) (2025-08-12)
 
 [Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.14.0...v0.14.1)
