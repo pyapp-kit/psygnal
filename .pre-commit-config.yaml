@@ -6,14 +6,14 @@ ci:
 exclude: .asv
 
 repos:
-  - repo: https://github.com/crate-ci/typos
-    rev: v1.35.3
+  - repo: https://github.com/adhtruong/mirrors-typos
+    rev: v1.36.2
     hooks:
       - id: typos
         args: [--force-exclude] # omitting --write-changes
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.7
+    rev: v0.12.11
     hooks:
       - id: ruff-check
         args: [--fix, --unsafe-fixes]
