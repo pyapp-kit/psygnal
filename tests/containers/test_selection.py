@@ -59,10 +59,13 @@ def test_active_setter():
 
 
 def test_select_only():
+    mock = Mock()
     selection = Selection([1, 2])
     selection.active = 1
     assert selection.active == 1
+    selection.events.items_changed.connect(mock)
     selection.select_only(2)
+    mock.assert_called_once_with((2,), (1,))
     assert selection.active == 2
 
 
@@ -94,3 +97,13 @@ def test_emit_change():
 
 def test_hash():
     assert hash(Selection())
+
+
+def test_replace_selection():
+    mock = Mock()
+    selection = Selection([1, 2, 3])
+
+    selection.events.items_changed.connect(mock)
+    selection.replace_selection([3, 4, 5])
+    mock.assert_called_once_with((4, 5), (1, 2))
+    assert set(selection) == {3, 4, 5}
