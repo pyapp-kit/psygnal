@@ -355,7 +355,7 @@ def test_slot_types(type_: str) -> None:
     elif type_ == "partial_method_kwarg":
         signal.connect(partial(obj.f_int_int, b=2))
     elif type_ == "partial_method_kwarg_bad":
-        with pytest.raises(ValueError, match=".*prefer using positional args"):
+        with pytest.raises(ValueError, match=r".*prefer using positional args"):
             signal.connect(partial(obj.f_int_int, a=2))
         return
 

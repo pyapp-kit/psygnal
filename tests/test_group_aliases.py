@@ -400,7 +400,7 @@ def test_bad_siggroup_descriptor_init():
 
     with pytest.raises(
         ValueError,
-        match="Cannot use SignalGroup with `collect_fields=False`.",
+        match=r"Cannot use SignalGroup with `collect_fields=False`.",
     ):
         SignalGroupDescriptor(collect_fields=False)
 

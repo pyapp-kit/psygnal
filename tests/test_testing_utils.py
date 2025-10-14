@@ -20,7 +20,7 @@ def test_assert_emitted() -> None:
     assert isinstance(tester, pt.SignalTester)
 
     with pytest.raises(
-        AssertionError, match="Expected 'changed' to have been emitted."
+        AssertionError, match=r"Expected 'changed' to have been emitted."
     ):
         with pt.assert_emitted(obj.changed):
             pass
@@ -34,7 +34,7 @@ def test_assert_emitted_once():
 
     with pytest.raises(
         AssertionError,
-        match="Expected 'changed' to have been emitted once. Emitted 2 times.",
+        match=r"Expected 'changed' to have been emitted once. Emitted 2 times.",
     ):
         with pt.assert_emitted_once(obj.changed):
             obj.changed.emit()
@@ -50,14 +50,14 @@ def test_assert_not_emitted() -> None:
 
     with pytest.raises(
         AssertionError,
-        match="Expected 'changed' to not have been emitted. Emitted once.",
+        match=r"Expected 'changed' to not have been emitted. Emitted once.",
     ):
         with pt.assert_not_emitted(obj.changed):
             obj.changed.emit()
 
     with pytest.raises(
         AssertionError,
-        match="Expected 'changed' to not have been emitted. Emitted 4 times.",
+        match=r"Expected 'changed' to not have been emitted. Emitted 4 times.",
     ):
         with pt.assert_not_emitted(obj.changed):
             obj.changed.emit()
