@@ -568,7 +568,7 @@ def test_evented_model_with_property_setters_events():
 
 def test_non_setter_with_dependencies() -> None:
     with pytest.raises(
-        ValueError, match="Fields with dependencies must be fields or property.setters"
+        ValueError, match=r"Fields with dependencies must be fields or property.setters"
     ):
 
         class M(EventedModel):
