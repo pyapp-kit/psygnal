@@ -9,10 +9,7 @@ except ImportError:
 
 from psygnal import containers
 
-V1 = pydantic.__version__.startswith("1")
 
-
-@pytest.mark.skipif(V1, reason="pydantic v1 has poor support for generics")
 @pytest.mark.parametrize(
     "hint",
     [
@@ -38,7 +35,6 @@ def test_evented_list_as_pydantic_field(hint: Any) -> None:
         Model(my_list=[1, 2, "string"])  # type: ignore
 
 
-@pytest.mark.skipif(V1, reason="pydantic v1 has poor support for generics")
 def test_evented_list_no_params_as_pydantic_field() -> None:
     class Model(pydantic.BaseModel):
         my_list: containers.EventedList
@@ -52,7 +48,6 @@ def test_evented_list_no_params_as_pydantic_field() -> None:
     assert isinstance(m3.my_list, containers.EventedList)
 
 
-@pytest.mark.skipif(V1, reason="pydantic v1 has poor support for generics")
 @pytest.mark.parametrize(
     "hint",
     [
@@ -78,7 +73,6 @@ def test_evented_set_as_pydantic_field(hint: Any) -> None:
     assert isinstance(m3.my_set, get_origin(hint))
 
 
-@pytest.mark.skipif(V1, reason="pydantic v1 has poor support for generics")
 def test_evented_dict_as_pydantic_field() -> None:
     class Model(pydantic.BaseModel):
         my_dict: containers.EventedDict[str, int]

@@ -6,7 +6,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
-    NamedTuple,
     Union,
     cast,
     no_type_check,
@@ -18,8 +17,6 @@ from pydantic import PrivateAttr
 from ._group import SignalGroup
 from ._group_descriptor import _check_field_equality, _pick_equality_operator
 from ._signal import ReemissionMode, Signal
-
-PYDANTIC_V1 = pydantic.version.VERSION.startswith("1")
 
 if TYPE_CHECKING:
     from inspect import Signature
@@ -35,12 +32,8 @@ if TYPE_CHECKING:
 
     EqOperator = Callable[[Any, Any], bool]
 else:
-    if PYDANTIC_V1:
-        import pydantic.main as pydantic_main
-        from pydantic import utils
-    else:
-        from pydantic._internal import _model_construction as pydantic_main
-        from pydantic._internal import _utils as utils
+    from pydantic._internal import _model_construction as pydantic_main
+    from pydantic._internal import _utils as utils
 
     try:
         # py311
@@ -103,89 +96,50 @@ def no_class_attributes() -> Iterator[None]:  # pragma: no cover
         pydantic_main.ClassAttribute = utils.ClassAttribute  # type: ignore
 
 
-if not PYDANTIC_V1:
-
-    def _get_defaults(
-        obj: pydantic.BaseModel | type[pydantic.BaseModel],
-    ) -> dict[str, Any]:
-        """Get possibly nested default values for a Model object."""
-        dflt = {}
-        cls = obj if isinstance(obj, type) else type(obj)
-        for k, v in cls.model_fields.items():
-            d = v.get_default()
-            if (
-                d is None
-                and isinstance(v.annotation, type)
-                and issubclass(v.annotation, pydantic.BaseModel)
-            ):
-                d = _get_defaults(v.annotation)  # pragma: no cover
-            dflt[k] = d
-        return dflt
-
-    def _get_config(cls: pydantic.BaseModel) -> "ConfigDict":
-        return cls.model_config
-
-    def _get_fields(
-        cls: type[pydantic.BaseModel],
-    ) -> dict[str, pydantic.fields.FieldInfo]:
-        comp_fields = {
-            name: pydantic.fields.FieldInfo(annotation=f.return_type, frozen=False)
-            for name, f in cls.model_computed_fields.items()
-        }
-        return {**cls.model_fields, **comp_fields}
-
-    def _model_dump(obj: pydantic.BaseModel) -> dict:
-        return obj.model_dump()
-
-    def _is_pydantic_descriptor_proxy(obj: Any) -> "TypeGuard[PydanticDescriptorProxy]":
+def _get_defaults(
+    obj: pydantic.BaseModel | type[pydantic.BaseModel],
+) -> dict[str, Any]:
+    """Get possibly nested default values for a Model object."""
+    dflt = {}
+    cls = obj if isinstance(obj, type) else type(obj)
+    for k, v in cls.model_fields.items():
+        d = v.get_default()
         if (
-            type(obj).__module__.startswith("pydantic")
-            and type(obj).__name__ == "PydanticDescriptorProxy"
-            and isinstance(getattr(obj, "wrapped", None), property)
+            d is None
+            and isinstance(v.annotation, type)
+            and issubclass(v.annotation, pydantic.BaseModel)
         ):
-            return True
-        return False
+            d = _get_defaults(v.annotation)  # pragma: no cover
+        dflt[k] = d
+    return dflt
 
-else:
 
-    @no_type_check
-    def _get_defaults(obj: pydantic.BaseModel) -> dict[str, Any]:
-        """Get possibly nested default values for a Model object."""
-        dflt = {}
-        for k, v in obj.__fields__.items():
-            d = v.get_default()
-            if d is None and isinstance(v.type_, pydantic_main.ModelMetaclass):
-                d = _get_defaults(v.type_)  # pragma: no cover
-            dflt[k] = d
-        return dflt
+def _get_config(cls: pydantic.BaseModel) -> "ConfigDict":
+    return cls.model_config
 
-    class GetAttrAsItem:
-        def __init__(self, obj: Any) -> None:
-            self._obj = obj
 
-        def get(self, key: str, default: Any = None) -> Any:
-            return getattr(self._obj, key, default)
+def _get_fields(
+    cls: type[pydantic.BaseModel],
+) -> dict[str, pydantic.fields.FieldInfo]:
+    comp_fields = {
+        name: pydantic.fields.FieldInfo(annotation=f.return_type, frozen=False)
+        for name, f in cls.model_computed_fields.items()
+    }
+    return {**cls.model_fields, **comp_fields}
 
-    @no_type_check
-    def _get_config(cls: type) -> "ConfigDict":
-        return GetAttrAsItem(cls.__config__)
 
-    class FieldInfo(NamedTuple):
-        annotation: type[Any] | None
-        frozen: bool | None
+def _model_dump(obj: pydantic.BaseModel) -> dict:
+    return obj.model_dump()
 
-    @no_type_check
-    def _get_fields(cls: type) -> dict[str, FieldInfo]:
-        return {
-            k: FieldInfo(annotation=f.type_, frozen=not f.field_info.allow_mutation)
-            for k, f in cls.__fields__.items()
-        }
 
-    def _model_dump(obj: pydantic.BaseModel) -> dict:
-        return obj.dict()
-
-    def _is_pydantic_descriptor_proxy(obj: Any) -> "TypeGuard[PydanticDescriptorProxy]":
-        return False
+def _is_pydantic_descriptor_proxy(obj: Any) -> "TypeGuard[PydanticDescriptorProxy]":
+    if (
+        type(obj).__module__.startswith("pydantic")
+        and type(obj).__name__ == "PydanticDescriptorProxy"
+        and isinstance(getattr(obj, "wrapped", None), property)
+    ):
+        return True
+    return False
 
 
 class ComparisonDelayer:
@@ -255,20 +209,6 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
                 recursion = emission_map.get(n, default_strategy)
                 signals[n] = Signal(f.annotation, reemission=recursion)
 
-            # If a field type has a _json_encode method, add it to the json
-            # encoders for this model.
-            # NOTE: a _json_encode field must return an object that can be
-            # passed to json.dumps ... but it needn't return a string.
-            if PYDANTIC_V1 and hasattr(f.annotation, "_json_encode"):
-                encoder = f.annotation._json_encode
-                cls.__config__.json_encoders[f.annotation] = encoder
-                # also add it to the base config
-                # required for pydantic>=1.8.0 due to:
-                # https://github.com/samuelcolvin/pydantic/pull/2064
-                for base in cls.__bases__:
-                    if hasattr(base, "__config__"):
-                        base.__config__.json_encoders[f.annotation] = encoder
-
         allow_props = model_config.get(ALLOW_PROPERTY_SETTERS, False)
 
         # check for @_.setters defined on the class, so we can allow them
@@ -337,15 +277,6 @@ def _get_field_dependents(
     deps: dict[str, set[str]] = {}
 
     cfg_deps = model_config.get(FIELD_DEPENDENCIES, {})  # sourcery skip
-    if not cfg_deps:
-        cfg_deps = model_config.get("property_dependencies", {})
-        if cfg_deps:
-            warnings.warn(
-                "The 'property_dependencies' configuration key is deprecated. "
-                "Use 'field_dependencies' instead",
-                DeprecationWarning,
-                stacklevel=2,
-            )
 
     if cfg_deps:
         if not isinstance(cfg_deps, dict):  # pragma: no cover
@@ -480,12 +411,6 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
     _changes_queue: dict[str, Any] = PrivateAttr(default_factory=dict)
     _primary_changes: set[str] = PrivateAttr(default_factory=set)
     _delay_check_semaphore: int = PrivateAttr(0)
-
-    if PYDANTIC_V1:
-
-        class Config:
-            # this seems to be necessary for the _json_encoders trick to work
-            json_encoders: ClassVar[dict] = {"____": None}
 
     def __init__(_model_self_, **data: Any) -> None:
         super().__init__(**data)
@@ -732,49 +657,25 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
                 self._changes_queue[dep] = getattr(self, dep, object())
         self._super_setattr_(name, value)
 
-    if PYDANTIC_V1:
+    @classmethod
+    @contextmanager
+    def enums_as_values(
+        cls, as_values: bool = True
+    ) -> Iterator[None]:  # pragma: no cover
+        """Temporarily override how enums are retrieved.
 
-        @contextmanager
-        def enums_as_values(self, as_values: bool = True) -> Iterator[None]:
-            """Temporarily override how enums are retrieved.
-
-            Parameters
-            ----------
-            as_values : bool
-                Whether enums should be shown as values (or as enum objects),
-                by default `True`
-            """
-            before = getattr(self.Config, "use_enum_values", NULL)
-            self.Config.use_enum_values = as_values  # type: ignore
-            try:
-                yield
-            finally:
-                if before is not NULL:
-                    self.Config.use_enum_values = before  # type: ignore  # pragma: no cover
-                else:
-                    delattr(self.Config, "use_enum_values")
-
-    else:
-
-        @classmethod
-        @contextmanager
-        def enums_as_values(  # type: ignore [misc] # Incompatible redefinition
-            cls, as_values: bool = True
-        ) -> Iterator[None]:  # pragma: no cover
-            """Temporarily override how enums are retrieved.
-
-            Parameters
-            ----------
-            as_values : bool
-                Whether enums should be shown as values (or as enum objects),
-                by default `True`
-            """
-            before = cls.model_config.get("use_enum_values", NULL)
-            cls.model_config["use_enum_values"] = as_values
-            try:
-                yield
-            finally:
-                if before is not NULL:  # pragma: no cover
-                    cls.model_config["use_enum_values"] = cast("bool", before)
-                else:
-                    cls.model_config.pop("use_enum_values")
+        Parameters
+        ----------
+        as_values : bool
+            Whether enums should be shown as values (or as enum objects),
+            by default `True`
+        """
+        before = cls.model_config.get("use_enum_values", NULL)
+        cls.model_config["use_enum_values"] = as_values
+        try:
+            yield
+        finally:
+            if before is not NULL:  # pragma: no cover
+                cls.model_config["use_enum_values"] = cast("bool", before)
+            else:
+                cls.model_config.pop("use_enum_values")
