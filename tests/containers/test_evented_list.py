@@ -78,7 +78,7 @@ def test_list_interface_parity(test_list, regular_list, meth):
     else:
         test_list_method(*args)  # smoke test
 
-    for c, expect in zip(test_list.events.call_args_list, expected):
+    for c, expect in zip(test_list.events.call_args_list, expected, strict=False):
         event = c.args[0]
         assert event.type == expect
 

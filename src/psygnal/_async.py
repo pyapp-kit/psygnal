@@ -6,11 +6,10 @@ from typing import TYPE_CHECKING, overload
 
 if TYPE_CHECKING:
     from collections.abc import Coroutine
-    from typing import Any, Protocol
+    from typing import Any, Literal, Protocol, TypeAlias
 
     import anyio.streams.memory
     import trio
-    from typing_extensions import Literal, TypeAlias
 
     from psygnal._weak_callback import WeakCallback
 

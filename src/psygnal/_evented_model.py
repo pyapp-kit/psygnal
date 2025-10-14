@@ -1,11 +1,10 @@
 import sys
 import warnings
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import contextmanager, suppress
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
     NamedTuple,
     Union,
@@ -24,12 +23,12 @@ PYDANTIC_V1 = pydantic.version.VERSION.startswith("1")
 
 if TYPE_CHECKING:
     from inspect import Signature
+    from typing import TypeGuard
 
     from pydantic import ConfigDict
     from pydantic._internal import _model_construction as pydantic_main
     from pydantic._internal import _utils as utils
     from pydantic._internal._decorators import PydanticDescriptorProxy
-    from typing_extensions import TypeGuard  # py310
     from typing_extensions import dataclass_transform as dataclass_transform  # py311
 
     from ._signal import SignalInstance
@@ -107,7 +106,7 @@ def no_class_attributes() -> Iterator[None]:  # pragma: no cover
 if not PYDANTIC_V1:
 
     def _get_defaults(
-        obj: Union[pydantic.BaseModel, type[pydantic.BaseModel]],
+        obj: pydantic.BaseModel | type[pydantic.BaseModel],
     ) -> dict[str, Any]:
         """Get possibly nested default values for a Model object."""
         dflt = {}
@@ -172,8 +171,8 @@ else:
         return GetAttrAsItem(cls.__config__)
 
     class FieldInfo(NamedTuple):
-        annotation: Union[type[Any], None]
-        frozen: Union[bool, None]
+        annotation: type[Any] | None
+        frozen: bool | None
 
     @no_type_check
     def _get_fields(cls: type) -> dict[str, FieldInfo]:

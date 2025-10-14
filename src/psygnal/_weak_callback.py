@@ -9,7 +9,6 @@ from types import BuiltinMethodType, FunctionType, MethodType, MethodWrapperType
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     Generic,
     Literal,
     Protocol,
@@ -22,8 +21,10 @@ from ._async import get_async_backend
 from ._mypyc import mypyc_attr
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from typing import TypeAlias, TypeGuard
+
     import toolz
-    from typing_extensions import TypeAlias, TypeGuard  # py310
 
     from ._async import _AsyncBackend
 

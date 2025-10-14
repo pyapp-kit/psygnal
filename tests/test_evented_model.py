@@ -2,7 +2,7 @@ import inspect
 import sys
 from collections.abc import Sequence
 from contextlib import nullcontext
-from typing import Any, ClassVar, Protocol, Union, runtime_checkable
+from typing import Any, ClassVar, Protocol, runtime_checkable
 from unittest.mock import Mock, call, patch
 
 import numpy as np
@@ -256,7 +256,7 @@ def test_update_with_inner_model_union():
 
     class Outer(EventedModel):
         y: int
-        z: Union[Inner, AltInner]
+        z: Inner | AltInner
 
     original = Outer(y=1, z=Inner(w="a"))
     updated = Outer(y=2, z=AltInner(x="b"))
@@ -919,7 +919,7 @@ def test_if_event_is_emitted_only_once() -> None:
         "err",
     ],
 )
-def test_evented_model_reemission(mode: Union[str, dict]) -> None:
+def test_evented_model_reemission(mode: str | dict) -> None:
     err = mode == "err" or (isinstance(mode, dict) and "err" in mode.values())
     with (
         pytest.raises(ValueError, match="Invalid reemission") if err else nullcontext()

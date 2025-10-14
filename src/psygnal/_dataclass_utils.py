@@ -3,16 +3,16 @@ from __future__ import annotations
 import contextlib
 import dataclasses
 import sys
-import types
+from types import GenericAlias
 from typing import TYPE_CHECKING, Any, Protocol, cast, overload
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
+    from typing import TypeGuard
 
     import attrs
     import msgspec
     from pydantic import BaseModel
-    from typing_extensions import TypeGuard  # py310
 
 
 class _DataclassParams(Protocol):
@@ -22,9 +22,6 @@ class _DataclassParams(Protocol):
     order: bool
     unsafe_hash: bool
     frozen: bool
-
-
-GenericAlias = getattr(types, "GenericAlias", type(list[int]))  # safe for < py 3.9
 
 
 class AttrsType:

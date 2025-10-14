@@ -5,14 +5,14 @@ from __future__ import annotations
 from contextlib import contextmanager, suppress
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 from warnings import warn
 
 from ._group import EmissionInfo, SignalGroup
 from ._signal import SignalInstance
 
 if TYPE_CHECKING:
-    from collections.abc import Generator, Iterator
+    from collections.abc import Callable, Generator, Iterator
 
 __all__ = ["iter_signal_instances", "monitor_events"]
 

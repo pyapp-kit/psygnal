@@ -2,7 +2,6 @@ from collections.abc import Iterable
 from importlib.metadata import PackageNotFoundError, PackagePath
 from importlib.metadata import files as package_files
 from pathlib import Path
-from typing import Union
 
 try:
     import psygnal
@@ -12,7 +11,7 @@ except ImportError:
     PSYGNAL_DIR = Path(__file__).parent.parent
 
 
-def binary_files(file_list: Iterable[Union[PackagePath, Path]]) -> list[Path]:
+def binary_files(file_list: Iterable[PackagePath | Path]) -> list[Path]:
     return [Path(file) for file in file_list if file.suffix in {".so", ".pyd"}]
 
 

@@ -132,17 +132,18 @@ import threading
 import warnings
 import weakref
 from collections import deque
+from collections.abc import Callable
 from contextlib import AbstractContextManager, contextmanager, suppress
 from functools import cache, partial, reduce
 from inspect import Parameter, Signature, isclass
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
     Final,
     Literal,
     NoReturn,
+    TypeAlias,
     TypeVar,
     Union,
     cast,
@@ -171,10 +172,10 @@ if TYPE_CHECKING:
 
     # single function that does all the work of reducing an iterable of args
     # to a single args
-    ReducerOneArg = Callable[[Iterable[tuple]], tuple]
+    ReducerOneArg: TypeAlias = Callable[[Iterable[tuple]], tuple]
     # function that takes two args tuples. it will be passed to itertools.reduce
-    ReducerTwoArgs = Callable[[tuple, tuple], tuple]
-    ReducerFunc = Union[ReducerOneArg, ReducerTwoArgs]
+    ReducerTwoArgs: TypeAlias = Callable[[tuple, tuple], tuple]
+    ReducerFunc: TypeAlias = ReducerOneArg | ReducerTwoArgs
 
 
 __all__ = ["Signal", "SignalInstance", "_compiled"]
@@ -1739,7 +1740,9 @@ def _parameter_types_match(
     fsig = func_sig or signature(function)
 
     func_hints: dict | None = None
-    for f_param, spec_param in zip(fsig.parameters.values(), spec.parameters.values()):
+    for f_param, spec_param in zip(
+        fsig.parameters.values(), spec.parameters.values(), strict=False
+    ):
         f_anno = f_param.annotation
         if f_anno is fsig.empty:
             # if function parameter is not type annotated, allow it.

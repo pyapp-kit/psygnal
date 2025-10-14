@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from threading import Timer
-from typing import TYPE_CHECKING, Any, Callable, Generic, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 if TYPE_CHECKING:
     import inspect
-
-    from typing_extensions import ParamSpec  # py310
+    from collections.abc import Callable
+    from typing import ParamSpec
 
     Kind = Literal["throttler", "debouncer"]
     EmissionPolicy = Literal["trailing", "leading"]

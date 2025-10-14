@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Iterator, Mapping, MutableMapping, Sequence
 from functools import partial
-from typing import TYPE_CHECKING, Any, ClassVar, TypeVar, Union, get_args
+from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, TypeVar, get_args
 
 if TYPE_CHECKING:
     from pydantic import GetCoreSchemaHandler, SerializationInfo
@@ -15,8 +15,8 @@ from psygnal._signal import Signal, SignalInstance
 
 _K = TypeVar("_K")
 _V = TypeVar("_V")
-TypeOrSequenceOfTypes = Union[type[_V], Sequence[type[_V]]]
-DictArg = Union[Mapping[_K, _V], Iterable[tuple[_K, _V]]]
+TypeOrSequenceOfTypes: TypeAlias = type[_V] | Sequence[type[_V]]
+DictArg: TypeAlias = Mapping[_K, _V] | Iterable[tuple[_K, _V]]
 
 
 class TypedMutableMapping(MutableMapping[_K, _V]):

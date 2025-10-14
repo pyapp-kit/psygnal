@@ -10,14 +10,12 @@ the args that were emitted.
 
 from __future__ import annotations
 
-import sys
 import warnings
 from dataclasses import dataclass
 from types import MappingProxyType
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
     Literal,
     SupportsIndex,
@@ -30,7 +28,14 @@ from ._mypyc import mypyc_attr
 
 if TYPE_CHECKING:
     import threading
-    from collections.abc import Container, Hashable, Iterable, Iterator, Mapping
+    from collections.abc import (
+        Callable,
+        Container,
+        Hashable,
+        Iterable,
+        Iterator,
+        Mapping,
+    )
     from contextlib import AbstractContextManager
 
     from psygnal._signal import F, ReducerFunc
@@ -39,10 +44,7 @@ if TYPE_CHECKING:
 __all__ = ["EmissionInfo", "SignalGroup"]
 
 
-SLOTS = {"slots": True} if sys.version_info >= (3, 10) else {}
-
-
-@dataclass(**SLOTS, frozen=True)
+@dataclass(slots=True, frozen=True)
 class PathStep:
     """A single step in a path to a nested signal.
 
@@ -86,7 +88,7 @@ class PathStep:
         return f"[{key}]"
 
 
-@dataclass(**SLOTS, frozen=True)
+@dataclass(slots=True, frozen=True)
 class EmissionInfo:
     """Tuple containing information about an emission event.
 

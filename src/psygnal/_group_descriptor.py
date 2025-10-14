@@ -5,14 +5,13 @@ import operator
 import sys
 import warnings
 import weakref
+from collections.abc import Callable
 from contextlib import suppress
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
     Literal,
-    Optional,
     TypeVar,
     cast,
     overload,
@@ -25,14 +24,13 @@ from ._signal import Signal, SignalInstance
 if TYPE_CHECKING:
     from _weakref import ref as ref
     from collections.abc import Iterable, Mapping
-
-    from typing_extensions import TypeAlias
+    from typing import TypeAlias
 
     from psygnal._group import EmissionInfo
     from psygnal._weak_callback import RefErrorChoice, WeakCallback
 
     EqOperator: TypeAlias = Callable[[Any, Any], bool]
-    FieldAliasFunc: TypeAlias = Callable[[str], Optional[str]]
+    FieldAliasFunc: TypeAlias = Callable[[str], str | None]
 
 __all__ = ["SignalGroupDescriptor", "get_evented_namespace", "is_evented"]
 

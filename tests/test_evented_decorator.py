@@ -1,5 +1,4 @@
 import operator
-import sys
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, ClassVar, cast, no_type_check
 from unittest.mock import Mock
@@ -64,13 +63,8 @@ def _check_events(cls, events_ns="events"):
     assert np.array_equal(obj.qux, np.ones(3))
 
 
-DCLASS_KWARGS = []
-if sys.version_info >= (3, 10):
-    DCLASS_KWARGS.extend([{"slots": True}, {"slots": False}])
-
-
 @decorated_or_descriptor
-@pytest.mark.parametrize("kwargs", DCLASS_KWARGS)
+@pytest.mark.parametrize("kwargs", ({"slots": True}, {"slots": False}))
 def test_native_dataclass(decorator: bool, kwargs: dict) -> None:
     @dataclass(**kwargs)
     class Base:
