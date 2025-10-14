@@ -136,6 +136,7 @@ from collections.abc import Callable
 from contextlib import AbstractContextManager, contextmanager, suppress
 from functools import cache, partial, reduce
 from inspect import Parameter, Signature, isclass
+from types import UnionType
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -143,7 +144,6 @@ from typing import (
     Final,
     Literal,
     NoReturn,
-    TypeAlias,
     TypeVar,
     Union,
     cast,
@@ -166,6 +166,7 @@ from ._weak_callback import (
 
 if TYPE_CHECKING:
     from collections.abc import Container, Iterable, Iterator
+    from typing import TypeAlias
 
     from ._group import EmissionInfo
     from ._weak_callback import RefErrorChoice
@@ -1760,7 +1761,7 @@ def _parameter_types_match(
 
 def _is_subclass(left: type[Any], right: type) -> bool:
     """Variant of issubclass with support for unions."""
-    if not isclass(left) and get_origin(left) is Union:
+    if not isclass(left) and get_origin(left) in {Union, UnionType}:
         return any(issubclass(i, right) for i in get_args(left))
     return issubclass(left, right)
 
