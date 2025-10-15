@@ -8,19 +8,19 @@ build-backend = "hatchling.build"
 name = "psygnal"
 description = "Fast python callback/event system modeled after Qt Signals"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 license = { text = "BSD 3-Clause License" }
 authors = [{ name = "Talley Lambert", email = "talley.lambert@gmail.com" }]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "License :: OSI Approved :: BSD License",
     "Natural Language :: English",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Typing :: Typed",
 ]
 dynamic = ["version"]
@@ -45,12 +45,12 @@ test = [
     "pydantic",
     "pyinstaller>=4.0",
     "wrapt",
-    "msgspec",
+    "msgspec; python_version < '3.14'",
     "toolz",
     "anyio",
     "trio",
 ]
-test-typing = [{ include-group = "test-min" }, "pytest-mypy-plugins"]
+test-typing = [{ include-group = "test-min" }, "pytest-mypy-plugins; python_version < '3.14'"]
 testqt = [{ include-group = "test" }, "pytest-qt", "qtpy"]
 test-codspeed = [{ include-group = "test" }, "pytest-codspeed"]
 docs = [
@@ -64,6 +64,7 @@ docs = [
 ]
 dev = [
     { include-group = "test" },
+    { include-group = "test-typing" },
     { include-group = "docs" },
     "PyQt6",
     "ipython",
@@ -71,7 +72,6 @@ dev = [
     "mypy_extensions",
     "pre-commit",
     "asv",
-    "pytest-mypy-plugins",
     "ruff",
     "typing-extensions",
     "rich>=14.0.0",
@@ -107,7 +107,7 @@ dependencies = [
     "mypy_extensions >=0.4.2",
     "pydantic!=2.10.0",        # typing error in v2.10 prevents mypyc from working
     "types-attrs",
-    "msgspec",
+    "msgspec; python_version < '3.14'",
 ]
 exclude = [
     "src/psygnal/__init__.py",
@@ -124,7 +124,7 @@ exclude = [
 [tool.cibuildwheel]
 # Skip 32-bit builds & PyPy wheels on all platforms
 skip = ["*-manylinux_i686", "*-musllinux_i686", "*-win32", "pp*"]
-build = ["cp39-*", "cp310-*", "cp311-*", "cp312-*", "cp313-*"]
+build = ["cp310-*", "cp311-*", "cp312-*", "cp313-*", "cp314-*"]
 test-groups = ["test"]
 test-command = "pytest {project}/tests -v"
 test-skip = ["*-musllinux*", "cp312-win*", "*-macosx_arm64"]
@@ -144,7 +144,7 @@ ignore = ["W004"]
 # https://docs.astral.sh/ruff/
 [tool.ruff]
 line-length = 88
-target-version = "py39"
+target-version = "py310"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
@@ -188,6 +188,7 @@ filterwarnings = [
     "ignore:The distutils package is deprecated:DeprecationWarning:",
     "ignore:.*BackendFinder.find_spec()",                                            # pyinstaller import
     "ignore:.*not using a cooperative constructor:pytest.PytestDeprecationWarning:",
+    "ignore:The frame locals reference is no longer cached",
     "ignore:Failed to disconnect::pytestqt",
     "ignore:.*unclosed.*socket.*:ResourceWarning:",                                  # asyncio internal socket cleanup
     "ignore:.*unclosed event loop.*:ResourceWarning:",                               # asyncio internal event loop cleanup

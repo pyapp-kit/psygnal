@@ -1,6 +1,6 @@
 from contextlib import nullcontext
 from dataclasses import dataclass
-from typing import Any, ClassVar, Optional
+from typing import Any, ClassVar
 from unittest.mock import Mock, patch
 
 import pytest
@@ -228,7 +228,7 @@ def test_evented_field_connect_setattr() -> None:
 
 @pytest.mark.parametrize("collect", [True, False])
 @pytest.mark.parametrize("klass", [None, SignalGroup, MyGroup])
-def test_collect_fields(collect: bool, klass: Optional[type[SignalGroup]]) -> None:
+def test_collect_fields(collect: bool, klass: type[SignalGroup] | None) -> None:
     signal_class = klass or SignalGroup
     should_fail_def = signal_class is SignalGroup and collect is False
     ctx = pytest.raises(ValueError) if should_fail_def else nullcontext()

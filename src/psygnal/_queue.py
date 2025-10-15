@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Callable
 from queue import Queue
 from threading import Thread, current_thread, main_thread
-from typing import Any, Callable, ClassVar, Literal
+from typing import Any, ClassVar, Literal
 
 from ._exceptions import EmitLoopError
 from ._weak_callback import WeakCallback

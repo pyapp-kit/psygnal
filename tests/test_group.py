@@ -1,20 +1,17 @@
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Callable
+from typing import TYPE_CHECKING, Annotated
 from unittest.mock import Mock, call
 
 import pytest
 
 import psygnal
-
-try:
-    from typing import Annotated  # py39
-except ImportError:
-    Annotated = None
-
 from psygnal import EmissionInfo, Signal, SignalGroup, SignalInstance
 from psygnal._group import SignalRelay
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 class MyGroup(SignalGroup):

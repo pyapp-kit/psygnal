@@ -1,6 +1,6 @@
 import time
+from collections.abc import Callable
 from inspect import Parameter, signature
-from typing import Callable
 from unittest.mock import Mock
 
 import pytest

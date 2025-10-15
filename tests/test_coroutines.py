@@ -4,7 +4,7 @@ import asyncio
 import gc
 import importlib.util
 import signal
-from typing import TYPE_CHECKING, Any, Callable, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 from unittest.mock import Mock
 
 import pytest
@@ -14,7 +14,7 @@ from psygnal import _async
 from psygnal._weak_callback import WeakCallback, weak_callback
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
 # Available backends for parametrization
 AVAILABLE_BACKENDS = ["asyncio"]

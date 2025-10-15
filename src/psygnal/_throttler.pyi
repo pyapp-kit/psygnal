@@ -1,7 +1,6 @@
 # this pyi file exists until we can use ParamSpec with mypyc in the main file.
-from typing import Any, Callable, Generic, Literal, overload
-
-from typing_extensions import ParamSpec  # py310
+from collections.abc import Callable
+from typing import Any, Generic, Literal, ParamSpec, overload
 
 P = ParamSpec("P")
 

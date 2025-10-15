@@ -132,13 +132,14 @@ import threading
 import warnings
 import weakref
 from collections import deque
+from collections.abc import Callable
 from contextlib import AbstractContextManager, contextmanager, suppress
 from functools import cache, partial, reduce
 from inspect import Parameter, Signature, isclass
+from types import UnionType
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     ClassVar,
     Final,
     Literal,
@@ -165,16 +166,17 @@ from ._weak_callback import (
 
 if TYPE_CHECKING:
     from collections.abc import Container, Iterable, Iterator
+    from typing import TypeAlias
 
     from ._group import EmissionInfo
     from ._weak_callback import RefErrorChoice
 
     # single function that does all the work of reducing an iterable of args
     # to a single args
-    ReducerOneArg = Callable[[Iterable[tuple]], tuple]
+    ReducerOneArg: TypeAlias = Callable[[Iterable[tuple]], tuple]
     # function that takes two args tuples. it will be passed to itertools.reduce
-    ReducerTwoArgs = Callable[[tuple, tuple], tuple]
-    ReducerFunc = Union[ReducerOneArg, ReducerTwoArgs]
+    ReducerTwoArgs: TypeAlias = Callable[[tuple, tuple], tuple]
+    ReducerFunc: TypeAlias = ReducerOneArg | ReducerTwoArgs
 
 
 __all__ = ["Signal", "SignalInstance", "_compiled"]
@@ -1739,7 +1741,9 @@ def _parameter_types_match(
     fsig = func_sig or signature(function)
 
     func_hints: dict | None = None
-    for f_param, spec_param in zip(fsig.parameters.values(), spec.parameters.values()):
+    for f_param, spec_param in zip(
+        fsig.parameters.values(), spec.parameters.values(), strict=False
+    ):
         f_anno = f_param.annotation
         if f_anno is fsig.empty:
             # if function parameter is not type annotated, allow it.
@@ -1757,7 +1761,7 @@ def _parameter_types_match(
 
 def _is_subclass(left: type[Any], right: type) -> bool:
     """Variant of issubclass with support for unions."""
-    if not isclass(left) and get_origin(left) is Union:
+    if not isclass(left) and get_origin(left) in {Union, UnionType}:
         return any(issubclass(i, right) for i in get_args(left))
     return issubclass(left, right)
 

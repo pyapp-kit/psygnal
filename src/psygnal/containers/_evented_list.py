@@ -30,8 +30,8 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
+    TypeAlias,
     TypeVar,
-    Union,
     cast,
     get_args,
     overload,
@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     from typing_extensions import Self
 
 _T = TypeVar("_T")
-Index = Union[int, slice]
+Index: TypeAlias = int | slice
 
 
 class ListSignalInstance(SignalInstance):

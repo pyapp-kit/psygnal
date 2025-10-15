@@ -1,8 +1,9 @@
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
 from inspect import signature
-from typing import Callable, ClassVar
+from typing import ClassVar
 from unittest.mock import Mock
 
 import pytest
@@ -234,6 +235,7 @@ def test_dataclass_setattr(type_: str, benchmark: Callable) -> None:
     for emitted, attr in zip(
         [(2, 1), ("hello", "hi"), (False, True), (2.0, 1.0), ((2, "hello"), (1, "hi"))],
         "abcde",
+        strict=False,
     ):
         mock.assert_any_call(
             EmissionInfo(getattr(foo.events, attr), emitted, (PathStep(attr=attr),))
