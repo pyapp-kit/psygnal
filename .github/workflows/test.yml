@@ -20,7 +20,7 @@ jobs:
       - run: pipx run check-manifest
 
   test:
-    name: Test ${{ matrix.qt }} ${{ matrix.os }} py${{ matrix.python-version }} mypyc-${{ matrix.compile }} ${{ matrix.pydantic }}
+    name: Test ${{ matrix.qt }} ${{ matrix.os }} py${{ matrix.python-version }} mypyc-${{ matrix.compile }}
     runs-on: ${{ matrix.os }}
     env:
       HATCH_BUILD_HOOKS_ENABLE: ${{ matrix.compile }}
@@ -32,7 +32,6 @@ jobs:
         os: [ubuntu-latest, macos-latest, windows-latest]
         compile: ["1", "0"]
         qt: [""]
-        pydantic: [""]
         include:
           - os: ubuntu-latest
             python-version: "3.11"
@@ -40,15 +39,7 @@ jobs:
           - os: ubuntu-latest
             python-version: "3.13"
             compile: "1"
-          # pydantic versions
-          - os: ubuntu-latest
-            python-version: "3.11"
-            pydantic: "pydantic==1.10"
-            compile: "1"
-          - os: ubuntu-latest
-            python-version: "3.10"
-            pydantic: "pydantic==1.10"
-            compile: "0"
+
           # qt stuff
           - os: macos-latest
             python-version: "3.11"
@@ -86,10 +77,6 @@ jobs:
           uv sync --no-dev --group testqt
           uv pip install ${{ matrix.qt }}
 
-      - if: matrix.pydantic != ''
-        name: downgrade pydantic
-        run: uv pip install ${{ matrix.pydantic }}
-
       - name: Test
         shell: bash
         run: uv run coverage run -p -m pytest -v
@@ -97,7 +84,7 @@ jobs:
       - name: Upload coverage
         uses: actions/upload-artifact@v4
         with:
-          name: covreport-${{ matrix.os }}-py${{ matrix.python-version }}-mypyc${{ matrix.compile }}-${{ matrix.qt }}-${{ matrix.pydantic }}
+          name: covreport-${{ matrix.os }}-py${{ matrix.python-version }}-mypyc${{ matrix.compile }}-${{ matrix.qt }}
           path: ./.coverage*
           include-hidden-files: true
 

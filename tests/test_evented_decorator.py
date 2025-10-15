@@ -20,14 +20,6 @@ from psygnal import (
 )
 from psygnal._group import SignalRelay
 
-try:
-    import pydantic.version
-
-    PYDANTIC_V2 = pydantic.version.VERSION.startswith("2")
-except ImportError:
-    PYDANTIC_V2 = False
-
-
 decorated_or_descriptor = pytest.mark.parametrize(
     "decorator", [True, False], ids=["decorator", "descriptor"]
 )
@@ -111,12 +103,7 @@ def test_attrs_dataclass(decorator: bool, slots: bool) -> None:
     _check_events(Foo)
 
 
-if PYDANTIC_V2:
-    Config = {"arbitrary_types_allowed": True}
-else:
-
-    class Config:
-        arbitrary_types_allowed = True
+Config = {"arbitrary_types_allowed": True}
 
 
 @decorated_or_descriptor
@@ -153,10 +140,7 @@ def test_pydantic_base_model(decorator: bool) -> None:
         baz: str
         qux: np.ndarray
 
-        if PYDANTIC_V2:
-            model_config = Config
-        else:
-            Config = Config  # type: ignore
+        model_config: ClassVar = Config
 
     if decorator:
 
