@@ -22,7 +22,6 @@ if TYPE_CHECKING:
     from inspect import Signature
     from typing import TypeGuard
 
-    from pydantic import ConfigDict
     from pydantic._internal import _model_construction as pydantic_main
     from pydantic._internal import _utils as utils
     from pydantic._internal._decorators import PydanticDescriptorProxy
@@ -114,10 +113,6 @@ def _get_defaults(
     return dflt
 
 
-def _get_config(cls: pydantic.BaseModel) -> "ConfigDict":
-    return cls.model_config
-
-
 def _get_fields(
     cls: type[pydantic.BaseModel],
 ) -> dict[str, pydantic.fields.FieldInfo]:
@@ -126,10 +121,6 @@ def _get_fields(
         for name, f in cls.model_computed_fields.items()
     }
     return {**cls.model_fields, **comp_fields}
-
-
-def _model_dump(obj: pydantic.BaseModel) -> dict:
-    return obj.model_dump()
 
 
 def _is_pydantic_descriptor_proxy(obj: Any) -> "TypeGuard[PydanticDescriptorProxy]":
@@ -184,7 +175,7 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
         signals = {}
 
         model_fields = _get_fields(cls)
-        model_config = _get_config(cls)
+        model_config = cls.model_config
 
         emission_cfg = model_config.get(REEMISSION, {})
         default_strategy: ReemissionMode = ReemissionMode.LATEST
@@ -230,7 +221,7 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
         else:
             for b in cls.__bases__:
                 with suppress(AttributeError):
-                    conf = _get_config(b)
+                    conf = b.model_config
                     if conf and conf.get(ALLOW_PROPERTY_SETTERS, False):
                         raise ValueError(
                             "Cannot set 'allow_property_setters' to 'False' when base "
@@ -439,7 +430,7 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
         is constructed in ``EqualityMetaclass.__new__``
         """
         if not isinstance(other, EventedModel):
-            return bool(_model_dump(self) == other)
+            return bool(self.model_dump() == other)
 
         for f_name, _ in self.__eq_operators__.items():
             if not hasattr(self, f_name) or not hasattr(other, f_name):
@@ -466,7 +457,7 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
             different realized types with different fields.
         """
         if isinstance(values, pydantic.BaseModel):
-            values = _model_dump(values)
+            values = values.model_dump()
 
         if not isinstance(values, dict):  # pragma: no cover
             raise TypeError(f"values must be a dict or BaseModel. got {type(values)}")
@@ -481,7 +472,7 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
 
     def reset(self) -> None:
         """Reset the state of the model to default values."""
-        model_config = _get_config(self)
+        model_config = self.model_config
         model_fields = _get_fields(type(self))
         for name, value in self._defaults.items():
             if isinstance(value, EventedModel):
