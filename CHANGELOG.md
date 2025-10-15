@@ -1,5 +1,16 @@
 # Changelog
 
+## [v0.15.0](https://github.com/pyapp-kit/psygnal/tree/v0.15.0) (2025-10-15)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.14.2...v0.15.0)
+
+**Merged pull requests:**
+
+- build: drop 3.9, support 3.14 [\#391](https://github.com/pyapp-kit/psygnal/pull/391) ([tlambert03](https://github.com/tlambert03))
+- ci\(dependabot\): bump astral-sh/setup-uv from 6 to 7 [\#390](https://github.com/pyapp-kit/psygnal/pull/390) ([dependabot[bot]](https://github.com/apps/dependabot))
+- ci\(pre-commit.ci\): autoupdate [\#389](https://github.com/pyapp-kit/psygnal/pull/389) ([pre-commit-ci[bot]](https://github.com/apps/pre-commit-ci))
+- ci\(dependabot\): bump pypa/cibuildwheel from 3.1 to 3.2 [\#388](https://github.com/pyapp-kit/psygnal/pull/388) ([dependabot[bot]](https://github.com/apps/dependabot))
+
 ## [v0.14.2](https://github.com/pyapp-kit/psygnal/tree/v0.14.2) (2025-09-24)
 
 [Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.14.1...v0.14.2)
