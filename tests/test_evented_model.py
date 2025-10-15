@@ -410,23 +410,6 @@ def test_defaults():
     assert d.model_dump() == d._defaults
 
 
-# @pytest.mark.xfail
-def test_enums_as_values():
-    from enum import Enum
-
-    class MyEnum(Enum):
-        A = "value"
-
-    class SomeModel(EventedModel):
-        a: MyEnum = MyEnum.A
-
-    m = SomeModel()
-    assert m.model_dump() == {"a": MyEnum.A}
-    with m.enums_as_values():
-        assert m.model_dump() == {"a": "value"}
-    assert m.model_dump() == {"a": MyEnum.A}
-
-
 def test_properties_with_explicit_property_dependencies():
     class MyModel(EventedModel):
         a: int = 1
@@ -629,18 +612,6 @@ def test_root_validator_events():
     assert m.y == 0
     xmock.assert_called_once_with(2)
     ymock.assert_not_called()
-
-
-def test_deprecation() -> None:
-    with pytest.warns(DeprecationWarning, match="Use 'field_dependencies' instead"):
-
-        class MyModel(EventedModel):
-            a: int = 1
-            b: int = 1
-
-            model_config = {"property_dependencies": {"a": ["b"]}}
-
-        assert MyModel.__field_dependents__ == {"b": {"a"}}
 
 
 def test_comparison_count() -> None:

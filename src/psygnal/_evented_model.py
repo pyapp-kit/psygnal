@@ -647,26 +647,3 @@ class EventedModel(pydantic.BaseModel, metaclass=EventedMetaclass):
             if dep not in self._changes_queue:
                 self._changes_queue[dep] = getattr(self, dep, object())
         self._super_setattr_(name, value)
-
-    @classmethod
-    @contextmanager
-    def enums_as_values(
-        cls, as_values: bool = True
-    ) -> Iterator[None]:  # pragma: no cover
-        """Temporarily override how enums are retrieved.
-
-        Parameters
-        ----------
-        as_values : bool
-            Whether enums should be shown as values (or as enum objects),
-            by default `True`
-        """
-        before = cls.model_config.get("use_enum_values", NULL)
-        cls.model_config["use_enum_values"] = as_values
-        try:
-            yield
-        finally:
-            if before is not NULL:  # pragma: no cover
-                cls.model_config["use_enum_values"] = cast("bool", before)
-            else:
-                cls.model_config.pop("use_enum_values")
