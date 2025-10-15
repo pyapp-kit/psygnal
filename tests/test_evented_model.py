@@ -7,7 +7,6 @@ from unittest.mock import Mock, call, patch
 
 import numpy as np
 import pytest
-from pydantic import Field
 
 from psygnal import EventedModel
 from psygnal.containers import EventedList
@@ -15,42 +14,17 @@ from psygnal.containers._evented_dict import EventedDict
 from psygnal.containers._evented_set import EventedSet
 
 try:
-    from pydantic import PrivateAttr
+    from pydantic import Field, PrivateAttr, model_validator
+    from pydantic_core import core_schema
+
 except ImportError:
     pytest.skip("pydantic not installed", allow_module_level=True)
 
-import pydantic.version
-from pydantic import BaseModel
+from pydantic import field_serializer
 
 from psygnal import EmissionInfo
 from psygnal._group import SignalGroup
 from psygnal._signal import ReemissionMode
-
-PYDANTIC_V2 = pydantic.version.VERSION.startswith("2")
-
-try:
-    from pydantic import field_serializer
-except ImportError:
-
-    def field_serializer(*args, **kwargs):
-        def decorator(cls):
-            return cls
-
-        return decorator
-
-
-def asdict(obj: "BaseModel") -> dict:
-    if PYDANTIC_V2:
-        return obj.model_dump()
-    else:
-        return obj.dict()
-
-
-def asjson(obj: BaseModel) -> str:
-    if PYDANTIC_V2:
-        return obj.model_dump_json()
-    else:
-        return obj.json()
 
 
 def test_creating_empty_evented_model():
@@ -107,12 +81,7 @@ def test_evented_model_array_updates():
 
         values: np.ndarray
 
-        if PYDANTIC_V2:
-            model_config = {"arbitrary_types_allowed": True}
-        else:
-
-            class Config:
-                arbitrary_types_allowed = True
+        model_config: ClassVar = {"arbitrary_types_allowed": True}
 
     first_values = np.array([1, 2, 3])
     model = Model(values=first_values)
@@ -140,12 +109,7 @@ def test_evented_model_np_array_equality():
     class Model(EventedModel):
         values: np.ndarray
 
-        if PYDANTIC_V2:
-            model_config = {"arbitrary_types_allowed": True}
-        else:
-
-            class Config:
-                arbitrary_types_allowed = True
+        model_config: ClassVar = {"arbitrary_types_allowed": True}
 
     model1 = Model(values=np.array([1, 2, 3]))
     model2 = Model(values=np.array([1, 5, 6]))
@@ -164,12 +128,7 @@ def test_evented_model_da_array_equality():
     class Model(EventedModel):
         values: da.Array
 
-        if PYDANTIC_V2:
-            model_config = {"arbitrary_types_allowed": True}
-        else:
-
-            class Config:
-                arbitrary_types_allowed = True
+        model_config: ClassVar = {"arbitrary_types_allowed": True}
 
     r = da.ones((64, 64))
     model1 = Model(values=r)
@@ -202,8 +161,8 @@ def test_values_updated() -> None:
     user1 = User(id=0)
     user2 = User(id=1, user_name="K")
     # Check user1 and user2 dicts
-    assert asdict(user1) == {"id": 0, "user_name": "A"}
-    assert asdict(user2) == {"id": 1, "user_name": "K"}
+    assert user1.model_dump() == {"id": 0, "user_name": "A"}
+    assert user2.model_dump() == {"id": 1, "user_name": "K"}
 
     # Add mocks
     user1_events = Mock()
@@ -220,7 +179,7 @@ def test_values_updated() -> None:
 
     # Update user1 from user2
     user1.update(user2)
-    assert asdict(user1) == {"id": 1, "user_name": "K"}
+    assert user1.model_dump() == {"id": 1, "user_name": "K"}
 
     u1_id_events.assert_called_with(1)
     u2_id_events.assert_not_called()
@@ -240,7 +199,7 @@ def test_values_updated() -> None:
 
     # Update user1 from user2 again, no event emission expected
     user1.update(user2)
-    assert asdict(user1) == {"id": 1, "user_name": "K"}
+    assert user1.model_dump() == {"id": 1, "user_name": "K"}
 
     u1_id_events.assert_not_called()
     u2_id_events.assert_not_called()
@@ -277,9 +236,9 @@ def test_update_with_inner_model_protocol():
             yield cls.validate
 
         @classmethod
-        def __get_pydantic_core_schema__(cls, _source_type: Any, _handler: Any):
-            from pydantic_core import core_schema
-
+        def __get_pydantic_core_schema__(
+            cls, _source_type: Any, _handler: Any
+        ) -> core_schema.CoreSchema:
             return core_schema.no_info_plain_validator_function(cls.validate)
 
         @classmethod
@@ -331,9 +290,9 @@ class MyObj:
         yield cls.validate_type
 
     @classmethod
-    def __get_pydantic_core_schema__(cls, _source_type: Any, _handler: Any):
-        from pydantic_core import core_schema
-
+    def __get_pydantic_core_schema__(
+        cls, _source_type: Any, _handler: Any
+    ) -> core_schema.CoreSchema:
         return core_schema.no_info_plain_validator_function(cls.validate_type)
 
     @classmethod
@@ -365,13 +324,10 @@ def test_evented_model_serialization():
             return dt.__dict__
 
     m = Model(obj=MyObj(1, "hi"))
-    raw = asjson(m)
-    if PYDANTIC_V2:
-        assert raw == '{"obj":{"a":1,"b":"hi"}}'
-        deserialized = Model.model_validate_json(raw)
-    else:
-        assert raw == '{"obj": {"a": 1, "b": "hi"}}'
-        deserialized = Model.parse_raw(raw)
+    raw = m.model_dump_json()
+    assert raw == '{"obj":{"a":1,"b":"hi"}}'
+    deserialized = Model.model_validate_json(raw)
+
     assert deserialized == m
 
 
@@ -389,13 +345,9 @@ def test_nested_evented_model_serialization():
         nest: NestedModel
 
     m = Model(nest={"obj": {"a": 1, "b": "hi"}})
-    raw = asjson(m)
-    if PYDANTIC_V2:
-        assert raw == r'{"nest":{"obj":{"a":1,"b":"hi"}}}'
-        deserialized = Model.model_validate_json(raw)
-    else:
-        assert raw == r'{"nest": {"obj": {"a": 1, "b": "hi"}}}'
-        deserialized = Model.parse_raw(raw)
+    raw = m.model_dump_json()
+    assert raw == r'{"nest":{"obj":{"a":1,"b":"hi"}}}'
+    deserialized = Model.model_validate_json(raw)
     assert deserialized == m
 
 
@@ -407,12 +359,7 @@ def test_evented_model_dask_delayed():
     class MyObject(EventedModel):
         attribute: dd.Delayed
 
-        if PYDANTIC_V2:
-            model_config = {"arbitrary_types_allowed": True}
-        else:
-
-            class Config:
-                arbitrary_types_allowed = True
+        model_config = {"arbitrary_types_allowed": True}
 
     @dask.delayed
     def my_function():
@@ -428,6 +375,11 @@ class T(EventedModel):
     a: int = 1
     b: int = 1
 
+    model_config: ClassVar = {
+        "allow_property_setters": True,
+        "guess_property_dependencies": True,
+    }
+
     @property
     def c(self) -> list[int]:
         return [self.a, self.b]
@@ -435,17 +387,6 @@ class T(EventedModel):
     @c.setter
     def c(self, val: Sequence[int]):
         self.a, self.b = val
-
-    if PYDANTIC_V2:
-        model_config = {
-            "allow_property_setters": True,
-            "guess_property_dependencies": True,
-        }
-    else:
-
-        class Config:
-            allow_property_setters = True
-            guess_property_dependencies = True
 
 
 def test_defaults():
@@ -463,13 +404,13 @@ def test_defaults():
     assert d._defaults == {"a": 1, "b": 1, "r": default_r}
 
     d.update({"a": 2, "r": {"x": "asdf"}}, recurse=True)
-    assert asdict(d) == {"a": 2, "b": 1, "r": {"x": "asdf"}}
-    assert asdict(d) != d._defaults
+    assert d.model_dump() == {"a": 2, "b": 1, "r": {"x": "asdf"}}
+    assert d.model_dump() != d._defaults
     d.reset()
-    assert asdict(d) == d._defaults
+    assert d.model_dump() == d._defaults
 
 
-@pytest.mark.skipif(PYDANTIC_V2, reason="enum values seem broken on pydantic")
+# @pytest.mark.xfail
 def test_enums_as_values():
     from enum import Enum
 
@@ -480,16 +421,21 @@ def test_enums_as_values():
         a: MyEnum = MyEnum.A
 
     m = SomeModel()
-    assert asdict(m) == {"a": MyEnum.A}
+    assert m.model_dump() == {"a": MyEnum.A}
     with m.enums_as_values():
-        assert asdict(m) == {"a": "value"}
-    assert asdict(m) == {"a": MyEnum.A}
+        assert m.model_dump() == {"a": "value"}
+    assert m.model_dump() == {"a": MyEnum.A}
 
 
 def test_properties_with_explicit_property_dependencies():
     class MyModel(EventedModel):
         a: int = 1
         b: int = 1
+
+        model_config = {
+            "allow_property_setters": True,
+            "field_dependencies": {"c": ["a", "b"]},
+        }
 
         @property
         def c(self) -> list[int]:
@@ -498,17 +444,6 @@ def test_properties_with_explicit_property_dependencies():
         @c.setter
         def c(self, val: Sequence[int]) -> None:
             self.a, self.b = val
-
-        if PYDANTIC_V2:
-            model_config = {
-                "allow_property_setters": True,
-                "field_dependencies": {"c": ["a", "b"]},
-            }
-        else:
-
-            class Config:
-                allow_property_setters = True
-                field_dependencies = {"c": ["a", "b"]}
 
     assert list(MyModel.__property_setters__) == ["c"]
     # the metaclass should have figured out that both a and b affect c
@@ -580,16 +515,10 @@ def test_non_setter_with_dependencies() -> None:
             @y.setter
             def y(self, v): ...
 
-            if PYDANTIC_V2:
-                model_config = {
-                    "allow_property_setters": True,
-                    "field_dependencies": {"a": []},
-                }
-            else:
-
-                class Config:
-                    allow_property_setters = True
-                    field_dependencies = {"a": []}
+            model_config = {
+                "allow_property_setters": True,
+                "field_dependencies": {"a": []},
+            }
 
 
 def test_unrecognized_property_dependencies():
@@ -604,33 +533,10 @@ def test_unrecognized_property_dependencies():
             @y.setter
             def y(self, v): ...
 
-            if PYDANTIC_V2:
-                model_config = {
-                    "allow_property_setters": True,
-                    "field_dependencies": {"y": ["b"]},
-                }
-            else:
-
-                class Config:
-                    allow_property_setters = True
-                    field_dependencies = {"y": ["b"]}
-
-
-@pytest.mark.skipif(PYDANTIC_V2, reason="pydantic 2 does not support this")
-def test_setattr_before_init():
-    class M(EventedModel):
-        _x: int = PrivateAttr()
-
-        def __init__(_model_self_, x: int, **data) -> None:
-            _model_self_._x = x
-            super().__init__(**data)
-
-        @property
-        def x(self) -> int:
-            return self._x
-
-    m = M(x=2)
-    assert m.x == 2
+            model_config = {
+                "allow_property_setters": True,
+                "field_dependencies": {"y": ["b"]},
+            }
 
 
 def test_setter_inheritance():
@@ -649,12 +555,7 @@ def test_setter_inheritance():
         def x(self, v: int) -> None:
             self._x = v
 
-        if PYDANTIC_V2:
-            model_config = {"allow_property_setters": True}
-        else:
-
-            class Config:
-                allow_property_setters = True
+        model_config = {"allow_property_setters": True}
 
     assert M(x=2).x == 2
 
@@ -665,12 +566,7 @@ def test_setter_inheritance():
     with pytest.raises(ValueError, match="Cannot set 'allow_property_setters' to"):
 
         class Bad(M):
-            if PYDANTIC_V2:
-                model_config = {"allow_property_setters": False}
-            else:
-
-                class Config:
-                    allow_property_setters = False
+            model_config = {"allow_property_setters": False}
 
 
 def test_derived_events() -> None:
@@ -685,16 +581,10 @@ def test_derived_events() -> None:
         def b(self, b: int) -> None:
             self.a = b - 1
 
-        if PYDANTIC_V2:
-            model_config = {
-                "allow_property_setters": True,
-                "field_dependencies": {"b": ["a"]},
-            }
-        else:
-
-            class Config:
-                allow_property_setters = True
-                field_dependencies = {"b": ["a"]}
+        model_config = {
+            "allow_property_setters": True,
+            "field_dependencies": {"b": ["a"]},
+        }
 
     mock_a = Mock()
     mock_b = Mock()
@@ -711,32 +601,16 @@ def test_root_validator_events():
         x: int
         y: int
 
-        if PYDANTIC_V2:
-            from pydantic import model_validator
+        model_config = {
+            "validate_assignment": True,
+            "field_dependencies": {"y": ["x"]},
+        }
 
-            model_config = {
-                "validate_assignment": True,
-                "field_dependencies": {"y": ["x"]},
-            }
-
-            @model_validator(mode="before")
-            def check(cls, values: dict) -> dict:
-                x = values["x"]
-                values["y"] = min(values["y"], x)
-                return values
-
-        else:
-            from pydantic import root_validator
-
-            class Config:
-                validate_assignment = True
-                field_dependencies = {"y": ["x"]}
-
-            @root_validator
-            def check(cls, values: dict) -> dict:
-                x = values["x"]
-                values["y"] = min(values["y"], x)
-                return values
+        @model_validator(mode="before")
+        def check(cls, values: dict) -> dict:
+            x = values["x"]
+            values["y"] = min(values["y"], x)
+            return values
 
     m = Model(x=2, y=1)
     xmock = Mock()
@@ -764,12 +638,7 @@ def test_deprecation() -> None:
             a: int = 1
             b: int = 1
 
-            if PYDANTIC_V2:
-                model_config = {"property_dependencies": {"a": ["b"]}}
-            else:
-
-                class Config:
-                    property_dependencies = {"a": ["b"]}
+            model_config = {"property_dependencies": {"a": ["b"]}}
 
         assert MyModel.__field_dependents__ == {"b": {"a"}}
 
@@ -788,16 +657,10 @@ def test_comparison_count() -> None:
         def b(self, b: int) -> None:
             self.a = b - 1
 
-        if PYDANTIC_V2:
-            model_config = {
-                "allow_property_setters": True,
-                "field_dependencies": {"b": ["a"]},
-            }
-        else:
-
-            class Config:
-                allow_property_setters = True
-                field_dependencies = {"b": ["a"]}
+        model_config = {
+            "allow_property_setters": True,
+            "field_dependencies": {"b": ["a"]},
+        }
 
     # pick whether to mock v1 or v2 modules
     model_module = sys.modules[type(Model).__module__]
@@ -865,16 +728,10 @@ def test_if_event_is_emitted_only_once() -> None:
         a: int = 1
         b: int = 2
 
-        if PYDANTIC_V2:
-            model_config = {
-                "allow_property_setters": True,
-                "guess_property_dependencies": True,
-            }
-        else:
-
-            class Config:
-                allow_property_setters = True
-                guess_property_dependencies = True
+        model_config = {
+            "allow_property_setters": True,
+            "guess_property_dependencies": True,
+        }
 
         @property
         def c(self):
@@ -929,12 +786,7 @@ def test_evented_model_reemission(mode: str | dict) -> None:
             a: int
             b: int
 
-            if PYDANTIC_V2:
-                model_config = {"reemission": mode}
-            else:
-
-                class Config:
-                    reemission = mode
+            model_config = {"reemission": mode}
 
     if err:
         return
@@ -948,7 +800,6 @@ def test_evented_model_reemission(mode: str | dict) -> None:
         assert m.events.b._reemission == mode
 
 
-@pytest.mark.skipif(not PYDANTIC_V2, reason="computed_field added in v2")
 def test_computed_field() -> None:
     from pydantic import computed_field
 
@@ -991,7 +842,6 @@ def test_computed_field() -> None:
     mock_c.assert_called_with([5, 20])
 
 
-@pytest.mark.skipif(not PYDANTIC_V2, reason="computed_field added in v2")
 def test_private_field_dependents():
     from pydantic import PrivateAttr, computed_field
 
@@ -1066,16 +916,10 @@ def test_primary_vs_dependent_optimization() -> None:
         def b(self, b: int) -> None:
             self.a = b - 1
 
-        if PYDANTIC_V2:
-            model_config = {
-                "allow_property_setters": True,
-                "field_dependencies": {"b": ["a"]},
-            }
-        else:
-
-            class Config:
-                allow_property_setters = True
-                field_dependencies = {"b": ["a"]}
+        model_config = {
+            "allow_property_setters": True,
+            "field_dependencies": {"b": ["a"]},
+        }
 
     # pick whether to mock v1 or v2 modules
     model_module = sys.modules[type(Model).__module__]
@@ -1109,7 +953,6 @@ def test_primary_vs_dependent_optimization() -> None:
     mock_b.assert_not_called()
 
 
-@pytest.mark.skipif(not PYDANTIC_V2, reason="v2 serialization features")
 def test_serialization_and_schema():
     class TestModel(EventedModel):
         name: str
