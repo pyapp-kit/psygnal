@@ -47,12 +47,12 @@ jobs:
     steps:
 
       - name: Get sdist
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: Packages
           path: dist
       - name: Get wheels
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           pattern: cibw-wheels-*
           path: dist
