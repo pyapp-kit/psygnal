@@ -120,14 +120,16 @@ def test_ordering():
     os_tup.add(8)
     assert tuple(os_tup) == (24, 16, 4, 5, 6, 8)
 
+
 def test_iterator():
     tup = (24, 16, 8, 4, 5, 6)
-    os_tup = OrderedSet(tup) 
+    os_tup = OrderedSet(tup)
     es_tup = EventedOrderedSet(tup)
     assert tuple(iter(os_tup)) == tup
     assert tuple(reversed(os_tup)) == tuple(reversed(tup))
     assert tuple(iter(es_tup)) == tup
     assert tuple(reversed(es_tup)) == tuple(reversed(tup))
+
 
 def test_copy(test_set):
     from copy import copy

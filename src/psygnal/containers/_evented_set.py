@@ -230,7 +230,7 @@ class OrderedSet(_BaseMutableSet[_T]):
 
     def __reversed__(self) -> Iterator[_T]:
         """Implement reversed(self)."""
-        return reversed(self._data.keys())  
+        return reversed(self._data.keys())
 
 
 class SetEvents(SignalGroup):
