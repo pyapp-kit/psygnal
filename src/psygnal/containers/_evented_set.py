@@ -228,6 +228,10 @@ class OrderedSet(_BaseMutableSet[_T]):
         inner = ", ".join(str(x) for x in self._data)
         return f"{self.__class__.__name__}(({inner}))"
 
+    def __reversed__(self) -> Iterator[_T]:
+        """Implement reversed(self)."""
+        return reversed(self._data.keys())
+
 
 class SetEvents(SignalGroup):
     """Events available on [EventedSet][psygnal.containers.EventedSet].
