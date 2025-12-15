@@ -31,7 +31,7 @@ jobs:
       - name: Build wheels via cibuildwheel
         uses: pypa/cibuildwheel@v3.2
       - name: Upload wheels artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: cibw-wheels-${{ runner.os }}-${{ runner.arch }}
           path: ./wheelhouse/*.whl
