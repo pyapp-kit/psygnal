@@ -48,8 +48,12 @@ class _BaseMutableSet(MutableSet[_T]):
 
     def update(self, *others: Iterable[_T]) -> None:
         """Update this set with the union of this set and others."""
-        for i in chain(*others):
-            self.add(i)
+        other: set[_T] = set()
+        other.update(*others)
+        other -= self._data
+
+        self._data.update(other)
+        self._post_add_many_hook(tuple(other))
 
     def discard(self, item: _T) -> None:
         """Remove an element from a set if it is a member.
@@ -65,7 +69,7 @@ class _BaseMutableSet(MutableSet[_T]):
         _item = self._pre_clear_hook()
         if not isinstance(_item, BailType):
             self._do_clear()
-            self._post_clear_hook(_item)
+            self._post_remove_many_hook(_item)
 
     def __contains__(self, value: object) -> bool:
         """Return True if value is in set."""
@@ -90,6 +94,8 @@ class _BaseMutableSet(MutableSet[_T]):
 
     def _post_add_hook(self, item: _T) -> None: ...
 
+    def _post_add_many_hook(self, item: tuple[_T, ...]) -> None: ...
+
     def _pre_discard_hook(self, item: _T) -> _T | BailType:
         return item  # pragma: no cover
 
@@ -98,7 +104,7 @@ class _BaseMutableSet(MutableSet[_T]):
     def _pre_clear_hook(self) -> tuple[_T, ...] | BailType:
         return tuple(self)  # pragma: no cover
 
-    def _post_clear_hook(self, item: tuple[_T, ...]) -> None: ...
+    def _post_remove_many_hook(self, item: tuple[_T, ...]) -> None: ...
 
     def _do_add(self, item: _T) -> None:
         self._data.add(item)
@@ -135,15 +141,14 @@ class _BaseMutableSet(MutableSet[_T]):
 
         (i.e. all elements that are in both sets.)
         """
-        other = set.intersection(*(set(x) for x in s))
-        return self.__class__(i for i in self if i in other)
+        return self.__class__(self._data.intersection(*s))
 
     def intersection_update(self, *s: Iterable[_T]) -> None:
         """Update this set with the intersection of itself and another."""
         other = set.intersection(*(set(x) for x in s))
-        for i in tuple(self):
-            if i not in other:
-                self.discard(i)
+        drop_data = self._data.difference(other)
+        self._data.difference_update(drop_data)
+        self._post_remove_many_hook(tuple(drop_data))
 
     def issubset(self, __s: Iterable[Any]) -> bool:
         """Report whether another set contains this set."""
@@ -322,6 +327,9 @@ class EventedSet(_BaseMutableSet[_T]):
     def _post_add_hook(self, item: _T) -> None:
         self._emit_change((item,), ())
 
+    def _post_add_many_hook(self, item: tuple[_T, ...]) -> None:
+        self._emit_change(item, ())
+
     def _pre_discard_hook(self, item: _T) -> _T | BailType:
         return BAIL if item not in self else item
 
@@ -331,7 +339,7 @@ class EventedSet(_BaseMutableSet[_T]):
     def _pre_clear_hook(self) -> tuple[_T, ...] | BailType:
         return BAIL if len(self) == 0 else tuple(self)
 
-    def _post_clear_hook(self, item: tuple[_T, ...]) -> None:
+    def _post_remove_many_hook(self, item: tuple[_T, ...]) -> None:
         self._emit_change((), item)
 
     def _emit_change(self, added: tuple[_T, ...], removed: tuple[_T, ...]) -> None:
