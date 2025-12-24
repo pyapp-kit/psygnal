@@ -1,0 +1,39 @@
+# This stub provides __getattr__ for type checking, which cannot be in the
+# main file because mypyc doesn't support __getattr__ in classes with
+# allow_interpreted_subclasses=True.
+from collections.abc import Iterator, Mapping
+from typing import Any, ClassVar
+
+from psygnal._signal import Signal, SignalInstance
+
+class SignalRelay(SignalInstance):
+    instance: Any
+    def __init__(
+        self, signals: Mapping[str, SignalInstance], instance: Any = None
+    ) -> None: ...
+
+class SignalGroup:
+    _psygnal_signals: ClassVar[Mapping[str, Signal]]
+    _psygnal_uniform: ClassVar[bool]
+    _psygnal_name_conflicts: ClassVar[set[str]]
+    _psygnal_aliases: ClassVar[dict[str, str | None]]
+    _psygnal_instances: dict[str, SignalInstance]
+
+    def __init__(self, instance: Any = None) -> None: ...
+    def __init_subclass__(
+        cls,
+        strict: bool = False,
+        signal_aliases: Mapping[str, str | None] = ...,
+    ) -> None: ...
+    @property
+    def instance(self) -> Any: ...
+    @property
+    def all(self) -> SignalRelay: ...
+    @property
+    def signals(self) -> Mapping[str, SignalInstance]: ...
+    def __len__(self) -> int: ...
+    def __getitem__(self, item: str) -> SignalInstance: ...
+    def __getattr__(self, name: str) -> SignalInstance: ...
+    def __iter__(self) -> Iterator[str]: ...
+    def __contains__(self, item: str) -> bool: ...
+    def __repr__(self) -> str: ...
