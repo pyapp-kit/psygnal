@@ -103,7 +103,7 @@ enable-by-default = false
 require-runtime-dependencies = true
 dependencies = [
     "hatch-mypyc>=0.13.0",
-    "mypy<1.19.0",
+    "mypy",
     "mypy_extensions >=0.4.2",
     "pydantic!=2.10.0",        # typing error in v2.10 prevents mypyc from working
     "types-attrs",
