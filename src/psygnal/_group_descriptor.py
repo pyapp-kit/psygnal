@@ -700,8 +700,12 @@ class SignalGroupDescriptor:
 
             # Register callback to connect child events on first connection if requested
             if self._connect_child_events:
+                try:
+                    ref_ = weakref.ref(instance)
+                except TypeError:
+                    ref_ = instance  # type: ignore
                 grp._psygnal_relay._on_first_connect_callbacks.append(
-                    lambda: connect_child_events(instance, recurse=True, _group=grp)
+                    lambda: connect_child_events(ref_, recurse=True, _group=grp)
                 )
 
         return self._instance_map[obj_id]
@@ -769,6 +773,10 @@ def connect_child_events(
         The SignalGroup to connect to.  If not provided, will be found by calling
         `get_evented_namespace(obj)`. By default None.
     """
+    if isinstance(obj, weakref.ref):
+        obj = obj()
+        if obj is None:
+            return  # pragma: no cover
     if _group is None and (_group := _find_signal_group(obj)) is None:
         return  # pragma: no cover  # not evented
 
