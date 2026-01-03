@@ -1,5 +1,17 @@
 # Changelog
 
+## [v0.15.1](https://github.com/pyapp-kit/psygnal/tree/v0.15.1) (2026-01-03)
+
+[Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.15.0...v0.15.1)
+
+**Merged pull requests:**
+
+- fix: Fix leaking objects by `connect_child_events=True` in `SignalGroupDescriptor`  [\#407](https://github.com/pyapp-kit/psygnal/pull/407) ([Czaki](https://github.com/Czaki))
+- build: Update ci [\#405](https://github.com/pyapp-kit/psygnal/pull/405) ([tlambert03](https://github.com/tlambert03))
+- chore:Fix docs build by bump build system [\#403](https://github.com/pyapp-kit/psygnal/pull/403) ([Czaki](https://github.com/Czaki))
+- Making ordered set reversible [\#395](https://github.com/pyapp-kit/psygnal/pull/395) ([yfukai](https://github.com/yfukai))
+- Drop pydantic1 [\#392](https://github.com/pyapp-kit/psygnal/pull/392) ([tlambert03](https://github.com/tlambert03))
+
 ## [v0.15.0](https://github.com/pyapp-kit/psygnal/tree/v0.15.0) (2025-10-15)
 
 [Full Changelog](https://github.com/pyapp-kit/psygnal/compare/v0.14.2...v0.15.0)
