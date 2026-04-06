@@ -7,31 +7,31 @@ exclude: .asv
 
 repos:
   - repo: https://github.com/abravalheri/validate-pyproject
-    rev: v0.24.1
+    rev: v0.25
     hooks:
       - id: validate-pyproject
 
   - repo: https://github.com/rhysd/actionlint
-    rev: v1.7.10
+    rev: v1.7.12
     hooks:
       - id: actionlint
         files: "^\\.github/workflows/.*\\.ya?ml$"
 
   - repo: https://github.com/adhtruong/mirrors-typos
-    rev: v1.41.0
+    rev: v1.45.0
     hooks:
       - id: typos
         args: [--force-exclude] # omitting --write-changes
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.10
+    rev: v0.15.9
     hooks:
       - id: ruff-check
         args: [--fix, --unsafe-fixes]
       - id: ruff-format
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.19.1
+    rev: v1.20.0
     hooks:
       - id: mypy
         exclude: tests|_throttler.pyi|_group.pyi
