@@ -111,7 +111,7 @@ jobs:
           enable-cache: true
           cache-dependency-glob: "**/pyproject.toml"
       - name: test
-        run: uv run --no-dev --group test-typing pytest typesafety --mypy-only-local-stub --color=yes
+        run: uv run --no-dev --group test-typing pytest typesafety --mypy-no-silence-site-packages --color=yes
 
   benchmarks:
     runs-on: ubuntu-latest
