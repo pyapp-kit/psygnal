@@ -50,7 +50,7 @@ test = [
     "anyio",
     "trio",
 ]
-test-typing = [{ include-group = "test-min" }, "pytest-mypy-plugins<4.0.1; python_version < '3.14'"]
+test-typing = [{ include-group = "test-min" }, "pytest-mypy-plugins<4; python_version < '3.14'"]
 testqt = [{ include-group = "test" }, "pytest-qt", "qtpy"]
 test-codspeed = [{ include-group = "test" }, "pytest-codspeed"]
 docs = [
