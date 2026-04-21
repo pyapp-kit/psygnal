@@ -1336,12 +1336,12 @@ class SignalInstance:
 
     def _run_emit_loop_immediate(self) -> None:
         args = self._emit_queue.popleft()
-        for caller in self._slots:
+        for caller in list(self._slots):
             caller.cb(args)
 
     def _run_emit_loop_latest_only(self) -> None:
         self._args = args = self._emit_queue.popleft()
-        for caller in self._slots:
+        for caller in list(self._slots):
             if self._recursion_depth < self._max_recursion_depth:
                 # we've already entered a deeper emit loop
                 # we should drop the remaining slots in this round and return
@@ -1353,7 +1353,7 @@ class SignalInstance:
         i = 0
         while i < len(self._emit_queue):
             args = self._emit_queue[i]
-            for caller in self._slots:
+            for caller in list(self._slots):
                 caller.cb(args)
                 if len(self._emit_queue) > RECURSION_LIMIT:
                     raise RecursionError
