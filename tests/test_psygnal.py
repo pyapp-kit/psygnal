@@ -1203,6 +1203,7 @@ def test_description():
     assert T.sig.description == description
     assert T().sig.description == description
 
+
 @pytest.mark.parametrize("strategy", ReemissionMode._members())
 def test_signal_emission_disconnect(strategy: ReemissionVal) -> None:
     """Test that disconnecting during emission doesn't cause problems."""
@@ -1215,7 +1216,6 @@ def test_signal_emission_disconnect(strategy: ReemissionVal) -> None:
         mock2()
         sig.disconnect(disconnect_cb)
 
-    
     sig.connect(mock1)
     sig.connect(disconnect_cb)
     sig.connect(mock3)
