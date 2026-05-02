@@ -27,17 +27,17 @@
 
     def a(x: int, y: str) -> Any: ...
     x = s.connect(a)
-    reveal_type(x)  # N: Revealed type is "def (x: builtins.int, y: builtins.str) -> Any"
+    reveal_type(x)  # N: Revealed type is "def (x: int, y: str) -> Any"
 
     @s.connect
     def b(x: str) -> int: return 1
-    reveal_type(b)  # N: Revealed type is "def (x: builtins.str) -> builtins.int"
+    reveal_type(b)  # N: Revealed type is "def (x: str) -> int"
 
     def c(x: int, y: str) -> Any: ...
     y = s.connect(c, check_nargs=False)
-    reveal_type(y)  # N: Revealed type is "def (x: builtins.int, y: builtins.str) -> Any"
+    reveal_type(y)  # N: Revealed type is "def (x: int, y: str) -> Any"
 
     @s.connect(check_nargs=False)
     def d(x: str) -> None: ...
 
-    reveal_type(d)  # N: Revealed type is "def (x: builtins.str)"
+    reveal_type(d)  # N: Revealed type is "def (x: str)"
