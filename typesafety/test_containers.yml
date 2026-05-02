@@ -6,8 +6,8 @@
     elist.append(1)
     x = elist.pop()
 
-    reveal_type(elist)  # N: Revealed type is "psygnal.containers._evented_list.EventedList[builtins.int]"
-    reveal_type(x)  # N: Revealed type is "builtins.int"
+    reveal_type(elist)  # N: Revealed type is "psygnal.containers._evented_list.EventedList[int]"
+    reveal_type(x)  # N: Revealed type is "int"
 
 - case: evented_set_types
   main: |
@@ -17,5 +17,5 @@
     elist.add(1)
     x = elist.pop()
 
-    reveal_type(elist)  # N: Revealed type is "psygnal.containers._evented_set.EventedSet[builtins.int]"
-    reveal_type(x)  # N: Revealed type is "builtins.int"
+    reveal_type(elist)  # N: Revealed type is "psygnal.containers._evented_set.EventedSet[int]"
+    reveal_type(x)  # N: Revealed type is "int"

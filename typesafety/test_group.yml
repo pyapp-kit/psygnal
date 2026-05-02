@@ -19,10 +19,10 @@
     def func(x: int) -> None:
         pass
 
-    reveal_type(func)  # N: Revealed type is "def (x: builtins.int)"
+    reveal_type(func)  # N: Revealed type is "def (x: int)"
 
     @t.e.x.connect
     def func2(x: int) -> None:
         pass
 
-    reveal_type(func2)  # N: Revealed type is "def (x: builtins.int)"
+    reveal_type(func2)  # N: Revealed type is "def (x: int)"
