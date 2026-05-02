@@ -266,7 +266,7 @@ def test_name_conflicts() -> None:
     assert "all" in group and isinstance(group["all"], SignalInstance)
     assert not isinstance(group["all"], SignalRelay)
 
-    with pytest.raises(AttributeError):  # it's not writeable
+    with pytest.raises(AttributeError):  # it's not writable
         group.all = SignalRelay({})  # type: ignore
 
     assert group.psygnals_uniform() is False
