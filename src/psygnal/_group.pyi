@@ -1,15 +1,50 @@
 # This stub provides __getattr__ for type checking, which cannot be in the
 # main file because mypyc doesn't support __getattr__ in classes with
 # allow_interpreted_subclasses=True.
-from collections.abc import Iterator, Mapping
-from typing import Any, ClassVar
+import threading
+from collections.abc import Callable, Container, Hashable, Iterator, Mapping
+from contextlib import AbstractContextManager
+from dataclasses import dataclass
+from typing import Any, ClassVar, Literal, SupportsIndex, overload
 
-from psygnal._signal import Signal, SignalInstance
+from psygnal._signal import F, ReducerFunc, Signal, SignalInstance
+from psygnal._weak_callback import RefErrorChoice
+
+@dataclass(slots=True, frozen=True)
+class PathStep:
+    attr: str | None = ...
+    index: SupportsIndex | None = ...
+    key: Hashable | None = ...
+
+@dataclass(slots=True, frozen=True)
+class EmissionInfo:
+    signal: SignalInstance
+    args: tuple[Any, ...]
+    path: tuple[PathStep, ...] = ...
+    def insert_path(self, *path: PathStep) -> EmissionInfo: ...
+    def __iter__(self) -> Iterator[Any]: ...
 
 class SignalRelay(SignalInstance):
     instance: Any
     def __init__(
         self, signals: Mapping[str, SignalInstance], instance: Any = None
+    ) -> None: ...
+    def connect_direct(
+        self,
+        slot: Callable | None = ...,
+        *,
+        check_nargs: bool | None = ...,
+        check_types: bool | None = ...,
+        unique: bool | Literal["raise"] = ...,
+        max_args: int | None = ...,
+    ) -> Callable[[Callable], Callable] | Callable: ...
+    def block(self, exclude: Container[str | SignalInstance] = ...) -> None: ...
+    def unblock(self) -> None: ...
+    def blocked(
+        self, exclude: Container[str | SignalInstance] = ...
+    ) -> AbstractContextManager[None]: ...
+    def disconnect(
+        self, slot: Callable | None = ..., missing_ok: bool = ...
     ) -> None: ...
 
 class SignalGroup:
@@ -37,3 +72,55 @@ class SignalGroup:
     def __iter__(self) -> Iterator[str]: ...
     def __contains__(self, item: str) -> bool: ...
     def __repr__(self) -> str: ...
+    @classmethod
+    def psygnals_uniform(cls) -> bool: ...
+    @classmethod
+    def is_uniform(cls) -> bool: ...
+    def __deepcopy__(self, memo: dict[int, Any]) -> SignalGroup: ...
+    @overload
+    def connect(
+        self,
+        *,
+        thread: threading.Thread | Literal["main", "current"] | None = ...,
+        check_nargs: bool | None = ...,
+        check_types: bool | None = ...,
+        unique: bool | Literal["raise"] = ...,
+        max_args: int | None = ...,
+        on_ref_error: RefErrorChoice = ...,
+        priority: int = ...,
+    ) -> Callable[[F], F]: ...
+    @overload
+    def connect(
+        self,
+        slot: F,
+        *,
+        thread: threading.Thread | Literal["main", "current"] | None = ...,
+        check_nargs: bool | None = ...,
+        check_types: bool | None = ...,
+        unique: bool | Literal["raise"] = ...,
+        max_args: int | None = ...,
+        on_ref_error: RefErrorChoice = ...,
+        priority: int = ...,
+    ) -> F: ...
+    def connect_direct(
+        self,
+        slot: Callable | None = ...,
+        *,
+        check_nargs: bool | None = ...,
+        check_types: bool | None = ...,
+        unique: bool | Literal["raise"] = ...,
+        max_args: int | None = ...,
+    ) -> Callable[[Callable], Callable] | Callable: ...
+    def disconnect(
+        self, slot: Callable | None = ..., missing_ok: bool = ...
+    ) -> None: ...
+    def block(self, exclude: Container[str | SignalInstance] = ...) -> None: ...
+    def unblock(self) -> None: ...
+    def blocked(
+        self, exclude: Container[str | SignalInstance] = ...
+    ) -> AbstractContextManager[None]: ...
+    def pause(self) -> None: ...
+    def resume(self, reducer: ReducerFunc | None = ..., initial: Any = ...) -> None: ...
+    def paused(
+        self, reducer: ReducerFunc | None = ..., initial: Any = ...
+    ) -> AbstractContextManager[None]: ...
