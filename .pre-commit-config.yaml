@@ -31,7 +31,8 @@ repos:
       - id: ruff-format
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.20.2
+    # this must match the mypy version in pyproject.toml
+    rev: v1.19.1
     hooks:
       - id: mypy
         exclude: tests|_throttler.pyi|_group.pyi

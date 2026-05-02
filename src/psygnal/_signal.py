@@ -827,7 +827,7 @@ class SignalInstance:
         elif isinstance(slot, int):
             self._slots.pop(slot)
         else:
-            self._slots.remove(slot)
+            self._slots.remove(cast("WeakCallback", slot))
 
     def _try_discard(self, callback: WeakCallback, missing_ok: bool = True) -> None:
         """Try to discard a callback from the list of slots.
