@@ -68,15 +68,15 @@ dev = [
     { include-group = "docs" },
     "PyQt6",
     "ipython",
-    "mypy",
+    "mypy >=2.1.0",
     "mypy_extensions",
-    "pre-commit",
     "asv",
     "ruff",
     "typing-extensions",
     "rich>=14.0.0",
     "pdbpp; sys_platform != 'win32'",
     "pytest-benchmark>=5.1.0",
+    "prek>=0.4.3",
 ]
 
 [project.urls]
@@ -103,7 +103,7 @@ enable-by-default = false
 require-runtime-dependencies = true
 dependencies = [
     "hatch-mypyc>=0.13.0",
-    "mypy<1.20",
+    "mypy >=2.1.0",
     "mypy_extensions >=0.4.2",
     "pydantic!=2.10.0",        # typing error in v2.10 prevents mypyc from working
     "types-attrs",

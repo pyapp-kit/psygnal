@@ -827,7 +827,7 @@ class SignalInstance:
         elif isinstance(slot, int):
             self._slots.pop(slot)
         else:
-            self._slots.remove(cast("WeakCallback", slot))
+            self._slots.remove(slot)
 
     def _try_discard(self, callback: WeakCallback, missing_ok: bool = True) -> None:
         """Try to discard a callback from the list of slots.
@@ -1809,10 +1809,11 @@ def _ridiculously_call_emit(emitter: Any) -> str | None:  # pragma: no cover
     return None  # pragma: no cover
 
 
-_compiled: bool
-
-
-def __getattr__(name: str) -> Any:
-    if name == "_compiled":
-        return hasattr(Signal, "__mypyc_attrs__")
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+# NOTE: this MUST be a module-level assignment rather than a module-level
+# `__getattr__`.  When mypyc compiles a module-level `__getattr__` (supported
+# since mypy 1.20), the native import machinery invokes it while setting up the
+# module's dunder attributes (e.g. `__package__`) *before* the module body has
+# run, which sends `__getattr__` into infinite recursion and segfaults on
+# import.  See:
+# https://github.com/pyapp-kit/psygnal/issues/414
+_compiled: bool = hasattr(Signal, "__mypyc_attrs__")
