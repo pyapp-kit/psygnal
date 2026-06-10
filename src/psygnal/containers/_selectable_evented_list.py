@@ -51,9 +51,9 @@ class SelectableEventedList(Selectable[_T], EventedList[_T]):
     def _on_item_removed(self, idx: int, obj: Any) -> None:
         self.selection.discard(obj)
 
-    def insert(self, index: int, value: _T) -> None:
-        """Insert item(s) into the list and update the selection."""
-        super().insert(index, value)
+    def _insert_one(self, index: int, value: _T) -> None:
+        """Insert an item into the list and update the selection."""
+        super()._insert_one(index, value)
         if self._activate_on_insert:
             self.selection.active = value
 

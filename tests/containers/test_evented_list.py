@@ -22,53 +22,66 @@ def test_list(regular_list):
     return test_list
 
 
+# per-item events bracketed by the contiguous-block items_* events
+INSERT = ("items_inserting", "inserting", "inserted", "items_inserted")
+REMOVE = ("items_removing", "removing", "removed", "items_removed")
+
+
+def _remove_block(n: int) -> tuple[str, ...]:
+    # one contiguous block of N removals:
+    # items_removing, (removing, removed)*N, items_removed
+    return ("items_removing", *(("removing", "removed") * n), "items_removed")
+
+
+REMOVE_BLOCK2 = _remove_block(2)
+
+
 @pytest.mark.parametrize(
     "meth",
     [
         # METHOD, ARGS, EXPECTED EVENTS
         # primary interface
-        ("insert", (2, 10), ("inserting", "inserted")),  # create
+        ("insert", (2, 10), INSERT),  # create
         ("__getitem__", (2,), ()),  # read
         ("__setitem__", (2, 3), ("changed",)),  # update
         ("__setitem__", (slice(2), [1, 2]), ("changed",)),  # update slice
         ("__setitem__", (slice(2, 2), [1, 2]), ("changed",)),  # update slice
-        ("__delitem__", (2,), ("removing", "removed")),  # delete
-        (
-            "__delitem__",
-            (slice(2),),
-            ("removing", "removed") * 2,
-        ),
-        ("__delitem__", (slice(0, 0),), ("removing", "removed")),
-        (
-            "__delitem__",
-            (slice(-3),),
-            ("removing", "removed") * 2,
-        ),
-        (
-            "__delitem__",
-            (slice(-2, None),),
-            ("removing", "removed") * 2,
-        ),
+        ("__delitem__", (2,), REMOVE),  # delete
+        ("__delitem__", (slice(2),), REMOVE_BLOCK2),  # contiguous block
+        ("__delitem__", (slice(0, 0),), ()),  # empty slice -> no emission
+        ("__delitem__", (slice(-3),), REMOVE_BLOCK2),
+        ("__delitem__", (slice(-2, None),), REMOVE_BLOCK2),
+        # non-contiguous removal -> one bracketed block per contiguous run
+        ("__delitem__", (slice(None, None, 2),), REMOVE * 3),
         # inherited interface
-        ("append", (3,), ("inserting", "inserted")),
-        ("clear", (), ("removing", "removed") * 5),
+        ("append", (3,), INSERT),
+        ("clear", (), _remove_block(5)),  # whole list removed as one block
         ("count", (3,), ()),
-        ("extend", ([7, 8, 9],), ("inserting", "inserted") * 3),
+        (
+            "extend",
+            ([7, 8, 9],),
+            ("items_inserting", *(("inserting", "inserted") * 3), "items_inserted"),
+        ),
         ("index", (3,), ()),
-        ("pop", (-2,), ("removing", "removed")),
-        ("remove", (3,), ("removing", "removed")),
+        ("pop", (-2,), REMOVE),
+        ("remove", (3,), REMOVE),
         ("reverse", (), ("reordered",)),
-        ("__add__", ([7, 8, 9],), ()),
-        ("__iadd__", ([7, 9],), ("inserting", "inserted") * 2),
-        ("__radd__", ([7, 9],), ("inserting", "inserted") * 2),
+        ("__add__", ([7, 8, 9],), ()),  # operates on a copy
+        (
+            "__iadd__",
+            ([7, 9],),
+            ("items_inserting", *(("inserting", "inserted") * 2), "items_inserted"),
+        ),
+        ("__radd__", ([7, 9],), ()),  # does not mutate self
         # sort?
     ],
     ids=lambda x: x[0],
 )
 def test_list_interface_parity(test_list, regular_list, meth):
-    test_list.events = cast("Mock", test_list.events)
-
     method_name, args, expected = meth
+    received: list[str] = []
+    test_list.events.connect(lambda info: received.append(info.signal.name))
+
     test_list_method = getattr(test_list, method_name)
     assert tuple(test_list) == tuple(regular_list)
     if hasattr(regular_list, method_name):
@@ -78,9 +91,7 @@ def test_list_interface_parity(test_list, regular_list, meth):
     else:
         test_list_method(*args)  # smoke test
 
-    for c, expect in zip(test_list.events.call_args_list, expected, strict=False):
-        event = c.args[0]
-        assert event.type == expect
+    assert tuple(received) == expected
 
 
 def test_delete(test_list):
@@ -319,11 +330,20 @@ def test_child_events():
     assert root == [e_obj]
     e_obj.test.emit("hi")
 
-    assert mock.call_count == 3
+    # items_inserting + inserting + inserted + items_inserted + the child event
+    assert mock.call_count == 5
 
     expected = [
+        call(
+            EmissionInfo(root.events.items_inserting, (0, 1), path=(PathStep(index=0),))
+        ),
         call(EmissionInfo(root.events.inserting, (0,), path=(PathStep(index=0),))),
         call(EmissionInfo(root.events.inserted, (0, e_obj), path=(PathStep(index=0),))),
+        call(
+            EmissionInfo(
+                root.events.items_inserted, (0, 1, [e_obj]), path=(PathStep(index=0),)
+            )
+        ),
         call(
             EmissionInfo(
                 e_obj.test, ("hi",), path=(PathStep(index=0), PathStep(attr="test"))
@@ -357,16 +377,26 @@ def test_child_events_groups():
     e_obj.events.test2.emit("hi")
 
     assert [c[0][0].signal.name for c in mock.call_args_list] == [
+        "items_inserting",
         "inserting",
         "inserted",
+        "items_inserted",
         "test2",  # This is now the direct child signal, not child_event
     ]
 
     # when an object in the list owns an emitter group, then any emitter in that group
     # will also be detected, and the child event will be emitted directly with path info
     expected = [
+        call(
+            EmissionInfo(root.events.items_inserting, (0, 1), path=(PathStep(index=0),))
+        ),
         call(EmissionInfo(root.events.inserting, (0,), path=(PathStep(index=0),))),
         call(EmissionInfo(root.events.inserted, (0, e_obj), path=(PathStep(index=0),))),
+        call(
+            EmissionInfo(
+                root.events.items_inserted, (0, 1, [e_obj]), path=(PathStep(index=0),)
+            )
+        ),
         call(EmissionInfo(e_obj.events.test2, ("hi",), path=(PathStep(index=0),))),
     ]
 
@@ -381,3 +411,135 @@ def test_copy_no_sync():
     l2 = copy(l1)
     l1.append(4)
     assert len(l2) == 3
+
+
+def test_items_inserted_emits_once_for_batch():
+    """The items_* batch signals fire once per contiguous block; per-item N times."""
+    el = EventedList([0, 1, 2])
+    items_inserting = Mock()
+    items_inserted = Mock()
+    inserted = Mock()
+    el.events.items_inserting.connect(items_inserting)
+    el.events.items_inserted.connect(items_inserted)
+    el.events.inserted.connect(inserted)
+
+    el.extend([3, 4, 5])
+    assert el == [0, 1, 2, 3, 4, 5]
+    # batch signal fires exactly once over the whole contiguous range...
+    items_inserting.assert_called_once_with(3, 6)
+    items_inserted.assert_called_once_with(3, 6, [3, 4, 5])
+    # ...while the per-item signal still fires once per item (unchanged contract)
+    assert inserted.call_args_list == [call(3, 3), call(4, 4), call(5, 5)]
+
+    # a single insert is just a length-1 range
+    items_inserting.reset_mock()
+    items_inserted.reset_mock()
+    el.insert(0, 99)
+    items_inserting.assert_called_once_with(0, 1)
+    items_inserted.assert_called_once_with(0, 1, [99])
+
+
+def test_per_item_signals_unchanged():
+    """Legacy (index)/(index, value) callbacks behave exactly as before."""
+    el = EventedList([0, 1, 2])
+    inserting = Mock()
+    inserted = Mock()
+    removed = Mock()
+    el.events.inserting.connect(inserting)
+    el.events.inserted.connect(inserted)
+    el.events.removed.connect(removed)
+
+    el.append(9)
+    inserting.assert_called_once_with(3)
+    inserted.assert_called_once_with(3, 9)
+
+    # a batch still emits the per-item event for *every* item, not just once
+    inserting.reset_mock()
+    inserted.reset_mock()
+    el.extend([10, 11])
+    assert inserting.call_args_list == [call(4), call(5)]
+    assert inserted.call_args_list == [call(4, 10), call(5, 11)]
+
+    del el[0]
+    removed.assert_called_once_with(0, 0)
+
+
+@pytest.mark.parametrize("index", [-100, -2, -1, 0, 1, 2, 100])
+def test_insert_index_parity(index):
+    """insert() with negative/out-of-range indices matches builtin list."""
+    el = EventedList([0, 1, 2])
+    ref = [0, 1, 2]
+    el.insert(index, 9)
+    ref.insert(index, 9)
+    assert el == ref
+
+
+def test_items_removed_emits_per_block():
+    """Contiguous removals emit one block; non-contiguous emit once per block."""
+    el = EventedList([0, 1, 2, 3, 4, 5])
+    items_removing = Mock()
+    items_removed = Mock()
+    el.events.items_removing.connect(items_removing)
+    el.events.items_removed.connect(items_removed)
+
+    # contiguous slice -> single block
+    del el[1:4]
+    assert el == [0, 4, 5]
+    items_removing.assert_called_once_with(1, 4)
+    items_removed.assert_called_once_with(1, 4, [1, 2, 3])
+
+    # non-contiguous slice -> one block per contiguous run, highest first
+    el[:] = [0, 1, 2, 3, 4, 5]
+    items_removing.reset_mock()
+    items_removed.reset_mock()
+    del el[::2]  # indices 0, 2, 4
+    assert el == [1, 3, 5]
+    assert items_removing.call_args_list == [call(4, 5), call(2, 3), call(0, 1)]
+    assert items_removed.call_args_list == [
+        call(4, 5, [4]),
+        call(2, 3, [2]),
+        call(0, 1, [0]),
+    ]
+
+
+def test_clear_emits_single_block():
+    """clear() removes the whole list as one bracketed block."""
+    el = EventedList([0, 1, 2, 3])
+    items_removing = Mock()
+    items_removed = Mock()
+    removed = Mock()
+    el.events.items_removing.connect(items_removing)
+    el.events.items_removed.connect(items_removed)
+    el.events.removed.connect(removed)
+
+    el.clear()
+    assert el == []
+    items_removing.assert_called_once_with(0, 4)
+    items_removed.assert_called_once_with(0, 4, [0, 1, 2, 3])
+    # per-item still fires for each, highest index first (unchanged from before)
+    assert removed.call_args_list == [call(3, 3), call(2, 2), call(1, 1), call(0, 0)]
+
+
+def test_items_signals_drive_qt_style_model():
+    """items_* (start, stop) ranges wire directly onto begin/end{Insert,Remove}Rows."""
+    el = EventedList([0, 1, 2])
+    calls: list[tuple] = []
+
+    el.events.items_inserting.connect(
+        lambda start, stop: calls.append(("beginInsertRows", start, stop - 1))
+    )
+    el.events.items_inserted.connect(lambda *_: calls.append(("endInsertRows",)))
+    el.events.items_removing.connect(
+        lambda start, stop: calls.append(("beginRemoveRows", start, stop - 1))
+    )
+    el.events.items_removed.connect(lambda *_: calls.append(("endRemoveRows",)))
+
+    el.extend([3, 4])  # a single bracketed block for the whole batch
+    del el[0:2]
+
+    assert calls == [
+        ("beginInsertRows", 3, 4),  # inclusive last row, as Qt expects
+        ("endInsertRows",),
+        ("beginRemoveRows", 0, 1),
+        ("endRemoveRows",),
+    ]

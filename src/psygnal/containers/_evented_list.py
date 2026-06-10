@@ -49,6 +49,25 @@ _T = TypeVar("_T")
 Index: TypeAlias = int | slice
 
 
+def _contiguous_runs(indices: Iterable[int]) -> Iterable[tuple[int, int]]:
+    """Yield `(start, stop)` half-open runs of contiguous integers, highest first.
+
+    e.g. `[1, 2, 3, 5, 6]` -> `(5, 7)`, `(1, 4)`.  Runs are yielded in descending
+    order so that deleting later (higher) blocks leaves earlier indices valid.
+    """
+    ordered = sorted(set(indices), reverse=True)
+    if not ordered:
+        return
+    stop = ordered[0] + 1
+    prev = ordered[0]
+    for idx in ordered[1:]:
+        if idx != prev - 1:
+            yield prev, stop
+            stop = idx + 1
+        prev = idx
+    yield prev, stop
+
+
 class ListSignalInstance(SignalInstance):
     def _psygnal_relocate_info_(self, emission_info: EmissionInfo) -> EmissionInfo:
         """Relocate the emission info to the index being modified.
@@ -74,6 +93,29 @@ class ListEvents(SignalGroup):
     """`(index)` emitted before an item is removed at `index`"""
     removed = ListSignal(int, object)
     """`(index, value)` emitted after `value` is removed at `index`"""
+    items_inserting = ListSignal(int, int)
+    """`(start, stop)` emitted once before a contiguous block of items is inserted
+    into the half-open range `[start, stop)`.
+
+    This brackets the per-item `inserting` events (which still fire for each item), so
+    that a batch insert (e.g. `extend`/`+=`) can be handled with a single update. A
+    single insert is just a length-1 range. Maps directly onto Qt's
+    `beginInsertRows(parent, start, stop - 1)`."""
+    items_inserted = ListSignal(int, int, object)
+    """`(start, stop, values)` emitted once after a contiguous block of items has been
+    inserted into the half-open range `[start, stop)` (`values` is the inserted
+    `list`). Maps onto Qt's `endInsertRows()`."""
+    items_removing = ListSignal(int, int)
+    """`(start, stop)` emitted once before a contiguous block of items is removed from
+    the half-open range `[start, stop)`.
+
+    Brackets the per-item `removing` events. Non-contiguous removals (e.g. a strided
+    slice) emit this once per contiguous block, highest block first. Maps directly onto
+    Qt's `beginRemoveRows(parent, start, stop - 1)`."""
+    items_removed = ListSignal(int, int, object)
+    """`(start, stop, values)` emitted once after a contiguous block of items has been
+    removed from the half-open range `[start, stop)` (`values` is the removed `list`).
+    Maps onto Qt's `endRemoveRows()`."""
     moving = ListSignal(int, int)
     """`(index, new_index)` emitted before an item is moved from `index` to
     `new_index`"""
@@ -142,11 +184,47 @@ class EventedList(MutableSequence[_T]):
 
     def insert(self, index: int, value: _T) -> None:
         """Insert `value` before index."""
+        # normalize for the (range-aware) items_* signals; the per-item events
+        # keep emitting the raw `index` exactly as before.
+        norm = max(0, len(self) + index) if index < 0 else min(index, len(self))
+        self.events.items_inserting.emit(norm, norm + 1)
+        self._insert_one(index, value)
+        self.events.items_inserted.emit(norm, norm + 1, [value])
+
+    def extend(self, values: Iterable[_T]) -> None:
+        """Extend list by appending all items from `values`."""
+        values = list(values)
+        if not values:
+            return
+        start, stop = len(self), len(self) + len(values)
+        self.events.items_inserting.emit(start, stop)
+        for i, value in enumerate(values):
+            self._insert_one(start + i, value)
+        self.events.items_inserted.emit(start, stop, values)
+
+    def _insert_one(self, index: int, value: _T) -> None:
+        """Insert a single `value`, emitting the per-item `inserting`/`inserted`.
+
+        This is the per-item primitive that `insert`/`extend` funnel through; the
+        contiguous-range `items_inserting`/`items_inserted` events are emitted by the
+        callers, bracketing one or more `_insert_one` calls.
+        """
         _value = self._pre_insert(value)
         self.events.inserting.emit(index)
         self._data.insert(index, _value)
         self.events.inserted.emit(index, value)
         self._post_insert(value)
+
+    def clear(self) -> None:
+        """Remove all items from the list.
+
+        Overrides `MutableSequence.clear` (which pops one at a time) so the whole
+        list is removed as a single contiguous block (one `items_removing`/
+        `items_removed` pair). The per-item `removing`/`removed` events still fire for
+        each item, highest index first, exactly as before.
+        """
+        if self._data:
+            del self[:]
 
     @overload
     def __getitem__(self, key: int) -> _T: ...
@@ -185,12 +263,24 @@ class EventedList(MutableSequence[_T]):
 
     def __delitem__(self, key: Index) -> None:
         """Delete self[key]."""
-        # delete from the end
-        for parent, index in sorted(self._delitem_indices(key), reverse=True):
-            parent.events.removing.emit(index)
-            parent._pre_remove(index)
-            item = parent._data.pop(index)
-            self.events.removed.emit(index, item)
+        # group indices by their (possibly nested) parent list
+        by_parent: dict[int, tuple[EventedList[_T], list[int]]] = {}
+        for parent, index in self._delitem_indices(key):
+            by_parent.setdefault(id(parent), (parent, []))[1].append(index)
+
+        for parent, indices in by_parent.values():
+            # bracket each contiguous block with items_removing/items_removed, while
+            # still emitting the per-item removing/removed events (highest index
+            # first, so lower indices stay valid as we go).
+            for start, stop in _contiguous_runs(indices):
+                parent.events.items_removing.emit(start, stop)
+                items: list[_T] = []
+                for index in range(stop - 1, start - 1, -1):
+                    parent.events.removing.emit(index)
+                    parent._pre_remove(index)
+                    items.insert(0, parent._data.pop(index))
+                    parent.events.removed.emit(index, items[0])
+                parent.events.items_removed.emit(start, stop, items)
 
     def _delitem_indices(self, key: Index) -> Iterable[tuple[EventedList[_T], int]]:
         # returning (self, int) allows subclasses to pass nested members
