@@ -99,23 +99,21 @@ class ListEvents(SignalGroup):
 
     This brackets the per-item `inserting` events (which still fire for each item), so
     that a batch insert (e.g. `extend`/`+=`) can be handled with a single update. A
-    single insert is just a length-1 range. Maps directly onto Qt's
-    `beginInsertRows(parent, start, stop - 1)`."""
+    single insert is just a length-1 range."""
     items_inserted = ListSignal(int, int, object)
     """`(start, stop, values)` emitted once after a contiguous block of items has been
     inserted into the half-open range `[start, stop)` (`values` is the inserted
-    `list`). Maps onto Qt's `endInsertRows()`."""
+    `list`)."""
     items_removing = ListSignal(int, int)
     """`(start, stop)` emitted once before a contiguous block of items is removed from
     the half-open range `[start, stop)`.
 
     Brackets the per-item `removing` events. Non-contiguous removals (e.g. a strided
-    slice) emit this once per contiguous block, highest block first. Maps directly onto
-    Qt's `beginRemoveRows(parent, start, stop - 1)`."""
+    slice) emit this once per contiguous block, highest block first."""
     items_removed = ListSignal(int, int, object)
     """`(start, stop, values)` emitted once after a contiguous block of items has been
     removed from the half-open range `[start, stop)` (`values` is the removed `list`).
-    Maps onto Qt's `endRemoveRows()`."""
+    """
     moving = ListSignal(int, int)
     """`(index, new_index)` emitted before an item is moved from `index` to
     `new_index`"""
