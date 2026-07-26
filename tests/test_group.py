@@ -209,6 +209,46 @@ def test_group_disconnect_all_slots() -> None:
     mock2.assert_not_called()
 
 
+def test_group_disconnect_relay_slot_missing_ok() -> None:
+    """A slot connected to the group can be disconnected with `missing_ok=False`.
+
+    See https://github.com/pyapp-kit/psygnal/issues/425
+    """
+    group = MyGroup()
+    mock = Mock()
+
+    group.connect(mock)
+    # should not raise: the slot is connected to the relay, not the child signals
+    group.disconnect(mock, missing_ok=False)
+
+    group.sig1.emit(1)
+    mock.assert_not_called()
+
+    # a genuinely-missing slot still raises with missing_ok=False
+    with pytest.raises(ValueError, match="slot is not connected"):
+        group.disconnect(mock, missing_ok=False)
+
+
+def test_group_disconnect_direct_slot_missing_ok() -> None:
+    """A `connect_direct` slot can also be disconnected with `missing_ok=False`.
+
+    See https://github.com/pyapp-kit/psygnal/issues/425
+    """
+    group = MyGroup()
+    mock = Mock()
+
+    group.connect_direct(mock)
+    # `connect_direct` puts the slot on the child signals, not the relay
+    group.disconnect(mock, missing_ok=False)
+
+    group.sig1.emit(1)
+    mock.assert_not_called()
+
+    # a genuinely-missing slot still raises with missing_ok=False
+    with pytest.raises(ValueError, match="slot is not connected"):
+        group.disconnect(mock, missing_ok=False)
+
+
 def test_weakref() -> None:
     """Make sure that the group doesn't keep a strong reference to the instance."""
     import gc
