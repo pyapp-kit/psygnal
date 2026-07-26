@@ -8,6 +8,7 @@ import pytest
 
 from psygnal import EmissionInfo, PathStep, Signal, SignalGroup
 from psygnal.containers import EventedList
+from psygnal.containers._evented_list import _contiguous_runs
 
 
 @pytest.fixture
@@ -411,6 +412,22 @@ def test_copy_no_sync():
     l2 = copy(l1)
     l1.append(4)
     assert len(l2) == 3
+
+
+@pytest.mark.parametrize(
+    "indices, expected",
+    [
+        ([], []),  # empty -> no runs
+        ([3], [(3, 4)]),
+        ([1, 2, 3], [(1, 4)]),  # single contiguous block
+        ([3, 1, 2], [(1, 4)]),  # unsorted input
+        ([1, 1, 2], [(1, 3)]),  # duplicates collapsed
+        ([0, 2, 4], [(4, 5), (2, 3), (0, 1)]),  # non-contiguous, highest first
+        ([1, 2, 3, 5, 6], [(5, 7), (1, 4)]),
+    ],
+)
+def test_contiguous_runs(indices: list[int], expected: list[tuple[int, int]]) -> None:
+    assert list(_contiguous_runs(indices)) == expected
 
 
 def test_items_inserted_emits_once_for_batch():
