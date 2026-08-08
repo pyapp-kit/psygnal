@@ -107,9 +107,9 @@ my_list.append(6)  # Output: Inserted 6 at index 5
 my_list.pop()  # Output: Removed 6 at index 5
 
 # the `items_*` signals bracket a contiguous batch with a single (start, stop) range,
-# so e.g. `extend` emits `items_inserting`/`items_inserted` once
+# so e.g. `extend` emits `batch_inserting`/`batch_inserted` once
 # while `inserted` still fires once per item.
-my_list.events.items_inserting.connect(
+my_list.events.batch_inserting.connect(
     lambda start, stop: print(f"Inserting rows [{start}:{stop}]")
 )
 my_list.extend([7, 8, 9])  # Output: Inserting rows [2:5] (+ 3 per-item Inserted lines)
