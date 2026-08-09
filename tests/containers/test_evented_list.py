@@ -1,6 +1,6 @@
 import os
 from copy import copy
-from typing import cast
+from typing import Any, cast
 from unittest.mock import Mock, call
 
 import numpy as np
@@ -23,7 +23,7 @@ def test_list(regular_list):
     return test_list
 
 
-# per-item events bracketed by the contiguous-block items_* events
+# per-item events bracketed by the contiguous-block batch_* events
 INSERT = ("batch_inserting", "inserting", "inserted", "batch_inserted")
 REMOVE = ("batch_removing", "removing", "removed", "batch_removed")
 
@@ -431,7 +431,7 @@ def test_contiguous_runs(indices: list[int], expected: list[tuple[int, int]]) ->
 
 
 def test_batch_inserted_emits_once_for_batch():
-    """The items_* batch signals fire once per contiguous block; per-item N times."""
+    """The batch_* signals fire once per contiguous block; per-item N times."""
     el = EventedList([0, 1, 2])
     batch_inserting = Mock()
     batch_inserted = Mock()
@@ -537,8 +537,8 @@ def test_clear_emits_single_block():
     assert removed.call_args_list == [call(3, 3), call(2, 2), call(1, 1), call(0, 0)]
 
 
-def test_items_signals_drive_qt_style_model():
-    """items_* (start, stop) ranges wire directly onto begin/end{Insert,Remove}Rows."""
+def test_batch_signals_drive_qt_style_model():
+    """batch_* (start, stop) ranges wire directly onto begin/end{Insert,Remove}Rows."""
     el = EventedList([0, 1, 2])
     calls: list[tuple] = []
 
@@ -560,3 +560,50 @@ def test_items_signals_drive_qt_style_model():
         ("beginRemoveRows", 0, 1),
         ("endRemoveRows",),
     ]
+
+
+def test_subclass_insert_override_still_called_by_extend():
+    """`extend`/`+=`/`__init__` must keep funneling through the public `insert`."""
+
+    class MyList(EventedList):
+        def __init__(self, *args, **kwargs):
+            self.seen: list[tuple[int, Any]] = []
+            super().__init__(*args, **kwargs)
+
+        def insert(self, index: int, value: Any) -> None:
+            self.seen.append((index, value))
+            super().insert(index, value)
+
+    el = MyList([0, 1])  # __init__ extends
+    assert el.seen == [(0, 0), (1, 1)]
+
+    el.extend([2, 3])
+    assert el.seen[-2:] == [(2, 2), (3, 3)]
+
+    el += [4]
+    assert el.seen[-1] == (4, 4)
+    assert el == [0, 1, 2, 3, 4]
+
+
+def test_insert_emits_nothing_if_pre_insert_raises():
+    """A rejected value must not leave an unterminated `batch_inserting` behind."""
+
+    class Validated(EventedList):
+        def _pre_insert(self, value: Any) -> Any:
+            if not isinstance(value, int):
+                raise TypeError("ints only")
+            return value
+
+    el = Validated([0, 1])
+    received: list[str] = []
+    el.events.connect(lambda info: received.append(info.signal.name))
+
+    with pytest.raises(TypeError, match="ints only"):
+        el.insert(1, "nope")
+    assert received == []  # not even batch_inserting
+    assert el == [0, 1]
+
+    # and the batch signals stay paired on the success path
+    el.insert(1, 9)
+    assert tuple(received) == INSERT
+    assert el == [0, 9, 1]
