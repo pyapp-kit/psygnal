@@ -99,6 +99,7 @@ sources = ["src"]
 
 [tool.hatch.build.targets.wheel.hooks.mypyc]
 mypy-args = ["--ignore-missing-imports"]
+options = { debug_level = "0" }
 enable-by-default = false
 require-runtime-dependencies = true
 dependencies = [
