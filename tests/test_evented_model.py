@@ -34,6 +34,21 @@ def test_creating_empty_evented_model():
     assert model.events is not None
 
 
+def test_empty_subclass_preserves_inherited_field_defaults():
+    """An annotation-free subclass must retain its inherited defaults."""
+
+    class Parent(EventedModel):
+        count: int = 1
+        label: str = "default"
+
+    class EmptySubclass(Parent):
+        pass
+
+    model = EmptySubclass()
+    assert model.count == 1
+    assert model.label == "default"
+
+
 def test_evented_model():
     """Test creating an evented pydantic model."""
 

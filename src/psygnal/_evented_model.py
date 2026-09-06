@@ -168,6 +168,9 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
         mcs: type, name: str, bases: tuple, namespace: dict, **kwargs: Any
     ) -> "EventedMetaclass":
         """Create new EventedModel class."""
+        # Pydantic uses the absence of __annotations__ differently from an
+        # explicitly empty mapping when rebuilding inherited fields.
+        namespace.setdefault("__annotations__", {})
         with no_class_attributes():
             cls = super().__new__(mcs, name, bases, namespace, **kwargs)
 
