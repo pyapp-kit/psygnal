@@ -456,17 +456,23 @@ def evented_setattr(
             # Get the signal for this field
             signal = get_signal(group, name)
 
-            # Fast path: If signal doesn't exist or has no listeners, and group has
-            # no listeners, skip all the expensive operations
-            if signal is None or (len(signal) < 1 and not len(group._psygnal_relay)):
+            # Skip work only when there are no listeners or child connections
+            # to maintain (or the field has no signal).
+            if signal is None or (
+                len(signal) < 1
+                and not len(group._psygnal_relay)
+                and not group._psygnal_child_events_connected
+            ):
                 return super_setattr(self, name, value)
 
-            # Slow path: We have listeners, so do the full work
+            # Maintain listeners and any existing child connections.
             old_value = getattr(self, name, None)
             with _changes_emitted(self, name, signal, old_value):
                 super_setattr(self, name, value)
-                # Only handle child events for evented fields
-                if is_evented(value):
+                # Maintain child forwarding only after it has been enabled.
+                if group._psygnal_child_events_connected and (
+                    is_evented(old_value) or is_evented(value)
+                ):
                     callback = group._psygnal_relay._relay_partial(PathStep(attr=name))
                     _handle_child_event_connections(old_value, value, callback)
 
@@ -554,6 +560,8 @@ class SignalGroupDescriptor:
         been decorated with `@evented`, or if it has a SignalGroupDescriptor).
         This is useful for nested evented dataclasses, where you want to monitor events
         emitted from arbitrarily deep children on the parent object.
+        This also controls forwarding from children assigned after a listener
+        connects. Replaced or removed children stop forwarding events.
         By default True.
     signal_aliases: Mapping[str, str | None] | Callable[[str], str | None] | None
         If defined, a mapping between field name and signal name. Field names that are
@@ -780,6 +788,8 @@ def connect_child_events(
     if _group is None and (_group := _find_signal_group(obj)) is None:
         return  # pragma: no cover  # not evented
 
+    _group._psygnal_child_events_connected = True
+
     for loc, _ in iter_fields(type(obj), exclude_frozen=True):
         _connect_if_evented(
             getattr(obj, loc, None),
@@ -796,6 +806,7 @@ def _connect_if_evented(obj: Any, callback: Callable, recurse: bool) -> None:
             check_nargs=False,
             check_types=False,
             on_ref_error="ignore",  # compiled objects are not weakref-able
+            unique=True,
         )
         if recurse:
             connect_child_events(obj, recurse=True, _group=signal_group)

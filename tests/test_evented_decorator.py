@@ -19,6 +19,7 @@ from psygnal import (
     testing,
 )
 from psygnal._group import SignalRelay
+from psygnal._group_descriptor import connect_child_events
 
 decorated_or_descriptor = pytest.mark.parametrize(
     "decorator", [True, False], ids=["decorator", "descriptor"]
@@ -504,3 +505,49 @@ def test_signal_instance_emits_on_subevents() -> None:
     team.events.leader.connect(mock, emit_on_evented_child_events=True)
     team.leader.age = 60
     mock.assert_called_once_with(Person(name="Hannibal", age=60), None)
+
+
+@pytest.mark.parametrize("enable_manually", [True, False])
+@pytest.mark.parametrize("connect_children", [True, False])
+@pytest.mark.parametrize("listen_first", [True, False])
+@pytest.mark.parametrize("initial_child", [True, False])
+def test_dynamic_child_connection_policy(
+    connect_children: bool,
+    listen_first: bool,
+    initial_child: bool,
+    enable_manually: bool,
+) -> None:
+    @dataclass
+    class Child:
+        value: int = 0
+        events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor()
+
+    @dataclass
+    class Parent:
+        child: Child | None = None
+        events: ClassVar[SignalGroupDescriptor] = SignalGroupDescriptor(
+            connect_child_events=connect_children
+        )
+
+    old_child = Child()
+    parent = Parent(old_child if initial_child else None)
+    listener = Mock()
+    if enable_manually:
+        connect_child_events(parent)
+    if listen_first:
+        parent.events.connect(listener)
+    child = Child(value=1)
+    parent.child = child
+    if not listen_first:
+        parent.events.connect(listener)
+    listener.reset_mock()
+    child.value = 2
+    assert listener.call_count == int(connect_children or enable_manually)
+    listener.reset_mock()
+    old_child.value = 3
+    listener.assert_not_called()
+
+    parent.child = None
+    listener.reset_mock()
+    child.value = 4
+    listener.assert_not_called()

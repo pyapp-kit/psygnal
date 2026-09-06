@@ -436,6 +436,7 @@ class SignalGroup:
             for name, sig in cls._psygnal_signals.items()
         }
         self._psygnal_relay = SignalRelay(self._psygnal_instances, instance)
+        self._psygnal_child_events_connected = False
 
     def __init_subclass__(
         cls,
