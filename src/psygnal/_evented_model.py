@@ -168,9 +168,16 @@ class EventedMetaclass(pydantic_main.ModelMetaclass):
         mcs: type, name: str, bases: tuple, namespace: dict, **kwargs: Any
     ) -> "EventedMetaclass":
         """Create new EventedModel class."""
-        # Pydantic uses the absence of __annotations__ differently from an
-        # explicitly empty mapping when rebuilding inherited fields.
-        namespace.setdefault("__annotations__", {})
+        # Pydantic uses an absent __annotations__ differently from an empty
+        # mapping when rebuilding inherited fields. Python 3.14 may instead
+        # provide lazy annotations through its class-body __annotate_func__;
+        # do not mask those (or a metaclass-provided __annotate__).
+        if not {
+            "__annotations__",
+            "__annotate__",
+            "__annotate_func__",
+        }.intersection(namespace):
+            namespace["__annotations__"] = {}
         with no_class_attributes():
             cls = super().__new__(mcs, name, bases, namespace, **kwargs)
 

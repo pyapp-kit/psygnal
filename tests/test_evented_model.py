@@ -49,6 +49,16 @@ def test_empty_subclass_preserves_inherited_field_defaults():
     assert model.label == "default"
 
 
+def test_empty_subclass_fix_preserves_annotated_fields():
+    """Lazy annotations must not be replaced by an empty mapping."""
+
+    class Annotated(EventedModel):
+        count: int = 1
+
+    assert Annotated().count == 1
+    assert "count" in Annotated.model_fields
+
+
 def test_evented_model():
     """Test creating an evented pydantic model."""
 
