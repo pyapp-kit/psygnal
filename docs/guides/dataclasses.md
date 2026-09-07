@@ -26,10 +26,12 @@ of boilerplate. For example:
 ```python
 from dataclasses import dataclass
 
+
 @dataclass
 class Person:
     name: str
     age: int = 0
+
 
 john = Person(name="John", age=30)
 print(john)  # prints: Person(name='John', age=30)
@@ -72,6 +74,7 @@ other parts of the application when its `age` attribute changes:
 ```python
 from psygnal import Signal
 
+
 class Person:
     age_changed: Signal(int)
 
@@ -84,12 +87,15 @@ class Person:
         self._age = value
         self.age_changed(value)
 
+
 # create an instance of the class
 john = Person()
+
 
 # now we can connect a callback to the `age_changed` signal
 def my_callback(age: int):
     print(f"John's age changed to {age}.")
+
 
 john.age_changed.connect(my_callback)
 ```
@@ -132,6 +138,7 @@ signals for each field in the class.
         from psygnal import SignalGroupDescriptor
         from dataclasses import dataclass
 
+
         @dataclass
         class Person:
             name: str
@@ -145,6 +152,7 @@ signals for each field in the class.
         from typing import ClassVar
         from psygnal import SignalGroupDescriptor
         from pydantic import BaseModel
+
 
         class Person(BaseModel):
             name: str
@@ -162,6 +170,7 @@ signals for each field in the class.
         from psygnal import SignalGroupDescriptor
         import msgspec
 
+
         class Person(msgspec.Struct):
             name: str
             age: int = 0
@@ -174,6 +183,7 @@ signals for each field in the class.
         from typing import ClassVar
         from psygnal import SignalGroupDescriptor
         from attrs import define
+
 
         @define
         class Person:
@@ -198,6 +208,7 @@ in doubt, as it is more explicit and leads to better type checking.
         from psygnal import evented
         from dataclasses import dataclass
 
+
         @evented
         @dataclass
         class Person:
@@ -210,6 +221,7 @@ in doubt, as it is more explicit and leads to better type checking.
         ```python
         from psygnal import evented
         from pydantic import BaseModel
+
 
         @evented
         class Person(BaseModel):
@@ -226,6 +238,7 @@ in doubt, as it is more explicit and leads to better type checking.
         from psygnal import evented
         import msgspec
 
+
         @evented
         class Person(msgspec.Struct):
             name: str
@@ -237,6 +250,7 @@ in doubt, as it is more explicit and leads to better type checking.
         ```python
         from psygnal import evented
         from attrs import define
+
 
         @evented
         @define
@@ -257,10 +271,12 @@ attribute for each mutable field in your dataclass)
 # create an instance of the dataclass
 john = Person(name="John", age=30)
 
+
 # now we can connect a callback to any event on the `events` namespace
 @john.events.age.connect
 def on_age_changed(age: int):
     print(f"John's age changed to {age}.")
+
 
 # change a value
 john.age = 31  # prints: John's age changed to 31.
@@ -271,6 +287,7 @@ changes on the object:
 
 ```python
 from psygnal import EmissionInfo
+
 
 @john.events.connect
 def on_any_change(info: EmissionInfo):
@@ -345,18 +362,21 @@ or when using the [`@evented`][psygnal.evented] decorator.
 
     from psygnal import SignalGroupDescriptor, evented
 
+
     @evented(connect_child_events=True)  # default is True
-    @dataclass 
+    @dataclass
     class Person:
         name: str = ""
         age: int = 0
+
 
     @evented(connect_child_events=True)  # default is True
     @dataclass
     class Team:
         name: str = ""
         leader: Person = field(default_factory=Person)
-        
+
+
     team = Team()
 
     # Listen for ANY event from the team or its children
@@ -374,7 +394,8 @@ or when using the [`@evented`][psygnal.evented] decorator.
 
     from psygnal import SignalGroupDescriptor, evented
 
-    @dataclass 
+
+    @dataclass
     class Person:
         name: str = ""
         age: int = 0
@@ -383,14 +404,16 @@ or when using the [`@evented`][psygnal.evented] decorator.
             connect_child_events=True  # default is True
         )
 
+
     @dataclass
     class Team:
         name: str = ""
         leader: Person = field(default_factory=Person)
-        
+
         events: ClassVar = SignalGroupDescriptor(
             connect_child_events=True  # default is True
         )
+
 
     team = Team()
 
@@ -424,12 +447,15 @@ class Department:
     name: str = ""
     team: Team = field(default_factory=lambda: Team())
 
+
 dept = Department()
+
 
 def show_event_path(info: EmissionInfo):
     print(f"Changed: {info.signal}")
     print(f"Args: {info.args}")
     print(f"Path: {''.join(str(step) for step in info.path)}")
+
 
 dept.events.connect(show_event_path)
 
@@ -455,6 +481,7 @@ dept.team.leader.age = 30
     @dataclass
     class Bar:
         field: int = 0
+
 
     @evented
     @dataclass
@@ -509,6 +536,7 @@ Event bubbling also works with evented containers like `EventedList`:
 ```python
 from psygnal.containers import EventedList
 
+
 @dataclass
 class Project:
     name: str = ""
@@ -519,8 +547,11 @@ class Project:
         connect_child_events=True
     )
 
+
 project = Project()
-project.events.connect(lambda info: print(f"{info.signal.name}: {info.args} {info.path}"))
+project.events.connect(
+    lambda info: print(f"{info.signal.name}: {info.args} {info.path}")
+)
 
 # Add a person to the list - EventedList emits two events here:
 project.team_members.append(Person(name="Bob"))
