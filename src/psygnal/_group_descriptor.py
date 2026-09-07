@@ -696,6 +696,7 @@ class SignalGroupDescriptor:
         if obj_id not in self._instance_map:
             # cache it
             self._instance_map[obj_id] = grp = signal_group(instance)
+            grp._psygnal_child_events_connected = self._connect_child_events
             # also *try* to set it on the instance as well, since it will skip all the
             # __get__ logic in the future, but if it fails, no big deal.
             if self._name and self._cache_on_instance:
