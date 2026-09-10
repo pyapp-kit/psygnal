@@ -189,7 +189,7 @@ class _DataclassFieldSignalInstance(SignalInstance):
         self,
         obj: ref | object,
         attr: str,
-        maxargs: int | None | object = 1,
+        maxargs: int | object | None = 1,
         *,
         on_ref_error: RefErrorChoice = "warn",
         priority: int = 0,

@@ -98,9 +98,9 @@ jobs:
     uses: pyapp-kit/workflows/.github/workflows/test-dependents.yml@main
     with:
       dependency-repo: pyapp-kit/magicgui
-      dependency-group: "pyside2"
-      qt: "pyside2"
-      python-version: "3.10"
+      dependency-group: "pyside6"
+      qt: "pyside6"
+      python-version: "3.12"
 
   typing:
     runs-on: ubuntu-latest

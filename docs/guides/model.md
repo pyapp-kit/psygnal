@@ -12,9 +12,11 @@ fields, the [`EventedModel`][psygnal.EventedModel] provides additional features 
 ```python
 from psygnal import EventedModel
 
+
 class MyModel(EventedModel):
     x: int = 1
     y: int = 2
+
 
 # Create an instance of the model
 model = MyModel()

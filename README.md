@@ -40,21 +40,25 @@ Here is a simple example of using psygnal:
 ```python
 from psygnal import Signal
 
+
 class MyObject:
     # define one or more signals as class attributes
     value_changed = Signal(str)
 
+
 # create an instance
 my_obj = MyObject()
+
 
 # You (or others) can connect callbacks to your signals
 @my_obj.value_changed.connect
 def on_change(new_value: str):
     print(f"The value changed to {new_value}!")
 
+
 # The object may now emit signals when appropriate,
 # (for example in a setter method)
-my_obj.value_changed.emit('hi')  # prints "The value changed to hi!"
+my_obj.value_changed.emit("hi")  # prints "The value changed to hi!"
 ```
 
 Much more detail available in the [documentation](https://psygnal.readthedocs.io/)!
@@ -72,18 +76,22 @@ as well as [attrs](https://www.attrs.org/en/stable/), and
 from psygnal import evented
 from dataclasses import dataclass
 
+
 @evented
 @dataclass
 class Person:
     name: str
     age: int = 0
 
-person = Person('John', age=30)
+
+person = Person("John", age=30)
+
 
 # connect callbacks
 @person.events.age.connect
 def _on_age_change(new_age: str):
     print(f"Age changed to {new_age}")
+
 
 person.age = 31  # prints: Age changed to 31
 ```
@@ -105,6 +113,14 @@ my_list.events.removed.connect(lambda i, val: print(f"Removed {val} at index {i}
 
 my_list.append(6)  # Output: Inserted 6 at index 5
 my_list.pop()  # Output: Removed 6 at index 5
+
+# the `batch_*` signals bracket a contiguous batch with a single (start, stop) range,
+# so e.g. `extend` emits `batch_inserting`/`batch_inserted` once
+# while `inserted` still fires once per item.
+my_list.events.batch_inserting.connect(
+    lambda start, stop: print(f"Inserting rows [{start}:{stop}]")
+)
+my_list.extend([7, 8, 9])  # Output: Inserting rows [5:8] (+ 3 per-item Inserted lines)
 ```
 
 See the

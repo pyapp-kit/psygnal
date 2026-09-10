@@ -20,9 +20,9 @@ changing is a [`str`][], then you would create do something like this:
 ```py
 from psygnal import Signal
 
+
 # define an object with class attribute Signals
 class MyObj:
-
     # this signal will emit a single string
     value_changed = Signal(str)
 
@@ -48,6 +48,7 @@ connecting a callback function to the signal instance using its
 def on_value_changed(new_value: str):
     print(f"The new value is {new_value!r}")
 
+
 # instantiate the object with Signals
 obj = MyObj()
 
@@ -55,7 +56,7 @@ obj = MyObj()
 obj.value_changed.connect(on_value_changed)
 
 # callbacks are called when value changes
-obj.set_value('hello!')  # prints: 'The new value is 'hello!'
+obj.set_value("hello!")  # prints: 'The new value is 'hello!'
 ```
 
 ### Using `connect` as a Decorator
@@ -68,7 +69,8 @@ can be used as a decorator.
 def some_other_callback(value):
     print(f"I also received: {value!r}")
 
-obj.set_value('world!') # prints: "I also received: 'world!'"
+
+obj.set_value("world!")  # prints: "I also received: 'world!'"
 ```
 
 ### Disconnecting Callbacks
@@ -96,6 +98,7 @@ we declared above as emitting a single argument: `Signal(str)`)
 def i_require_two_arguments(first, second):
     print(first, second)
 
+
 obj.value_changed.connect(i_require_two_arguments)
 ```
 
@@ -122,15 +125,17 @@ will be discarded when emitting the signal (so it isn't necessary to create a
 ```py
 obj = MyObj()
 
+
 def no_args_please():
     print(locals())
+
 
 obj.value_changed.connect(no_args_please)
 
 # otherwise one might need
 # obj.value_changed.connect(lambda a: no_args_please())
 
-obj.value_changed.emit('hi')  # prints: "{}"
+obj.value_changed.emit("hi")  # prints: "{}"
 ```
 
 ### Type Checking
@@ -143,7 +148,8 @@ int`.
 ```py
 # this would fail because you cannot concatenate a string and int
 def i_expect_an_integer(x: int):
-    print(f'{x} + 4 = {x + 4}')
+    print(f"{x} + 4 = {x + 4}")
+
 
 # psygnal won't let you connect it
 obj.value_changed.connect(i_expect_an_integer, check_types=True)
@@ -169,8 +175,8 @@ instance:
 
 ```python
 class T:
-    def my_method(self):
-        ...
+    def my_method(self): ...
+
 
 obj = T()
 signal.connect(t.my_method)
@@ -191,15 +197,16 @@ object, in order to set an attribute:
 class T:
     x = 1
 
+
 obj = T()
-signal.connect(partial(setattr, obj, 'x'))  # ref to obj stuck in the connection
+signal.connect(partial(setattr, obj, "x"))  # ref to obj stuck in the connection
 ```
 
 Here, psygnal offers the `connect_settatr` convenience method, which reduces code
 and helps you avoid leaking strong references to `obj`:
 
 ```python
-signal.connect_setatttr(obj, 'x')
+signal.connect_setatttr(obj, "x")
 ```
 
 ## Querying the Sender
@@ -214,9 +221,11 @@ is not a `QObject`.)
 ```py
 obj = MyObj()
 
+
 def curious():
     print("Sent by", Signal.sender())
     assert Signal.sender() == obj
+
 
 obj.value_changed.connect(curious)
 obj.value_changed.emit(10)
@@ -240,11 +249,13 @@ from threading import Thread, current_thread
 
 obj = MyObj()
 
+
 @obj.value_changed.connect
 def callback(arg):
     print(f"I was called with {arg!r} in {current_thread().name!r}")
 
-Thread(target=obj.value_changed.emit, args=('hi',)).start()
+
+Thread(target=obj.value_changed.emit, args=("hi",)).start()
 # prints "I was called with 'hi' in 'Thread-1 (emit)'"
 ```
 
@@ -273,11 +284,13 @@ from psygnal import emit_queued
 
 obj = MyObj()
 
-@obj.value_changed.connect(thread='main')
+
+@obj.value_changed.connect(thread="main")
 def callback(arg):
     print(f"I was called with {arg!r} in {current_thread().name!r}")
 
-Thread(target=obj.value_changed.emit, args=('hi',)).start()
+
+Thread(target=obj.value_changed.emit, args=("hi",)).start()
 # at this point, the callback has not yet been invoked
 
 emit_queued()  # <-- emits anything queued in the thread calling this function
@@ -293,6 +306,7 @@ A *very* rudimentary event loop might look like this:
 ```py
 import time
 
+
 # A simple event loop that just calls emit_queued periodically
 def run_loop():
     while True:
@@ -303,11 +317,13 @@ def run_loop():
         except KeyboardInterrupt:
             break
 
+
 # something to run in a background thread
 def _emit_periodically():
     for i in range(10):
         obj.value_changed.emit("hi")
         time.sleep(0.5)
+
 
 # start the background thread
 Thread(target=_emit_periodically).start()
@@ -331,15 +347,17 @@ from psygnal.qt import start_emitting_from_queue
 
 obj = MyObj()
 
-@obj.value_changed.connect(thread='main')
+
+@obj.value_changed.connect(thread="main")
 def callback(arg):
     print(f"I was called with {arg!r} in {current_thread().name!r}")
+
 
 app = QCoreApplication([])
 start_emitting_from_queue()  # <-- watch for queued signals in the main thread
 
 # emit the signal from a background thread
-Thread(target=obj.value_changed.emit, args=('hi',)).start()
+Thread(target=obj.value_changed.emit, args=("hi",)).start()
 
 app.processEvents()  # or app.exec_(), or anything to keep the event loop running
 # prints "I was called with 'hi' in 'MainThread'"
@@ -378,10 +396,10 @@ obj = MyObj()
 obj.value_changed.connect(print)
 
 # note that signal.paused() and signal.resume() accept a reducer function
-with obj.value_changed.paused(lambda a,b: (f'{a[0]}_{b[0]}',), ('',)):
-    obj.value_changed('a')
-    obj.value_changed('b')
-    obj.value_changed('c')
+with obj.value_changed.paused(lambda a, b: (f"{a[0]}_{b[0]}",), ("",)):
+    obj.value_changed("a")
+    obj.value_changed("b")
+    obj.value_changed("c")
 # prints '_a_b_c'
 ```
 
@@ -391,13 +409,13 @@ return an args tuple.
 For example, the three `emit()` events above would be collected as*
 
 ```python
-[('a',), ('b',), ('c',)]
+[("a",), ("b",), ("c",)]
 ```
 
 *and would be reduced and re-emitted as follows:*
 
 ```python
-obj.emit(*functools.reduce(reducer, [('a',), ('b',), ('c',)]))
+obj.emit(*functools.reduce(reducer, [("a",), ("b",), ("c",)]))
 ```
 
 ## Exceptions in Callbacks

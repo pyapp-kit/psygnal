@@ -16,19 +16,21 @@ with the word "called" replaced with "emitted".
 from psygnal import Signal
 import psygnal.testing as pt
 
+
 class MyObject:
     changed = Signal()
     value_changed = Signal(int)
+
 
 def test_my_object():
     obj = MyObject()
 
     with pt.assert_emitted(obj.changed):
         obj.changed.emit()
-    
+
     with pt.assert_not_emitted(obj.value_changed):
         obj.changed.emit()
-    
+
     with pt.assert_emitted_once(obj.value_changed):
         obj.value_changed.emit(42)
 
@@ -49,8 +51,10 @@ number of emissions and the arguments. It may also be used directly:
 from psygnal import Signal
 import psygnal.testing as pt
 
+
 class MyObject:
     value_changed = Signal(int)
+
 
 def test_my_object():
     obj = MyObject()
