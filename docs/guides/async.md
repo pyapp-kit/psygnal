@@ -62,7 +62,7 @@ called asynchronously.
 
 
     async def main() -> None:
-        backend = set_async_backend("asyncio") # (1)!
+        backend = set_async_backend("asyncio")  # (1)!
 
         # Set up the async backend and wait for it to be ready
         await backend.running.wait()  # (2)!
@@ -96,7 +96,7 @@ called asynchronously.
 
 
     async def main() -> None:
-        backend = set_async_backend("anyio") # (1)!
+        backend = set_async_backend("anyio")  # (1)!
 
         async with anyio.create_task_group() as tg:
             # Set up the async backend and wait for it to be ready before connecting
