@@ -1,4 +1,5 @@
 import os
+import pickle
 from copy import copy
 from typing import Any, cast
 from unittest.mock import Mock, call
@@ -607,3 +608,58 @@ def test_insert_emits_nothing_if_pre_insert_raises():
     el.insert(1, 9)
     assert tuple(received) == INSERT
     assert el == [0, 9, 1]
+
+
+def test_extend_calls_append_override():
+    """`extend` must keep funneling through `append`, as MutableSequence does."""
+
+    class MyList(EventedList):
+        def __init__(self, *args, **kwargs):
+            self.appended: list[Any] = []
+            super().__init__(*args, **kwargs)
+
+        def append(self, value: Any) -> None:
+            self.appended.append(value)
+            super().append(value)
+
+    el = MyList([0])
+    el.extend([1, 2])
+    el += [3]
+    assert el.appended == [0, 1, 2, 3]
+    assert el == [0, 1, 2, 3]
+
+
+def test_extend_appends_despite_reentrant_insert():
+    """A callback inserting mid-extend must not scramble the extended items."""
+    el = EventedList([0, 1])
+
+    def _on_inserted(index: int, value: Any) -> None:
+        if value == "a":
+            el.insert(0, "X")
+
+    el.events.inserted.connect(_on_inserted)
+    el.extend(["a", "b", "c"])
+    assert el == ["X", 0, 1, "a", "b", "c"]
+
+
+def test_unpickle_without_batch_depth():
+    """Instances pickled before `_batch_depth` existed must still be mutable."""
+    el = EventedList([1, 2])
+    el.__dict__.pop("_batch_depth", None)  # simulate a pickle from an older version
+    el2 = pickle.loads(pickle.dumps(el))
+    el2.append(3)
+    el2.extend([4])
+    assert el2 == [1, 2, 3, 4]
+
+
+@pytest.mark.parametrize("key", [5, 100, -6, -100])
+def test_delitem_out_of_range(key: int):
+    """Out-of-range deletes raise before emitting (no unpaired batch_removing)."""
+    el = EventedList([0, 1, 2, 3, 4])
+    received: list[str] = []
+    el.events.connect(lambda info: received.append(info.signal.name))
+
+    with pytest.raises(IndexError, match="out of range"):
+        del el[key]
+    assert received == []
+    assert el == [0, 1, 2, 3, 4]

@@ -174,6 +174,9 @@ class EventedList(MutableSequence[_T]):
 
     events: ListEvents  # pragma: no cover
     _psygnal_group_: ClassVar[str] = "events"
+    # >0 while extend() is bracketing a batch, so insert() doesn't emit its own.
+    # (class-level default so instances unpickled from older versions still work)
+    _batch_depth: int = 0
 
     def __init__(
         self,
@@ -186,8 +189,6 @@ class EventedList(MutableSequence[_T]):
         self._data: list[_T] = []
         self._hashable = hashable
         self._child_events = child_events
-        # >0 while extend() is bracketing a batch, so insert() doesn't emit its own
-        self._batch_depth = 0
         self.events = ListEvents(instance=self)
         self.extend(data)
 
@@ -231,8 +232,8 @@ class EventedList(MutableSequence[_T]):
             self.events.batch_inserting.emit(start, stop)
         self._batch_depth += 1
         try:
-            for i, value in enumerate(values):
-                self.insert(start + i, value)
+            for value in values:
+                self.append(value)
         finally:
             self._batch_depth -= 1
         if self.events.batch_inserted:
@@ -323,6 +324,8 @@ class EventedList(MutableSequence[_T]):
     def _delitem_indices(self, key: Index) -> Iterable[tuple[EventedList[_T], int]]:
         # returning (self, int) allows subclasses to pass nested members
         if isinstance(key, int):
+            if not -len(self) <= key < len(self):
+                raise IndexError("list assignment index out of range")
             yield (self, key if key >= 0 else key + len(self))
         elif isinstance(key, slice):
             yield from ((self, i) for i in range(*key.indices(len(self))))
