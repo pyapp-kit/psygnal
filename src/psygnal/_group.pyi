@@ -53,6 +53,7 @@ class SignalGroup:
     _psygnal_name_conflicts: ClassVar[set[str]]
     _psygnal_aliases: ClassVar[dict[str, str | None]]
     _psygnal_instances: dict[str, SignalInstance]
+    _psygnal_child_events_connected: bool
 
     def __init__(self, instance: Any = None) -> None: ...
     def __init_subclass__(
