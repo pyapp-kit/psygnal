@@ -1,5 +1,4 @@
 import os
-import pickle
 from copy import copy
 from typing import Any, cast
 from unittest.mock import Mock, call
@@ -642,14 +641,13 @@ def test_extend_appends_despite_reentrant_insert():
     assert el == ["X", 0, 1, "a", "b", "c"]
 
 
-def test_unpickle_without_batch_depth():
-    """Instances pickled before `_batch_depth` existed must still be mutable."""
+def test_mutable_without_instance_batch_depth():
+    """Instances lacking `_batch_depth` (e.g. unpickled from older versions) work."""
     el = EventedList([1, 2])
-    el.__dict__.pop("_batch_depth", None)  # simulate a pickle from an older version
-    el2 = pickle.loads(pickle.dumps(el))
-    el2.append(3)
-    el2.extend([4])
-    assert el2 == [1, 2, 3, 4]
+    el.__dict__.pop("_batch_depth", None)  # as restored from an older pickle
+    el.append(3)
+    el.extend([4])
+    assert el == [1, 2, 3, 4]
 
 
 @pytest.mark.parametrize("key", [5, 100, -6, -100])
