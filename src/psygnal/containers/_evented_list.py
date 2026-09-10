@@ -20,6 +20,11 @@ All of the additional list-like methods are provided by the MutableSequence
 interface, and call one of those 4 methods.  So if you override a method, you
 MUST make sure that all the appropriate events are emitted.  (Tests should
 cover this in test_evented_list.py)
+
+`extend` and `clear` *are* re-implemented here, but only to bracket the whole
+operation with a single `batch_*` (start, stop) range.  They still funnel every
+item through `insert` / `__delitem__`, so the rule above is preserved: overriding
+`insert` or `__delitem__` remains sufficient to see every mutation.
 """
 
 from __future__ import annotations
@@ -49,6 +54,25 @@ _T = TypeVar("_T")
 Index: TypeAlias = int | slice
 
 
+def _contiguous_runs(indices: Iterable[int]) -> Iterable[tuple[int, int]]:
+    """Yield `(start, stop)` half-open runs of contiguous integers, highest first.
+
+    e.g. `[1, 2, 3, 5, 6]` -> `(5, 7)`, `(1, 4)`.  Runs are yielded in descending
+    order so that deleting later (higher) blocks leaves earlier indices valid.
+    """
+    ordered = sorted(set(indices), reverse=True)
+    if not ordered:
+        return
+    stop = ordered[0] + 1
+    prev = ordered[0]
+    for idx in ordered[1:]:
+        if idx != prev - 1:
+            yield prev, stop
+            stop = idx + 1
+        prev = idx
+    yield prev, stop
+
+
 class ListSignalInstance(SignalInstance):
     def _psygnal_relocate_info_(self, emission_info: EmissionInfo) -> EmissionInfo:
         """Relocate the emission info to the index being modified.
@@ -74,6 +98,38 @@ class ListEvents(SignalGroup):
     """`(index)` emitted before an item is removed at `index`"""
     removed = ListSignal(int, object)
     """`(index, value)` emitted after `value` is removed at `index`"""
+    batch_inserting = ListSignal(int, int)
+    """`(start, stop)` emitted once before a contiguous block of items is inserted
+    into the half-open range `[start, stop)`.
+
+    This brackets the per-item `inserting` events (which still fire for each item), so
+    that a batch insert (e.g. `extend`/`+=`) can be handled with a single update. A
+    single insert is just a length-1 range.
+
+    Note that the `batch_*` signals track *structural* changes only; slice assignment
+    (`el[a:b] = ...`) may change the length of the list but emits only `changed`."""
+    batch_inserted = ListSignal(int, int, object)
+    """`(start, stop, values)` emitted once after a contiguous block of items has been
+    inserted into the half-open range `[start, stop)` (`values` is the inserted
+    `list`).
+
+    `insert` always pairs this with its `batch_inserting`. `extend` does too, unless
+    `_pre_insert` rejects a value part way through the batch, in which case the
+    exception propagates and the batch is left unterminated (the list is partially
+    extended, as it is without the batch signals)."""
+    batch_removing = ListSignal(int, int)
+    """`(start, stop)` emitted once before a contiguous block of items is removed from
+    the half-open range `[start, stop)`.
+
+    Brackets the per-item `removing` events. Non-contiguous removals (e.g. a strided
+    slice) emit this once per contiguous block, highest block first.
+
+    As with `batch_inserting`, slice assignment emits only `changed`."""
+    batch_removed = ListSignal(int, int, object)
+    """`(start, stop, values)` emitted once after a contiguous block of items has been
+    removed from the half-open range `[start, stop)` (`values` is the removed `list`,
+    in list order, even though items are popped highest-index first).
+    """
     moving = ListSignal(int, int)
     """`(index, new_index)` emitted before an item is moved from `index` to
     `new_index`"""
@@ -118,6 +174,9 @@ class EventedList(MutableSequence[_T]):
 
     events: ListEvents  # pragma: no cover
     _psygnal_group_: ClassVar[str] = "events"
+    # >0 while extend() is bracketing a batch, so insert() doesn't emit its own.
+    # (class-level default so instances unpickled from older versions still work)
+    _batch_depth: int = 0
 
     def __init__(
         self,
@@ -142,11 +201,65 @@ class EventedList(MutableSequence[_T]):
 
     def insert(self, index: int, value: _T) -> None:
         """Insert `value` before index."""
+        # `_pre_insert` may reject the value; run it before emitting anything so a
+        # rejected value never leaves an unterminated batch_inserting behind.
         _value = self._pre_insert(value)
+        if self._batch_depth:
+            # inside extend(), which brackets the whole batch itself
+            self._insert_one(index, value, _value)
+            return
+        # normalize for the (range-aware) batch_* signals; the per-item events
+        # keep emitting the raw `index` exactly as before.
+        norm = max(0, len(self) + index) if index < 0 else min(index, len(self))
+        if self.events.batch_inserting:
+            self.events.batch_inserting.emit(norm, norm + 1)
+        self._insert_one(index, value, _value)
+        if self.events.batch_inserted:
+            self.events.batch_inserted.emit(norm, norm + 1, [value])
+
+    def extend(self, values: Iterable[_T]) -> None:
+        """Extend list by appending all items from `values`.
+
+        Overrides `MutableSequence.extend` (which appends one at a time) so the whole
+        batch is bracketed by a single `batch_inserting`/`batch_inserted` pair. Items
+        still go through `insert` one by one, emitting the per-item events.
+        """
+        values = list(values)
+        if not values:
+            return
+        start, stop = len(self), len(self) + len(values)
+        if self.events.batch_inserting:
+            self.events.batch_inserting.emit(start, stop)
+        self._batch_depth += 1
+        try:
+            for value in values:
+                self.append(value)
+        finally:
+            self._batch_depth -= 1
+        if self.events.batch_inserted:
+            self.events.batch_inserted.emit(start, stop, values)
+
+    def _insert_one(self, index: int, value: _T, _value: _T) -> None:
+        """Insert `_value` (the `_pre_insert` result), emitting the per-item events.
+
+        `value` is the original, un-transformed object; it is what the `inserted`
+        event and `_post_insert` receive.
+        """
         self.events.inserting.emit(index)
         self._data.insert(index, _value)
         self.events.inserted.emit(index, value)
         self._post_insert(value)
+
+    def clear(self) -> None:
+        """Remove all items from the list.
+
+        Overrides `MutableSequence.clear` (which pops one at a time) so the whole
+        list is removed as a single contiguous block (one `batch_removing`/
+        `batch_removed` pair). Items still go through `__delitem__`, so the per-item
+        `removing`/`removed` events fire for each, highest index first, as before.
+        """
+        if self._data:
+            del self[:]
 
     @overload
     def __getitem__(self, key: int) -> _T: ...
@@ -185,16 +298,34 @@ class EventedList(MutableSequence[_T]):
 
     def __delitem__(self, key: Index) -> None:
         """Delete self[key]."""
-        # delete from the end
-        for parent, index in sorted(self._delitem_indices(key), reverse=True):
-            parent.events.removing.emit(index)
-            parent._pre_remove(index)
-            item = parent._data.pop(index)
-            self.events.removed.emit(index, item)
+        # group indices by their (possibly nested) parent list
+        by_parent: dict[int, tuple[EventedList[_T], list[int]]] = {}
+        for parent, index in self._delitem_indices(key):
+            by_parent.setdefault(id(parent), (parent, []))[1].append(index)
+
+        for parent, indices in by_parent.values():
+            # bracket each contiguous block with batch_removing/batch_removed, while
+            # still emitting the per-item removing/removed events (highest index
+            # first, so lower indices stay valid as we go).
+            for start, stop in _contiguous_runs(indices):
+                if parent.events.batch_removing:
+                    parent.events.batch_removing.emit(start, stop)
+                items: list[_T] = []
+                for index in range(stop - 1, start - 1, -1):
+                    parent.events.removing.emit(index)
+                    parent._pre_remove(index)
+                    item = parent._data.pop(index)
+                    items.append(item)
+                    parent.events.removed.emit(index, item)
+                if parent.events.batch_removed:
+                    items.reverse()  # popped highest-first; report in list order
+                    parent.events.batch_removed.emit(start, stop, items)
 
     def _delitem_indices(self, key: Index) -> Iterable[tuple[EventedList[_T], int]]:
         # returning (self, int) allows subclasses to pass nested members
         if isinstance(key, int):
+            if not -len(self) <= key < len(self):
+                raise IndexError("list assignment index out of range")
             yield (self, key if key >= 0 else key + len(self))
         elif isinstance(key, slice):
             yield from ((self, i) for i in range(*key.indices(len(self))))

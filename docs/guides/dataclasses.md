@@ -553,10 +553,13 @@ project.events.connect(
     lambda info: print(f"{info.signal.name}: {info.args} {info.path}")
 )
 
-# Add a person to the list - EventedList emits two events here:
+# Add a person to the list - EventedList emits the per-item events, bracketed by the
+# contiguous-range batch_* events (useful for handling a batch as a single update):
 project.team_members.append(Person(name="Bob"))
+# batch_inserting: (0, 1) (.team_members, [0])
 # inserting: (0,) (.team_members, [0])
 # inserted: (0, Person(name='Bob', age=0)) (.team_members, [0])
+# batch_inserted: (0, 1, [Person(name='Bob', age=0)]) (.team_members, [0])
 
 # Change a person in the list - this also bubbles up
 project.team_members[0].age = 25
