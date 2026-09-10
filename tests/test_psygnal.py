@@ -1194,6 +1194,22 @@ def test_emit_loop_error_message_construction(strategy: ReemissionVal) -> None:
         assert "NOTE" in str(e.value)
 
 
+def test_emit_loop_error_message_shows_locals(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Locals of the failing frame are shown (f_locals isn't a dict on 3.13+)."""
+    monkeypatch.delenv("PSYGNAL_HIDE_LOCALS", raising=False)
+
+    def cb(v: int) -> None:
+        some_local = "hello"  # noqa: F841
+        raise ValueError("boom")
+
+    sig = SignalInstance((int,))
+    sig.connect(cb)
+    with pytest.raises(EmitLoopError) as e:
+        sig.emit(1)
+    assert "Local variables" in str(e.value)
+    assert "some_local" in str(e.value)
+
+
 def test_description():
     description = "A signal"
 
