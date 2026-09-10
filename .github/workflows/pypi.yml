@@ -14,7 +14,9 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: hynek/build-and-inspect-python-package@v2
+      # v3 ships twine 7, which supports metadata 2.5 (hatchling's new default).
+      # v3 no longer publishes a floating major tag, so pin the full version.
+      - uses: hynek/build-and-inspect-python-package@v3.0.1
 
   build-wheels:
     name: mypyc wheels (${{ matrix.os }})
