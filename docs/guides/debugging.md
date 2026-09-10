@@ -23,11 +23,14 @@ with the value `0`:
 ```python
 from psygnal import Signal
 
+
 class MyClass:
     sig = Signal(int)
 
+
 def some_func(x: int) -> None:
     print(1 / x)
+
 
 obj = MyClass()
 obj.sig.connect(some_func)
@@ -49,6 +52,7 @@ Now, add the following code somewhere at the top of your program:
 ```python
 import rich.traceback
 import psygnal
+
 rich.traceback.install(show_locals=True, suppress=[psygnal])
 ```
 
