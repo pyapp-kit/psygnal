@@ -33,8 +33,11 @@ jobs:
 
       - name: Benchmark (PR)
         if: github.event_name == 'pull_request'
+        # microsecond-scale benchmarks on shared runners routinely swing 1.25-1.35x
+        # with no code change. CodSpeed (deterministic) is the fine-grained PR gate;
+        # this only flags large regressions.
         run: |
-          asv continuous main HEAD --interleave-processes --show-stderr --split --factor 1.15
+          asv continuous main HEAD --interleave-processes --show-stderr --split --factor 1.5
 
       # IF not PR =======================
 
