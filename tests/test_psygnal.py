@@ -1265,3 +1265,29 @@ def test_object_deleted_during_emission(strategy: ReemissionVal) -> None:
 
     mock.assert_not_called()
     assert len(sig) == 1
+
+
+def test_threaded_object_deleted_during_emission() -> None:
+    """A dead callback wrapped for thread dispatch is also skipped."""
+    sig = SignalInstance((int,))
+    mock = Mock()
+
+    class Receiver:
+        def method(self, value: int) -> None:
+            mock(value)
+
+    receiver = Receiver()
+    holder = [receiver]
+
+    def delete_receiver(value: int) -> None:
+        holder.clear()
+        gc.collect()
+
+    sig.connect(delete_receiver)
+    sig.connect(receiver.method, thread="current")
+    del receiver
+
+    sig.emit(1)
+
+    mock.assert_not_called()
+    assert len(sig) == 1

@@ -1342,7 +1342,7 @@ class SignalInstance:
         # was garbage collected: they are already disconnected, and calling them
         # raises ReferenceError.
         for caller in list(self._slots):
-            if caller._alive:
+            if caller._is_alive():
                 caller.cb(args)
 
     def _run_emit_loop_latest_only(self) -> None:
@@ -1352,7 +1352,7 @@ class SignalInstance:
                 # we've already entered a deeper emit loop
                 # we should drop the remaining slots in this round and return
                 break
-            if not caller._alive:
+            if not caller._is_alive():
                 continue
             self._caller = caller
             caller.cb(args)
@@ -1362,7 +1362,7 @@ class SignalInstance:
         while i < len(self._emit_queue):
             args = self._emit_queue[i]
             for caller in list(self._slots):
-                if caller._alive:
+                if caller._is_alive():
                     caller.cb(args)
                 if len(self._emit_queue) > RECURSION_LIMIT:
                     raise RecursionError
