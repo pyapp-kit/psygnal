@@ -66,6 +66,9 @@ class QueuedCallback(WeakCallback):
     def dereference(self) -> Callable | None:
         return self._wrapped.dereference()
 
+    def _is_alive(self) -> bool:
+        return self._wrapped._is_alive()
+
     def __eq__(self, other: object) -> bool:
         """Compare QueuedCallback instances for equality based on wrapped callback.
 

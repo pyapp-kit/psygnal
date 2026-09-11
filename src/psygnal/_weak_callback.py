@@ -285,6 +285,9 @@ class WeakCallback(Generic[_R]):
         """Return the original object, or None if dead."""
         raise NotImplementedError()
 
+    def _is_alive(self) -> bool:
+        return self._alive
+
     def __call__(self, *args: Any, **kwds: Any) -> _R:
         func = self.dereference()
         if func is None:
