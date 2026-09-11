@@ -1336,8 +1336,14 @@ class SignalInstance:
 
     def _run_emit_loop_immediate(self) -> None:
         args = self._emit_queue.popleft()
+        # NOTE: iterating a copy of self._slots (so that a slot disconnecting
+        # itself doesn't skip the next one) means slots removed *during* this
+        # emit are still in hand. Skip the ones whose weakly-referenced object
+        # was garbage collected: they are already disconnected, and calling them
+        # raises ReferenceError.
         for caller in list(self._slots):
-            caller.cb(args)
+            if caller._alive:
+                caller.cb(args)
 
     def _run_emit_loop_latest_only(self) -> None:
         self._args = args = self._emit_queue.popleft()
@@ -1346,6 +1352,8 @@ class SignalInstance:
                 # we've already entered a deeper emit loop
                 # we should drop the remaining slots in this round and return
                 break
+            if not caller._alive:
+                continue
             self._caller = caller
             caller.cb(args)
 
@@ -1354,7 +1362,8 @@ class SignalInstance:
         while i < len(self._emit_queue):
             args = self._emit_queue[i]
             for caller in list(self._slots):
-                caller.cb(args)
+                if caller._alive:
+                    caller.cb(args)
                 if len(self._emit_queue) > RECURSION_LIMIT:
                     raise RecursionError
             i += 1
