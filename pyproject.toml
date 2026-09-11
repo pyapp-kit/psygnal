@@ -100,7 +100,18 @@ sources = ["src"]
 
 [tool.hatch.build.targets.wheel.hooks.mypyc]
 mypy-args = ["--ignore-missing-imports"]
-options = { debug_level = "0" }
+# NOTE: do not set `options.debug_level = "0"` here to "fix" reproducible builds
+# (see #421/#429). It works, but it strips C debug symbols from every wheel we
+# ship, which downstream packagers who build -dbgsym packages (e.g. Debian) need
+# and have to explicitly restore. The actual source of non-determinism is
+# hatch-mypyc's default `tempfile.TemporaryDirectory()` build root, which embeds
+# a random path into the compiled .so's debug info on every build. Debian's own
+# packaging already fixes this correctly, without touching debug_level, by
+# pointing `HATCH_MYPYC_BUILD_DIR` at a fixed, pre-created directory instead of
+# the random default (see debian/rules), combined with dpkg's default
+# `-ffile-prefix-map` (the `fixfilepath` build flag) to normalize the remaining
+# absolute-build-root prefix. Confirmed locally: with a fixed `build-dir` alone
+# (no debug_level change), two separate builds embed byte-identical paths.
 enable-by-default = false
 require-runtime-dependencies = true
 dependencies = [
