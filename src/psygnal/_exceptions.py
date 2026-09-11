@@ -4,12 +4,12 @@ import inspect
 import os
 from contextlib import suppress
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import psygnal
 
 if TYPE_CHECKING:
-    from collections.abc import Container, Sequence
+    from collections.abc import Container, Mapping, Sequence
 
     from ._signal import SignalInstance
 
@@ -100,7 +100,10 @@ def _build_psygnal_exception_msg(
 
             # Then end with the frame that raised the exception
             msg += f"    {_fmt_frame(except_frame)}  # <-- ERROR OCCURRED HERE \n"
-            if flocals := except_frame.frame.f_locals:
+            # f_locals may be a FrameLocalsProxy (3.13+), not a dict; access it
+            # via Any so mypyc doesn't insert a (failing) runtime dict check.
+            frame: Any = except_frame.frame
+            if flocals := frame.f_locals:
                 if not os.getenv("PSYGNAL_HIDE_LOCALS"):
                     msg += "\n      Local variables:\n"
                     msg += _fmt_locals(flocals)
@@ -116,7 +119,9 @@ def _fmt_frame(fi: inspect.FrameInfo, with_context: bool = True) -> str:
 
 
 def _fmt_locals(
-    f_locals: dict, exclude: Container[str] = ("self", "cls"), name_width: int = 20
+    f_locals: Mapping[str, Any],
+    exclude: Container[str] = ("self", "cls"),
+    name_width: int = 20,
 ) -> str:
     lines = []
     for name, value in f_locals.items():

@@ -31,7 +31,7 @@ jobs:
           fetch-depth: 0
       - uses: astral-sh/setup-uv@v7
       - name: Build wheels via cibuildwheel
-        uses: pypa/cibuildwheel@v4.1
+        uses: pypa/cibuildwheel@v4.2
       - name: Upload wheels artifacts
         uses: actions/upload-artifact@v7
         with:
