@@ -398,7 +398,15 @@ class EventedList(MutableSequence[_T]):
         )
 
     def reverse(self, *, emit_individual_events: bool = False) -> None:
-        """Reverse list *IN PLACE*."""
+        """Reverse list *IN PLACE*.
+
+        Parameters
+        ----------
+        emit_individual_events : bool
+            If True, the list is reversed one item at a time, emitting per-item
+            events; otherwise the underlying data is reversed directly, by
+            default False
+        """
         if emit_individual_events:
             super().reverse()
         else:

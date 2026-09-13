@@ -67,6 +67,8 @@ def start_emitting_from_queue(
 def stop_emitting_from_queue(thread: Thread | None = None) -> None:
     """Stop the QTimer that monitors the global emission queue.
 
+    Parameters
+    ----------
     thread : Thread, optional
         The thread in which to stop the QTimer. By default, will stop any QTimers
         in the thread from which this function is called.

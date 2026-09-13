@@ -768,7 +768,7 @@ def connect_child_events(
     This is useful when you have a tree of objects, and you want to connect all
     events from the children to the parent.
 
-    Parameters.
+    Parameters
     ----------
     obj : object
         The object to connect events from.  If it is not evented, this function will

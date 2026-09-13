@@ -269,7 +269,13 @@ class SignalRelay(SignalInstance):
         return _inner if slot is None else _inner(slot)
 
     def block(self, exclude: Container[str | SignalInstance] = ()) -> None:
-        """Block this signal and all emitters from emitting."""
+        """Block this signal and all emitters from emitting.
+
+        Parameters
+        ----------
+        exclude : Container[str | SignalInstance]
+            Signals to exclude from blocking, given by name or instance.
+        """
         super().block()
         for name, sig in self._signals.items():
             if name in exclude or sig in exclude:

@@ -52,7 +52,15 @@ class SelectableEventedList(Selectable[_T], EventedList[_T]):
         self.selection.discard(obj)
 
     def insert(self, index: int, value: _T) -> None:
-        """Insert item(s) into the list and update the selection."""
+        """Insert item(s) into the list and update the selection.
+
+        Parameters
+        ----------
+        index : int
+            The index at which to insert the item.
+        value : _T
+            The item to insert.
+        """
         super().insert(index, value)
         if self._activate_on_insert:
             self.selection.active = value
@@ -102,7 +110,17 @@ class SelectableEventedList(Selectable[_T], EventedList[_T]):
     def select_previous(
         self, expand_selection: bool = False, wraparound: bool = False
     ) -> None:
-        """Select the previous item in the list."""
+        """Select the previous item in the list.
+
+        Parameters
+        ----------
+        expand_selection : bool
+            If True, will expand the selection to contain both the current item and
+            the previous item, by default False
+        wraparound : bool
+            Whether to return to the end of the list if the beginning has been
+            reached, by default False
+        """
         self.select_next(
             step=-1, expand_selection=expand_selection, wraparound=wraparound
         )
