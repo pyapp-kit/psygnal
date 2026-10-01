@@ -68,7 +68,7 @@ jobs:
           uv run python -c "import psygnal; print('compiled:', psygnal._compiled)"
 
       - if: matrix.qt != ''
-        uses: pyvista/setup-headless-display-action@v4
+        uses: pyvista/setup-headless-display-action@v5
         with:
           qt: true
 
@@ -117,7 +117,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
 
@@ -130,7 +130,7 @@ jobs:
           HATCH_BUILD_HOOKS_ENABLE: "1"
 
       - name: Run benchmarks
-        uses: CodSpeedHQ/action@v4
+        uses: CodSpeedHQ/action@v5
         with:
           run: pytest --codspeed -v
           mode: instrumentation
