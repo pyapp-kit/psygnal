@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     SupportedBackend: TypeAlias = Literal["asyncio", "anyio", "trio"]
 
 QueueItem: TypeAlias = tuple["WeakCallback[Any]", tuple[Any, ...]]
+"""Callback and emitted arguments passed to `AsyncBackend.put`."""
 
 
 class EventLike(Protocol):
