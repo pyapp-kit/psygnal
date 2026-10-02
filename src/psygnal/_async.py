@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from math import inf
-from typing import TYPE_CHECKING, overload
+from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, TypeVar, overload
 
 if TYPE_CHECKING:
-    from collections.abc import Coroutine
-    from typing import Any, Literal, Protocol, TypeAlias
+    from typing import Literal
 
     import anyio.streams.memory
     import trio
@@ -14,63 +13,106 @@ if TYPE_CHECKING:
     from psygnal._weak_callback import WeakCallback
 
     SupportedBackend: TypeAlias = Literal["asyncio", "anyio", "trio"]
-    QueueItem: TypeAlias = tuple["WeakCallback", tuple[Any, ...]]
 
-    class EventLike(Protocol):
-        def is_set(self) -> bool:
-            """Return ``True`` if the flag is set, ``False`` if not."""
-            ...
-
-        async def wait(self) -> Coroutine | bool | None:
-            """Wait until the flag is set."""
-            ...
+QueueItem: TypeAlias = tuple["WeakCallback[Any]", tuple[Any, ...]]
 
 
-_ASYNC_BACKEND: _AsyncBackend | None = None
+class EventLike(Protocol):
+    """Flag that reports whether an async backend is running."""
+
+    def is_set(self) -> bool:
+        """Return `True` if the flag is set, `False` if not."""
+        ...
+
+    async def wait(self) -> object:
+        """Wait until the flag is set."""
+        ...
 
 
-def get_async_backend() -> _AsyncBackend | None:
+class AsyncBackend(Protocol):
+    """Interface an async backend must provide to run async callbacks.
+
+    Each emission of a signal connected to a coroutine function calls `put`
+    with a [`QueueItem`][psygnal.QueueItem]: the weakly referenced callback and
+    the emitted arguments. `run` takes items off the queue and, when
+    `callback.dereference()` returns a coroutine function, awaits it with
+    the arguments.
+    """
+
+    @property
+    def running(self) -> EventLike:
+        """Flag set while `run` is processing the queue."""
+        ...
+
+    def put(self, item: QueueItem) -> None:
+        """Queue an item without blocking."""
+        ...
+
+    async def run(self) -> None:
+        """Process queued items until cancelled."""
+        ...
+
+    def close(self) -> None:
+        """Release the resources held by the backend."""
+        ...
+
+
+_B = TypeVar("_B", bound=AsyncBackend)
+
+_ASYNC_BACKEND: AsyncBackend | None = None
+
+
+def get_async_backend() -> AsyncBackend | None:
     """Get the current async backend. Returns None if no backend is set."""
     return _ASYNC_BACKEND
 
 
 def clear_async_backend() -> None:
-    """Clear the current async backend. Primarily for testing purposes."""
+    """Close and clear the current async backend. Primarily for testing purposes."""
     global _ASYNC_BACKEND
     if _ASYNC_BACKEND is not None:
-        # Cancel any running tasks if it's asyncio and loop is not closed
-        if isinstance(_ASYNC_BACKEND, AsyncioBackend):
-            _ASYNC_BACKEND.close()
-        # Close anyio streams
-        elif isinstance(_ASYNC_BACKEND, AnyioBackend):
-            _ASYNC_BACKEND.close()
-        # Close trio channels
-        elif isinstance(_ASYNC_BACKEND, TrioBackend):
-            if hasattr(_ASYNC_BACKEND, "_send_channel"):
-                _ASYNC_BACKEND._send_channel.close()
-            # Note: trio receive channels don't have a close method
+        _ASYNC_BACKEND.close()
     _ASYNC_BACKEND = None
 
 
 @overload
-def set_async_backend(backend: Literal["asyncio"]) -> AsyncioBackend: ...
+def set_async_backend(backend: Literal["asyncio"] = ...) -> AsyncioBackend: ...
 @overload
 def set_async_backend(backend: Literal["anyio"]) -> AnyioBackend: ...
 @overload
 def set_async_backend(backend: Literal["trio"]) -> TrioBackend: ...
-def set_async_backend(backend: SupportedBackend = "asyncio") -> _AsyncBackend:
-    """Set the async backend to use. Must be one of: 'asyncio', 'anyio', 'trio'.
+@overload
+def set_async_backend(backend: _B) -> _B: ...
+def set_async_backend(
+    backend: SupportedBackend | AsyncBackend = "asyncio",
+) -> AsyncBackend:
+    """Set the async backend to use.
 
     This should be done as early as possible, and *must* be called before calling
     `SignalInstance.connect` with a coroutine function.
+
+    Parameters
+    ----------
+    backend
+        One of `'asyncio'`, `'anyio'` or `'trio'` to create a built-in backend,
+        or an object implementing [`AsyncBackend`][psygnal.AsyncBackend].
+
+    Raises
+    ------
+    RuntimeError
+        If a different backend is already set, or the backend name is not supported.
     """
     global _ASYNC_BACKEND
 
-    if _ASYNC_BACKEND and _ASYNC_BACKEND._backend != backend:  # pragma: no cover
-        # allow setting the same backend multiple times, for tests
-        raise RuntimeError(f"Async backend already set to: {_ASYNC_BACKEND._backend}")
+    if _ASYNC_BACKEND is not None and backend is not _ASYNC_BACKEND:
+        current = getattr(_ASYNC_BACKEND, "_backend", _ASYNC_BACKEND)
+        # allow setting the same built-in backend multiple times, for tests
+        if current != backend:
+            raise RuntimeError(f"Async backend already set to: {current!r}")
 
-    if backend == "asyncio":
+    if not isinstance(backend, str):
+        _ASYNC_BACKEND = backend
+    elif backend == "asyncio":
         _ASYNC_BACKEND = AsyncioBackend()
     elif backend == "anyio":
         _ASYNC_BACKEND = AnyioBackend()
@@ -98,6 +140,9 @@ class _AsyncBackend(ABC):
 
     @abstractmethod
     async def run(self) -> None: ...
+
+    @abstractmethod
+    def close(self) -> None: ...
 
     async def call_back(self, item: QueueItem) -> None:
         cb, args = item
@@ -223,8 +268,12 @@ class TrioBackend(_AsyncBackend):
         """Return the event indicating if the backend is running."""
         return self._running
 
-    def put(self, item: tuple) -> None:
+    def put(self, item: QueueItem) -> None:
         self._send_channel.send_nowait(item)
+
+    def close(self) -> None:
+        """Close the trio send channel."""
+        self._send_channel.close()
 
     async def run(self) -> None:
         if self._running.is_set():

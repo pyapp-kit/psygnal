@@ -10,7 +10,7 @@ from unittest.mock import Mock
 import pytest
 import pytest_asyncio
 
-from psygnal import _async
+from psygnal import QueueItem, SignalInstance, _async
 from psygnal._weak_callback import WeakCallback, weak_callback
 
 if TYPE_CHECKING:
@@ -471,3 +471,66 @@ def test_high_level_api(backend_name: Literal["trio", "asyncio", "anyio"]) -> No
     finally:
         # Clean up after test
         _async.clear_async_backend()
+
+
+class QueueBackend:
+    """Custom backend implementing the `AsyncBackend` protocol on `asyncio.Queue`."""
+
+    def __init__(self) -> None:
+        self._queue: asyncio.Queue[QueueItem] = asyncio.Queue()
+        self._running = asyncio.Event()
+
+    @property
+    def running(self) -> asyncio.Event:
+        return self._running
+
+    def put(self, item: QueueItem) -> None:
+        self._queue.put_nowait(item)
+
+    async def run(self) -> None:
+        self._running.set()
+        try:
+            while True:
+                cb, args = await self._queue.get()
+                if func := cb.dereference():
+                    await func(*args)
+        finally:
+            self._running.clear()
+
+    def close(self) -> None:
+        pass
+
+
+@pytest.mark.usefixtures("clean_async_backend")
+@pytest.mark.asyncio
+async def test_custom_backend() -> None:
+    """Run an async callback through a backend passed as an object."""
+    backend = _async.set_async_backend(QueueBackend())
+    assert _async.get_async_backend() is backend
+    task = asyncio.create_task(backend.run())
+    await backend.running.wait()
+
+    mock = Mock()
+
+    async def callback(value: str) -> None:
+        mock(value)
+
+    sig = SignalInstance((str,))
+    sig.connect(callback)
+    sig.emit("hello")
+    for _ in range(100):
+        if mock.call_count:
+            break
+        await asyncio.sleep(0.01)
+    task.cancel()
+
+    mock.assert_called_once_with("hello")
+
+
+@pytest.mark.usefixtures("clean_async_backend")
+@pytest.mark.asyncio
+async def test_custom_backend_conflict() -> None:
+    """Refuse to replace a backend that is already set."""
+    _async.set_async_backend("asyncio")
+    with pytest.raises(RuntimeError, match="already set"):
+        _async.set_async_backend(QueueBackend())

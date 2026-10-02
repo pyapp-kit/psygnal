@@ -162,3 +162,49 @@ called asynchronously.
     2.  Start watching the channels in the background using `backend.run()`.
     3.  Wait for the backend to be ready before connecting the signal.
     4.  Connect the signal to the async callback function.
+
+## Custom backends
+
+`set_async_backend()` also accepts an object that implements the
+[`AsyncBackend`][psygnal.AsyncBackend] protocol. Each emission calls the
+backend's `put()` with a [`QueueItem`][psygnal.QueueItem], which holds the
+weakly referenced callback and the emitted arguments. The backend's `run()`
+takes items off its queue and awaits each callback that is still alive:
+
+```python
+import asyncio
+
+from psygnal import QueueItem, set_async_backend
+
+
+class QueueBackend:
+    def __init__(self) -> None:
+        self._queue: asyncio.Queue[QueueItem] = asyncio.Queue()
+        self._running = asyncio.Event()
+
+    @property
+    def running(self) -> asyncio.Event:
+        return self._running
+
+    def put(self, item: QueueItem) -> None:
+        self._queue.put_nowait(item)
+
+    async def run(self) -> None:
+        self._running.set()
+        try:
+            while True:
+                callback, args = await self._queue.get()
+                if func := callback.dereference():
+                    await func(*args)
+        finally:
+            self._running.clear()
+
+    def close(self) -> None:
+        pass
+
+
+backend = set_async_backend(QueueBackend())
+```
+
+Start `backend.run()` in your event loop and wait for `backend.running`, as
+with the built-in backends.
