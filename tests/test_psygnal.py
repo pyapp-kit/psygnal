@@ -990,6 +990,8 @@ def test_clear_queued():
     emit_queued()
     mock.assert_not_called()
     assert clear_queued() == 0
+    # a thread that never had anything queued
+    assert clear_queued(Thread()) == 0
 
 
 def test_deepcopy():
