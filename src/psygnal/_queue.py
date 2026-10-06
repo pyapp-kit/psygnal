@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Callable
-from queue import Queue
+from queue import Empty, Queue
 from threading import Thread, current_thread, main_thread
 from typing import Any, ClassVar, Literal
 
@@ -108,3 +108,30 @@ def emit_queued(thread: Thread | None = None) -> None:
             cb(args)
         except Exception as e:  # pragma: no cover
             raise EmitLoopError(exc=e) from e
+
+
+def clear_queued(thread: Thread | None = None) -> int:
+    """Discard all callbacks queued for `thread`, without invoking them.
+
+    Parameters
+    ----------
+    thread : Thread, optional
+        The thread whose queue should be cleared.  If not provided, the current
+        thread will be used.
+
+    Returns
+    -------
+    int
+        The number of queued callbacks that were discarded.
+    """
+    _thread = current_thread() if thread is None else thread
+    if (queue := QueuedCallback._GLOBAL_QUEUE.get(_thread)) is None:
+        return 0
+
+    count = 0
+    while True:
+        try:
+            queue.get_nowait()
+        except Empty:
+            return count
+        count += 1
