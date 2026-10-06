@@ -3,13 +3,14 @@ import os
 from contextlib import suppress
 from functools import partial, wraps
 from inspect import Signature
+from threading import Thread
 from typing import Literal
 from unittest.mock import MagicMock, Mock, call
 
 import pytest
 
 import psygnal
-from psygnal import EmitLoopError, Signal, SignalInstance
+from psygnal import EmitLoopError, Signal, SignalInstance, clear_queued, emit_queued
 from psygnal._signal import ReemissionMode, ReemissionVal
 from psygnal._weak_callback import WeakCallback
 
@@ -973,6 +974,24 @@ def test_queued_connections():
     # ... until we call emit_queued() from this thread
     emit_queued()
     this_thread_mock.assert_called_once_with(2, this_thread)
+
+
+def test_clear_queued():
+
+    emitter = Emitter()
+    mock = Mock()
+    emitter.one_int.connect(mock, thread="main")
+
+    thread = Thread(target=lambda: [emitter.one_int.emit(i) for i in range(3)])
+    thread.start()
+    thread.join()
+
+    assert clear_queued() == 3
+    emit_queued()
+    mock.assert_not_called()
+    assert clear_queued() == 0
+    # a thread that never had anything queued
+    assert clear_queued(Thread()) == 0
 
 
 def test_deepcopy():
