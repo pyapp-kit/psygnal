@@ -73,7 +73,7 @@ class _AsyncCall:
         if func := self._cb.dereference():
             await func(*self._args)
 
-    def __repr__(self) -> str:
+    def __repr__(self) -> str:  # pragma: no cover
         return f"<AsyncCall {self._cb.slot_repr()}{self._args}>"
 
 
