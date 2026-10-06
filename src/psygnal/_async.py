@@ -2,9 +2,18 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from math import inf
-from typing import TYPE_CHECKING, Any, Protocol, TypeAlias, TypeVar, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Protocol,
+    TypeAlias,
+    TypeVar,
+    overload,
+    runtime_checkable,
+)
 
 if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
     from typing import Literal
 
     import anyio.streams.memory
@@ -13,9 +22,7 @@ if TYPE_CHECKING:
     from psygnal._weak_callback import WeakCallback
 
     SupportedBackend: TypeAlias = Literal["asyncio", "anyio", "trio"]
-
-QueueItem: TypeAlias = tuple["WeakCallback[Any]", tuple[Any, ...]]
-"""Callback and emitted arguments passed to `AsyncBackend.put`."""
+    QueueItem: TypeAlias = Callable[[], Awaitable[None]]
 
 
 class EventLike(Protocol):
@@ -30,14 +37,13 @@ class EventLike(Protocol):
         ...
 
 
+@runtime_checkable
 class AsyncBackend(Protocol):
     """Interface an async backend must provide to run async callbacks.
 
     Each emission of a signal connected to a coroutine function calls `put`
-    with a [`QueueItem`][psygnal.QueueItem]: the weakly referenced callback and
-    the emitted arguments. `run` takes items off the queue and, when
-    `callback.dereference()` returns a coroutine function, awaits it with
-    the arguments.
+    with an item: a callable that takes no arguments and returns an awaitable.
+    `run` takes items off the queue and awaits `item()` for each one.
     """
 
     @property
@@ -50,12 +56,25 @@ class AsyncBackend(Protocol):
         ...
 
     async def run(self) -> None:
-        """Process queued items until cancelled."""
+        """Await queued items until cancelled."""
         ...
 
-    def close(self) -> None:
-        """Release the resources held by the backend."""
-        ...
+
+class _AsyncCall:
+    """Queue item that awaits a weakly referenced coroutine callback, if alive."""
+
+    __slots__ = ("_args", "_cb")
+
+    def __init__(self, cb: WeakCallback[Any], args: tuple[Any, ...]) -> None:
+        self._cb = cb
+        self._args = args
+
+    async def __call__(self) -> None:
+        if func := self._cb.dereference():
+            await func(*self._args)
+
+    def __repr__(self) -> str:
+        return f"<AsyncCall {self._cb.slot_repr()}{self._args}>"
 
 
 _B = TypeVar("_B", bound=AsyncBackend)
@@ -69,9 +88,9 @@ def get_async_backend() -> AsyncBackend | None:
 
 
 def clear_async_backend() -> None:
-    """Close and clear the current async backend. Primarily for testing purposes."""
+    """Clear the current async backend, closing it if it is a built-in one."""
     global _ASYNC_BACKEND
-    if _ASYNC_BACKEND is not None:
+    if isinstance(_ASYNC_BACKEND, _AsyncBackend):
         _ASYNC_BACKEND.close()
     _ASYNC_BACKEND = None
 
@@ -100,10 +119,17 @@ def set_async_backend(
 
     Raises
     ------
+    TypeError
+        If `backend` is neither a string nor an `AsyncBackend`.
     RuntimeError
         If a different backend is already set, or the backend name is not supported.
     """
     global _ASYNC_BACKEND
+
+    if not isinstance(backend, (str, AsyncBackend)):
+        raise TypeError(
+            f"Expected a backend name or an AsyncBackend, got {type(backend).__name__}"
+        )
 
     if _ASYNC_BACKEND is not None and backend is not _ASYNC_BACKEND:
         current = getattr(_ASYNC_BACKEND, "_backend", _ASYNC_BACKEND)
@@ -145,11 +171,6 @@ class _AsyncBackend(ABC):
     @abstractmethod
     def close(self) -> None: ...
 
-    async def call_back(self, item: QueueItem) -> None:
-        cb, args = item
-        if func := cb.dereference():
-            await func(*args)
-
 
 class AsyncioBackend(_AsyncBackend):
     def __init__(self) -> None:
@@ -157,7 +178,7 @@ class AsyncioBackend(_AsyncBackend):
         import asyncio
 
         self._asyncio = asyncio
-        self._queue: asyncio.Queue[tuple] = asyncio.Queue()
+        self._queue: asyncio.Queue[QueueItem] = asyncio.Queue()
         self._task = asyncio.create_task(self.run())
         self._loop = asyncio.get_running_loop()
         self._running = asyncio.Event()
@@ -184,7 +205,7 @@ class AsyncioBackend(_AsyncBackend):
             while True:
                 item = await self._queue.get()
                 try:
-                    await self.call_back(item)
+                    await item()
                 except Exception:
                     # Log the exception but continue running
                     # This prevents one bad callback from crashing the backend
@@ -238,7 +259,7 @@ class AnyioBackend(_AsyncBackend):
             async with self._receive_stream:
                 async for item in self._receive_stream:
                     try:
-                        await self.call_back(item)
+                        await item()
                     except Exception:
                         # Log the exception but continue running
                         import traceback
@@ -284,7 +305,7 @@ class TrioBackend(_AsyncBackend):
         try:
             async for item in self._receive_channel:
                 try:
-                    await self.call_back(item)
+                    await item()
                 except Exception:
                     # Log the exception but continue running
                     import traceback

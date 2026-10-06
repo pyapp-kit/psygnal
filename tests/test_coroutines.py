@@ -10,11 +10,11 @@ from unittest.mock import Mock
 import pytest
 import pytest_asyncio
 
-from psygnal import QueueItem, SignalInstance, _async
+from psygnal import SignalInstance, _async
 from psygnal._weak_callback import WeakCallback, weak_callback
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
+    from collections.abc import Awaitable, Callable, Iterator
 
 # Available backends for parametrization
 AVAILABLE_BACKENDS = ["asyncio"]
@@ -477,28 +477,24 @@ class QueueBackend:
     """Custom backend implementing the `AsyncBackend` protocol on `asyncio.Queue`."""
 
     def __init__(self) -> None:
-        self._queue: asyncio.Queue[QueueItem] = asyncio.Queue()
+        self._queue: asyncio.Queue[Callable[[], Awaitable[None]]] = asyncio.Queue()
         self._running = asyncio.Event()
 
     @property
     def running(self) -> asyncio.Event:
         return self._running
 
-    def put(self, item: QueueItem) -> None:
+    def put(self, item: Callable[[], Awaitable[None]]) -> None:
         self._queue.put_nowait(item)
 
     async def run(self) -> None:
         self._running.set()
         try:
             while True:
-                cb, args = await self._queue.get()
-                if func := cb.dereference():
-                    await func(*args)
+                item = await self._queue.get()
+                await item()
         finally:
             self._running.clear()
-
-    def close(self) -> None:
-        pass
 
 
 @pytest.mark.usefixtures("clean_async_backend")
@@ -534,3 +530,10 @@ async def test_custom_backend_conflict() -> None:
     _async.set_async_backend("asyncio")
     with pytest.raises(RuntimeError, match="already set"):
         _async.set_async_backend(QueueBackend())
+
+
+@pytest.mark.usefixtures("clean_async_backend")
+def test_set_async_backend_rejects_non_backend() -> None:
+    """Refuse an object that is neither a backend name nor an `AsyncBackend`."""
+    with pytest.raises(TypeError, match="AsyncBackend"):
+        _async.set_async_backend(42)  # type: ignore[call-overload]

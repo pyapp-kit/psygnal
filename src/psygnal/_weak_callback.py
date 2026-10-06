@@ -17,7 +17,7 @@ from typing import (
 )
 from warnings import warn
 
-from ._async import get_async_backend
+from ._async import _AsyncCall, get_async_backend
 from ._mypyc import mypyc_attr
 
 if TYPE_CHECKING:
@@ -649,7 +649,7 @@ class WeakCoroutineFunction(WeakFunction):
         if self._max_args is not None:
             args = args[: self._max_args]
 
-        cast("AsyncBackend", get_async_backend()).put((self, args))
+        cast("AsyncBackend", get_async_backend()).put(_AsyncCall(self, args))
 
 
 class StrongCoroutineFunction(StrongFunction):
@@ -659,7 +659,7 @@ class StrongCoroutineFunction(StrongFunction):
         if self._max_args is not None:
             args = args[: self._max_args]
 
-        cast("AsyncBackend", get_async_backend()).put((self, args))
+        cast("AsyncBackend", get_async_backend()).put(_AsyncCall(self, args))
 
 
 class WeakCoroutineMethod(WeakMethod):
@@ -670,4 +670,4 @@ class WeakCoroutineMethod(WeakMethod):
         if self._max_args is not None:
             args = args[: self._max_args]
 
-        cast("AsyncBackend", get_async_backend()).put((self, args))
+        cast("AsyncBackend", get_async_backend()).put(_AsyncCall(self, args))
