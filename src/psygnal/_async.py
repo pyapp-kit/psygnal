@@ -2,11 +2,19 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from math import inf
-from typing import TYPE_CHECKING, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Protocol,
+    TypeAlias,
+    TypeVar,
+    overload,
+    runtime_checkable,
+)
 
 if TYPE_CHECKING:
-    from collections.abc import Coroutine
-    from typing import Any, Literal, Protocol, TypeAlias
+    from collections.abc import Awaitable, Callable
+    from typing import Literal
 
     import anyio.streams.memory
     import trio
@@ -14,63 +22,124 @@ if TYPE_CHECKING:
     from psygnal._weak_callback import WeakCallback
 
     SupportedBackend: TypeAlias = Literal["asyncio", "anyio", "trio"]
-    QueueItem: TypeAlias = tuple["WeakCallback", tuple[Any, ...]]
-
-    class EventLike(Protocol):
-        def is_set(self) -> bool:
-            """Return ``True`` if the flag is set, ``False`` if not."""
-            ...
-
-        async def wait(self) -> Coroutine | bool | None:
-            """Wait until the flag is set."""
-            ...
+    QueueItem: TypeAlias = Callable[[], Awaitable[None]]
 
 
-_ASYNC_BACKEND: _AsyncBackend | None = None
+class EventLike(Protocol):
+    """Flag that reports whether an async backend is running."""
+
+    def is_set(self) -> bool:
+        """Return `True` if the flag is set, `False` if not."""
+        ...
+
+    async def wait(self) -> object:
+        """Wait until the flag is set."""
+        ...
 
 
-def get_async_backend() -> _AsyncBackend | None:
+@runtime_checkable
+class AsyncBackend(Protocol):
+    """Interface an async backend must provide to run async callbacks.
+
+    Each emission of a signal connected to a coroutine function calls `put`
+    with an item: a callable that takes no arguments and returns an awaitable.
+    `run` takes items off the queue and awaits `item()` for each one.
+    """
+
+    @property
+    def running(self) -> EventLike:
+        """Flag set while `run` is processing the queue."""
+        ...
+
+    def put(self, item: QueueItem) -> None:
+        """Queue an item without blocking."""
+        ...
+
+    async def run(self) -> None:
+        """Await queued items until cancelled."""
+        ...
+
+
+class _AsyncCall:
+    """Queue item that awaits a weakly referenced coroutine callback, if alive."""
+
+    __slots__ = ("_args", "_cb")
+
+    def __init__(self, cb: WeakCallback[Any], args: tuple[Any, ...]) -> None:
+        self._cb = cb
+        self._args = args
+
+    async def __call__(self) -> None:
+        if func := self._cb.dereference():
+            await func(*self._args)
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"<AsyncCall {self._cb.slot_repr()}{self._args}>"
+
+
+_B = TypeVar("_B", bound=AsyncBackend)
+
+_ASYNC_BACKEND: AsyncBackend | None = None
+
+
+def get_async_backend() -> AsyncBackend | None:
     """Get the current async backend. Returns None if no backend is set."""
     return _ASYNC_BACKEND
 
 
 def clear_async_backend() -> None:
-    """Clear the current async backend. Primarily for testing purposes."""
+    """Clear the current async backend, closing it if it is a built-in one."""
     global _ASYNC_BACKEND
-    if _ASYNC_BACKEND is not None:
-        # Cancel any running tasks if it's asyncio and loop is not closed
-        if isinstance(_ASYNC_BACKEND, AsyncioBackend):
-            _ASYNC_BACKEND.close()
-        # Close anyio streams
-        elif isinstance(_ASYNC_BACKEND, AnyioBackend):
-            _ASYNC_BACKEND.close()
-        # Close trio channels
-        elif isinstance(_ASYNC_BACKEND, TrioBackend):
-            if hasattr(_ASYNC_BACKEND, "_send_channel"):
-                _ASYNC_BACKEND._send_channel.close()
-            # Note: trio receive channels don't have a close method
+    if isinstance(_ASYNC_BACKEND, _AsyncBackend):
+        _ASYNC_BACKEND.close()
     _ASYNC_BACKEND = None
 
 
 @overload
-def set_async_backend(backend: Literal["asyncio"]) -> AsyncioBackend: ...
+def set_async_backend(backend: Literal["asyncio"] = ...) -> AsyncioBackend: ...
 @overload
 def set_async_backend(backend: Literal["anyio"]) -> AnyioBackend: ...
 @overload
 def set_async_backend(backend: Literal["trio"]) -> TrioBackend: ...
-def set_async_backend(backend: SupportedBackend = "asyncio") -> _AsyncBackend:
-    """Set the async backend to use. Must be one of: 'asyncio', 'anyio', 'trio'.
+@overload
+def set_async_backend(backend: _B) -> _B: ...
+def set_async_backend(
+    backend: SupportedBackend | AsyncBackend = "asyncio",
+) -> AsyncBackend:
+    """Set the async backend to use.
 
     This should be done as early as possible, and *must* be called before calling
     `SignalInstance.connect` with a coroutine function.
+
+    Parameters
+    ----------
+    backend
+        One of `'asyncio'`, `'anyio'` or `'trio'` to create a built-in backend,
+        or an object implementing [`AsyncBackend`][psygnal.AsyncBackend].
+
+    Raises
+    ------
+    TypeError
+        If `backend` is neither a string nor an `AsyncBackend`.
+    RuntimeError
+        If a different backend is already set, or the backend name is not supported.
     """
     global _ASYNC_BACKEND
 
-    if _ASYNC_BACKEND and _ASYNC_BACKEND._backend != backend:  # pragma: no cover
-        # allow setting the same backend multiple times, for tests
-        raise RuntimeError(f"Async backend already set to: {_ASYNC_BACKEND._backend}")
+    if not isinstance(backend, (str, AsyncBackend)):
+        raise TypeError(
+            f"Expected a backend name or an AsyncBackend, got {type(backend).__name__}"
+        )
 
-    if backend == "asyncio":
+    if _ASYNC_BACKEND is not None and backend is not _ASYNC_BACKEND:
+        current = getattr(_ASYNC_BACKEND, "_backend", _ASYNC_BACKEND)
+        # allow setting the same built-in backend multiple times, for tests
+        if current != backend:
+            raise RuntimeError(f"Async backend already set to: {current!r}")
+
+    if not isinstance(backend, str):
+        _ASYNC_BACKEND = backend
+    elif backend == "asyncio":
         _ASYNC_BACKEND = AsyncioBackend()
     elif backend == "anyio":
         _ASYNC_BACKEND = AnyioBackend()
@@ -99,10 +168,8 @@ class _AsyncBackend(ABC):
     @abstractmethod
     async def run(self) -> None: ...
 
-    async def call_back(self, item: QueueItem) -> None:
-        cb, args = item
-        if func := cb.dereference():
-            await func(*args)
+    @abstractmethod
+    def close(self) -> None: ...
 
 
 class AsyncioBackend(_AsyncBackend):
@@ -111,7 +178,7 @@ class AsyncioBackend(_AsyncBackend):
         import asyncio
 
         self._asyncio = asyncio
-        self._queue: asyncio.Queue[tuple] = asyncio.Queue()
+        self._queue: asyncio.Queue[QueueItem] = asyncio.Queue()
         self._task = asyncio.create_task(self.run())
         self._loop = asyncio.get_running_loop()
         self._running = asyncio.Event()
@@ -138,7 +205,7 @@ class AsyncioBackend(_AsyncBackend):
             while True:
                 item = await self._queue.get()
                 try:
-                    await self.call_back(item)
+                    await item()
                 except Exception:
                     # Log the exception but continue running
                     # This prevents one bad callback from crashing the backend
@@ -192,7 +259,7 @@ class AnyioBackend(_AsyncBackend):
             async with self._receive_stream:
                 async for item in self._receive_stream:
                     try:
-                        await self.call_back(item)
+                        await item()
                     except Exception:
                         # Log the exception but continue running
                         import traceback
@@ -223,8 +290,12 @@ class TrioBackend(_AsyncBackend):
         """Return the event indicating if the backend is running."""
         return self._running
 
-    def put(self, item: tuple) -> None:
+    def put(self, item: QueueItem) -> None:
         self._send_channel.send_nowait(item)
+
+    def close(self) -> None:
+        """Close the trio send channel."""
+        self._send_channel.close()
 
     async def run(self) -> None:
         if self._running.is_set():
@@ -234,7 +305,7 @@ class TrioBackend(_AsyncBackend):
         try:
             async for item in self._receive_channel:
                 try:
-                    await self.call_back(item)
+                    await item()
                 except Exception:
                     # Log the exception but continue running
                     import traceback

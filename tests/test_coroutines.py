@@ -10,11 +10,11 @@ from unittest.mock import Mock
 import pytest
 import pytest_asyncio
 
-from psygnal import _async
+from psygnal import SignalInstance, _async
 from psygnal._weak_callback import WeakCallback, weak_callback
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
+    from collections.abc import Awaitable, Callable, Iterator
 
 # Available backends for parametrization
 AVAILABLE_BACKENDS = ["asyncio"]
@@ -471,3 +471,69 @@ def test_high_level_api(backend_name: Literal["trio", "asyncio", "anyio"]) -> No
     finally:
         # Clean up after test
         _async.clear_async_backend()
+
+
+class QueueBackend:
+    """Custom backend implementing the `AsyncBackend` protocol on `asyncio.Queue`."""
+
+    def __init__(self) -> None:
+        self._queue: asyncio.Queue[Callable[[], Awaitable[None]]] = asyncio.Queue()
+        self._running = asyncio.Event()
+
+    @property
+    def running(self) -> asyncio.Event:
+        return self._running
+
+    def put(self, item: Callable[[], Awaitable[None]]) -> None:
+        self._queue.put_nowait(item)
+
+    async def run(self) -> None:
+        self._running.set()
+        try:
+            while True:
+                item = await self._queue.get()
+                await item()
+        finally:
+            self._running.clear()
+
+
+@pytest.mark.usefixtures("clean_async_backend")
+@pytest.mark.asyncio
+async def test_custom_backend() -> None:
+    """Run an async callback through a backend passed as an object."""
+    backend = _async.set_async_backend(QueueBackend())
+    assert _async.get_async_backend() is backend
+    task = asyncio.create_task(backend.run())
+    await backend.running.wait()
+
+    mock = Mock()
+
+    async def callback(value: str) -> None:
+        mock(value)
+
+    sig = SignalInstance((str,))
+    sig.connect(callback)
+    sig.emit("hello")
+    for _ in range(100):
+        if mock.call_count:
+            break
+        await asyncio.sleep(0.01)
+    task.cancel()
+
+    mock.assert_called_once_with("hello")
+
+
+@pytest.mark.usefixtures("clean_async_backend")
+@pytest.mark.asyncio
+async def test_custom_backend_conflict() -> None:
+    """Refuse to replace a backend that is already set."""
+    _async.set_async_backend("asyncio")
+    with pytest.raises(RuntimeError, match="already set"):
+        _async.set_async_backend(QueueBackend())
+
+
+@pytest.mark.usefixtures("clean_async_backend")
+def test_set_async_backend_rejects_non_backend() -> None:
+    """Refuse an object that is neither a backend name nor an `AsyncBackend`."""
+    with pytest.raises(TypeError, match="AsyncBackend"):
+        _async.set_async_backend(42)  # type: ignore[call-overload]

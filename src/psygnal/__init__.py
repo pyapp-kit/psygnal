@@ -19,6 +19,7 @@ __author__ = "Talley Lambert"
 __email__ = "talley.lambert@gmail.com"
 
 __all__ = [
+    "AsyncBackend",
     "EmissionInfo",
     "EmitLoopError",
     "EventedModel",
@@ -51,7 +52,7 @@ if os.getenv("PSYGNAL_UNCOMPILED"):
         stacklevel=2,
     )
 
-from ._async import get_async_backend, set_async_backend
+from ._async import AsyncBackend, get_async_backend, set_async_backend
 from ._evented_decorator import evented
 from ._exceptions import EmitLoopError
 from ._group import EmissionInfo, PathStep, SignalGroup
