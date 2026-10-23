@@ -167,6 +167,7 @@ from ._weak_callback import (
 if TYPE_CHECKING:
     from collections.abc import Container, Iterable, Iterator
     from typing import TypeAlias
+    from typing_extensions import TypeForm
 
     from ._group import EmissionInfo
     from ._weak_callback import RefErrorChoice
@@ -296,7 +297,7 @@ class Signal:
 
     def __init__(
         self,
-        *types: type[Any] | Signature,
+        *types: TypeForm[Any] | Signature,
         description: str = "",
         name: str | None = None,
         check_nargs_on_connect: bool = True,

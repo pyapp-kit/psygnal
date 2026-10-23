@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from _weakref import ref as ref
     from collections.abc import Iterable, Mapping
     from typing import TypeAlias
+    from typing_extensions import TypeForm
 
     from psygnal._group import EmissionInfo
     from psygnal._weak_callback import RefErrorChoice, WeakCallback
@@ -118,7 +119,7 @@ def _check_field_equality(
             return _check_field_equality(cls, name, before, after, _fail=True)
 
 
-def _pick_equality_operator(type_: type | None) -> EqOperator:
+def _pick_equality_operator(type_: TypeForm | None) -> EqOperator:
     """Get the default equality operator for a given type."""
     np = sys.modules.get("numpy", None)
     if getattr(type_, "__module__", "").startswith("dask"):

@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Protocol, cast, overload
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from typing import TypeGuard
+    from typing_extensions import TypeForm
 
     import attrs
     import msgspec
@@ -137,7 +138,7 @@ def is_frozen(obj: Any) -> bool:
 
 def iter_fields(
     cls: type, exclude_frozen: bool = True
-) -> Iterator[tuple[str, type | None]]:
+) -> Iterator[tuple[str, TypeForm | None]]:
     """Iterate over all fields in the class, including inherited fields.
 
     This function recognizes dataclasses, attrs classes, msgspec Structs, and pydantic
