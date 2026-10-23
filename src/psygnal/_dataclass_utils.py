@@ -9,11 +9,11 @@ from typing import TYPE_CHECKING, Any, Protocol, cast, overload
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from typing import TypeGuard
-    from typing_extensions import TypeForm
 
     import attrs
     import msgspec
     from pydantic import BaseModel
+    from typing_extensions import TypeForm
 
 
 class _DataclassParams(Protocol):

@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     from _weakref import ref as ref
     from collections.abc import Iterable, Mapping
     from typing import TypeAlias
+
     from typing_extensions import TypeForm
 
     from psygnal._group import EmissionInfo
