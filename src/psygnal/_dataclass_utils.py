@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     import attrs
     import msgspec
     from pydantic import BaseModel
+    from typing_extensions import TypeForm
 
 
 class _DataclassParams(Protocol):
@@ -137,7 +138,7 @@ def is_frozen(obj: Any) -> bool:
 
 def iter_fields(
     cls: type, exclude_frozen: bool = True
-) -> Iterator[tuple[str, type | None]]:
+) -> Iterator[tuple[str, TypeForm | None]]:
     """Iterate over all fields in the class, including inherited fields.
 
     This function recognizes dataclasses, attrs classes, msgspec Structs, and pydantic
