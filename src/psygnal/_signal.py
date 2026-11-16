@@ -128,7 +128,6 @@ connection type (in that case, depending on threading).
 from __future__ import annotations
 
 import inspect
-import sys
 import threading
 import warnings
 import weakref
@@ -155,14 +154,10 @@ from typing import (
     overload,
 )
 
-if sys.version_info >= (3, 11):
-    from typing import TypeVarTuple, Unpack
-else:
-    from typing_extensions import TypeVarTuple, Unpack
-
 from ._exceptions import EmitLoopError
 from ._mypyc import mypyc_attr
 from ._queue import QueuedCallback
+from ._typing import TypeVarTuple, Unpack
 from ._weak_callback import (
     StrongFunction,
     WeakCallback,

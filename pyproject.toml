@@ -26,9 +26,8 @@ classifiers = [
 ]
 dynamic = ["version"]
 dependencies = [
-    # provides TypeVarTuple and Unpack before Python 3.11. Every other use of
-    # typing-extensions in the source code is guarded by if TYPE_CHECKING
-    "typing-extensions>=4.16.0 ; python_full_version < '3.11'",
+    # typing-extensions is in the source code, but not actually required
+    # at runtime. All uses are guarded by if TYPE_CHECKING
 ]
 
 # extras
@@ -138,6 +137,7 @@ exclude = [
     "src/psygnal/_throttler.py",
     "src/psygnal/_async.py",
     "src/psygnal/testing.py",
+    "src/psygnal/_typing.py",
 ]
 
 [tool.cibuildwheel]
