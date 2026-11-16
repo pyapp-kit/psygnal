@@ -2,7 +2,9 @@
 
 import threading
 from collections.abc import Callable
-from typing import Any, Literal, Protocol, TypedDict, TypeVar, TypeVarTuple, overload
+from typing import Any, Literal, Protocol, TypedDict, TypeVar, overload
+
+from typing_extensions import TypeVarTuple, Unpack
 
 from ._signal import ReemissionVal, SignalInstance
 from ._weak_callback import RefErrorChoice
@@ -33,7 +35,7 @@ class ConnectKwargs(TypedDict, total=False):
     priority: int
     emit_on_evented_child_events: bool
 
-class Connector(Protocol[*Ts]):
+class Connector(Protocol[Unpack[Ts]]):
     @overload
     def __call__(
         self,
@@ -42,31 +44,31 @@ class Connector(Protocol[*Ts]):
     ) -> Callable[[], R]: ...
     @overload
     def __call__(
-        self: Connector[T1, *tuple[Any, ...]],
+        self: Connector[T1, Unpack[tuple[Any, ...]]],
         slot: Callable[[T1], R],
         /,
     ) -> Callable[[T1], R]: ...
     @overload
     def __call__(
-        self: Connector[T1, T2, *tuple[Any, ...]],
+        self: Connector[T1, T2, Unpack[tuple[Any, ...]]],
         slot: Callable[[T1, T2], R],
         /,
     ) -> Callable[[T1, T2], R]: ...
     @overload
     def __call__(
-        self: Connector[T1, T2, T3, *tuple[Any, ...]],
+        self: Connector[T1, T2, T3, Unpack[tuple[Any, ...]]],
         slot: Callable[[T1, T2, T3], R],
         /,
     ) -> Callable[[T1, T2, T3], R]: ...
     @overload
     def __call__(
-        self: Connector[T1, T2, T3, T4, *tuple[Any, ...]],
+        self: Connector[T1, T2, T3, T4, Unpack[tuple[Any, ...]]],
         slot: Callable[[T1, T2, T3, T4], R],
         /,
     ) -> Callable[[T1, T2, T3, T4], R]: ...
     @overload
     def __call__(
-        self: Connector[T1, T2, T3, T4, T5, *tuple[Any, ...]],
+        self: Connector[T1, T2, T3, T4, T5, Unpack[tuple[Any, ...]]],
         slot: Callable[[T1, T2, T3, T4, T5], R],
         /,
     ) -> Callable[[T1, T2, T3, T4, T5], R]: ...

@@ -9,7 +9,9 @@ fail the run when one does not.
 from collections.abc import Callable
 from functools import partial
 from inspect import Signature
-from typing import Any, assert_type
+from typing import Any
+
+from typing_extensions import Unpack, assert_type
 
 from psygnal import Signal, SignalInstance
 from psygnal.containers import EventedObjectProxy, Selection
@@ -31,8 +33,8 @@ assert_type(m.one, SignalInstance[int])
 assert_type(m.zero, SignalInstance[()])
 assert_type(m.union, SignalInstance[str | None])
 assert_type(m.two, SignalInstance[int, list[str]])
-assert_type(m.raw, SignalInstance[*tuple[Any, ...]])
-assert_type(SignalInstance((int,)), SignalInstance[*tuple[Any, ...]])
+assert_type(m.raw, SignalInstance[Unpack[tuple[Any, ...]]])
+assert_type(SignalInstance((int,)), SignalInstance[Unpack[tuple[Any, ...]]])
 
 m.one.emit(1)
 m.one.emit(1, check_nargs=True, check_types=True)

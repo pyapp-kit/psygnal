@@ -128,6 +128,7 @@ connection type (in that case, depending on threading).
 from __future__ import annotations
 
 import inspect
+import sys
 import threading
 import warnings
 import weakref
@@ -146,7 +147,6 @@ from typing import (
     Literal,
     NoReturn,
     TypeVar,
-    TypeVarTuple,
     Union,
     cast,
     get_args,
@@ -154,6 +154,11 @@ from typing import (
     get_type_hints,
     overload,
 )
+
+if sys.version_info >= (3, 11):
+    from typing import TypeVarTuple, Unpack
+else:
+    from typing_extensions import TypeVarTuple, Unpack
 
 from ._exceptions import EmitLoopError
 from ._mypyc import mypyc_attr
@@ -168,7 +173,7 @@ from ._weak_callback import (
 
 if TYPE_CHECKING:
     from collections.abc import Container, Iterable, Iterator
-    from typing import TypeAlias, Unpack
+    from typing import TypeAlias
 
     from typing_extensions import TypeForm
 
@@ -234,7 +239,7 @@ class ReemissionMode:
         return VALID_REEMISSION
 
 
-class Signal(Generic[*Ts]):
+class Signal(Generic[Unpack[Ts]]):
     """Declares a signal emitter on a class.
 
     This is class implements the [descriptor
@@ -309,7 +314,7 @@ class Signal(Generic[*Ts]):
 
     @overload
     def __init__(
-        self: Signal[*tuple[Any, ...]],
+        self: Signal[Unpack[tuple[Any, ...]]],
         signature: Signature,
         /,
         **kwargs: Unpack[SignalKwargs],
@@ -373,13 +378,13 @@ class Signal(Generic[*Ts]):
 
     @overload
     def __init__(
-        self: Signal[*tuple[Any, ...]],
+        self: Signal[Unpack[tuple[Any, ...]]],
         *types: TypeForm[Any] | Signature,
         **kwargs: Unpack[SignalKwargs],
     ) -> None: ...
 
     def __init__(
-        self: Signal[*tuple[Any, ...]],
+        self: Signal[Unpack[tuple[Any, ...]]],
         *types: TypeForm[Any] | Signature,
         description: str = "",
         name: str | None = None,
@@ -420,16 +425,16 @@ class Signal(Generic[*Ts]):
     @overload
     def __get__(
         self, instance: None, owner: type[Any] | None = None
-    ) -> Signal[*Ts]: ...
+    ) -> Signal[Unpack[Ts]]: ...
 
     @overload
     def __get__(
         self, instance: Any, owner: type[Any] | None = None
-    ) -> SignalInstance[*Ts]: ...
+    ) -> SignalInstance[Unpack[Ts]]: ...
 
     def __get__(
         self, instance: Any, owner: type[Any] | None = None
-    ) -> Signal[*Ts] | SignalInstance[*Ts]:
+    ) -> Signal[Unpack[Ts]] | SignalInstance[Unpack[Ts]]:
         """Get signal instance.
 
         This is called when accessing a Signal instance.  If accessed as an
@@ -535,7 +540,7 @@ _empty_signature = Signature()
 
 
 @mypyc_attr(allow_interpreted_subclasses=True)
-class SignalInstance(Generic[*Ts]):
+class SignalInstance(Generic[Unpack[Ts]]):
     """A signal instance (optionally) bound to an object.
 
     In most cases, users will not create a `SignalInstance` directly -- instead
@@ -611,7 +616,7 @@ class SignalInstance(Generic[*Ts]):
     _debug_hook: ClassVar[Callable[[EmissionInfo], None] | None] = None
 
     def __init__(
-        self: SignalInstance[*tuple[Any, ...]],
+        self: SignalInstance[Unpack[tuple[Any, ...]]],
         signature: Signature | tuple = _empty_signature,
         *,
         instance: Any = None,
@@ -694,13 +699,13 @@ class SignalInstance(Generic[*Ts]):
 
     @overload
     def connect(
-        self: SignalInstance[T1, T2, T3, T4, T5, T6, *tuple[Any, ...]],
+        self: SignalInstance[T1, T2, T3, T4, T5, T6, Unpack[tuple[Any, ...]]],
         **kwargs: Unpack[ConnectKwargs],
     ) -> Callable[[F], F]: ...
 
     @overload
     def connect(
-        self: SignalInstance[T1, T2, T3, T4, T5, T6, *tuple[Any, ...]],
+        self: SignalInstance[T1, T2, T3, T4, T5, T6, Unpack[tuple[Any, ...]]],
         slot: F,
         **kwargs: Unpack[ConnectKwargs],
     ) -> F: ...
@@ -709,7 +714,7 @@ class SignalInstance(Generic[*Ts]):
     def connect(
         self,
         **kwargs: Unpack[ConnectKwargs],
-    ) -> Connector[*Ts]: ...
+    ) -> Connector[Unpack[Ts]]: ...
 
     @overload
     def connect(
@@ -720,35 +725,35 @@ class SignalInstance(Generic[*Ts]):
 
     @overload
     def connect(
-        self: SignalInstance[T1, *tuple[Any, ...]],
+        self: SignalInstance[T1, Unpack[tuple[Any, ...]]],
         slot: Callable[[T1], R],
         **kwargs: Unpack[ConnectKwargs],
     ) -> Callable[[T1], R]: ...
 
     @overload
     def connect(
-        self: SignalInstance[T1, T2, *tuple[Any, ...]],
+        self: SignalInstance[T1, T2, Unpack[tuple[Any, ...]]],
         slot: Callable[[T1, T2], R],
         **kwargs: Unpack[ConnectKwargs],
     ) -> Callable[[T1, T2], R]: ...
 
     @overload
     def connect(
-        self: SignalInstance[T1, T2, T3, *tuple[Any, ...]],
+        self: SignalInstance[T1, T2, T3, Unpack[tuple[Any, ...]]],
         slot: Callable[[T1, T2, T3], R],
         **kwargs: Unpack[ConnectKwargs],
     ) -> Callable[[T1, T2, T3], R]: ...
 
     @overload
     def connect(
-        self: SignalInstance[T1, T2, T3, T4, *tuple[Any, ...]],
+        self: SignalInstance[T1, T2, T3, T4, Unpack[tuple[Any, ...]]],
         slot: Callable[[T1, T2, T3, T4], R],
         **kwargs: Unpack[ConnectKwargs],
     ) -> Callable[[T1, T2, T3, T4], R]: ...
 
     @overload
     def connect(
-        self: SignalInstance[T1, T2, T3, T4, T5, *tuple[Any, ...]],
+        self: SignalInstance[T1, T2, T3, T4, T5, Unpack[tuple[Any, ...]]],
         slot: Callable[[T1, T2, T3, T4, T5], R],
         **kwargs: Unpack[ConnectKwargs],
     ) -> Callable[[T1, T2, T3, T4, T5], R]: ...
@@ -1290,7 +1295,7 @@ class SignalInstance(Generic[*Ts]):
         return len(self._slots)
 
     def emit(
-        self, *args: *Ts, check_nargs: bool = False, check_types: bool = False
+        self, *args: Unpack[Ts], check_nargs: bool = False, check_types: bool = False
     ) -> None:
         """Emit this signal with arguments `args`.
 
@@ -1355,7 +1360,7 @@ class SignalInstance(Generic[*Ts]):
 
         self._run_emit_loop(args)
 
-    def emit_fast(self, *args: *Ts) -> None:
+    def emit_fast(self, *args: Unpack[Ts]) -> None:
         """Fast emit without any checks.
 
         This method can be up to 10x faster than `emit()`, but it lacks most of the
@@ -1411,7 +1416,7 @@ class SignalInstance(Generic[*Ts]):
                 self._recursion_depth -= 1
 
     def __call__(
-        self, *args: *Ts, check_nargs: bool = False, check_types: bool = False
+        self, *args: Unpack[Ts], check_nargs: bool = False, check_types: bool = False
     ) -> None:
         """Alias for `emit()`. But prefer using `emit()` for clarity."""
         return self.emit(*args, check_nargs=check_nargs, check_types=check_types)
