@@ -142,9 +142,11 @@ from typing import (
     Any,
     ClassVar,
     Final,
+    Generic,
     Literal,
     NoReturn,
     TypeVar,
+    TypeVarTuple,
     Union,
     cast,
     get_args,
@@ -166,10 +168,11 @@ from ._weak_callback import (
 
 if TYPE_CHECKING:
     from collections.abc import Container, Iterable, Iterator
-    from typing import TypeAlias
+    from typing import TypeAlias, Unpack
 
     from typing_extensions import TypeForm
 
+    from ._connector import ConnectKwargs, Connector, SignalKwargs
     from ._group import EmissionInfo
     from ._weak_callback import RefErrorChoice
 
@@ -185,6 +188,14 @@ __all__ = ["Signal", "SignalInstance", "_compiled"]
 
 _NULL = object()
 F = TypeVar("F", bound=Callable)
+Ts = TypeVarTuple("Ts")
+T1 = TypeVar("T1")
+T2 = TypeVar("T2")
+T3 = TypeVar("T3")
+T4 = TypeVar("T4")
+T5 = TypeVar("T5")
+T6 = TypeVar("T6")
+R = TypeVar("R")
 
 # using 300 instead of sys.getrecursionlimit()
 # in a mypyc-compiled program, hitting an actual RecursionError can cause
@@ -223,7 +234,7 @@ class ReemissionMode:
         return VALID_REEMISSION
 
 
-class Signal:
+class Signal(Generic[*Ts]):
     """Declares a signal emitter on a class.
 
     This is class implements the [descriptor
@@ -296,8 +307,79 @@ class Signal:
 
     _current_emitter: ClassVar[SignalInstance | None] = None
 
+    @overload
     def __init__(
-        self,
+        self: Signal[*tuple[Any, ...]],
+        signature: Signature,
+        /,
+        **kwargs: Unpack[SignalKwargs],
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self: Signal[()],
+        **kwargs: Unpack[SignalKwargs],
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self: Signal[T1],
+        t1: TypeForm[T1],
+        /,
+        **kwargs: Unpack[SignalKwargs],
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self: Signal[T1, T2],
+        t1: TypeForm[T1],
+        t2: TypeForm[T2],
+        /,
+        **kwargs: Unpack[SignalKwargs],
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self: Signal[T1, T2, T3],
+        t1: TypeForm[T1],
+        t2: TypeForm[T2],
+        t3: TypeForm[T3],
+        /,
+        **kwargs: Unpack[SignalKwargs],
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self: Signal[T1, T2, T3, T4],
+        t1: TypeForm[T1],
+        t2: TypeForm[T2],
+        t3: TypeForm[T3],
+        t4: TypeForm[T4],
+        /,
+        **kwargs: Unpack[SignalKwargs],
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self: Signal[T1, T2, T3, T4, T5],
+        t1: TypeForm[T1],
+        t2: TypeForm[T2],
+        t3: TypeForm[T3],
+        t4: TypeForm[T4],
+        t5: TypeForm[T5],
+        /,
+        **kwargs: Unpack[SignalKwargs],
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self: Signal[*tuple[Any, ...]],
+        *types: TypeForm[Any] | Signature,
+        **kwargs: Unpack[SignalKwargs],
+    ) -> None: ...
+
+    def __init__(
+        self: Signal[*tuple[Any, ...]],
         *types: TypeForm[Any] | Signature,
         description: str = "",
         name: str | None = None,
@@ -336,16 +418,18 @@ class Signal:
             self._name = name
 
     @overload
-    def __get__(self, instance: None, owner: type[Any] | None = None) -> Signal: ...
+    def __get__(
+        self, instance: None, owner: type[Any] | None = None
+    ) -> Signal[*Ts]: ...
 
     @overload
     def __get__(
         self, instance: Any, owner: type[Any] | None = None
-    ) -> SignalInstance: ...
+    ) -> SignalInstance[*Ts]: ...
 
     def __get__(
         self, instance: Any, owner: type[Any] | None = None
-    ) -> Signal | SignalInstance:
+    ) -> Signal[*Ts] | SignalInstance[*Ts]:
         """Get signal instance.
 
         This is called when accessing a Signal instance.  If accessed as an
@@ -451,7 +535,7 @@ _empty_signature = Signature()
 
 
 @mypyc_attr(allow_interpreted_subclasses=True)
-class SignalInstance:
+class SignalInstance(Generic[*Ts]):
     """A signal instance (optionally) bound to an object.
 
     In most cases, users will not create a `SignalInstance` directly -- instead
@@ -527,7 +611,7 @@ class SignalInstance:
     _debug_hook: ClassVar[Callable[[EmissionInfo], None] | None] = None
 
     def __init__(
-        self,
+        self: SignalInstance[*tuple[Any, ...]],
         signature: Signature | tuple = _empty_signature,
         *,
         instance: Any = None,
@@ -610,32 +694,64 @@ class SignalInstance:
 
     @overload
     def connect(
-        self,
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | Literal["raise"] = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-        emit_on_evented_child_events: bool = ...,
+        self: SignalInstance[T1, T2, T3, T4, T5, T6, *tuple[Any, ...]],
+        **kwargs: Unpack[ConnectKwargs],
     ) -> Callable[[F], F]: ...
 
     @overload
     def connect(
-        self,
+        self: SignalInstance[T1, T2, T3, T4, T5, T6, *tuple[Any, ...]],
         slot: F,
-        *,
-        thread: threading.Thread | Literal["main", "current"] | None = ...,
-        check_nargs: bool | None = ...,
-        check_types: bool | None = ...,
-        unique: bool | Literal["raise"] = ...,
-        max_args: int | None = None,
-        on_ref_error: RefErrorChoice = ...,
-        priority: int = ...,
-        emit_on_evented_child_events: bool = ...,
+        **kwargs: Unpack[ConnectKwargs],
     ) -> F: ...
+
+    @overload
+    def connect(
+        self,
+        **kwargs: Unpack[ConnectKwargs],
+    ) -> Connector[*Ts]: ...
+
+    @overload
+    def connect(
+        self,
+        slot: Callable[[], R],
+        **kwargs: Unpack[ConnectKwargs],
+    ) -> Callable[[], R]: ...
+
+    @overload
+    def connect(
+        self: SignalInstance[T1, *tuple[Any, ...]],
+        slot: Callable[[T1], R],
+        **kwargs: Unpack[ConnectKwargs],
+    ) -> Callable[[T1], R]: ...
+
+    @overload
+    def connect(
+        self: SignalInstance[T1, T2, *tuple[Any, ...]],
+        slot: Callable[[T1, T2], R],
+        **kwargs: Unpack[ConnectKwargs],
+    ) -> Callable[[T1, T2], R]: ...
+
+    @overload
+    def connect(
+        self: SignalInstance[T1, T2, T3, *tuple[Any, ...]],
+        slot: Callable[[T1, T2, T3], R],
+        **kwargs: Unpack[ConnectKwargs],
+    ) -> Callable[[T1, T2, T3], R]: ...
+
+    @overload
+    def connect(
+        self: SignalInstance[T1, T2, T3, T4, *tuple[Any, ...]],
+        slot: Callable[[T1, T2, T3, T4], R],
+        **kwargs: Unpack[ConnectKwargs],
+    ) -> Callable[[T1, T2, T3, T4], R]: ...
+
+    @overload
+    def connect(
+        self: SignalInstance[T1, T2, T3, T4, T5, *tuple[Any, ...]],
+        slot: Callable[[T1, T2, T3, T4, T5], R],
+        **kwargs: Unpack[ConnectKwargs],
+    ) -> Callable[[T1, T2, T3, T4, T5], R]: ...
 
     def connect(
         self,
@@ -649,7 +765,7 @@ class SignalInstance:
         on_ref_error: RefErrorChoice = "warn",
         priority: int = 0,
         emit_on_evented_child_events: bool = False,
-    ) -> Callable[[F], F] | F:
+    ) -> Callable[..., Any]:
         """Connect a callback (`slot`) to this signal.
 
         `slot` is compatible if:
@@ -1174,7 +1290,7 @@ class SignalInstance:
         return len(self._slots)
 
     def emit(
-        self, *args: Any, check_nargs: bool = False, check_types: bool = False
+        self, *args: *Ts, check_nargs: bool = False, check_types: bool = False
     ) -> None:
         """Emit this signal with arguments `args`.
 
@@ -1214,14 +1330,19 @@ class SignalInstance:
                     f"signature {self.signature}:\n{e}"
                 ) from e
 
-        if check_types and not _parameter_types_match(
-            lambda: None, self.signature, _build_signature(*[type(a) for a in args])
-        ):
-            raise TypeError(
-                f"Types provided to '{self.name}.emit' "
-                f"{tuple(type(a).__name__ for a in args)} do not match signal "
-                f"signature: {self.signature}"
-            )
+        if check_types:
+            # mypyc cannot iterate over a tuple typed with a TypeVarTuple
+            values: tuple[Any, ...] = args
+            if not _parameter_types_match(
+                lambda: None,
+                self.signature,
+                _build_signature(*[type(a) for a in values]),
+            ):
+                raise TypeError(
+                    f"Types provided to '{self.name}.emit' "
+                    f"{tuple(type(a).__name__ for a in values)} do not match signal "
+                    f"signature: {self.signature}"
+                )
 
         if self._is_paused:
             self._args_queue.append(args)
@@ -1234,7 +1355,7 @@ class SignalInstance:
 
         self._run_emit_loop(args)
 
-    def emit_fast(self, *args: Any) -> None:
+    def emit_fast(self, *args: *Ts) -> None:
         """Fast emit without any checks.
 
         This method can be up to 10x faster than `emit()`, but it lacks most of the
@@ -1290,7 +1411,7 @@ class SignalInstance:
                 self._recursion_depth -= 1
 
     def __call__(
-        self, *args: Any, check_nargs: bool = False, check_types: bool = False
+        self, *args: *Ts, check_nargs: bool = False, check_types: bool = False
     ) -> None:
         """Alias for `emit()`. But prefer using `emit()` for clarity."""
         return self.emit(*args, check_nargs=check_nargs, check_types=check_types)

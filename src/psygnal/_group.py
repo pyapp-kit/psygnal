@@ -19,6 +19,7 @@ from typing import (
     ClassVar,
     Literal,
     SupportsIndex,
+    cast,
     overload,
 )
 
@@ -640,7 +641,7 @@ class SignalGroup:
         on_ref_error: RefErrorChoice = "warn",
         priority: int = 0,
         emit_on_evented_child_events: bool = False,
-    ) -> Callable[[F], F] | F:
+    ) -> Callable[..., Any]:
         if slot is None:
             return self._psygnal_relay.connect(
                 thread=thread,
@@ -653,16 +654,19 @@ class SignalGroup:
                 emit_on_evented_child_events=emit_on_evented_child_events,
             )
         else:
-            return self._psygnal_relay.connect(
-                slot,
-                thread=thread,
-                check_nargs=check_nargs,
-                check_types=check_types,
-                unique=unique,
-                max_args=max_args,
-                on_ref_error=on_ref_error,
-                priority=priority,
-                emit_on_evented_child_events=emit_on_evented_child_events,
+            return cast(
+                "F",
+                self._psygnal_relay.connect(
+                    slot,
+                    thread=thread,
+                    check_nargs=check_nargs,
+                    check_types=check_types,
+                    unique=unique,
+                    max_args=max_args,
+                    on_ref_error=on_ref_error,
+                    priority=priority,
+                    emit_on_evented_child_events=emit_on_evented_child_events,
+                ),
             )
 
     def connect_direct(
