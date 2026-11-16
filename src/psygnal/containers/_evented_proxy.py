@@ -20,15 +20,15 @@ _UNSET = object()
 class ProxyEvents(SignalGroup):
     """Events emitted by `EventedObjectProxy` and `EventedCallableObjectProxy`."""
 
-    attribute_set = Signal(str, object)
+    attribute_set: Signal[str, Any] = Signal(str, object)
     """Emitted when an attribute is set."""
     attribute_deleted = Signal(str)
     """Emitted when an attribute is deleted."""
-    item_set = Signal(object, object)
+    item_set: Signal[Any, Any] = Signal(object, object)
     """Emitted when an item is set."""
-    item_deleted = Signal(object)
+    item_deleted: Signal[Any] = Signal(object)
     """Emitted when an item is deleted."""
-    in_place = Signal(str, object)
+    in_place: Signal[str, Any] = Signal(str, object)
     """Emitted when an in-place operation is performed."""
 
 

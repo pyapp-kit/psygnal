@@ -1326,3 +1326,11 @@ def test_threaded_object_deleted_during_emission() -> None:
 
     mock.assert_not_called()
     assert len(sig) == 1
+
+
+def test_signal_classes_subscriptable_at_runtime() -> None:
+    """Subscript Signal and SignalInstance at runtime and build an instance."""
+    assert SignalInstance[int, str] is not None
+    sig = Signal[int](int)
+    assert isinstance(sig, Signal)
+    assert sig.signature.parameters["p0"].annotation is int

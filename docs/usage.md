@@ -167,6 +167,91 @@ Accepted signature: (p0: str, /)
 *Note: unlike Qt, `psygnal` does **not** perform any type coercion when emitting
 a value.*
 
+### Static Type Checking
+
+The `check_types` option checks a slot while the program runs. A static type
+checker such as mypy or pyright finds most of the same mistakes before the
+program runs, because a signal carries the types it emits as type parameters. On an
+instance of `MyObj`, the attribute declared as `Signal(str)` has the type
+`SignalInstance[str]`:
+
+```py
+from typing import reveal_type
+
+obj = MyObj()
+reveal_type(obj.value_changed)  # SignalInstance[str]
+```
+
+The checker uses these types on the arguments of `emit` and on the slots passed
+to `connect`, including `connect` used as a decorator:
+
+```py
+obj.value_changed.emit(1)  # type error: the signal emits str
+
+
+def i_expect_an_integer(x: int) -> None: ...
+
+
+obj.value_changed.connect(i_expect_an_integer)  # type error: x is not a str
+
+
+@obj.value_changed.connect(thread="main")
+def on_change(value: str) -> None: ...  # accepted
+```
+
+A slot may take fewer arguments than the signal emits, as it may at runtime, so
+the checker accepts a slot that takes only the first few values:
+
+```py
+class Point:
+    moved = Signal(float, float)
+
+
+def on_x_changed(x: float) -> None: ...
+
+
+Point().moved.connect(on_x_changed)  # accepted: the second value is dropped
+```
+
+Parameters with default values are checked less closely. A slot whose
+parameters all have defaults also fits the overload for a slot that takes no
+values, so the checker accepts it without comparing their types, even where
+`check_types=True` would reject it. For the same reason, a function decorated
+with `connect` is typed as taking only the values the checker matched, which
+for such a slot is none:
+
+```py
+@obj.value_changed.connect
+def refresh(value: str | None = None) -> None: ...
+
+
+refresh("x")  # type error: refresh is typed as taking no arguments
+```
+
+The types come from overloads of `Signal`. Every number of emitted types needs
+its own set of overloads, so they stop at five types. A signal declared with
+more than five types or with an `inspect.Signature` is therefore untyped, with
+the type `SignalInstance[*tuple[Any, ...]]`, and so is a `SignalInstance`
+created directly instead of through a `Signal` attribute. The checker accepts
+any arguments and any slot on an untyped signal.
+
+#### Upgrading
+
+Because signals now carry types, a checker may report errors in code it
+accepted before:
+
+- `emit` with more values than the signal declares, such as
+  `Signal().emit(1)`, which runs unless `check_nargs=True` is set.
+- A subclass of `SignalInstance` that overrides `connect` with overloads of its
+  own. An override with a single signature,
+  `def connect(self, slot: Any = None, **kwargs: Any) -> Any`, is accepted.
+- A protocol that describes any signal with
+  `def emit(self, *args: Any) -> Any`. Typed signals match
+  `def emit(self, *args: Any, **kwargs: Any) -> Any`.
+- A subclass that declares a signal attribute again with other types, or a
+  variable that is assigned signals of different types in turn. mypy reports
+  both; pyright reports neither.
+
 ### Weak References
 
 Psygnal tries very hard not to hold strong references to connected objects.

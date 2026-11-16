@@ -51,7 +51,12 @@ test = [
     "anyio",
     "trio",
 ]
-test-typing = [{ include-group = "test-min" }, "pytest-mypy-plugins<4; python_version < '3.14'"]
+test-typing = [
+    { include-group = "test-min" },
+    "mypy>=2.3.1",
+    "pyright>=1.1.414",
+    "pytest-mypy-plugins<4",
+]
 testqt = [{ include-group = "test" }, "pytest-qt", "qtpy"]
 test-codspeed = [{ include-group = "test" }, "pytest-codspeed"]
 docs = [
@@ -132,6 +137,7 @@ exclude = [
     "src/psygnal/_throttler.py",
     "src/psygnal/_async.py",
     "src/psygnal/testing.py",
+    "src/psygnal/_typing.py",
 ]
 
 [tool.cibuildwheel]
