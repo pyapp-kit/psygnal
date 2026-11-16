@@ -31,8 +31,8 @@ class SelectionEvents(SetEvents):
         Emitted when the current item has changed. (Private event)
     """
 
-    active = Signal(object)
-    _current = Signal(object)
+    active: Signal[Any] = Signal(object)
+    _current: Signal[Any] = Signal(object)
 
 
 class Selection(EventedOrderedSet[_T]):
