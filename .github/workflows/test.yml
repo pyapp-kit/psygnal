@@ -112,6 +112,10 @@ jobs:
           cache-dependency-glob: "**/pyproject.toml"
       - name: test
         run: uv run --no-dev --group test-typing pytest typesafety --mypy-only-local-stub --color=yes
+      - name: mypy on typed signals
+        run: uv run --no-dev --group test-typing mypy typesafety/signal_types.py --warn-unused-ignores
+      - name: pyright on typed signals
+        run: uv run --no-dev --group test-typing pyright typesafety/signal_types.py
 
   benchmarks:
     runs-on: ubuntu-latest

@@ -6,18 +6,19 @@
         s = Signal()
 
     t = T()
-    reveal_type(T.s)  # N: Revealed type is "psygnal._signal.Signal"
-    reveal_type(t.s)  # N: Revealed type is "psygnal._signal.SignalInstance"
+    reveal_type(T.s)  # N: Revealed type is "psygnal._signal.Signal[()]"
+    reveal_type(t.s)  # N: Revealed type is "psygnal._signal.SignalInstance[()]"
 
 - case: signal_params
   main: |
     from psygnal import Signal
     from inspect import Signature
-    s = Signal()
-    s = Signal(int, str)
-    s = Signal(object)
-    s = Signal(Signature())
-    s = Signal(1) # ER: Argument 1 to "Signal" has incompatible type "int"; .*
+    s0 = Signal()
+    s1 = Signal(int, str)
+    s2 = Signal(object)
+    s3 = Signal(Signature())
+    reveal_type(s1)  # N: Revealed type is "psygnal._signal.Signal[int, str]"
+    reveal_type(s3)  # N: Revealed type is "psygnal._signal.Signal[*tuple[Any, ...]]"
 
 - case: signal_connection
   main: |
@@ -27,7 +28,7 @@
 
     def a(x: int, y: str) -> Any: ...
     x = s.connect(a)
-    reveal_type(x)  # N: Revealed type is "def (x: int, y: str) -> Any"
+    reveal_type(x)  # N: Revealed type is "def (*Any, **Any) -> Any"
 
     @s.connect
     def b(x: str) -> int: return 1
@@ -35,9 +36,67 @@
 
     def c(x: int, y: str) -> Any: ...
     y = s.connect(c, check_nargs=False)
-    reveal_type(y)  # N: Revealed type is "def (x: int, y: str) -> Any"
+    reveal_type(y)  # N: Revealed type is "def (*Any, **Any) -> Any"
 
     @s.connect(check_nargs=False)
     def d(x: str) -> None: ...
 
     reveal_type(d)  # N: Revealed type is "def (x: str)"
+
+- case: custom_signal_instance_class
+  main: |
+    from psygnal import Signal, SignalInstance
+
+    class MyInstance(SignalInstance):
+        pass
+
+    class T:
+        s = Signal(int, signal_instance_class=MyInstance)
+
+    T().s.emit(1)
+
+- case: untyped_connect_keeps_slot_type
+  main: |
+    from psygnal import SignalInstance
+    sig = SignalInstance()
+
+    @sig.connect
+    def on_change(value: int, flag: bool = False) -> None: ...
+    reveal_type(on_change)  # N: Revealed type is "def (value: int, flag: bool =)"
+
+    @sig.connect(thread="main")
+    def with_options(value: int, flag: bool = False) -> None: ...
+    reveal_type(with_options)  # N: Revealed type is "def (value: int, flag: bool =)"
+
+- case: typed_signal_errors
+  main: |
+    from psygnal import Signal
+
+    class Model:
+        value = Signal(int)
+
+    def on_str(v: str) -> None: ...
+
+    m = Model()
+    m.value.emit("x")  # E: Argument 1 to "emit" of "SignalInstance" has incompatible type "str"; expected "int"  [arg-type]
+    m.value.connect(on_str)  # E: Argument 1 to "connect" of "SignalInstance" has incompatible type "Callable[[str], None]"; expected "Callable[[], None]"  [arg-type]
+
+- case: decorated_slot_with_defaults_loses_parameters
+  main: |
+    from psygnal import Signal
+
+    class Model:
+        value = Signal(int)
+
+    @Model().value.connect
+    def refresh(value: int | None = None) -> None: ...
+    reveal_type(refresh)  # N: Revealed type is "def ()"
+
+- case: subclass_overrides_connect
+  main: |
+    from typing import Any
+    from psygnal import SignalInstance
+
+    class MyInstance(SignalInstance):
+        def connect(self, slot: Any = None, **kwargs: Any) -> Any:
+            return super().connect(slot, **kwargs)
