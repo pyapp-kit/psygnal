@@ -7,8 +7,9 @@ from functools import partial
 from typing import TYPE_CHECKING, Any, ClassVar, TypeAlias, TypeVar, get_args
 
 if TYPE_CHECKING:
+    from typing import Self
+
     from pydantic import GetCoreSchemaHandler, SerializationInfo
-    from typing_extensions import Self
 
 from psygnal._group import EmissionInfo, PathStep, SignalGroup
 from psygnal._signal import Signal, SignalInstance

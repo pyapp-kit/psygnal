@@ -12,9 +12,9 @@ from psygnal import SignalGroup, SignalInstance
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from threading import Thread
-    from typing import Any, Literal
+    from typing import Any, Literal, Self
 
-    from typing_extensions import Self, TypedDict
+    from typing_extensions import TypedDict
 
     class ConnectKwargs(TypedDict, total=False):
         """Kwargs for SignalInstance.connect."""
