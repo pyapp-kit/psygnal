@@ -47,8 +47,9 @@ from psygnal._signal import Signal, SignalInstance
 from psygnal.utils import iter_signal_instances
 
 if TYPE_CHECKING:
+    from typing import Self
+
     from pydantic import GetCoreSchemaHandler, SerializationInfo
-    from typing_extensions import Self
 
 _T = TypeVar("_T")
 Index: TypeAlias = int | slice
